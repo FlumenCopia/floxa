@@ -157,6 +157,30 @@ export default function Analytics() {
       .join(" ");
   }, [trendBars]);
 
+  const areaPath = useMemo(() => {
+    const maxHeight = 170;
+    const stepX = trendBars.length > 1 ? 670 / (trendBars.length - 1) : 0;
+    const points = trendBars.map((item, index) => {
+      const x = index * stepX;
+      const y = maxHeight - (item.value / 100) * maxHeight;
+      return { x, y };
+    });
+
+    const curve = points
+      .map((point, index) => {
+        if (index === 0) {
+          return `M ${point.x} ${point.y}`;
+        }
+
+        const prev = points[index - 1];
+        const controlX = (prev.x + point.x) / 2;
+        return `C ${controlX} ${prev.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+      })
+      .join(" ");
+
+    return `${curve} L 670 170 L 0 170 Z`;
+  }, [trendBars]);
+
   const donutGradient = useMemo(() => {
     let current = 0;
     return `conic-gradient(${statusSegments
@@ -222,6 +246,7 @@ export default function Analytics() {
                 >
                   <div className="analytics-line-grid" />
                   <svg viewBox="0 0 670 180" preserveAspectRatio="none" className="analytics-line-svg" aria-hidden="true">
+                    <path className="analytics-line-area" d={areaPath} />
                     <path className="analytics-line-path" d={linePath} />
                     {trendBars.map((bar, index) => {
                       const x = trendBars.length > 1 ? index * (670 / (trendBars.length - 1)) : 0;

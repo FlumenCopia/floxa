@@ -2613,8 +2613,8 @@ textarea {
 
 .analytics-line-chart {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 10px;
   align-items: end;
 }
 
@@ -2622,37 +2622,41 @@ textarea {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 190px;
-  padding-bottom: 24px;
+  height: 206px;
+  padding-bottom: 28px;
   color: #77998a;
   font-size: 11px;
 }
 
 .analytics-line-plot {
   position: relative;
-  height: 190px;
+  height: 206px;
 }
 
 .analytics-line-grid {
   position: absolute;
-  inset: 0 0 24px 0;
+  inset: 0 0 28px 0;
   background:
-    repeating-linear-gradient(to top, rgba(77, 255, 160, 0.08) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(to top, rgba(77, 255, 160, 0.08) 0 1px, transparent 1px 27px),
     repeating-linear-gradient(to right, rgba(77, 255, 160, 0.05) 0 1px, transparent 1px 134px);
 }
 
 .analytics-line-svg {
   position: absolute;
-  inset: 0 0 24px 0;
+  inset: 0 0 28px 0;
   width: 100%;
-  height: calc(100% - 24px);
+  height: calc(100% - 28px);
   overflow: visible;
+}
+
+.analytics-line-area {
+  fill: rgba(77, 255, 160, 0.08);
 }
 
 .analytics-line-path {
   fill: none;
   stroke: #49f59c;
-  stroke-width: 3;
+  stroke-width: 3.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -2660,6 +2664,8 @@ textarea {
 .analytics-line-dot {
   fill: #49f59c;
   cursor: pointer;
+  stroke: rgba(10, 33, 21, 0.95);
+  stroke-width: 2;
 }
 
 .analytics-line-dot.active {
@@ -2678,7 +2684,7 @@ textarea {
   display: flex;
   justify-content: space-between;
   color: #88ab9c;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .analytics-line-label-btn {
