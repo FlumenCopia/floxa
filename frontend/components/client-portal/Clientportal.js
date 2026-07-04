@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const firstFrameFields = [
   {
@@ -121,11 +122,11 @@ function StepDots({ active, total = 9 }) {
   );
 }
 
-function PortalHeader() {
+function PortalHeader({ onClose }) {
   return (
     <header className="cp-header">
       <div className="cp-logo">FLOXA</div>
-      <button className="cp-close" type="button">
+      <button className="cp-close" onClick={onClose} type="button">
         X Close
       </button>
     </header>
@@ -229,6 +230,7 @@ function ChoiceGrid({ items, selected, setSelected, limit = 1, className = "" })
 }
 
 export default function Clientportal() {
+  const router = useRouter();
   const [entered, setEntered] = useState(false);
   const [finished, setFinished] = useState(false);
   const [step, setStep] = useState(1);
@@ -278,7 +280,7 @@ export default function Clientportal() {
   if (finished) {
     return (
       <main className="cp-screen">
-        <PortalHeader />
+        <PortalHeader onClose={() => router.push("/")} />
         <section className="cp-result-card">
           <div className="cp-frame">Your brand personality</div>
           <h1>Balanced</h1>
@@ -309,7 +311,7 @@ export default function Clientportal() {
   if (!entered) {
     return (
       <main className="cp-screen">
-        <PortalHeader />
+        <PortalHeader onClose={() => router.push("/")} />
         <section className="cp-entry-card">
           <div className="cp-orb" aria-hidden="true" />
           <h1>{"Let's discover your brand."}</h1>
@@ -341,7 +343,7 @@ export default function Clientportal() {
 
   return (
     <main className="cp-screen">
-      <PortalHeader />
+      <PortalHeader onClose={() => router.push("/")} />
 
       {step === 1 ? (
         <PortalCard
