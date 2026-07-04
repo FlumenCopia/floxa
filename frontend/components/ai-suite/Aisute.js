@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const projects = ["Craft & Co", "Bloom Studio", "Helix Tech"];
 
@@ -14,7 +14,7 @@ const tools = [
     badge: "Core",
     badgeClass: "core",
     action: "Run",
-    result: "Suggestions are now attached to active discovery fields for Craft & Co.",
+    result: (project) => `Suggestions are now attached to active discovery fields for ${project}.`,
   },
   {
     id: "enhance-brand-dna",
@@ -25,7 +25,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: "Brand DNA enhanced with sharper positioning and 3 refined tagline routes.",
+    result: (project) => `Brand DNA for ${project} was enhanced with sharper positioning and 3 refined tagline routes.`,
   },
   {
     id: "voice-simulator",
@@ -36,7 +36,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: "Voice simulator produced a tone guide and three sample copy snippets.",
+    result: (project) => `Voice simulator for ${project} produced a tone guide and three sample copy snippets.`,
   },
   {
     id: "moodboard-directions",
@@ -47,7 +47,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: "Three moodboard directions generated with validated palettes.",
+    result: (project) => `Three moodboard directions for ${project} were generated with validated palettes.`,
   },
   {
     id: "concept-strategies",
@@ -58,7 +58,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: "Three concept strategies are ready with risk and differentiation scoring.",
+    result: (project) => `Three concept strategies for ${project} are ready with risk and differentiation scoring.`,
   },
   {
     id: "creative-brief",
@@ -69,7 +69,7 @@ const tools = [
     badge: "Core",
     badgeClass: "core",
     action: "Generate",
-    result: "Creative brief generated and staged for export.",
+    result: (project) => `Creative brief for ${project} was generated and staged for export.`,
   },
   {
     id: "proposal-generator",
@@ -80,7 +80,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: "Proposal draft assembled with six structured sections.",
+    result: (project) => `Proposal draft for ${project} was assembled with six structured sections.`,
   },
   {
     id: "project-health-ai",
@@ -91,7 +91,7 @@ const tools = [
     badge: "Agency",
     badgeClass: "agency",
     action: "Run",
-    result: "Project health scored at 82 with two follow-up suggestions.",
+    result: (project) => `Project health for ${project} scored at 82 with two follow-up suggestions.`,
   },
   {
     id: "ai-usage-stats",
@@ -102,7 +102,7 @@ const tools = [
     badge: "Core",
     badgeClass: "core",
     action: "Run",
-    result: "Usage stats refreshed with the latest cost and acceptance metrics.",
+    result: (project) => `Usage stats for ${project} were refreshed with the latest cost and acceptance metrics.`,
   },
 ];
 
@@ -132,15 +132,64 @@ function ToolIcon({ type }) {
 export default function Aisute() {
   const [selectedProject, setSelectedProject] = useState(projects[0]);
   const [activeToolId, setActiveToolId] = useState("");
+  const [runningToolId, setRunningToolId] = useState("");
+  const [isCopilotLive, setIsCopilotLive] = useState(true);
+  const [toolRuns, setToolRuns] = useState({});
+  const [latestOutput, setLatestOutput] = useState(null);
+  const runTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (runTimerRef.current) {
+        clearTimeout(runTimerRef.current);
+      }
+    };
+  }, []);
 
   const activeResult = useMemo(() => {
-    if (!activeToolId) {
+    if (!latestOutput) {
       return `${selectedProject} is ready. Choose a tool to run brand workflows.`;
     }
 
-    const tool = tools.find((item) => item.id === activeToolId);
-    return tool ? `${tool.result}` : `${selectedProject} is ready.`;
-  }, [activeToolId, selectedProject]);
+    return `${latestOutput.message} Updated ${latestOutput.time}.`;
+  }, [latestOutput, selectedProject]);
+
+  const handleProjectChange = (event) => {
+    setSelectedProject(event.target.value);
+    setActiveToolId("");
+    setRunningToolId("");
+  };
+
+  const handleToolAction = (tool) => {
+    if (runningToolId) {
+      return;
+    }
+
+    setActiveToolId(tool.id);
+    setRunningToolId(tool.id);
+
+    if (runTimerRef.current) {
+      clearTimeout(runTimerRef.current);
+    }
+
+    runTimerRef.current = setTimeout(() => {
+      const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+      setToolRuns((current) => ({
+        ...current,
+        [tool.id]: (current[tool.id] || 0) + 1,
+      }));
+
+      setLatestOutput({
+        toolId: tool.id,
+        toolName: tool.name,
+        message: tool.result(selectedProject),
+        time: timestamp,
+      });
+
+      setRunningToolId("");
+    }, 550);
+  };
 
   return (
     <div className="content">
@@ -154,7 +203,7 @@ export default function Aisute() {
 
             <label className="ai-suite-project-picker">
               <span className="ai-suite-project-label">Project</span>
-              <select value={selectedProject} onChange={(event) => setSelectedProject(event.target.value)}>
+              <select value={selectedProject} onChange={handleProjectChange}>
                 {projects.map((project) => (
                   <option key={project} value={project}>
                     {project}
@@ -168,11 +217,21 @@ export default function Aisute() {
             <div className="ai-suite-live-main">
               <div className="ai-suite-live-icon">+</div>
               <div>
-                <div className="ai-suite-live-title">AI Co-Pilot is active</div>
-                <div className="ai-suite-live-copy">Real-time suggestions appear as clients type in discovery frames</div>
+                <div className="ai-suite-live-title">AI Co-Pilot is {isCopilotLive ? "active" : "paused"}</div>
+                <div className="ai-suite-live-copy">
+                  {isCopilotLive
+                    ? "Real-time suggestions appear as clients type in discovery frames"
+                    : "Co-Pilot is paused. Resume it to re-enable live discovery suggestions."}
+                </div>
               </div>
             </div>
-            <div className="ai-suite-live-pill">Live</div>
+            <button
+              className={`ai-suite-live-pill ${isCopilotLive ? "" : "paused"}`.trim()}
+              type="button"
+              onClick={() => setIsCopilotLive((current) => !current)}
+            >
+              {isCopilotLive ? "Live" : "Paused"}
+            </button>
           </section>
 
           <div className="ai-suite-grid">
@@ -189,13 +248,17 @@ export default function Aisute() {
                 <p className="ai-suite-tool-description">{tool.description}</p>
 
                 <div className="ai-suite-tool-bottom">
-                  <div className="ai-suite-tool-meta">{tool.meta}</div>
+                  <div className="ai-suite-tool-meta">
+                    {tool.meta}
+                    <span className="ai-suite-tool-runs">Runs: {toolRuns[tool.id] || 0}</span>
+                  </div>
                   <button
                     className="btn btn-secondary ai-suite-run-btn"
                     type="button"
-                    onClick={() => setActiveToolId(tool.id)}
+                    onClick={() => handleToolAction(tool)}
+                    disabled={Boolean(runningToolId)}
                   >
-                    {tool.action}
+                    {runningToolId === tool.id ? "Running..." : tool.action}
                   </button>
                 </div>
               </section>
@@ -204,6 +267,9 @@ export default function Aisute() {
 
           <section className="ai-suite-card ai-suite-result-card">
             <div className="ai-suite-result-label">Latest output</div>
+            <div className="ai-suite-result-tool">
+              {activeToolId ? tools.find((item) => item.id === activeToolId)?.name || "AI Suite" : "AI Suite"}
+            </div>
             <div className="ai-suite-result-text">{activeResult}</div>
           </section>
         </div>

@@ -2330,6 +2330,13 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+
+.ai-suite-live-pill.paused {
+  background: rgba(129, 160, 149, 0.12);
+  color: #9abcae;
 }
 
 .ai-suite-grid {
@@ -2424,11 +2431,22 @@ textarea {
   font-size: 12px;
 }
 
+.ai-suite-tool-runs {
+  display: block;
+  margin-top: 5px;
+  color: #7fa594;
+}
+
 .ai-suite-run-btn {
   min-width: 72px;
   height: 34px;
   border-radius: 10px;
   font-weight: 600;
+}
+
+.ai-suite-run-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
 }
 
 .ai-suite-result-card {
@@ -2442,8 +2460,15 @@ textarea {
   text-transform: uppercase;
 }
 
-.ai-suite-result-text {
+.ai-suite-result-tool {
   margin-top: 8px;
+  color: #f4f8f2;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ai-suite-result-text {
+  margin-top: 6px;
   color: #eef8f3;
   font-size: 13px;
   line-height: 1.6;
