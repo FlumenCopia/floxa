@@ -137,7 +137,8 @@ export default function Analytics() {
   const selectedModule = modulePerformance.find((item) => item.name === selectedModuleName) || modulePerformance[0];
   const hoveredTrendPoint = hoveredTrendIndex === null ? null : trendBars[hoveredTrendIndex];
   const hoveredStatus = hoveredStatusLabel ? statusSegments.find((item) => item.label === hoveredStatusLabel) : null;
-  const hoveredModule = hoveredModuleName ? modulePerformance.find((item) => item.name === hoveredModuleName) : null;
+    const hoveredModule = hoveredModuleName ? modulePerformance.find((item) => item.name === hoveredModuleName) : null;
+    const activeStatus = hoveredStatus || selectedStatus;
 
   const linePath = useMemo(() => {
     const maxHeight = 170;
@@ -301,38 +302,45 @@ export default function Analytics() {
             <section className="analytics-card analytics-module-card">
               <div className="analytics-card-head">
                 <h2>Projects by status</h2>
-                <span>{(hoveredStatus || selectedStatus).count} projects</span>
-              </div>
-              <div className="analytics-status-layout">
-                <div
-                  className="analytics-donut-wrap"
-                  onMouseLeave={() => setHoveredStatusLabel(null)}
-                >
-                  <div className="analytics-donut-chart" style={{ background: donutGradient }}>
-                    <div className="analytics-donut-hole">
-                      <strong>{(hoveredStatus || selectedStatus).value}%</strong>
-                      <span>{(hoveredStatus || selectedStatus).label}</span>
-                    </div>
-                  </div>
-                  {hoveredStatus ? (
-                    <div className="analytics-status-tooltip">
-                      <strong>{hoveredStatus.label}</strong>
-                      <span>{hoveredStatus.count} projects</span>
-                    </div>
-                  ) : null}
+                  <span>{activeStatus.value}% share</span>
                 </div>
-                <div className="analytics-status-legend">
+                <div className="analytics-status-layout">
+                  <div
+                    className="analytics-donut-wrap"
+                    onMouseLeave={() => setHoveredStatusLabel(null)}
+                  >
+                    <div className="analytics-donut-chart" style={{ background: donutGradient }}>
+                      <div className="analytics-donut-hole">
+                        <strong>{activeStatus.value}%</strong>
+                        <span>{activeStatus.label}</span>
+                      </div>
+                    </div>
+                    {activeStatus ? (
+                      <div className="analytics-status-tooltip">
+                        <div className="analytics-status-tooltip-chip">
+                          <span
+                            className="analytics-status-tooltip-swatch"
+                            style={{ background: activeStatus.color }}
+                          />
+                          <strong>{activeStatus.label}</strong>
+                        </div>
+                        <span>{activeStatus.value}%</span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="analytics-status-legend">
                   {statusSegments.map((item) => (
                     <button
                       className={`analytics-legend-row ${selectedStatusLabel === item.label ? "active" : ""} ${hoveredStatusLabel === item.label ? "hovered" : ""}`.trim()}
-                      key={item.label}
-                      type="button"
-                      onClick={() => setSelectedStatusLabel(item.label)}
-                      onMouseEnter={() => setHoveredStatusLabel(item.label)}
-                    >
-                      <span className="analytics-legend-swatch" style={{ background: item.color }} />
-                      <span>{item.label}</span>
-                    </button>
+                        key={item.label}
+                        type="button"
+                        onClick={() => setSelectedStatusLabel(item.label)}
+                        onMouseEnter={() => setHoveredStatusLabel(item.label)}
+                        onMouseLeave={() => setHoveredStatusLabel(null)}
+                      >
+                        <span className="analytics-legend-swatch" style={{ background: item.color }} />
+                        <span>{item.label}</span>
+                      </button>
                   ))}
                 </div>
               </div>
