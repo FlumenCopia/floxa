@@ -412,7 +412,7 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   cursor: pointer;
   transition: 0.18s ease;
   padding: 6px 2px 4px;
@@ -432,14 +432,12 @@ textarea {
 }
 
 .mobile-tab-item .nav-icon {
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
 }
 
 .mobile-tab-item.active {
-  background: var(--card);
   color: var(--neon);
-  box-shadow: inset 0 0 0 1px rgba(77, 255, 160, 0.22);
 }
 
 .notif-dot {
@@ -4449,16 +4447,16 @@ textarea {
     left: 0;
     display: flex;
     align-items: stretch;
-    background: #071a11;
+    background: #06140d;
     border-top: 1px solid rgba(77, 255, 160, 0.12);
-    box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.28);
+    box-shadow: 0 -8px 18px rgba(0, 0, 0, 0.26);
     z-index: 38;
     padding-bottom: env(safe-area-inset-bottom, 0px);
-    min-height: 62px;
+    min-height: 60px;
   }
 
   .main {
-    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -4497,9 +4495,9 @@ textarea {
   }
 
   .mobile-tab-item {
-    height: 56px;
-    gap: 3px;
-    padding-top: 6px;
+    height: 54px;
+    gap: 2px;
+    padding-top: 5px;
   }
 
   .mobile-tab-item .nav-icon {
