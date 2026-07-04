@@ -1,10 +1,11 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const primaryNavItems = [
-  { label: "Dashboard", icon: "grid", active: true, badge: "3", badgeClass: "g" },
-  { label: "Projects", icon: "mail" },
+  { label: "Dashboard", icon: "grid", badge: "3", badgeClass: "g", route: "/" },
+  { label: "Projects", icon: "mail", route: "/project" },
   { label: "Discovery", icon: "search", badge: "1" },
   { label: "AI Suite", icon: "star" },
   { label: "Analytics", icon: "chart" },
@@ -15,8 +16,8 @@ const clientNavItems = [{ label: "Client Portal", icon: "portal" }];
 const accountNavItems = [{ label: "Settings", icon: "settings" }];
 
 const mobileTabItems = [
-  { label: "Home", icon: "grid", active: true },
-  { label: "Projects", icon: "mail" },
+  { label: "Home", icon: "grid", route: "/" },
+  { label: "Projects", icon: "mail", route: "/project" },
   { label: "AI", icon: "star" },
   { label: "Portal", icon: "portal" },
   { label: "Settings", icon: "settings" },
@@ -102,17 +103,34 @@ function NavItem({ item, onClick }) {
   );
 }
 
-function MobileTabItem({ item }) {
+function MobileTabItem({ item, onClick }) {
   return (
-    <button className={`mobile-tab-item ${item.active ? "active" : ""}`.trim()} type="button">
+    <button className={`mobile-tab-item ${item.active ? "active" : ""}`.trim()} type="button" onClick={onClick}>
       <Icon type={item.icon} />
       <span>{item.label}</span>
     </button>
   );
 }
 
-export default function Floxaheader({ children }) {
+export default function Floxaheader({ children, title = "Dashboard", activeNav = "Dashboard" }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const resolvedActiveNav = pathname === "/project" ? "Projects" : activeNav;
+  const resolvedPrimaryNavItems = primaryNavItems.map((item) => ({
+    ...item,
+    active: item.label === resolvedActiveNav,
+  }));
+
+  const resolvedMobileTabItems = mobileTabItems.map((item) => ({
+    ...item,
+    active:
+      (resolvedActiveNav === "Dashboard" && item.label === "Home") ||
+      (resolvedActiveNav === "Projects" && item.label === "Projects") ||
+      (resolvedActiveNav === "AI Suite" && item.label === "AI") ||
+      (resolvedActiveNav === "Client Portal" && item.label === "Portal") ||
+      (resolvedActiveNav === "Settings" && item.label === "Settings"),
+  }));
 
   useEffect(() => {
     const handleEscape = (event) => {
@@ -136,6 +154,12 @@ export default function Floxaheader({ children }) {
   }, [isSidebarOpen]);
 
   const closeSidebar = () => setIsSidebarOpen(false);
+  const handleNavigation = (route) => {
+    closeSidebar();
+    if (route && route !== pathname) {
+      router.push(route);
+    }
+  };
 
   return (
     <>
@@ -153,22 +177,22 @@ export default function Floxaheader({ children }) {
 
         <div className="nav-section">
           <div className="nav-lbl">Workspace</div>
-          {primaryNavItems.map((item) => (
-            <NavItem key={item.label} item={item} onClick={closeSidebar} />
+          {resolvedPrimaryNavItems.map((item) => (
+            <NavItem key={item.label} item={item} onClick={() => handleNavigation(item.route)} />
           ))}
         </div>
 
         <div className="nav-section">
           <div className="nav-lbl">Client</div>
           {clientNavItems.map((item) => (
-            <NavItem key={item.label} item={item} onClick={closeSidebar} />
+            <NavItem key={item.label} item={item} onClick={() => handleNavigation(item.route)} />
           ))}
         </div>
 
         <div className="nav-section">
           <div className="nav-lbl">Account</div>
           {accountNavItems.map((item) => (
-            <NavItem key={item.label} item={item} onClick={closeSidebar} />
+            <NavItem key={item.label} item={item} onClick={() => handleNavigation(item.route)} />
           ))}
         </div>
 
@@ -198,7 +222,7 @@ export default function Floxaheader({ children }) {
               <path d="M3 18h18" />
             </svg>
           </button>
-          <div className="topbar-title">Dashboard</div>
+          <div className="topbar-title">{title}</div>
           <div className="spacer" />
           <div className="search-wrap">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -216,8 +240,8 @@ export default function Floxaheader({ children }) {
       </div>
 
       <div className="mobile-tabbar">
-        {mobileTabItems.map((item) => (
-          <MobileTabItem key={item.label} item={item} />
+        {resolvedMobileTabItems.map((item) => (
+          <MobileTabItem key={item.label} item={item} onClick={() => handleNavigation(item.route)} />
         ))}
       </div>
     </>

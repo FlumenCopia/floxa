@@ -910,6 +910,122 @@ textarea {
   padding: 0 14px;
 }
 
+.badge-muted {
+  background: rgba(129, 160, 149, 0.12);
+  color: #7ea092;
+  border: 1px solid rgba(129, 160, 149, 0.16);
+}
+
+.project-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.project-page-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: #f5f8f3;
+}
+
+.project-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.project-filter-btn {
+  min-width: 164px;
+  height: 40px;
+  justify-content: flex-start;
+  border-radius: 10px;
+  padding: 0 14px;
+}
+
+.project-new-btn {
+  height: 36px;
+  border-radius: 10px;
+  padding: 0 18px;
+  font-weight: 600;
+}
+
+.project-table-card {
+  background: linear-gradient(180deg, rgba(13, 40, 25, 0.98), rgba(11, 30, 21, 0.98));
+  border: 1px solid rgba(77, 255, 160, 0.12);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.project-table-wrap {
+  overflow-x: auto;
+}
+
+.project-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.project-table thead {
+  background: rgba(14, 40, 26, 0.94);
+}
+
+.project-table th {
+  padding: 12px 18px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #97b3a5;
+}
+
+.project-table td {
+  padding: 16px 18px;
+  font-size: 13px;
+  color: #a9c5b7;
+  border-top: 1px solid rgba(77, 255, 160, 0.06);
+  vertical-align: middle;
+}
+
+.project-client-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f4f8f1;
+}
+
+.project-client-email {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #5d8373;
+}
+
+.project-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f2f8f1;
+}
+
+.project-progress-cell {
+  width: 88px;
+}
+
+.project-progress-track {
+  width: 88px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(128, 164, 148, 0.18);
+  overflow: hidden;
+}
+
+.project-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #35ff9a, #18dc74);
+}
+
 .activity-card::-webkit-scrollbar,
 .content::-webkit-scrollbar {
   width: 6px;
@@ -1109,6 +1225,62 @@ textarea {
     display: none;
   }
 
+  .project-page-head {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-bottom: 14px;
+  }
+
+  .project-page-title {
+    font-size: 17px;
+  }
+
+  .project-page-actions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .project-filter-btn {
+    min-width: 0;
+    flex: 1;
+    height: 34px;
+    font-size: 11px;
+  }
+
+  .project-new-btn {
+    height: 34px;
+    padding: 0 14px;
+    font-size: 11px;
+  }
+
+  .project-table-card {
+    border-radius: 12px;
+  }
+
+  .project-table th {
+    padding: 10px 12px;
+    font-size: 9px;
+  }
+
+  .project-table td {
+    padding: 12px;
+    font-size: 11px;
+  }
+
+  .project-client-name,
+  .project-value {
+    font-size: 12px;
+  }
+
+  .project-client-email {
+    font-size: 10px;
+  }
+
+  .project-progress-cell,
+  .project-progress-track {
+    width: 64px;
+  }
+
   .mobile-tabbar {
     position: fixed;
     right: 0;
@@ -1180,6 +1352,14 @@ textarea {
 
   .dashboard-card-header {
     padding: 10px 12px 9px;
+  }
+
+  .project-page-title {
+    font-size: 16px;
+  }
+
+  .project-table {
+    min-width: 640px;
   }
 
   .activity-card {
