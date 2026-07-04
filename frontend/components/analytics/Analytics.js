@@ -119,6 +119,8 @@ export default function Analytics() {
   const [selectedStatusLabel, setSelectedStatusLabel] = useState("Delivered");
   const [selectedModuleName, setSelectedModuleName] = useState("Moodboard");
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState(null);
+  const [hoveredStatusLabel, setHoveredStatusLabel] = useState(null);
+  const [hoveredModuleName, setHoveredModuleName] = useState(null);
 
   const analyticsData = analyticsByRange[selectedRange];
   const metricCards = analyticsData.metrics;
@@ -134,6 +136,8 @@ export default function Analytics() {
   const selectedStatus = statusSegments.find((item) => item.label === selectedStatusLabel) || statusSegments[0];
   const selectedModule = modulePerformance.find((item) => item.name === selectedModuleName) || modulePerformance[0];
   const hoveredTrendPoint = hoveredTrendIndex === null ? null : trendBars[hoveredTrendIndex];
+  const hoveredStatus = hoveredStatusLabel ? statusSegments.find((item) => item.label === hoveredStatusLabel) : null;
+  const hoveredModule = hoveredModuleName ? modulePerformance.find((item) => item.name === hoveredModuleName) : null;
 
   const linePath = useMemo(() => {
     const maxHeight = 170;
@@ -297,24 +301,34 @@ export default function Analytics() {
             <section className="analytics-card analytics-module-card">
               <div className="analytics-card-head">
                 <h2>Projects by status</h2>
-                <span>{selectedStatus.count} projects</span>
+                <span>{(hoveredStatus || selectedStatus).count} projects</span>
               </div>
               <div className="analytics-status-layout">
-                <div className="analytics-donut-wrap">
+                <div
+                  className="analytics-donut-wrap"
+                  onMouseLeave={() => setHoveredStatusLabel(null)}
+                >
                   <div className="analytics-donut-chart" style={{ background: donutGradient }}>
                     <div className="analytics-donut-hole">
-                      <strong>{selectedStatus.value}%</strong>
-                      <span>{selectedStatus.label}</span>
+                      <strong>{(hoveredStatus || selectedStatus).value}%</strong>
+                      <span>{(hoveredStatus || selectedStatus).label}</span>
                     </div>
                   </div>
+                  {hoveredStatus ? (
+                    <div className="analytics-status-tooltip">
+                      <strong>{hoveredStatus.label}</strong>
+                      <span>{hoveredStatus.count} projects</span>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="analytics-status-legend">
                   {statusSegments.map((item) => (
                     <button
-                      className={`analytics-legend-row ${selectedStatusLabel === item.label ? "active" : ""}`.trim()}
+                      className={`analytics-legend-row ${selectedStatusLabel === item.label ? "active" : ""} ${hoveredStatusLabel === item.label ? "hovered" : ""}`.trim()}
                       key={item.label}
                       type="button"
                       onClick={() => setSelectedStatusLabel(item.label)}
+                      onMouseEnter={() => setHoveredStatusLabel(item.label)}
                     >
                       <span className="analytics-legend-swatch" style={{ background: item.color }} />
                       <span>{item.label}</span>
@@ -329,9 +343,12 @@ export default function Analytics() {
             <section className="analytics-card analytics-table-card">
               <div className="analytics-card-head">
                 <h2>AI module acceptance rates</h2>
-                <span>{selectedModule.name} - {selectedModule.value}</span>
+                <span>{(hoveredModule || selectedModule).name} - {(hoveredModule || selectedModule).value}</span>
               </div>
-              <div className="analytics-acceptance-chart">
+              <div
+                className="analytics-acceptance-chart"
+                onMouseLeave={() => setHoveredModuleName(null)}
+              >
                 <div className="analytics-acceptance-yaxis">
                   <span>100%</span>
                   <span>80%</span>
@@ -345,10 +362,11 @@ export default function Analytics() {
                   <div className="analytics-acceptance-bars">
                     {modulePerformance.map((item) => (
                       <button
-                        className={`analytics-acceptance-col ${selectedModuleName === item.name ? "active" : ""}`.trim()}
+                        className={`analytics-acceptance-col ${selectedModuleName === item.name ? "active" : ""} ${hoveredModuleName === item.name ? "hovered" : ""}`.trim()}
                         key={item.name}
                         type="button"
                         onClick={() => setSelectedModuleName(item.name)}
+                        onMouseEnter={() => setHoveredModuleName(item.name)}
                       >
                         <div className="analytics-acceptance-track">
                           <div className="analytics-acceptance-fill" style={{ height: `${item.width}%` }} />
@@ -357,6 +375,19 @@ export default function Analytics() {
                       </button>
                     ))}
                   </div>
+                  {hoveredModule ? (
+                    <div
+                      className="analytics-acceptance-tooltip"
+                      style={{
+                        left: `${((modulePerformance.findIndex((item) => item.name === hoveredModule.name) + 0.5) / modulePerformance.length) * 100}%`,
+                        top: `${170 - (hoveredModule.width / 100) * 170}px`,
+                      }}
+                    >
+                      <strong>{hoveredModule.name}</strong>
+                      <span>{hoveredModule.value} acceptance</span>
+                      <span>{hoveredModule.runs} runs</span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
               <div className="analytics-module-summary">

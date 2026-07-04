@@ -2749,6 +2749,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .analytics-donut-chart {
@@ -2805,6 +2806,38 @@ textarea {
 
 .analytics-legend-row.active {
   color: #eef8f3;
+}
+
+.analytics-legend-row.hovered {
+  color: #eef8f3;
+}
+
+.analytics-status-tooltip {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  z-index: 2;
+  min-width: 110px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(77, 255, 160, 0.18);
+  background: rgba(10, 33, 21, 0.96);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.analytics-status-tooltip strong {
+  display: block;
+  color: #eef8f3;
+  font-size: 11px;
+}
+
+.analytics-status-tooltip span {
+  display: block;
+  margin-top: 3px;
+  color: #7fe2a8;
+  font-size: 11px;
 }
 
 .analytics-legend-swatch {
@@ -2886,6 +2919,10 @@ textarea {
   background: rgba(83, 247, 159, 0.48);
 }
 
+.analytics-acceptance-col.hovered .analytics-acceptance-fill {
+  background: rgba(83, 247, 159, 0.4);
+}
+
 .analytics-acceptance-label {
   color: #88ab9c;
   font-size: 11px;
@@ -2894,6 +2931,49 @@ textarea {
 
 .analytics-acceptance-col.active .analytics-acceptance-label {
   color: #eef8f3;
+}
+
+.analytics-acceptance-col.hovered .analytics-acceptance-label {
+  color: #eef8f3;
+}
+
+.analytics-acceptance-tooltip {
+  position: absolute;
+  z-index: 2;
+  min-width: 110px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(77, 255, 160, 0.18);
+  background: rgba(10, 33, 21, 0.96);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+  transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: none;
+}
+
+.analytics-acceptance-tooltip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  background: rgba(10, 33, 21, 0.96);
+  border-right: 1px solid rgba(77, 255, 160, 0.18);
+  border-bottom: 1px solid rgba(77, 255, 160, 0.18);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.analytics-acceptance-tooltip strong {
+  display: block;
+  color: #eef8f3;
+  font-size: 11px;
+}
+
+.analytics-acceptance-tooltip span {
+  display: block;
+  margin-top: 3px;
+  color: #7fe2a8;
+  font-size: 11px;
 }
 
 .analytics-module-summary {
