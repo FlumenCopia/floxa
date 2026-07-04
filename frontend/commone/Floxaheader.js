@@ -6,21 +6,21 @@ import { useEffect, useState } from "react";
 const primaryNavItems = [
   { label: "Dashboard", icon: "grid", badge: "3", badgeClass: "g", route: "/" },
   { label: "Projects", icon: "mail", route: "/project" },
-  { label: "Discovery", icon: "search", badge: "1" },
-  { label: "AI Suite", icon: "star" },
-  { label: "Analytics", icon: "chart" },
+  { label: "Discovery", icon: "search", badge: "1", route: "/discovery" },
+  { label: "AI Suite", icon: "star", route: "/ai-suite" },
+  { label: "Analytics", icon: "chart", route: "/analytics" },
 ];
 
-const clientNavItems = [{ label: "Client Portal", icon: "portal" }];
+const clientNavItems = [{ label: "Client Portal", icon: "portal", route: "/client-portal" }];
 
-const accountNavItems = [{ label: "Settings", icon: "settings" }];
+const accountNavItems = [{ label: "Settings", icon: "settings", route: "/settings" }];
 
 const mobileTabItems = [
   { label: "Home", icon: "grid", route: "/" },
   { label: "Projects", icon: "mail", route: "/project" },
-  { label: "AI", icon: "star" },
-  { label: "Portal", icon: "portal" },
-  { label: "Settings", icon: "settings" },
+  { label: "AI", icon: "star", route: "/ai-suite" },
+  { label: "Portal", icon: "portal", route: "/client-portal" },
+  { label: "Settings", icon: "settings", route: "/settings" },
 ];
 
 function Icon({ type }) {
