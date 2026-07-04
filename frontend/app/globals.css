@@ -1,4 +1,3 @@
-@import "tailwindcss";
 
 :root {
   --background: #020806;
@@ -986,26 +985,80 @@ textarea {
   }
 
   .content {
-    padding: 16px;
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    padding: 14px;
+    padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
   }
 
-  .kpi-grid,
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
   .dashboard-grid {
     grid-template-columns: 1fr;
+    gap: 14px;
   }
 
   .kpi-card {
-    min-height: 124px;
+    min-height: 88px;
+    padding: 12px 14px 11px;
+  }
+
+  .kpi-card::after {
+    height: 2px;
+  }
+
+  .kpi-label {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+
+  .kpi-value {
+    margin: 12px 0 5px;
+    font-size: 19px;
+  }
+
+  .kpi-delta {
+    font-size: 9px;
+  }
+
+  .kpi-icon {
+    width: 24px;
+    height: 24px;
+    padding: 5px;
+    border-radius: 8px;
+  }
+
+  .dashboard-card {
+    border-radius: 12px;
+  }
+
+  .dashboard-card-header {
+    padding: 10px 12px;
+  }
+
+  .dashboard-card-title {
+    font-size: 13px;
   }
 
   .dashboard-card-actions {
-    width: 100%;
-    justify-content: flex-start;
+    width: auto;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .dashboard-outline-btn,
+  .dashboard-solid-btn {
+    height: 26px;
+    padding: 0 10px;
+    font-size: 10px;
+    border-radius: 8px;
   }
 
   .progress-track {
-    width: 72px;
+    width: 60px;
   }
 
   .activity-item {
@@ -1016,8 +1069,44 @@ textarea {
     padding: 0 16px;
   }
 
+  .dashboard-table-wrap {
+    overflow-x: hidden;
+  }
+
   .dash-table {
-    min-width: 520px;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .dash-table th {
+    padding: 10px 12px;
+    font-size: 9px;
+  }
+
+  .dash-table td {
+    padding: 12px;
+    font-size: 11px;
+  }
+
+  .dash-client-name {
+    font-size: 12px;
+  }
+
+  .dash-client-sector {
+    font-size: 10px;
+  }
+
+  .badge {
+    padding: 2px 7px;
+    font-size: 9px;
+  }
+
+  .progress-cell {
+    gap: 6px;
+  }
+
+  .progress-value {
+    display: none;
   }
 
   .mobile-tabbar {
@@ -1027,11 +1116,12 @@ textarea {
     left: 0;
     display: flex;
     align-items: stretch;
-    background: var(--surface);
+    background: #071a11;
     border-top: 1px solid rgba(77, 255, 160, 0.12);
     box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.28);
     z-index: 38;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    min-height: 62px;
   }
 
   .main {
@@ -1049,17 +1139,18 @@ textarea {
   }
 
   .content {
-    padding: 14px;
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    padding: 12px;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   }
 
   .kpi-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 
   .topbar {
-    padding: 0 10px;
+    padding: 0 12px;
+    min-height: 48px;
   }
 
   .topbar-title {
@@ -1073,17 +1164,37 @@ textarea {
   }
 
   .mobile-tab-item {
-    height: 58px;
-    gap: 2px;
-    padding-top: 7px;
+    height: 56px;
+    gap: 3px;
+    padding-top: 6px;
   }
 
   .mobile-tab-item .nav-icon {
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .mobile-tab-item span {
+    font-size: 7px;
+  }
+
+  .dashboard-card-header {
+    padding: 10px 12px 9px;
+  }
+
+  .activity-card {
+    max-height: 320px;
+  }
+
+  .activity-item {
+    padding: 12px;
+  }
+
+  .act-action {
+    font-size: 12px;
   }
 
   .kpi-value {
-    font-size: 26px;
+    font-size: 18px;
   }
 }
