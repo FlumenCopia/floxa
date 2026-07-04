@@ -3124,20 +3124,6 @@ textarea {
   font-weight: 600;
 }
 
-.cp-toast {
-  min-height: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 20px;
-  border: 1px solid rgba(77, 255, 160, 0.28);
-  border-radius: 8px;
-  background: rgba(18, 65, 38, 0.74);
-  color: #4dffa0;
-  font-size: 14px;
-  font-weight: 600;
-}
-
 .cp-entry-card,
 .cp-card,
 .cp-result-card {

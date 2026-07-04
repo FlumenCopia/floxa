@@ -121,17 +121,13 @@ function StepDots({ active, total = 9 }) {
   );
 }
 
-function PortalHeader({ finished }) {
+function PortalHeader() {
   return (
     <header className="cp-header">
       <div className="cp-logo">FLOXA</div>
-      {finished ? (
-        <div className="cp-toast">v Brand DNA revealed - Balanced</div>
-      ) : (
-        <button className="cp-close" type="button">
-          X Close
-        </button>
-      )}
+      <button className="cp-close" type="button">
+        X Close
+      </button>
     </header>
   );
 }
@@ -282,7 +278,7 @@ export default function Clientportal() {
   if (finished) {
     return (
       <main className="cp-screen">
-        <PortalHeader finished />
+        <PortalHeader />
         <section className="cp-result-card">
           <div className="cp-frame">Your brand personality</div>
           <h1>Balanced</h1>
