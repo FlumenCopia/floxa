@@ -2479,20 +2479,20 @@ textarea {
 .analytics-shell {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .analytics-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
 }
 
 .analytics-title {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   color: #f4f8f2;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -2502,41 +2502,41 @@ textarea {
 
 .analytics-subtitle {
   max-width: 620px;
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: #8fb3a3;
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .analytics-range-picker {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .analytics-range-label {
   color: #709382;
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
 }
 
 .analytics-range-picker select {
-  min-width: 188px;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 7px;
+  min-width: 176px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 6px;
   border: 1px solid rgba(77, 255, 160, 0.14);
   background: #0b2317;
   color: #eef8f3;
   outline: none;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .analytics-card {
   background: linear-gradient(180deg, rgba(11, 40, 24, 0.98), rgba(9, 31, 20, 0.98));
   border: 1px solid rgba(77, 255, 160, 0.12);
-  border-radius: 6px;
+  border-radius: 5px;
   box-shadow: inset 0 1px 0 rgba(77, 255, 160, 0.04);
 }
 
@@ -2544,49 +2544,49 @@ textarea {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .analytics-card-head h2 {
   margin: 0;
   color: #f5f8f3;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .analytics-card-head span {
   color: #6e9484;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .analytics-metric-card {
-  padding: 14px;
+  padding: 12px;
 }
 
 .analytics-metric-label {
   color: #7da392;
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .analytics-metric-value {
-  margin-top: 8px;
+  margin-top: 6px;
   color: #f5f8f3;
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 700;
 }
 
 .analytics-metric-delta {
-  margin-top: 8px;
-  font-size: 11px;
+  margin-top: 6px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -2601,20 +2601,20 @@ textarea {
 .analytics-main-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
-  gap: 12px;
+  gap: 10px;
 }
 
 .analytics-chart-card,
 .analytics-module-card,
 .analytics-table-card,
 .analytics-report-card {
-  padding: 14px;
+  padding: 12px;
 }
 
 .analytics-line-chart {
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
   align-items: end;
 }
 
@@ -2623,19 +2623,19 @@ textarea {
   flex-direction: column;
   justify-content: space-between;
   height: 206px;
-  padding-bottom: 28px;
+  padding-bottom: 24px;
   color: #77998a;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-line-plot {
   position: relative;
-  height: 206px;
+  height: 194px;
 }
 
 .analytics-line-grid {
   position: absolute;
-  inset: 0 0 28px 0;
+  inset: 0 0 24px 0;
   background:
     repeating-linear-gradient(to top, rgba(77, 255, 160, 0.08) 0 1px, transparent 1px 27px),
     repeating-linear-gradient(to right, rgba(77, 255, 160, 0.05) 0 1px, transparent 1px 134px);
@@ -2643,9 +2643,9 @@ textarea {
 
 .analytics-line-svg {
   position: absolute;
-  inset: 0 0 28px 0;
+  inset: 0 0 24px 0;
   width: 100%;
-  height: calc(100% - 28px);
+  height: calc(100% - 24px);
   overflow: visible;
 }
 
@@ -2656,7 +2656,7 @@ textarea {
 .analytics-line-path {
   fill: none;
   stroke: #49f59c;
-  stroke-width: 3.5;
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -2684,7 +2684,7 @@ textarea {
   display: flex;
   justify-content: space-between;
   color: #88ab9c;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .analytics-line-label-btn {
@@ -2703,8 +2703,8 @@ textarea {
   position: absolute;
   z-index: 2;
   min-width: 72px;
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: 7px 9px;
+  border-radius: 5px;
   border: 1px solid rgba(77, 255, 160, 0.18);
   background: rgba(10, 33, 21, 0.96);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
@@ -2728,21 +2728,21 @@ textarea {
 .analytics-line-tooltip strong {
   display: block;
   color: #eef8f3;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-line-tooltip span {
   display: block;
   margin-top: 3px;
   color: #7fe2a8;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-status-layout {
   display: grid;
   grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
   align-items: center;
-  gap: 18px;
+  gap: 12px;
 }
 
 .analytics-donut-wrap {
@@ -2753,8 +2753,8 @@ textarea {
 }
 
 .analytics-donut-chart {
-  width: 208px;
-  height: 208px;
+  width: 190px;
+  height: 190px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -2765,8 +2765,8 @@ textarea {
 }
 
 .analytics-donut-hole {
-  width: 106px;
-  height: 106px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   background: #102d1d;
   box-shadow: inset 0 0 0 1px rgba(77, 255, 160, 0.06);
@@ -2774,32 +2774,32 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   text-align: center;
 }
 
 .analytics-donut-hole strong {
   color: #eef8f3;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .analytics-donut-hole span {
   color: #7ea392;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-status-legend {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .analytics-legend-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   color: #8eb0a0;
-  font-size: 12px;
+  font-size: 11px;
   border: none;
   background: transparent;
   text-align: left;
@@ -2821,8 +2821,8 @@ textarea {
   top: 50%;
   z-index: 2;
   min-width: 110px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 7px 9px;
+  border-radius: 6px;
   border: 1px solid rgba(77, 255, 160, 0.18);
   background: rgba(10, 33, 21, 0.96);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
@@ -2847,46 +2847,46 @@ textarea {
 
 .analytics-status-tooltip strong {
   color: #eef8f3;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-status-tooltip span {
   display: block;
   margin-top: 3px;
   color: #7fe2a8;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-status-tooltip-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .analytics-status-tooltip-swatch {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   flex: 0 0 auto;
 }
 
 .analytics-legend-swatch {
-  width: 52px;
-  height: 12px;
+  width: 46px;
+  height: 10px;
   border-radius: 0;
 }
 
 .analytics-bottom-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-  gap: 12px;
+  gap: 10px;
 }
 
 .analytics-acceptance-chart {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
-  gap: 8px;
+  gap: 6px;
   align-items: end;
 }
 
@@ -2896,12 +2896,12 @@ textarea {
   justify-content: space-between;
   height: 170px;
   color: #77998a;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-acceptance-plot {
   position: relative;
-  height: 170px;
+  height: 158px;
 }
 
 .analytics-acceptance-grid {
@@ -2915,7 +2915,7 @@ textarea {
   inset: 0 0 0 0;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   align-items: end;
 }
 
@@ -2923,7 +2923,7 @@ textarea {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   height: 100%;
   border: none;
   background: transparent;
@@ -2940,7 +2940,7 @@ textarea {
 
 .analytics-acceptance-fill {
   width: 100%;
-  border-radius: 4px 4px 0 0;
+  border-radius: 3px 3px 0 0;
   background: rgba(83, 247, 159, 0.28);
   border: 1px solid rgba(83, 247, 159, 0.85);
   border-bottom: none;
@@ -2956,7 +2956,7 @@ textarea {
 
 .analytics-acceptance-label {
   color: #88ab9c;
-  font-size: 11px;
+  font-size: 10px;
   text-align: center;
 }
 
@@ -2972,8 +2972,8 @@ textarea {
   position: absolute;
   z-index: 2;
   min-width: 110px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 7px 9px;
+  border-radius: 6px;
   border: 1px solid rgba(77, 255, 160, 0.18);
   background: rgba(10, 33, 21, 0.96);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
@@ -2997,58 +2997,58 @@ textarea {
 .analytics-acceptance-tooltip strong {
   display: block;
   color: #eef8f3;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-acceptance-tooltip span {
   display: block;
   margin-top: 3px;
   color: #7fe2a8;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-module-summary {
-  margin-top: 12px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   color: #8ab09f;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .analytics-module-summary strong {
   color: #eef8f3;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .analytics-sector-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .analytics-sector-row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .analytics-sector-copy {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .analytics-sector-copy span,
 .analytics-sector-copy strong {
   color: #eef8f3;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .analytics-sector-track {
-  height: 4px;
+  height: 3px;
   border-radius: 999px;
   background: rgba(77, 255, 160, 0.12);
   overflow: hidden;
