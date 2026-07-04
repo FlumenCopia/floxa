@@ -1,4 +1,6 @@
-import Login from "../login/Login";
+
+import ProjectSection from "../../components/Allproject/ProjectSection";
+
 
 export default function page() {
   return (
@@ -6,7 +8,7 @@ export default function page() {
 
 <>
 
-
+<ProjectSection />
 
 </>
 
