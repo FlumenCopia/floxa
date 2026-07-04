@@ -1272,25 +1272,25 @@ textarea {
 .discovery-shell {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .discovery-card {
   background: linear-gradient(180deg, rgba(11, 40, 24, 0.98), rgba(9, 31, 20, 0.98));
   border: 1px solid rgba(77, 255, 160, 0.12);
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow: inset 0 1px 0 rgba(77, 255, 160, 0.04);
 }
 
 .discovery-summary {
-  padding: 18px 20px;
+  padding: 16px 18px;
 }
 
 .discovery-summary-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
 .discovery-summary-copy {
@@ -1300,27 +1300,27 @@ textarea {
 .discovery-summary-head {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .discovery-summary-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #f4f8f2;
 }
 
 .discovery-summary-meta {
-  margin-top: 8px;
+  margin-top: 6px;
   color: #95b6a8;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .discovery-summary-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
@@ -1332,8 +1332,8 @@ textarea {
 
 .discovery-progress-ring {
   --progress: 45%;
-  width: 56px;
-  height: 56px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   background:
     radial-gradient(circle at center, #0d2e1d 58%, transparent 59%),
@@ -1342,22 +1342,22 @@ textarea {
   align-items: center;
   justify-content: center;
   color: #4dffa0;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .discovery-link-btn,
 .discovery-portal-btn {
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 11px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 7px;
   font-weight: 600;
 }
 
 .discovery-tabs {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   overflow-x: auto;
   padding-bottom: 2px;
   scrollbar-width: thin;
@@ -1369,10 +1369,11 @@ textarea {
   border-bottom: none;
   background: transparent;
   color: #9bb9ab;
-  padding: 12px 16px;
+  padding: 10px 14px;
   white-space: nowrap;
   cursor: pointer;
   transition: 0.18s ease;
+  font-size: 13px;
 }
 
 .discovery-tab:hover {
@@ -1390,22 +1391,22 @@ textarea {
 .discovery-overview-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.04fr) minmax(0, 1fr);
-  gap: 18px;
+  gap: 14px;
 }
 
 .discovery-stack {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .discovery-panel {
-  padding: 20px 22px;
+  padding: 16px 18px;
 }
 
 .discovery-panel-title {
-  margin: 0 0 18px;
-  font-size: 18px;
+  margin: 0 0 14px;
+  font-size: 16px;
   font-weight: 700;
   color: #f4f8f2;
 }
@@ -1417,8 +1418,8 @@ textarea {
 
 .discovery-timeline-item {
   display: flex;
-  gap: 14px;
-  padding: 16px 0;
+  gap: 12px;
+  padding: 14px 0;
   border-bottom: 1px solid rgba(77, 255, 160, 0.08);
 }
 
@@ -1445,7 +1446,7 @@ textarea {
 
 .discovery-timeline-text {
   color: #f3f8f2;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .discovery-timeline-item.idle .discovery-timeline-text,
@@ -1454,9 +1455,9 @@ textarea {
 }
 
 .discovery-timeline-date {
-  margin-top: 4px;
+  margin-top: 3px;
   color: #6f9483;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .discovery-payment-bar {
@@ -1489,9 +1490,9 @@ textarea {
 .discovery-payment-legend {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   flex-wrap: wrap;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   color: #b6d0c3;
   font-size: 12px;
 }
@@ -1511,22 +1512,22 @@ textarea {
 .discovery-payment-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .discovery-payment-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: 10px;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 6px;
   background: rgba(6, 27, 17, 0.46);
   border: 1px solid rgba(77, 255, 160, 0.09);
 }
 
 .discovery-payment-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #f4f8f2;
 }
@@ -1538,7 +1539,7 @@ textarea {
 }
 
 .discovery-payment-meta strong {
-  font-size: 16px;
+  font-size: 15px;
   color: #fbfdfb;
 }
 
@@ -1566,7 +1567,7 @@ textarea {
 .discovery-info-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .discovery-info-row,
@@ -1585,7 +1586,7 @@ textarea {
 .discovery-info-row strong,
 .discovery-setting-row strong {
   color: #f4f8f2;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .discovery-value {
@@ -1601,19 +1602,19 @@ textarea {
 
 .discovery-section-copy {
   color: #9abcae;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .discovery-upload-btn {
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 10px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 7px;
   font-weight: 600;
 }
 
 .discovery-brand-hero {
   text-align: center;
-  padding: 22px 16px 8px;
+  padding: 18px 14px 6px;
 }
 
 .discovery-brand-kicker {
@@ -1624,8 +1625,8 @@ textarea {
 }
 
 .discovery-brand-title {
-  margin: 22px 0 10px;
-  font-size: 46px;
+  margin: 16px 0 8px;
+  font-size: 38px;
   line-height: 1;
   color: #4dffa0;
 }
@@ -1644,21 +1645,21 @@ textarea {
 
 .discovery-brand-copy {
   width: min(100%, 700px);
-  margin: 18px auto 0;
+  margin: 14px auto 0;
   color: #9dc2b3;
-  font-size: 14px;
-  line-height: 1.8;
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .discovery-info-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .discovery-mini-card {
-  min-height: 76px;
-  padding: 16px 16px 14px;
+  min-height: 68px;
+  padding: 14px 14px 12px;
 }
 
 .discovery-mini-label {
@@ -1671,20 +1672,20 @@ textarea {
 
 .discovery-mini-value {
   color: #f1f8f3;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .discovery-inline-actions {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 .discovery-wide-btn {
-  height: 44px;
-  padding: 0 18px;
-  border-radius: 12px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 7px;
 }
 
 .discovery-text-action {
@@ -1697,12 +1698,12 @@ textarea {
 
 .discovery-form-card {
   width: min(100%, 650px);
-  padding: 22px 22px 26px;
+  padding: 18px 18px 22px;
 }
 
 .discovery-form-date {
   color: #93baa9;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .discovery-form-divider {
@@ -1712,7 +1713,7 @@ textarea {
 }
 
 .discovery-form-block + .discovery-form-block {
-  margin-top: 22px;
+  margin-top: 18px;
 }
 
 .discovery-form-label {
@@ -1724,14 +1725,14 @@ textarea {
 .discovery-form-value {
   margin: 0;
   color: #f1f7f2;
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.65;
 }
 
 .discovery-slider-list {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   padding-top: 4px;
 }
 
@@ -1760,14 +1761,14 @@ textarea {
 .discovery-concepts-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .discovery-moodboard-card,
 .discovery-concept-card {
   position: relative;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: 8px;
   background: linear-gradient(180deg, rgba(11, 40, 24, 0.98), rgba(9, 31, 20, 0.98));
   border: 1px solid rgba(77, 255, 160, 0.1);
 }
@@ -1780,7 +1781,7 @@ textarea {
 .discovery-palette-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  height: 162px;
+  height: 150px;
 }
 
 .discovery-palette-swatch {
@@ -1806,21 +1807,21 @@ textarea {
 
 .discovery-moodboard-body,
 .discovery-concept-body {
-  padding: 14px 16px 16px;
+  padding: 12px 14px 14px;
 }
 
 .discovery-moodboard-body h3,
 .discovery-concept-body h3 {
   margin: 0;
   color: #f3f8f2;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .discovery-tag-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .discovery-tag {
@@ -1843,7 +1844,7 @@ textarea {
 }
 
 .discovery-concept-canvas {
-  height: 188px;
+  height: 172px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1867,13 +1868,13 @@ textarea {
 
 .discovery-concept-wordmark.pink {
   color: #ff5471;
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 800;
 }
 
 .discovery-concept-wordmark.brown {
   color: #5f4228;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
 }
 
@@ -1884,7 +1885,7 @@ textarea {
 
 .discovery-concept-wordmark.blue {
   color: #224f80;
-  font-size: 28px;
+  font-size: 24px;
 }
 
 .discovery-concept-wordmark.spaced {
@@ -1899,12 +1900,12 @@ textarea {
 }
 
 .discovery-status-btn {
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 10px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
   border: 1px solid transparent;
   font-weight: 600;
-  margin-top: 14px;
+  margin-top: 12px;
   cursor: pointer;
 }
 
@@ -1921,8 +1922,8 @@ textarea {
 
 .discovery-dual-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 14px;
+  gap: 6px;
+  margin-top: 12px;
 }
 
 .discovery-table-card {
@@ -1939,9 +1940,9 @@ textarea {
 }
 
 .discovery-table th {
-  padding: 14px 16px;
+  padding: 12px 14px;
   color: #88a999;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -1949,14 +1950,14 @@ textarea {
 }
 
 .discovery-table td {
-  padding: 22px 16px;
+  padding: 18px 14px;
   color: #97b8a8;
   border-top: 1px solid rgba(77, 255, 160, 0.06);
 }
 
 .discovery-file-name {
   color: #f4f8f2;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -1986,7 +1987,7 @@ textarea {
 
 .discovery-agreement-card {
   width: min(100%, 560px);
-  padding: 24px;
+  padding: 20px;
 }
 
 .discovery-agreement-icon {
@@ -2006,7 +2007,7 @@ textarea {
 .discovery-agreement-title {
   text-align: center;
   color: #f5f9f5;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
 }
 
@@ -2015,13 +2016,14 @@ textarea {
   margin: 12px auto 22px;
   color: #8db2a2;
   text-align: center;
-  line-height: 1.7;
+  line-height: 1.6;
+  font-size: 13px;
 }
 
 .discovery-agreement-btn {
   width: 100%;
   height: 42px;
-  border-radius: 11px;
+  border-radius: 7px;
 }
 
 .discovery-payment-bar-large {
@@ -2037,7 +2039,7 @@ textarea {
   height: 36px;
   padding: 0 16px;
   border: none;
-  border-radius: 11px;
+  border-radius: 7px;
   background: #4dffa0;
   color: #041008;
   font-weight: 700;
@@ -2049,22 +2051,23 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 18px 16px;
+  padding: 16px 14px;
 }
 
 .discovery-addon-title {
   color: #f4f8f2;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
 }
 
 .discovery-addon-copy {
-  margin-top: 6px;
+  margin-top: 4px;
   color: #8eb3a3;
+  font-size: 12px;
 }
 
 .discovery-activity-board {
-  padding: 18px 22px;
+  padding: 16px 18px;
 }
 
 .discovery-activity-group + .discovery-activity-group {
@@ -2168,7 +2171,7 @@ textarea {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px 0;
+  padding: 12px 0;
   border-bottom: 1px solid rgba(77, 255, 160, 0.08);
 }
 
@@ -2204,14 +2207,14 @@ textarea {
 
 .discovery-activity-text {
   color: #e7f3ed;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
 .discovery-activity-time {
   margin-top: 4px;
   color: #6f9483;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .activity-card::-webkit-scrollbar,
