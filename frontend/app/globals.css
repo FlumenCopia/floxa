@@ -3975,8 +3975,9 @@ textarea {
   }
 
   .project-page-head {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
     margin-bottom: 14px;
   }
 
@@ -3985,18 +3986,35 @@ textarea {
   }
 
   .project-page-actions {
-    width: 100%;
+    width: auto;
     gap: 8px;
+    flex-wrap: nowrap;
   }
 
   .project-filter-wrap {
-    flex: 1;
+    flex: 0 0 auto;
   }
 
   .project-filter-btn {
     min-width: 0;
-    flex: 1;
+    flex: 0 0 auto;
     height: 34px;
+    font-size: 11px;
+  }
+
+  .project-filter-menu {
+    left: auto;
+    right: 0;
+    width: 160px;
+    min-width: 160px;
+    padding: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+    border-radius: 10px;
+  }
+
+  .project-filter-option {
+    padding: 9px 10px;
     font-size: 11px;
   }
 
@@ -4101,6 +4119,13 @@ textarea {
   .project-progress-cell,
   .project-progress-track {
     width: 64px;
+  }
+
+  .project-table th:nth-child(5),
+  .project-table th:nth-child(6),
+  .project-table td:nth-child(5),
+  .project-table td:nth-child(6) {
+    display: none;
   }
 
   .discovery-summary {
@@ -4398,6 +4423,21 @@ textarea {
     font-size: 16px;
   }
 
+  .project-page-actions {
+    gap: 6px;
+  }
+
+  .project-filter-btn,
+  .project-new-btn {
+    height: 32px;
+    font-size: 10px;
+  }
+
+  .project-filter-menu {
+    width: 152px;
+    min-width: 152px;
+  }
+
   .project-wizard-shell {
     padding: 2px 0 12px;
   }
@@ -4530,8 +4570,10 @@ textarea {
   }
 
   .project-filter-menu {
+    left: auto;
     right: 0;
-    left: 0;
+    width: 152px;
+    min-width: 152px;
   }
 
   .project-table {
