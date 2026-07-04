@@ -78,7 +78,7 @@ function NavItem({ item }) {
   );
 }
 
-export default function Floxaheader() {
+export default function Floxaheader({ children }) {
   return (
     <>
       <nav className="sidebar">
@@ -126,6 +126,7 @@ export default function Floxaheader() {
             <div className="notif-dot" />
           </button>
         </div>
+        {children}
       </div>
     </>
   );

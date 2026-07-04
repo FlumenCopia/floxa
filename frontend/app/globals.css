@@ -367,12 +367,14 @@ textarea {
 
 .content {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   padding: 20px;
 }
 
 .screen {
   display: block;
+  width: 100%;
 }
 
 .btn {

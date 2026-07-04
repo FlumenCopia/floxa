@@ -10,8 +10,9 @@ export default function Login() {
   if (isAuthenticated) {
     return (
       <div className="shell">
-        <Floxaheader />
-        <Dashboardsection />
+        <Floxaheader>
+          <Dashboardsection />
+        </Floxaheader>
       </div>
     );
   }
