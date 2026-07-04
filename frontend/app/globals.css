@@ -4230,8 +4230,10 @@ textarea {
   .ai-suite-live-card,
   .ai-suite-tool-bottom,
   .analytics-head {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 10px;
   }
 
   .ai-suite-grid {
@@ -4255,6 +4257,11 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .analytics-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
   .analytics-line-chart,
   .analytics-acceptance-chart {
     grid-template-columns: 1fr;
@@ -4275,14 +4282,103 @@ textarea {
     width: 100%;
   }
 
+  .analytics-range-picker {
+    display: none;
+  }
+
   .analytics-donut-chart {
-    width: 180px;
-    height: 180px;
+    width: 160px;
+    height: 160px;
   }
 
   .analytics-donut-hole {
-    width: 92px;
-    height: 92px;
+    width: 84px;
+    height: 84px;
+  }
+
+  .analytics-shell {
+    gap: 12px;
+  }
+
+  .analytics-title {
+    font-size: 18px;
+  }
+
+  .analytics-subtitle {
+    display: none;
+  }
+
+  .analytics-card {
+    border-radius: 12px;
+  }
+
+  .analytics-card-head {
+    margin-bottom: 8px;
+  }
+
+  .analytics-card-head h2 {
+    font-size: 14px;
+  }
+
+  .analytics-metric-card {
+    padding: 12px 12px 10px;
+  }
+
+  .analytics-metric-label {
+    font-size: 9px;
+  }
+
+  .analytics-metric-value {
+    font-size: 18px;
+  }
+
+  .analytics-metric-delta {
+    font-size: 9px;
+  }
+
+  .analytics-line-plot {
+    height: 170px;
+  }
+
+  .analytics-line-grid {
+    inset: 0 0 20px 0;
+    background:
+      repeating-linear-gradient(to top, rgba(77, 255, 160, 0.08) 0 1px, transparent 1px 24px),
+      repeating-linear-gradient(to right, rgba(77, 255, 160, 0.05) 0 1px, transparent 1px 112px);
+  }
+
+  .analytics-line-svg {
+    inset: 0 0 20px 0;
+    height: calc(100% - 20px);
+  }
+
+  .analytics-line-labels {
+    gap: 4px;
+  }
+
+  .analytics-line-label-btn {
+    font-size: 9px;
+    padding: 0;
+  }
+
+  .analytics-module-summary {
+    gap: 2px;
+  }
+
+  .analytics-acceptance-bars {
+    gap: 4px;
+  }
+
+  .analytics-acceptance-col {
+    min-width: 0;
+  }
+
+  .analytics-sector-row {
+    gap: 8px;
+  }
+
+  .analytics-sector-copy span {
+    font-size: 11px;
   }
 
   .discovery-section-bar,
