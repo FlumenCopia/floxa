@@ -10,6 +10,14 @@ const primaryNavItems = [
   { label: "Analytics", icon: "chart" },
 ];
 
+const mobileTabItems = [
+  { label: "Home", icon: "grid", active: true },
+  { label: "Projects", icon: "mail" },
+  { label: "AI", icon: "star" },
+  { label: "Portal", icon: "portal" },
+  { label: "Settings", icon: "settings" },
+];
+
 function Icon({ type }) {
   const commonProps = {
     className: "nav-icon",
@@ -53,6 +61,14 @@ function Icon({ type }) {
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       );
+    case "portal":
+      return (
+        <svg {...commonProps}>
+          <path d="M14 3h7v7" />
+          <path d="M10 14 21 3" />
+          <path d="M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4" />
+        </svg>
+      );
     case "bell":
       return (
         <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -78,6 +94,15 @@ function NavItem({ item, onClick }) {
       <Icon type={item.icon} />
       {item.label}
       {item.badge ? <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span> : null}
+    </button>
+  );
+}
+
+function MobileTabItem({ item }) {
+  return (
+    <button className={`mobile-tab-item ${item.active ? "active" : ""}`.trim()} type="button">
+      <Icon type={item.icon} />
+      <span>{item.label}</span>
     </button>
   );
 }
@@ -175,6 +200,12 @@ export default function Floxaheader({ children }) {
           </button>
         </div>
         {children}
+      </div>
+
+      <div className="mobile-tabbar">
+        {mobileTabItems.map((item) => (
+          <MobileTabItem key={item.label} item={item} />
+        ))}
       </div>
     </>
   );

@@ -145,6 +145,7 @@ textarea {
 .shell {
   display: flex;
   height: 100dvh;
+  min-height: 100dvh;
   overflow: hidden;
 }
 
@@ -304,6 +305,10 @@ textarea {
   overflow: hidden;
 }
 
+.mobile-tabbar {
+  display: none;
+}
+
 .topbar {
   height: var(--topbar);
   background: var(--surface);
@@ -312,6 +317,7 @@ textarea {
   align-items: center;
   padding: 0 16px;
   gap: 10px;
+  min-width: 0;
 }
 
 .menu-btn {
@@ -337,10 +343,13 @@ textarea {
   font-size: 14px;
   font-weight: 600;
   color: var(--foreground);
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .spacer {
   flex: 1;
+  min-width: 0;
 }
 
 .search-wrap {
@@ -379,6 +388,49 @@ textarea {
   justify-content: center;
   position: relative;
   cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mobile-tab-item {
+  flex: 1;
+  min-width: 0;
+  height: 56px;
+  border: none;
+  border-right: 1px solid rgba(77, 255, 160, 0.08);
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  transition: 0.18s ease;
+  padding: 6px 2px 4px;
+}
+
+.mobile-tab-item:last-child {
+  border-right: none;
+}
+
+.mobile-tab-item span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 8px;
+  line-height: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mobile-tab-item .nav-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.mobile-tab-item.active {
+  background: var(--card);
+  color: var(--neon);
+  box-shadow: inset 0 0 0 1px rgba(77, 255, 160, 0.22);
 }
 
 .notif-dot {
@@ -396,6 +448,7 @@ textarea {
   min-width: 0;
   overflow-y: auto;
   padding: 20px;
+  padding-bottom: 24px;
 }
 
 .screen {
@@ -732,6 +785,19 @@ textarea {
 }
 
 @media (max-width: 767px) {
+  .shell {
+    min-height: 100svh;
+  }
+
+  .main {
+    min-width: 0;
+  }
+
+  .topbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
   .sidebar {
     position: fixed;
     inset: 0 auto 0 0;
@@ -756,12 +822,18 @@ textarea {
     display: inline-flex;
   }
 
+  .topbar-title {
+    flex: 1;
+    font-size: 13px;
+  }
+
   .search-wrap {
     display: none;
   }
 
   .content {
     padding: 16px;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   }
 
   .kpi-grid,
@@ -771,6 +843,24 @@ textarea {
 
   .dash-table {
     min-width: 520px;
+  }
+
+  .mobile-tabbar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: stretch;
+    background: var(--surface);
+    border-top: 1px solid rgba(77, 255, 160, 0.12);
+    box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.28);
+    z-index: 38;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .main {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -785,11 +875,37 @@ textarea {
 
   .content {
     padding: 14px;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 
   .kpi-grid {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
+  }
+
+  .topbar {
+    padding: 0 10px;
+  }
+
+  .topbar-title {
+    font-size: 12px;
+  }
+
+  .menu-btn,
+  .icon-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .mobile-tab-item {
+    height: 58px;
+    gap: 2px;
+    padding-top: 7px;
+  }
+
+  .mobile-tab-item .nav-icon {
+    width: 15px;
+    height: 15px;
   }
 
   .kpi-value {
