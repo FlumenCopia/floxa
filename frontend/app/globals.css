@@ -17,8 +17,8 @@
   --danger: #ff6b6b;
   --amber: #f0b429;
   --cobalt: #4a9eff;
-  --r: 10px;
-  --r-sm: 7px;
+  --r: 1px;
+  --r-sm: 1px;
   --r-full: 999px;
   --sidebar: 268px;
   --topbar: 60px;
@@ -167,33 +167,33 @@ textarea {
 }
 
 .logo-area {
-  padding: 20px 14px 16px;
+  padding: 20px 14px 17px;
   border-bottom: 1px solid rgba(119, 181, 150, 0.12);
 }
 
 .logo {
-  font-size: 23px;
+  font-size: 24px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: var(--neon);
 }
 
 .logo-tag {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 10px;
   color: #648677;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .nav-section {
-  padding: 14px 0 8px;
+  padding: 12px 0 10px;
 }
 
 .nav-lbl {
-  padding: 0 12px 8px;
-  font-size: 11px;
-  letter-spacing: 0.18em;
+  padding: 0 12px 10px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #607f72;
   font-weight: 500;
@@ -202,13 +202,13 @@ textarea {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
   width: 100%;
   padding: 12px 14px;
   border: none;
   background: transparent;
   color: #9fbeaf;
-  font-size: 14px;
+  font-size: 13px;
   text-align: left;
   position: relative;
   cursor: pointer;
@@ -248,10 +248,10 @@ textarea {
 
 .nav-badge {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  min-width: 22px;
-  height: 22px;
+  min-width: 21px;
+  height: 21px;
   padding: 0 6px;
   border-radius: var(--r-full);
   background: var(--danger);
@@ -268,15 +268,15 @@ textarea {
 
 .sidebar-footer {
   margin-top: auto;
-  padding: 18px 16px 26px;
+  padding: 20px 16px 28px;
   border-top: 1px solid rgba(119, 181, 150, 0.12);
 }
 
 .user-chip {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 4px 0;
+  gap: 11px;
+  padding: 8px 4px 0;
   border-radius: var(--r-sm);
 }
 
@@ -294,17 +294,17 @@ textarea {
 }
 
 .user-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #f3f8f4;
 }
 
 .user-plan {
   margin-top: 2px;
-  font-size: 10px;
+  font-size: 9px;
   color: #618272;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
 }
 
 .main {
@@ -350,7 +350,7 @@ textarea {
 }
 
 .topbar-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #f4f8f4;
   min-width: 0;
@@ -365,21 +365,21 @@ textarea {
 .search-wrap {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   background: rgba(6, 39, 24, 0.8);
   border: 1px solid rgba(77, 255, 160, 0.12);
   border-radius: var(--r-full);
-  padding: 0 16px;
-  height: 40px;
+  padding: 0 15px;
+  height: 39px;
 }
 
 .search-wrap input {
-  width: 180px;
+  width: 170px;
   border: none;
   background: transparent;
   outline: none;
   color: #f0f6f1;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .search-wrap input::placeholder {
@@ -457,7 +457,7 @@ textarea {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 26px 24px 28px;
+  padding: 24px 24px 28px;
   padding-bottom: 28px;
   background:
     radial-gradient(circle at top right, rgba(77, 255, 160, 0.05), transparent 20%),
@@ -557,11 +557,11 @@ textarea {
 .kpi-card {
   position: relative;
   overflow: hidden;
-  min-height: 134px;
+  min-height: 132px;
   background: linear-gradient(180deg, rgba(16, 44, 28, 0.95), rgba(11, 33, 22, 0.98));
   border: 1px solid rgba(77, 255, 160, 0.14);
   border-radius: 16px;
-  padding: 18px 20px;
+  padding: 18px 20px 17px;
   box-shadow: inset 0 1px 0 rgba(77, 255, 160, 0.06);
 }
 
@@ -579,23 +579,23 @@ textarea {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .kpi-label {
-  font-size: 11px;
+  font-size: 10px;
   color: #a8c6b9;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.13em;
   font-weight: 600;
 }
 
 .kpi-value {
-  margin: 26px 0 6px;
-  font-size: clamp(30px, 3vw, 40px);
+  margin: 20px 0 7px;
+  font-size: clamp(27px, 2.6vw, 30px);
   font-weight: 700;
   color: #f2f6ef;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   line-height: 1;
 }
 
@@ -613,8 +613,8 @@ textarea {
 }
 
 .kpi-icon {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 10px;
   background: rgba(77, 255, 160, 0.08);
   color: var(--neon);
@@ -627,7 +627,7 @@ textarea {
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
-  gap: 18px;
+  gap: 16px;
 }
 
 .card {
@@ -651,7 +651,7 @@ textarea {
 }
 
 .dashboard-card-title {
-  font-size: 16px;
+  font-size: 15px;
   color: #f1f6f1;
 }
 
@@ -662,15 +662,15 @@ textarea {
 }
 
 .dashboard-outline-btn {
-  height: 36px;
+  height: 34px;
   padding: 0 14px;
-  border-radius: 11px;
+  border-radius: 12px;
 }
 
 .dashboard-solid-btn {
-  height: 36px;
+  height: 34px;
   padding: 0 16px;
-  border-radius: 11px;
+  border-radius: 12px;
   font-weight: 600;
 }
 
@@ -783,18 +783,18 @@ textarea {
 }
 
 .dash-table th {
-  padding: 12px 18px;
+  padding: 14px 18px;
   text-align: left;
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.14em;
   color: #94b1a3;
   font-weight: 600;
 }
 
 .dash-table td {
-  padding: 16px 18px;
-  font-size: 13px;
+  padding: 18px 18px;
+  font-size: 12px;
   color: #b6d0c3;
   border-top: 1px solid rgba(77, 255, 160, 0.06);
   vertical-align: middle;
@@ -802,19 +802,20 @@ textarea {
 
 .dash-client-name {
   color: #f5f7f3;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .dash-client-sector {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: 11px;
   color: #5f8273;
+  line-height: 1.35;
 }
 
 .progress-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .progress-track {
@@ -832,16 +833,16 @@ textarea {
 }
 
 .progress-value {
-  font-size: 12px;
+  font-size: 11px;
   color: #6f9283;
 }
 
 .activity-date {
-  margin: 8px 0 10px;
+  margin: 12px 0 10px;
   padding: 0 22px;
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   color: #618473;
   font-weight: 500;
 }
@@ -849,19 +850,19 @@ textarea {
 .activity-item {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 16px 22px;
+  gap: 12px;
+  padding: 18px 22px;
   border-top: 1px solid rgba(77, 255, 160, 0.06);
 }
 
 .act-av {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #dffef0;
   flex-shrink: 0;
@@ -880,44 +881,45 @@ textarea {
 }
 
 .act-action {
-  font-size: 15px;
+  font-size: 13px;
   color: #f3f7f2;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .act-time {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 11px;
   color: #5f8273;
 }
 
 .activity-card {
   max-height: 400px;
   overflow-y: auto;
+  border-radius: 12px;
 }
 
 .dashboard-quick-actions {
   margin-top: 18px;
-  padding: 14px 18px;
-  border-radius: 12px;
+  padding: 16px 18px;
+  border-radius: 16px;
   background: linear-gradient(180deg, rgba(20, 50, 31, 0.96), rgba(16, 41, 27, 0.96));
   border: 1px solid rgba(77, 255, 160, 0.12);
 }
 
 .dashboard-chip-btn {
-  border-radius: 10px;
-  padding: 0 13px;
+  border-radius: 12px;
+  padding: 0 14px;
 }
 
 .activity-card::-webkit-scrollbar,
 .content::-webkit-scrollbar {
-  width: 10px;
+  width: 6px;
 }
 
 .activity-card::-webkit-scrollbar-thumb,
 .content::-webkit-scrollbar-thumb {
   background: rgba(77, 255, 160, 0.18);
-  border-radius: 999px;
+  border-radius: 6px;
 }
 
 .activity-card::-webkit-scrollbar-track,
@@ -994,7 +996,7 @@ textarea {
   }
 
   .kpi-card {
-    min-height: 126px;
+    min-height: 124px;
   }
 
   .dashboard-card-actions {
@@ -1053,7 +1055,7 @@ textarea {
 
   .kpi-grid {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 12px;
   }
 
   .topbar {
@@ -1082,6 +1084,6 @@ textarea {
   }
 
   .kpi-value {
-    font-size: 28px;
+    font-size: 26px;
   }
 }
