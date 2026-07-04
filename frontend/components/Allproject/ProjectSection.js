@@ -1,3 +1,7 @@
+ "use client";
+
+import { useMemo, useState } from "react";
+
 const projectRows = [
   {
     client: "Craft & Co",
@@ -51,21 +55,106 @@ const projectRows = [
   },
 ];
 
+const statusOptions = ["All statuses", "Discovery", "Advance Paid", "Concepts", "Delivered", "Created"];
+
 export default function ProjectSection() {
+  const [selectedStatus, setSelectedStatus] = useState("All statuses");
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isNewOpen, setIsNewOpen] = useState(false);
+
+  const filteredProjects = useMemo(() => {
+    if (selectedStatus === "All statuses") {
+      return projectRows;
+    }
+
+    return projectRows.filter((row) => row.status === selectedStatus);
+  }, [selectedStatus]);
+
   return (
     <div className="content">
       <div className="screen active">
         <div className="project-page-head">
-          <h1 className="project-page-title">12 projects</h1>
+          <h1 className="project-page-title">{filteredProjects.length} projects</h1>
           <div className="project-page-actions">
-            <button className="btn btn-secondary project-filter-btn" type="button">
-              All statuses
-            </button>
-            <button className="btn btn-primary project-new-btn" type="button">
+            <div className={`project-filter-wrap ${isStatusOpen ? "open" : ""}`.trim()}>
+              <button
+                className="btn btn-secondary project-filter-btn"
+                type="button"
+                onClick={() => setIsStatusOpen((open) => !open)}
+              >
+                {selectedStatus}
+                <span className="project-filter-caret">{isStatusOpen ? "^" : "v"}</span>
+              </button>
+
+              {isStatusOpen ? (
+                <div className="project-filter-menu">
+                  {statusOptions.map((status) => (
+                    <button
+                      key={status}
+                      className={`project-filter-option ${selectedStatus === status ? "active" : ""}`.trim()}
+                      type="button"
+                      onClick={() => {
+                        setSelectedStatus(status);
+                        setIsStatusOpen(false);
+                      }}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <button className="btn btn-primary project-new-btn" type="button" onClick={() => setIsNewOpen((open) => !open)}>
               + New
             </button>
           </div>
         </div>
+
+        {isNewOpen ? (
+          <div className="project-create-card">
+            <div className="project-create-head">
+              <div className="project-create-title">New Project</div>
+              <button className="project-create-close" type="button" onClick={() => setIsNewOpen(false)}>
+                Close
+              </button>
+            </div>
+
+            <div className="project-create-grid">
+              <div className="form-group">
+                <label className="form-label">Client Name</label>
+                <input className="form-input" type="text" placeholder="Craft & Co" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input className="form-input" type="email" placeholder="hello@client.com" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Sector</label>
+                <input className="form-input" type="text" placeholder="Consumer Goods" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Status</label>
+                <select className="form-input" defaultValue="Discovery">
+                  {statusOptions.slice(1).map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="project-create-actions">
+              <button className="btn btn-secondary" type="button" onClick={() => setIsNewOpen(false)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" type="button">
+                Create Project
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="project-table-card">
           <div className="project-table-wrap">
@@ -81,7 +170,7 @@ export default function ProjectSection() {
                 </tr>
               </thead>
               <tbody>
-                {projectRows.map((row) => (
+                {filteredProjects.map((row) => (
                   <tr key={row.client}>
                     <td>
                       <div className="project-client-name">{row.client}</div>
@@ -102,6 +191,13 @@ export default function ProjectSection() {
                     <td>{row.created}</td>
                   </tr>
                 ))}
+                {filteredProjects.length === 0 ? (
+                  <tr>
+                    <td className="project-empty-state" colSpan="6">
+                      No projects found for this status.
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
           </div>
