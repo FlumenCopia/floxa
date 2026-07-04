@@ -10,6 +10,10 @@ const primaryNavItems = [
   { label: "Analytics", icon: "chart" },
 ];
 
+const clientNavItems = [{ label: "Client Portal", icon: "portal" }];
+
+const accountNavItems = [{ label: "Settings", icon: "settings" }];
+
 const mobileTabItems = [
   { label: "Home", icon: "grid", active: true },
   { label: "Projects", icon: "mail" },
@@ -155,16 +159,25 @@ export default function Floxaheader({ children }) {
         </div>
 
         <div className="nav-section">
+          <div className="nav-lbl">Client</div>
+          {clientNavItems.map((item) => (
+            <NavItem key={item.label} item={item} onClick={closeSidebar} />
+          ))}
+        </div>
+
+        <div className="nav-section">
           <div className="nav-lbl">Account</div>
-          <NavItem item={{ label: "Settings", icon: "settings" }} onClick={closeSidebar} />
+          {accountNavItems.map((item) => (
+            <NavItem key={item.label} item={item} onClick={closeSidebar} />
+          ))}
         </div>
 
         <div className="sidebar-footer">
           <div className="user-chip">
             <div className="avatar">AK</div>
             <div>
-              <div className="user-name">Akhil</div>
-              <div className="user-plan">Dashboard admin</div>
+              <div className="user-name">Anoop Krishna</div>
+              <div className="user-plan">Agency Plan</div>
             </div>
           </div>
         </div>
