@@ -76,11 +76,10 @@ function StepIndicator({ done, active, step }) {
   return <span className={`project-step-chip ${active ? "active" : ""}`.trim()}>{step}</span>;
 }
 
-export default function ProjectSection() {
+export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen = () => {} }) {
   const [projects, setProjects] = useState(initialProjectRows);
   const [selectedStatus, setSelectedStatus] = useState("All statuses");
   const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const [isNewOpen, setIsNewOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [formData, setFormData] = useState({
     client: "Priya Sharma",
@@ -111,12 +110,12 @@ export default function ProjectSection() {
 
   const handleOpenWizard = () => {
     setIsStatusOpen(false);
-    setIsNewOpen(true);
+    setIsWizardOpen(true);
     setWizardStep(1);
   };
 
   const handleCloseWizard = () => {
-    setIsNewOpen(false);
+    setIsWizardOpen(false);
     setWizardStep(1);
   };
 
@@ -140,7 +139,7 @@ export default function ProjectSection() {
   return (
     <div className="content">
       <div className="screen active">
-        {isNewOpen ? (
+        {isWizardOpen ? (
           <div className="project-wizard-shell">
             <div className="project-wizard-eyebrow">New Project</div>
             <h1 className="project-wizard-title">Set up a client project</h1>
@@ -274,7 +273,7 @@ export default function ProjectSection() {
           </div>
         ) : null}
 
-        {!isNewOpen ? (
+        {!isWizardOpen ? (
           <>
             <div className="project-page-head">
               <h1 className="project-page-title">{filteredProjects.length} projects</h1>
