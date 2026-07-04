@@ -992,46 +992,202 @@ textarea {
   font-weight: 600;
 }
 
-.project-create-card {
-  margin-bottom: 18px;
-  background: linear-gradient(180deg, rgba(13, 40, 25, 0.98), rgba(11, 30, 21, 0.98));
-  border: 1px solid rgba(77, 255, 160, 0.12);
-  border-radius: 16px;
-  padding: 18px;
+.project-wizard-shell {
+  width: min(100%, 700px);
+  margin: 0 auto;
+  padding: 8px 0 24px;
 }
 
-.project-create-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
+.project-wizard-eyebrow {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #658879;
 }
 
-.project-create-title {
-  font-size: 16px;
-  font-weight: 600;
+.project-wizard-title {
+  margin: 12px 0 28px;
+  font-size: 24px;
+  font-weight: 700;
   color: #f4f8f1;
 }
 
-.project-create-close {
-  border: none;
-  background: transparent;
-  color: #8fb2a3;
-  cursor: pointer;
+.project-wizard-steps {
+  display: flex;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.project-wizard-step-block {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 12px;
+}
+
+.project-step-chip {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(77, 255, 160, 0.35);
+  color: #95b7a7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.project-step-chip.active {
+  background: var(--neon);
+  color: #041008;
+  border-color: var(--neon);
+}
+
+.project-step-chip.done {
+  color: var(--neon);
+}
+
+.project-step-label {
+  font-size: 13px;
+  color: #88aa9b;
+  white-space: nowrap;
+}
+
+.project-step-label.active {
+  color: #f3f8f2;
+}
+
+.project-step-line {
+  flex: 1;
+  height: 1px;
+  margin-left: 14px;
+  background: rgba(77, 255, 160, 0.28);
+}
+
+.project-wizard-card {
+  background: linear-gradient(180deg, rgba(13, 40, 25, 0.98), rgba(11, 30, 21, 0.98));
+  border: 1px solid rgba(77, 255, 160, 0.12);
+  border-radius: 16px;
+  padding: 22px;
 }
 
 .project-create-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 14px;
+}
+
+.project-create-grid-span {
+  grid-column: 1 / -1;
+}
+
+.project-wizard-note {
+  margin-bottom: 18px;
+  font-size: 13px;
+  color: #8cb0a1;
+}
+
+.project-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
-.project-create-actions {
+.project-payment-bar {
   display: flex;
+  gap: 2px;
+  height: 8px;
+  margin: 16px 0 14px;
+}
+
+.project-payment-segment {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.project-payment-segment.advance {
+  background: #53f79f;
+}
+
+.project-payment-segment.mid {
+  background: #61a9ff;
+}
+
+.project-payment-segment.final {
+  background: #f0b429;
+}
+
+.project-revision-field {
+  width: min(100%, 230px);
+}
+
+.project-review-card {
+  border: 1px solid rgba(77, 255, 160, 0.12);
+  background: rgba(22, 56, 35, 0.34);
+  border-radius: 10px;
+  padding: 10px 16px;
+}
+
+.project-review-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(77, 255, 160, 0.08);
+  font-size: 14px;
+}
+
+.project-review-row:last-child {
+  border-bottom: none;
+}
+
+.project-review-row span {
+  color: #6f9483;
+}
+
+.project-review-row strong {
+  color: #f3f8f2;
+  font-weight: 500;
+}
+
+.project-wizard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.project-wizard-actions-end {
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 16px;
+}
+
+.project-wizard-btn {
+  min-width: 120px;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.project-text-btn {
+  border: none;
+  background: transparent;
+  color: #91b5a5;
+  cursor: pointer;
+  padding: 0;
+}
+
+.project-wizard-close {
+  display: block;
+  margin: 18px auto 0;
+  border: none;
+  background: transparent;
+  color: #7fa392;
+  cursor: pointer;
 }
 
 .project-table-card {
@@ -1348,7 +1504,40 @@ textarea {
     border-radius: 12px;
   }
 
-  .project-create-card {
+  .project-wizard-shell {
+    width: 100%;
+    padding-top: 0;
+  }
+
+  .project-wizard-title {
+    font-size: 20px;
+    margin-bottom: 22px;
+  }
+
+  .project-wizard-steps {
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+
+  .project-wizard-step-block {
+    gap: 8px;
+  }
+
+  .project-step-chip {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .project-step-label {
+    font-size: 12px;
+  }
+
+  .project-step-line {
+    margin-left: 6px;
+  }
+
+  .project-wizard-card {
     border-radius: 12px;
     padding: 14px;
   }
@@ -1358,12 +1547,30 @@ textarea {
     gap: 12px;
   }
 
-  .project-create-actions {
-    justify-content: stretch;
+  .project-payment-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
-  .project-create-actions .btn {
-    flex: 1;
+  .project-review-row {
+    font-size: 12px;
+  }
+
+  .project-wizard-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .project-wizard-actions-end {
+    align-items: flex-end;
+  }
+
+  .project-wizard-btn {
+    width: 100%;
+  }
+
+  .project-revision-field {
+    width: 100%;
   }
 
   .project-table th {
@@ -1465,6 +1672,23 @@ textarea {
 
   .project-page-title {
     font-size: 16px;
+  }
+
+  .project-wizard-title {
+    font-size: 18px;
+  }
+
+  .project-wizard-steps {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .project-wizard-step-block {
+    width: 100%;
+  }
+
+  .project-step-line {
+    display: none;
   }
 
   .project-filter-menu {
