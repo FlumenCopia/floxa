@@ -2759,6 +2759,9 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .analytics-donut-hole {
@@ -2815,7 +2818,7 @@ textarea {
 .analytics-status-tooltip {
   position: absolute;
   left: 50%;
-  top: calc(100% + 10px);
+  top: 50%;
   z-index: 2;
   min-width: 110px;
   padding: 8px 10px;
@@ -2823,7 +2826,7 @@ textarea {
   border: 1px solid rgba(77, 255, 160, 0.18);
   background: rgba(10, 33, 21, 0.96);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   pointer-events: none;
   text-align: center;
 }
@@ -2832,13 +2835,14 @@ textarea {
   content: "";
   position: absolute;
   left: 50%;
-  top: -5px;
+  top: 50%;
   width: 10px;
   height: 10px;
   background: rgba(10, 33, 21, 0.96);
   border-left: 1px solid rgba(77, 255, 160, 0.18);
   border-top: 1px solid rgba(77, 255, 160, 0.18);
-  transform: translateX(-50%) rotate(45deg);
+  transform: translate(-50%, -50%) rotate(45deg);
+  z-index: -1;
 }
 
 .analytics-status-tooltip strong {

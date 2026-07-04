@@ -135,10 +135,68 @@ export default function Analytics() {
   const selectedTrendPoint = trendBars[selectedTrendIndex] || trendBars[0];
   const selectedStatus = statusSegments.find((item) => item.label === selectedStatusLabel) || statusSegments[0];
   const selectedModule = modulePerformance.find((item) => item.name === selectedModuleName) || modulePerformance[0];
-  const hoveredTrendPoint = hoveredTrendIndex === null ? null : trendBars[hoveredTrendIndex];
-  const hoveredStatus = hoveredStatusLabel ? statusSegments.find((item) => item.label === hoveredStatusLabel) : null;
+    const hoveredTrendPoint = hoveredTrendIndex === null ? null : trendBars[hoveredTrendIndex];
+    const hoveredStatus = hoveredStatusLabel ? statusSegments.find((item) => item.label === hoveredStatusLabel) : null;
     const hoveredModule = hoveredModuleName ? modulePerformance.find((item) => item.name === hoveredModuleName) : null;
     const activeStatus = hoveredStatus || selectedStatus;
+
+    const getStatusFromPointer = (event) => {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const centerX = bounds.left + bounds.width / 2;
+      const centerY = bounds.top + bounds.height / 2;
+      const dx = event.clientX - centerX;
+      const dy = event.clientY - centerY;
+      const radius = Math.sqrt(dx * dx + dy * dy);
+      const outerRadius = bounds.width / 2;
+      const innerRadius = outerRadius * 0.51;
+
+      if (radius < innerRadius || radius > outerRadius) {
+        return null;
+      }
+
+      const degrees = (Math.atan2(dy, dx) * 180) / Math.PI;
+      const normalized = (degrees + 450) % 360;
+      const percent = (normalized / 360) * 100;
+
+      let current = 0;
+      for (const item of statusSegments) {
+        current += item.value;
+        if (percent <= current) {
+          return item;
+        }
+      }
+
+      return statusSegments[statusSegments.length - 1] || null;
+    };
+
+    const activeStatusTooltipStyle = useMemo(() => {
+      if (!activeStatus) {
+        return undefined;
+      }
+
+      let current = 0;
+      let start = 0;
+      let end = 0;
+
+      for (const item of statusSegments) {
+        start = current;
+        current += item.value;
+        end = current;
+
+        if (item.label === activeStatus.label) {
+          break;
+        }
+      }
+
+      const midAngle = (((start + end) / 2) / 100) * 360;
+      const radians = ((midAngle - 90) * Math.PI) / 180;
+      const distance = 50;
+
+      return {
+        left: `${50 + Math.cos(radians) * distance}%`,
+        top: `${50 + Math.sin(radians) * distance}%`,
+      };
+    }, [activeStatus, statusSegments]);
 
   const linePath = useMemo(() => {
     const maxHeight = 170;
@@ -309,14 +367,28 @@ export default function Analytics() {
                     className="analytics-donut-wrap"
                     onMouseLeave={() => setHoveredStatusLabel(null)}
                   >
-                    <div className="analytics-donut-chart" style={{ background: donutGradient }}>
+                    <button
+                      className="analytics-donut-chart"
+                      type="button"
+                      style={{ background: donutGradient }}
+                      onMouseMove={(event) => {
+                        const hoveredItem = getStatusFromPointer(event);
+                        setHoveredStatusLabel(hoveredItem ? hoveredItem.label : null);
+                      }}
+                      onClick={(event) => {
+                        const clickedItem = getStatusFromPointer(event);
+                        if (clickedItem) {
+                          setSelectedStatusLabel(clickedItem.label);
+                        }
+                      }}
+                    >
                       <div className="analytics-donut-hole">
                         <strong>{activeStatus.value}%</strong>
                         <span>{activeStatus.label}</span>
                       </div>
-                    </div>
+                    </button>
                     {activeStatus ? (
-                      <div className="analytics-status-tooltip">
+                      <div className="analytics-status-tooltip" style={activeStatusTooltipStyle}>
                         <div className="analytics-status-tooltip-chip">
                           <span
                             className="analytics-status-tooltip-swatch"
