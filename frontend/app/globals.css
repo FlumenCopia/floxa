@@ -156,6 +156,13 @@ textarea {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
+  transition: transform 0.25s ease, width 0.25s ease;
+  z-index: 40;
+}
+
+.sidebar-overlay {
+  display: none;
 }
 
 .logo-area {
@@ -305,6 +312,25 @@ textarea {
   align-items: center;
   padding: 0 16px;
   gap: 10px;
+}
+
+.menu-btn {
+  display: none;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.menu-btn:hover {
+  background: var(--neon-dim);
+  color: var(--foreground);
 }
 
 .topbar-title {
@@ -614,7 +640,8 @@ textarea {
 }
 
 .table-wrap {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
 }
@@ -705,18 +732,67 @@ textarea {
 }
 
 @media (max-width: 767px) {
-  .shell {
-    flex-direction: column;
-    height: auto;
-    min-height: 100vh;
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(280px, 80vw);
+    transform: translateX(-100%);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
   }
 
-  .sidebar {
-    width: 100%;
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay.open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 39;
+  }
+
+  .menu-btn {
+    display: inline-flex;
+  }
+
+  .search-wrap {
+    display: none;
+  }
+
+  .content {
+    padding: 16px;
   }
 
   .kpi-grid,
   .grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .dash-table {
+    min-width: 520px;
+  }
+}
+
+@media (max-width: 480px) {
+  #login-screen {
+    padding: 16px;
+  }
+
+  .login-card {
+    padding: 24px 18px 18px;
+  }
+
+  .content {
+    padding: 14px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .kpi-value {
+    font-size: 20px;
   }
 }

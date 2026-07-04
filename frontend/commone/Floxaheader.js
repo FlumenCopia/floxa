@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 const primaryNavItems = [
   { label: "Dashboard", icon: "grid", active: true, badge: "3", badgeClass: "g" },
   { label: "Projects", icon: "mail" },
@@ -68,9 +72,9 @@ function Icon({ type }) {
   }
 }
 
-function NavItem({ item }) {
+function NavItem({ item, onClick }) {
   return (
-    <button className={`nav-item ${item.active ? "active" : ""}`.trim()} type="button">
+    <button className={`nav-item ${item.active ? "active" : ""}`.trim()} type="button" onClick={onClick}>
       <Icon type={item.icon} />
       {item.label}
       {item.badge ? <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span> : null}
@@ -79,9 +83,40 @@ function NavItem({ item }) {
 }
 
 export default function Floxaheader({ children }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, []);
+
+  useEffect(() => {
+    if (!isSidebarOpen) {
+      document.body.style.removeProperty("overflow");
+      return undefined;
+    }
+
+    document.body.style.overflow = "hidden";
+    return () => document.body.style.removeProperty("overflow");
+  }, [isSidebarOpen]);
+
+  const closeSidebar = () => setIsSidebarOpen(false);
+
   return (
     <>
-      <nav className="sidebar">
+      <div
+        className={`sidebar-overlay ${isSidebarOpen ? "open" : ""}`.trim()}
+        onClick={closeSidebar}
+        aria-hidden="true"
+      />
+
+      <nav className={`sidebar ${isSidebarOpen ? "open" : ""}`.trim()}>
         <div className="logo-area">
           <div className="logo">FLOXA</div>
           <div className="logo-tag">Brand Discovery Platform</div>
@@ -90,13 +125,13 @@ export default function Floxaheader({ children }) {
         <div className="nav-section">
           <div className="nav-lbl">Workspace</div>
           {primaryNavItems.map((item) => (
-            <NavItem key={item.label} item={item} />
+            <NavItem key={item.label} item={item} onClick={closeSidebar} />
           ))}
         </div>
 
         <div className="nav-section">
           <div className="nav-lbl">Account</div>
-          <NavItem item={{ label: "Settings", icon: "settings" }} />
+          <NavItem item={{ label: "Settings", icon: "settings" }} onClick={closeSidebar} />
         </div>
 
         <div className="sidebar-footer">
@@ -112,6 +147,19 @@ export default function Floxaheader({ children }) {
 
       <div className="main">
         <div className="topbar">
+          <button
+            className="menu-btn"
+            type="button"
+            aria-label="Open navigation"
+            aria-expanded={isSidebarOpen}
+            onClick={() => setIsSidebarOpen((open) => !open)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M3 6h18" />
+              <path d="M3 12h18" />
+              <path d="M3 18h18" />
+            </svg>
+          </button>
           <div className="topbar-title">Dashboard</div>
           <div className="spacer" />
           <div className="search-wrap">
