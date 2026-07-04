@@ -3612,7 +3612,7 @@ textarea {
 @media (max-width: 767px) {
   .cp-header {
     height: 58px;
-    padding: 0 16px;
+    padding: 0 18px;
   }
 
   .cp-logo {
@@ -3622,25 +3622,25 @@ textarea {
   .cp-entry-card,
   .cp-card,
   .cp-result-card {
-    width: min(calc(100% - 24px), 610px);
-    margin-top: 24px;
-    border-radius: 14px;
+    width: calc(100% - 30px);
+    margin: 66px auto 32px;
+    border-radius: 24px;
   }
 
   .cp-entry-card,
   .cp-card,
   .cp-result-card {
-    padding: 18px;
+    padding: 20px 18px 18px;
   }
 
   .cp-entry-card h1,
   .cp-step-copy h1 {
-    font-size: 22px;
+    font-size: 20px;
   }
 
   .cp-entry-card p,
   .cp-step-copy p {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .cp-card-top {
@@ -3661,9 +3661,30 @@ textarea {
     width: 15px;
   }
 
+  .cp-step-copy {
+    margin: 20px 0 28px;
+  }
+
+  .cp-card {
+    min-height: calc(100dvh - 142px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cp-card-body {
+    flex: 1 1 auto;
+  }
+
+  .cp-textarea-stack,
+  .cp-slider-list,
+  .cp-competitor-list,
+  .cp-result-grid {
+    gap: 14px;
+  }
+
   .cp-slider-row {
-    grid-template-columns: 76px minmax(92px, 1fr) 76px 24px;
-    gap: 8px;
+    grid-template-columns: 78px minmax(0, 1fr) 78px 22px;
+    gap: 10px;
     font-size: 12px;
   }
 
@@ -3672,17 +3693,43 @@ textarea {
   .cp-emotion-grid,
   .cp-visual-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
   }
 
   .cp-card-footer {
-    grid-template-columns: 1fr auto 1fr;
-    gap: 8px;
+    grid-template-columns: minmax(80px, 1fr) auto minmax(106px, 1fr);
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 18px;
   }
 
   .cp-footer-btn {
-    min-width: 106px;
-    padding: 0 12px;
+    min-width: 98px;
+    padding: 0 14px;
     font-size: 13px;
+  }
+
+  .cp-back {
+    justify-self: start;
+  }
+
+  .cp-card-footer .cp-dots {
+    justify-self: center;
+  }
+
+  .cp-competitor-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  .cp-competitor-row .cp-primary {
+    width: auto;
+  }
+
+  .cp-choice,
+  .cp-logo-option {
+    min-height: 88px;
+    border-radius: 12px;
   }
 
   .cp-result-grid {
@@ -3691,52 +3738,55 @@ textarea {
 }
 
 @media (max-width: 480px) {
-  .cp-card-top {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .cp-card-top .cp-dots {
-    align-self: flex-end;
-  }
-
   .cp-choice-grid,
   .cp-logo-grid,
-  .cp-emotion-grid,
-  .cp-visual-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .cp-audience-grid,
-  .cp-logo-grid {
+  .cp-audience-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .cp-slider-row {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-
-  .cp-slider-row span:first-child,
-  .cp-slider-row strong {
-    text-align: left;
+    grid-template-columns: 78px minmax(0, 1fr) 78px 22px;
+    gap: 8px;
   }
 
   .cp-card-footer {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(80px, 1fr) auto minmax(106px, 1fr);
   }
 
-  .cp-card-footer .cp-dots,
-  .cp-footer-btn,
   .cp-back {
+    justify-self: start;
+  }
+
+  .cp-card-footer .cp-dots {
     justify-self: center;
   }
 
   .cp-footer-btn {
-    width: 100%;
+    justify-self: end;
+  }
+
+  .cp-footer-btn {
+    width: auto;
   }
 
   .cp-competitor-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .cp-choice,
+  .cp-logo-option {
+    min-height: 78px;
+  }
+
+  .cp-emotion-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cp-visual-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cp-result-grid {
     grid-template-columns: 1fr;
   }
 }
