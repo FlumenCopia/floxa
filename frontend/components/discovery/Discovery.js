@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Floxaheader from "../../commone/Floxaheader";
+import { getProject } from "../../src/lib/projectApi";
 
 const discoveryTabs = [
   "Overview",
@@ -22,136 +23,109 @@ const timelineItems = [
   { title: "Concepts - waiting", date: "--", tone: "idle" },
 ];
 
-const paymentItems = [
-  { label: "Advance", split: "50%", value: "Rs25,000", status: "Pending", statusClass: "pending" },
-  { label: "Mid", split: "25%", value: "Rs12,500", status: "Locked", statusClass: "locked" },
-  { label: "Final", split: "25%", value: "Rs12,500", status: "Locked", statusClass: "locked" },
-];
+function getStatusLabel(status) {
+  const labels = {
+    created: "Created",
+    discovery: "Discovery",
+    advance_paid: "Advance Paid",
+    concepts: "Concepts",
+    delivered: "Delivered",
+    archived: "Archived",
+  };
 
-const brandDnaCards = [
-  { label: "Tone archetype", value: "Confident & Authoritative" },
-  { label: "Tone descriptors", value: "Direct - Innovative - Precise" },
-  { label: "Audience", value: "Premium Seeker" },
-  { label: "Positioning", value: "For brands that refuse to follow - we build identities that lead." },
-  { label: "Taglines", value: "Define the future - Lead the change - Built different" },
-  { label: "Visual brief", value: "High contrast, geometric, bold type, limited palette" },
-];
+  return labels[status] || status || "Discovery";
+}
 
-const discoveryAnswers = [
-  {
-    label: "What do you do?",
-    value: "We create next-generation consumer goods that challenge conventional categories and set new industry standards.",
-  },
-  {
-    label: "Target customer",
-    value: "Aspirational millennials who value quality and aesthetics over price, aged 25-40.",
-  },
-  {
-    label: "Brand feeling",
-    value: "Bold, trustworthy, creative, modern, confident",
-  },
-];
+function getStatusClass(status) {
+  const classes = {
+    created: "badge-muted",
+    discovery: "badge-amber",
+    advance_paid: "badge-green",
+    concepts: "badge-blue",
+    delivered: "badge-green",
+    archived: "badge-muted",
+  };
 
-const personalitySliders = [
-  { left: "Playful", right: "Serious", value: 65 },
-  { left: "Friendly", right: "Premium", value: 80 },
-  { left: "Bold", right: "Minimal", value: 15 },
-];
+  return classes[status] || "badge-amber";
+}
 
-const moodboards = [
-  {
-    name: "Dark Premium",
-    colors: ["#1d1e36", "#1f2b4e", "#1d4372", "#e94161"],
-    tags: ["bold", "luxury", "modern"],
-    selected: true,
-  },
-  {
-    name: "Warm Earth",
-    colors: ["#eadcc4", "#e2cdaa", "#c89a69", "#996b43"],
-    tags: ["natural", "organic", "warm"],
-    selected: false,
-  },
-  {
-    name: "Clean Tech",
-    colors: ["#cedbe3", "#a8c2d9", "#558dcc", "#264a72"],
-    tags: ["minimal", "clean", "tech"],
-    selected: false,
-  },
-];
+function formatProjectValue(value) {
+  if (value === undefined || value === null || value === "") {
+    return "No value available";
+  }
 
-const concepts = [
-  {
-    round: "Round 1, Concept A",
-    name: "The Bold Mark",
-    canvasClass: "navy",
-    wordmark: "CRAFT",
-    wordmarkClass: "pink",
-    status: "Approved",
-  },
-  {
-    round: "Round 1, Concept B",
-    name: "The Serif Signature",
-    canvasClass: "sand",
-    wordmark: "craft & co",
-    wordmarkClass: "brown script",
-    status: "Rejected",
-  },
-  {
-    round: "Round 1, Concept C",
-    name: "The Minimal Wordmark",
-    canvasClass: "white",
-    wordmark: "CRAFT",
-    wordmarkClass: "blue spaced",
-    status: "Review",
-  },
-];
+  const amount = Number(value);
 
-const deliverables = [
-  { file: "Brand Identity Guidelines.pdf", type: "PDF", size: "4.2 MB", access: "Locked - Final payment", accessClass: "locked" },
-  { file: "Logo Files (All Formats).zip", type: "ZIP", size: "18.6 MB", access: "Locked - Final payment", accessClass: "locked" },
-  { file: "Brand Poster Preview.jpg", type: "Image", size: "2.1 MB", access: "Free preview", accessClass: "free" },
-];
+  if (Number.isNaN(amount)) {
+    return `Rs ${value}`;
+  }
 
-const activityGroups = [
-  {
-    label: "Today",
-    items: [
-      { avatar: "NB", avatarClass: "blue", title: "Client selected Moodboard 1 - Dark Premium", time: "2 min ago" },
-      { avatar: "AK", avatarClass: "green", title: "You uploaded 3 moodboards", time: "3 hrs ago" },
-    ],
-  },
-  {
-    label: "Yesterday",
-    items: [
-      { avatar: "NB", avatarClass: "blue", title: "Client completed all 9 discovery frames", time: "Jun 2, 3:45 PM" },
-      {
-        avatar: "+",
-        avatarClass: "spark",
-        title: "Brand DNA generated - ",
-        strong: "Bold Visionary",
-        suffix: " cluster identified",
-        time: "Jun 2, 3:46 PM",
-      },
-      { avatar: "AK", avatarClass: "green", title: "Project created - portal link sent to craft@company.com", time: "Jun 1, 11:00 AM" },
-    ],
-  },
-];
+  return `Rs${amount.toLocaleString("en-IN", {
+    maximumFractionDigits: 0,
+  })}`;
+}
 
-function SummaryHeader() {
+function getPercent(rawValue, fallback) {
+  const percent = Number(String(rawValue ?? fallback).replace("%", ""));
+  return Number.isNaN(percent) ? fallback : percent;
+}
+
+function getPaymentAmount(projectValue, percentage) {
+  const amount = (Number(projectValue || 0) * Number(percentage || 0)) / 100;
+  return formatProjectValue(amount);
+}
+
+function getProjectPaymentItems(project) {
+  if (!project) {
+    return [];
+  }
+
+  const advance = getPercent(project?.advance_percentage, 50);
+  const mid = getPercent(project?.mid_percentage, 25);
+  const final = getPercent(project?.final_percentage, 25);
+
+  return [
+    { label: "Advance", split: advance, value: getPaymentAmount(project?.project_value, advance), status: "Pending", statusClass: "pending" },
+    { label: "Mid", split: mid, value: getPaymentAmount(project?.project_value, mid), status: "Locked", statusClass: "locked" },
+    { label: "Final", split: final, value: getPaymentAmount(project?.project_value, final), status: "Locked", statusClass: "locked" },
+  ];
+}
+
+function getPaymentGridColumns(paymentItems) {
+  return paymentItems.map((item) => `${item.split}fr`).join(" ");
+}
+
+function formatRevisionLimit(value) {
+  if (value === undefined || value === null || value === "") {
+    return "3 revisions";
+  }
+
+  const revisionText = String(value).trim();
+  return revisionText.toLowerCase().includes("revision") ? revisionText : `${revisionText} revisions`;
+}
+
+function SummaryHeader({ project }) {
+  const progress = Number(project?.progress ?? 0);
+  const title = project?.company_name || "No project selected";
+  const email = project?.client_email || "No email available";
+  const sector = project?.sector || "No sector available";
+  const value = formatProjectValue(project?.project_value);
+  const status = project?.status || "discovery";
+
   return (
     <section className="discovery-card discovery-summary">
       <div className="discovery-summary-main">
         <div className="discovery-summary-copy">
           <div className="discovery-summary-head">
-            <h1 className="discovery-summary-title">Craft & Co</h1>
-            <span className="badge badge-amber">Discovery</span>
+            <h1 className="discovery-summary-title">{title}</h1>
+            <span className={`badge ${getStatusClass(status)}`}>{getStatusLabel(status)}</span>
           </div>
-          <div className="discovery-summary-meta">craft@company.com - Consumer Goods - Rs50,000</div>
+          <div className="discovery-summary-meta">{email} - {sector} - {value}</div>
         </div>
 
         <div className="discovery-summary-actions">
-          <div className="discovery-progress-ring" style={{ "--progress": "45%" }}>
-            <span>45%</span>
+          <div className="discovery-progress-ring" style={{ "--progress": `${progress}%` }}>
+            <span>{progress}%</span>
           </div>
           <button className="btn btn-secondary discovery-link-btn" type="button">
             <span className="discovery-btn-icon">[ ]</span>
@@ -166,7 +140,14 @@ function SummaryHeader() {
   );
 }
 
-function OverviewPanel({ gateDeliverables, setGateDeliverables }) {
+function OverviewPanel({ gateDeliverables, project, setGateDeliverables }) {
+  const clientName = project?.client_name || "No project selected";
+  const clientEmail = project?.client_email || "No email available";
+  const sector = project?.sector || "No sector available";
+  const value = project ? formatProjectValue(project.project_value) : "No value available";
+  const paymentItems = getProjectPaymentItems(project);
+  const revisions = project ? formatRevisionLimit(project.revision_limit) : "No revision limit set";
+
   return (
     <div className="discovery-overview-grid">
       <section className="discovery-card discovery-panel">
@@ -186,27 +167,38 @@ function OverviewPanel({ gateDeliverables, setGateDeliverables }) {
 
       <section className="discovery-card discovery-panel">
         <h2 className="discovery-panel-title">Payment schedule</h2>
-        <div className="discovery-payment-bar" aria-hidden="true">
-          <span className="advance" />
-          <span className="mid" />
-          <span className="final" />
-        </div>
-        <div className="discovery-payment-legend">
-          <span><i className="advance" /> Advance 50%</span>
-          <span><i className="mid" /> Mid 25%</span>
-          <span><i className="final" /> Final 25%</span>
-        </div>
-        <div className="discovery-payment-list">
-          {paymentItems.map((item) => (
-            <div className="discovery-payment-item" key={item.label}>
-              <div className="discovery-payment-name">{item.label}</div>
-              <div className="discovery-payment-meta">
-                <strong>{item.value}</strong>
-                <span className={`discovery-pill ${item.statusClass}`.trim()}>{item.status}</span>
-              </div>
+        {paymentItems.length > 0 ? (
+          <>
+            <div className="discovery-payment-bar" style={{ gridTemplateColumns: getPaymentGridColumns(paymentItems) }} aria-hidden="true">
+              <span className="advance" />
+              <span className="mid" />
+              <span className="final" />
             </div>
-          ))}
-        </div>
+            <div className="discovery-payment-legend">
+              <span><i className="advance" /> Advance {paymentItems[0].split}%</span>
+              <span><i className="mid" /> Mid {paymentItems[1].split}%</span>
+              <span><i className="final" /> Final {paymentItems[2].split}%</span>
+            </div>
+            <div className="discovery-payment-list">
+              {paymentItems.map((item) => (
+                <div className="discovery-payment-item" key={item.label}>
+                  <div className="discovery-payment-name">{item.label}</div>
+                  <div className="discovery-payment-meta">
+                    <strong>{item.value}</strong>
+                    <span className={`discovery-pill ${item.statusClass}`.trim()}>{item.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="discovery-info-list">
+            <div className="discovery-info-row">
+              <span>Payment terms</span>
+              <strong>No project selected</strong>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="discovery-card discovery-panel">
@@ -214,19 +206,19 @@ function OverviewPanel({ gateDeliverables, setGateDeliverables }) {
         <div className="discovery-info-list">
           <div className="discovery-info-row">
             <span>Name</span>
-            <strong>Nova Brands</strong>
+            <strong>{clientName}</strong>
           </div>
           <div className="discovery-info-row">
             <span>Email</span>
-            <strong>craft@company.com</strong>
+            <strong>{clientEmail}</strong>
           </div>
           <div className="discovery-info-row">
             <span>Sector</span>
-            <strong>Consumer Goods</strong>
+            <strong>{sector}</strong>
           </div>
           <div className="discovery-info-row">
             <span>Value</span>
-            <strong className="discovery-value">Rs50,000</strong>
+            <strong className="discovery-value">{value}</strong>
           </div>
         </div>
       </section>
@@ -235,7 +227,7 @@ function OverviewPanel({ gateDeliverables, setGateDeliverables }) {
         <h2 className="discovery-panel-title">Settings</h2>
         <div className="discovery-setting-row">
           <span>Revision limit</span>
-          <strong>3 revisions</strong>
+          <strong>{revisions}</strong>
         </div>
         <div className="discovery-setting-row">
           <span>Gate deliverables</span>
@@ -258,21 +250,9 @@ function BrandDnaPanel() {
     <div className="discovery-stack">
       <section className="discovery-brand-hero">
         <div className="discovery-brand-kicker">Brand Personality Cluster</div>
-        <h2 className="discovery-brand-title">Bold Visionary</h2>
-        <div className="discovery-brand-pill">+ The Pioneer Archetype</div>
-        <p className="discovery-brand-copy">
-          A brand that challenges conventions and redefines categories. Built for leaders who see around corners.
-        </p>
+        <h2 className="discovery-brand-title">Not generated yet</h2>
+        <div className="discovery-brand-pill">Waiting for client discovery</div>
       </section>
-
-      <div className="discovery-info-grid">
-        {brandDnaCards.map((item) => (
-          <section className="discovery-card discovery-mini-card" key={item.label}>
-            <div className="discovery-mini-label">{item.label}</div>
-            <div className="discovery-mini-value">{item.value}</div>
-          </section>
-        ))}
-      </div>
 
       <div className="discovery-inline-actions">
         <button className="btn btn-secondary discovery-wide-btn" type="button">+ Enhance with AI</button>
@@ -285,29 +265,9 @@ function BrandDnaPanel() {
 function DiscoveryAnswersPanel() {
   return (
     <section className="discovery-card discovery-form-card">
-      <div className="discovery-form-date">Discovery submitted Jun 2, 2026 at 3:45 PM</div>
-      <div className="discovery-form-divider" />
-
-      {discoveryAnswers.map((item) => (
-        <div className="discovery-form-block" key={item.label}>
-          <div className="discovery-form-label">{item.label}</div>
-          <p className="discovery-form-value">{item.value}</p>
-        </div>
-      ))}
-
       <div className="discovery-form-block">
-        <div className="discovery-form-label">Personality sliders</div>
-        <div className="discovery-slider-list">
-          {personalitySliders.map((item) => (
-            <div className="discovery-slider-row" key={item.left}>
-              <span>{item.left}</span>
-              <div className="discovery-slider-track">
-                <div className="discovery-slider-fill" style={{ width: `${item.value}%` }} />
-              </div>
-              <span>{item.right}</span>
-            </div>
-          ))}
-        </div>
+        <div className="discovery-form-label">Discovery answers</div>
+        <p className="discovery-form-value">Client discovery answers are not connected yet.</p>
       </div>
     </section>
   );
@@ -317,29 +277,18 @@ function MoodboardsPanel() {
   return (
     <div className="discovery-stack">
       <div className="discovery-section-bar">
-        <div className="discovery-section-copy">3 of 3 uploaded - 1 selected</div>
+        <div className="discovery-section-copy">No moodboards uploaded</div>
         <button className="btn btn-secondary discovery-upload-btn" type="button">+ Upload</button>
       </div>
-      <div className="discovery-moodboard-grid">
-        {moodboards.map((item) => (
-          <section className={`discovery-moodboard-card ${item.selected ? "selected" : ""}`.trim()} key={item.name}>
-            <div className="discovery-palette-row">
-              {item.colors.map((color) => (
-                <span className="discovery-palette-swatch" key={color} style={{ background: color }} />
-              ))}
-            </div>
-            {item.selected ? <div className="discovery-selected-badge">Selected</div> : null}
-            <div className="discovery-moodboard-body">
-              <h3>{item.name}</h3>
-              <div className="discovery-tag-row">
-                {item.tags.map((tag) => (
-                  <span className="discovery-tag" key={tag}>{tag}</span>
-                ))}
-              </div>
-            </div>
-          </section>
-        ))}
-      </div>
+      <section className="discovery-card discovery-panel">
+        <h2 className="discovery-panel-title">Moodboards</h2>
+        <div className="discovery-info-list">
+          <div className="discovery-info-row">
+            <span>Status</span>
+            <strong>No moodboards found</strong>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -348,30 +297,18 @@ function ConceptsPanel() {
   return (
     <div className="discovery-stack">
       <div className="discovery-section-bar">
-        <div className="discovery-section-copy">Round 1 - 3 concepts</div>
+        <div className="discovery-section-copy">No concepts uploaded</div>
         <button className="btn btn-secondary discovery-upload-btn" type="button">+ Upload</button>
       </div>
-      <div className="discovery-concepts-grid">
-        {concepts.map((item) => (
-          <section className={`discovery-concept-card ${item.status.toLowerCase()}`.trim()} key={item.name}>
-            <div className={`discovery-concept-canvas ${item.canvasClass}`.trim()}>
-              <div className={`discovery-concept-wordmark ${item.wordmarkClass}`.trim()}>{item.wordmark}</div>
-            </div>
-            <div className="discovery-concept-body">
-              <div className="discovery-concept-round">{item.round}</div>
-              <h3>{item.name}</h3>
-              {item.status === "Approved" ? <button className="discovery-status-btn approved" type="button">Approved</button> : null}
-              {item.status === "Rejected" ? <button className="discovery-status-btn rejected" type="button">Rejected</button> : null}
-              {item.status === "Review" ? (
-                <div className="discovery-dual-actions">
-                  <button className="discovery-status-btn approved" type="button">Approve</button>
-                  <button className="discovery-status-btn rejected" type="button">Reject</button>
-                </div>
-              ) : null}
-            </div>
-          </section>
-        ))}
-      </div>
+      <section className="discovery-card discovery-panel">
+        <h2 className="discovery-panel-title">Concepts</h2>
+        <div className="discovery-info-list">
+          <div className="discovery-info-row">
+            <span>Status</span>
+            <strong>No concepts found</strong>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -380,7 +317,7 @@ function DeliverablesPanel() {
   return (
     <div className="discovery-stack">
       <div className="discovery-section-bar">
-        <div className="discovery-section-copy">Final files - Payment gated</div>
+        <div className="discovery-section-copy">No deliverables uploaded</div>
         <button className="btn btn-secondary discovery-upload-btn" type="button">+ Upload</button>
       </div>
       <section className="discovery-card discovery-table-card">
@@ -395,17 +332,9 @@ function DeliverablesPanel() {
             </tr>
           </thead>
           <tbody>
-            {deliverables.map((item) => (
-              <tr key={item.file}>
-                <td className="discovery-file-name">{item.file}</td>
-                <td>{item.type}</td>
-                <td>{item.size}</td>
-                <td>
-                  <span className={`discovery-access-pill ${item.accessClass}`.trim()}>{item.access}</span>
-                </td>
-                <td className="discovery-download-cell">download</td>
-              </tr>
-            ))}
+            <tr>
+              <td className="discovery-file-name" colSpan="5">No deliverables found.</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -425,38 +354,55 @@ function AgreementPanel() {
   );
 }
 
-function PaymentsPanel() {
+function PaymentsPanel({ project }) {
+  const paymentItems = getProjectPaymentItems(project);
+
   return (
     <div className="discovery-stack">
       <section className="discovery-card discovery-panel">
         <h2 className="discovery-panel-title">Payment schedule</h2>
-        <div className="discovery-payment-bar discovery-payment-bar-large" aria-hidden="true">
-          <span className="advance" />
-          <span className="mid" />
-          <span className="final" />
-        </div>
-        <div className="discovery-payment-list">
-          {paymentItems.map((item) => (
-            <div className="discovery-payment-item discovery-payment-item-rich" key={item.label}>
-              <div className="discovery-payment-name">
-                {item.label} - {item.split}
-              </div>
-              <div className="discovery-payment-meta">
-                <strong>{item.value}</strong>
-                <span className={`discovery-pill ${item.statusClass}`.trim()}>{item.status}</span>
-                {item.label === "Advance" ? <button className="discovery-request-btn" type="button">Request</button> : null}
-              </div>
+        {paymentItems.length > 0 ? (
+          <>
+            <div
+              className="discovery-payment-bar discovery-payment-bar-large"
+              style={{ gridTemplateColumns: getPaymentGridColumns(paymentItems) }}
+              aria-hidden="true"
+            >
+              <span className="advance" />
+              <span className="mid" />
+              <span className="final" />
             </div>
-          ))}
-        </div>
+            <div className="discovery-payment-list">
+              {paymentItems.map((item) => (
+                <div className="discovery-payment-item discovery-payment-item-rich" key={item.label}>
+                  <div className="discovery-payment-name">
+                    {item.label} - {item.split}
+                  </div>
+                  <div className="discovery-payment-meta">
+                    <strong>{item.value}</strong>
+                    <span className={`discovery-pill ${item.statusClass}`.trim()}>{item.status}</span>
+                    {item.label === "Advance" ? <button className="discovery-request-btn" type="button">Request</button> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="discovery-info-list">
+            <div className="discovery-info-row">
+              <span>Payment terms</span>
+              <strong>No project selected</strong>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="discovery-card discovery-addon-card">
         <div>
           <div className="discovery-addon-title">AI Add-on</div>
-          <div className="discovery-addon-copy">Unlock all 9 AI modules for this project - Rs250 one-time</div>
+          <div className="discovery-addon-copy">AI add-on pricing is unavailable.</div>
         </div>
-        <button className="btn btn-primary discovery-addon-btn" type="button">Unlock - Rs250</button>
+        <button className="btn btn-primary discovery-addon-btn" type="button">Unlock</button>
       </section>
     </div>
   );
@@ -465,34 +411,26 @@ function PaymentsPanel() {
 function ActivityPanel() {
   return (
     <section className="discovery-card discovery-activity-board">
-      {activityGroups.map((group) => (
-        <div className="discovery-activity-group" key={group.label}>
-          <div className="discovery-activity-group-label">{group.label}</div>
-          <div className="discovery-activity-list">
-            {group.items.map((item) => (
-              <div className="discovery-activity-item" key={`${group.label}-${item.title}`}>
-                <div className={`discovery-activity-avatar ${item.avatarClass}`.trim()}>{item.avatar}</div>
-                <div className="discovery-activity-copy">
-                  <div className="discovery-activity-text">
-                    {item.title}
-                    {item.strong ? <strong>{item.strong}</strong> : null}
-                    {item.suffix || ""}
-                  </div>
-                  <div className="discovery-activity-time">{item.time}</div>
-                </div>
-              </div>
-            ))}
+      <div className="discovery-activity-group">
+        <div className="discovery-activity-group-label">Activity</div>
+        <div className="discovery-activity-list">
+          <div className="discovery-activity-item">
+            <div className="discovery-activity-avatar spark">--</div>
+            <div className="discovery-activity-copy">
+              <div className="discovery-activity-text">No recent activity</div>
+              <div className="discovery-activity-time">Activity will appear here when available.</div>
+            </div>
           </div>
         </div>
-      ))}
+      </div>
     </section>
   );
 }
 
-function renderTabPanel(activeTab, gateDeliverables, setGateDeliverables) {
+function renderTabPanel(activeTab, gateDeliverables, project, setGateDeliverables) {
   switch (activeTab) {
     case "Overview":
-      return <OverviewPanel gateDeliverables={gateDeliverables} setGateDeliverables={setGateDeliverables} />;
+      return <OverviewPanel gateDeliverables={gateDeliverables} project={project} setGateDeliverables={setGateDeliverables} />;
     case "Brand DNA":
       return <BrandDnaPanel />;
     case "Discovery":
@@ -506,7 +444,7 @@ function renderTabPanel(activeTab, gateDeliverables, setGateDeliverables) {
     case "Agreement":
       return <AgreementPanel />;
     case "Payments":
-      return <PaymentsPanel />;
+      return <PaymentsPanel project={project} />;
     case "Activity":
       return <ActivityPanel />;
     default:
@@ -517,14 +455,34 @@ function renderTabPanel(activeTab, gateDeliverables, setGateDeliverables) {
 export default function Discovery() {
   const [activeTab, setActiveTab] = useState("Overview");
   const [gateDeliverables, setGateDeliverables] = useState(true);
+  const [project, setProject] = useState(null);
+
+  useEffect(() => {
+    const projectId = new URLSearchParams(window.location.search).get("projectId");
+
+    if (!projectId) {
+      return;
+    }
+
+    async function loadProject() {
+      try {
+        const data = await getProject(projectId);
+        setProject(data);
+      } catch (error) {
+        console.error("Failed to load project:", error);
+      }
+    }
+
+    loadProject();
+  }, []);
 
   return (
     <div className="shell">
-      <Floxaheader title="Craft & Co" activeNav="Discovery">
+      <Floxaheader title={project?.company_name || "Discovery"} activeNav="Discovery">
         <div className="content">
           <div className="screen">
             <div className="discovery-shell">
-              <SummaryHeader />
+              <SummaryHeader project={project} />
 
               <div className="discovery-tabs" role="tablist" aria-label="Discovery sections">
                 {discoveryTabs.map((tab) => (
@@ -541,7 +499,7 @@ export default function Discovery() {
                 ))}
               </div>
 
-              {renderTabPanel(activeTab, gateDeliverables, setGateDeliverables)}
+              {renderTabPanel(activeTab, gateDeliverables, project, setGateDeliverables)}
             </div>
           </div>
         </div>

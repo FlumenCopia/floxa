@@ -1,56 +1,103 @@
 "use client";
 
 import { useState } from "react";
-import Floxaheader from "../commone/Floxaheader";
-import Dashboardsection from "../components/dashboard/Dashboardsection";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { loginConsultant } from "../src/lib/authApi";
 
-const AUTH_COOKIE_NAME = "floxa_auth";
-const AUTH_COOKIE_VALUE = "1";
 const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 export default function Login() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
 
-  const markAuthenticated = () => {
-    document.cookie = `${AUTH_COOKIE_NAME}=${AUTH_COOKIE_VALUE}; Path=/; Max-Age=${AUTH_COOKIE_MAX_AGE}; SameSite=Lax`;
-    setIsAuthenticated(true);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((currentFormData) => ({
+      ...currentFormData,
+      [name]: value,
+    }));
   };
 
-  if (isAuthenticated) {
-    return (
-      <div className="shell">
-        <Floxaheader>
-          <Dashboardsection />
-        </Floxaheader>
-      </div>
-    );
-  }
+  const getLoginError = (error) => {
+    return error?.detail || error?.message || "Invalid email or password";
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    setErrorMessage("");
+    setIsLoading(true);
+
+    try {
+      const data = await loginConsultant({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      localStorage.setItem("access_token", data.access);
+      localStorage.setItem("refresh_token", data.refresh);
+      document.cookie = `floxa_auth=1; Path=/; Max-Age=${AUTH_COOKIE_MAX_AGE}; SameSite=Lax`;
+      // localStorage.setItem("consultant", JSON.stringify(data.consultant));
+
+      router.push("/");
+    } catch (error) {
+      setErrorMessage(getLoginError(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div id="login-screen">
       <div className="login-card">
         <div className="login-logo">FLOXA</div>
         <div className="login-tagline">Clarity Before Creation</div>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            markAuthenticated();
-          }}
-        >
+
+        <form onSubmit={handleSubmit}>
           <div className="form-group mb-3">
             <label className="form-label">Email</label>
-            <input className="form-input" type="email" placeholder="you@studio.com" defaultValue="akhil@floxa.io" />
+            <input
+              className="form-input"
+              type="email"
+              name="email"
+              placeholder="you@studio.com"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
           </div>
+
           <div className="form-group mb-3">
             <label className="form-label">Password</label>
-            <input className="form-input" type="password" defaultValue="********" />
+            <input
+              className="form-input"
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
           </div>
-          <button className="btn btn-primary btn-full btn-lg" type="submit">
-            Sign in
+
+          {errorMessage && <p className="error-message">{errorMessage}</p>}
+
+          <button className="btn btn-primary btn-full btn-lg" type="submit" disabled={isLoading}>
+            {isLoading ? "Signing in..." : "Sign in"}
           </button>
         </form>
+
         <div className="login-divider">or</div>
-        <button className="google-btn" type="button" onClick={markAuthenticated}>
+
+        <button className="google-btn" type="button" disabled>
           <svg width="16" height="16" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -59,6 +106,14 @@ export default function Login() {
           </svg>
           Continue with Google
         </button>
+
+        <div className="auth-switch">
+          <span>Don&apos;t have an account?</span>
+          <Link href="/register" className="signup-link">
+            Sign up
+          </Link>
+        </div>
+
         <div className="login-footer">By signing in you agree to our Terms &amp; Privacy Policy</div>
       </div>
     </div>
