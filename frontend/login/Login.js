@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loginConsultant } from "../src/lib/authApi";
+import { showError, showSuccess } from "../src/lib/toast";
 
 const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
@@ -48,9 +49,12 @@ export default function Login() {
       document.cookie = `floxa_auth=1; Path=/; Max-Age=${AUTH_COOKIE_MAX_AGE}; SameSite=Lax`;
       // localStorage.setItem("consultant", JSON.stringify(data.consultant));
 
+      showSuccess("Login successful.");
       router.push("/");
     } catch (error) {
-      setErrorMessage(getLoginError(error));
+      const message = getLoginError(error);
+      setErrorMessage(message);
+      showError(message);
     } finally {
       setIsLoading(false);
     }

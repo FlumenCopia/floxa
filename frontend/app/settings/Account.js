@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getCurrentConsultant, updateCurrentConsultant } from "../../src/lib/authApi";
+import { showError, showSuccess } from "../../src/lib/toast";
 
 export default function Account() {
   const [formData, setFormData] = useState({
@@ -68,9 +69,12 @@ export default function Account() {
         phone: updatedConsultant?.phone || "",
       });
       setMessage("Profile updated successfully.");
+      showSuccess("Profile updated successfully.");
     } catch (error) {
       console.error("Failed to update account profile:", error);
-      setMessage(error?.detail || "Profile could not be updated.");
+      const message = error?.detail || "Profile could not be updated.";
+      setMessage(message);
+      showError(message);
     }
   };
 

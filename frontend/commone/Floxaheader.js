@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCurrentConsultant, logoutConsultant } from "../src/lib/authApi";
+import { showError, showSuccess } from "../src/lib/toast";
 
 const primaryNavItems = [
   { label: "Dashboard", icon: "grid", route: "/" },
@@ -266,8 +267,10 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
 
     try {
       await logoutConsultant(refreshToken);
+      showSuccess("Logout successful.");
     } catch (error) {
       console.error("Logout failed:", error);
+      showError(error?.detail || "Logout failed.");
     } finally {
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");

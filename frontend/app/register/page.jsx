@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { registerConsultant } from "../../src/lib/authApi";
+import { showError, showSuccess } from "../../src/lib/toast";
 
 
 
@@ -60,12 +61,15 @@ export default function RegisterPage() {
       await registerConsultant(formData);
 
       setSuccessMessage("Registration successful. Redirecting to login...");
+      showSuccess("Registration successful. Redirecting to login.");
       setTimeout(() => {
         router.push("/login");
       }, 1000);
     } catch (error) {
       console.error(error);
-      setErrorMessage(getRegisterError(error));
+      const message = getRegisterError(error);
+      setErrorMessage(message);
+      showError(message);
     } finally {
       setIsLoading(false);
     }

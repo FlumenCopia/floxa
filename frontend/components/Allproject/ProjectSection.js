@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createProject, getProjects } from "../../src/lib/projectApi";
 import { useRouter, useSearchParams } from "next/navigation";
+import { showError, showSuccess } from "../../src/lib/toast";
 
 const statusOptions = ["All statuses", "Discovery", "Advance Paid", "Concepts", "Delivered", "Created"];
 const wizardSteps = [
@@ -153,10 +154,13 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
 
       setProjects((current) => [createdProject, ...current]);
       setSelectedStatus("All statuses");
+      showSuccess("Project created successfully.");
       handleCloseWizard();
     } catch (error) {
       console.error("Failed to create project:", error);
-      setProjectError(getCreateProjectError(error));
+      const message = getCreateProjectError(error);
+      setProjectError(message);
+      showError(message);
     } finally {
       setIsCreatingProject(false);
     }

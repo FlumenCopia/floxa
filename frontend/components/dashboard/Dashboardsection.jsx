@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createProject, getProjects } from "../../src/lib/projectApi";
 import { useRouter } from "next/navigation";
+import { showError, showSuccess } from "../../src/lib/toast";
 
 const paymentFields = ["advance", "mid", "final"];
 
@@ -237,10 +238,13 @@ const [formData, setFormData] = useState({
       });
 
       setProjects((current) => [createdProject, ...current]);
+      showSuccess("Project created successfully.");
       handleCloseWizard();
     } catch (error) {
       console.error("Failed to create project:", error);
-      setProjectCreateError(getCreateProjectError(error));
+      const message = getCreateProjectError(error);
+      setProjectCreateError(message);
+      showError(message);
     } finally {
       setIsCreatingProject(false);
     }
