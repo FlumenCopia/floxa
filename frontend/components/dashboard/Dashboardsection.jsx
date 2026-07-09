@@ -90,6 +90,28 @@ function getStatusClass(status) {
   return classes[status] || "badge-muted";
 }
 
+async function copyClientPortalLink(link) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(link);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = link;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textarea);
+
+  if (!copied) {
+    throw new Error("Client portal link could not be copied.");
+  }
+}
+
 export default function Dashboardsection() {
       const router = useRouter();
 
@@ -99,6 +121,8 @@ export default function Dashboardsection() {
   const [wizardStep, setWizardStep] = useState(1);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [projectCreateError, setProjectCreateError] = useState("");
+  const [createdPortalLink, setCreatedPortalLink] = useState("");
+  const [projectCreateSuccess, setProjectCreateSuccess] = useState("");
 const [formData, setFormData] = useState({
   client: "",
   email: "",
@@ -188,11 +212,14 @@ const [formData, setFormData] = useState({
       [field]: nextValue,
     }));
     setProjectCreateError("");
+    setProjectCreateSuccess("");
   };
 
   const handleOpenWizard = () => {
     console.log("New project clicked");
     setProjectCreateError("");
+    setProjectCreateSuccess("");
+    setCreatedPortalLink("");
     setIsWizardOpen(true);
     setWizardStep(1);
   };
@@ -201,6 +228,8 @@ const [formData, setFormData] = useState({
     setIsWizardOpen(false);
     setWizardStep(1);
     setProjectCreateError("");
+    setProjectCreateSuccess("");
+    setCreatedPortalLink("");
   };
 
   const getCreateProjectError = (error) => {
@@ -222,6 +251,8 @@ const [formData, setFormData] = useState({
 
   const handleCreateProject = async () => {
     setProjectCreateError("");
+    setProjectCreateSuccess("");
+    setCreatedPortalLink("");
     setIsCreatingProject(true);
 
     try {
@@ -237,8 +268,20 @@ const [formData, setFormData] = useState({
         revisions: formData.revisions,
       });
 
+      const portalToken = createdProject.portal_token || createdProject.portalToken;
+
+      if (!portalToken) {
+        throw new Error("Project was created, but no client portal token was returned.");
+      }
+
+      const portalLink = `http://localhost:3000/client/${portalToken}`;
+
+      await copyClientPortalLink(portalLink);
+
       setProjects((current) => [createdProject, ...current]);
-      showSuccess("Project created successfully.");
+      setCreatedPortalLink(portalLink);
+      setProjectCreateSuccess("Client portal link copied.");
+      showSuccess("Client portal link copied.");
       handleCloseWizard();
     } catch (error) {
       console.error("Failed to create project:", error);
@@ -374,6 +417,12 @@ const [formData, setFormData] = useState({
                   </div>
 
                   {projectCreateError ? <div className="project-wizard-note">{projectCreateError}</div> : null}
+                  {projectCreateSuccess ? <div className="project-wizard-note">{projectCreateSuccess}</div> : null}
+                  {createdPortalLink ? (
+                    <div className="project-wizard-note">
+                      Client portal link: {createdPortalLink}
+                    </div>
+                  ) : null}
 
                   <div className="project-wizard-actions">
                     <button className="project-text-btn" type="button" onClick={() => setWizardStep(2)}>

@@ -1,8 +1,70 @@
 from django.urls import path
-from .views import ProjectDetailView, ProjectListCreateView
+from .views import (
+    BrandDNAGenerateView,
+    BrandDNAView,
+    ClientProfileView,
+    ConsultantActivityMarkReadView,
+    ConsultantActivityView,
+    DiscoverySummaryView,
+    MoodboardView,
+    ProjectActivityMarkReadView,
+    ProjectActivityView,
+    ProjectDetailView,
+    ProjectDiscoveryView,
+    ProjectListCreateView,
+)
 
 urlpatterns = [
     path("", ProjectListCreateView.as_view(), name="project-list-create"),
+    path(
+        "activities/",
+        ConsultantActivityView.as_view(),
+        name="consultant-activities",
+    ),
+    path(
+        "activities/mark-read/",
+        ConsultantActivityMarkReadView.as_view(),
+        name="consultant-activities-mark-read",
+    ),
+    path(
+        "<int:project_id>/client-profile/",
+        ClientProfileView.as_view(),
+        name="project-client-profile",
+    ),
+    path(
+        "<int:project_id>/discovery/",
+        ProjectDiscoveryView.as_view(),
+        name="project-discovery",
+    ),
+    path(
+        "<int:project_id>/discovery-summary/",
+        DiscoverySummaryView.as_view(),
+        name="project-discovery-summary",
+    ),
+    path(
+        "<int:project_id>/brand-dna/",
+        BrandDNAView.as_view(),
+        name="project-brand-dna",
+    ),
+    path(
+        "<int:project_id>/brand-dna/generate/",
+        BrandDNAGenerateView.as_view(),
+        name="project-brand-dna-generate",
+    ),
+    path(
+        "<int:project_id>/moodboards/",
+        MoodboardView.as_view(),
+        name="project-moodboards",
+    ),
+    path(
+        "<int:project_id>/activities/",
+        ProjectActivityView.as_view(),
+        name="project-activities",
+    ),
+    path(
+        "<int:project_id>/activities/mark-read/",
+        ProjectActivityMarkReadView.as_view(),
+        name="project-activities-mark-read",
+    ),
     path("<int:pk>/", ProjectDetailView.as_view(), name="project-detail"),
-
-] 
+]

@@ -52,6 +52,28 @@ function StepIndicator({ done, active, step }) {
   return <span className={`project-step-chip ${active ? "active" : ""}`.trim()}>{step}</span>;
 }
 
+async function copyClientPortalLink(link) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(link);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = link;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textarea);
+
+  if (!copied) {
+    throw new Error("Client portal link could not be copied.");
+  }
+}
+
 export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen = () => {} }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -64,6 +86,8 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [projectError, setProjectError] = useState("");
+  const [projectSuccess, setProjectSuccess] = useState("");
+  const [createdPortalLink, setCreatedPortalLink] = useState("");
   const [formData, setFormData] = useState({
     client: "",
     email: "",
@@ -108,18 +132,25 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
       ...current,
       [field]: event.target.value,
     }));
+    setProjectError("");
+    setProjectSuccess("");
   };
 
   const handleOpenWizard = () => {
     setIsStatusOpen(false);
     setIsWizardOpen(true);
     setWizardStep(1);
+    setProjectError("");
+    setProjectSuccess("");
+    setCreatedPortalLink("");
   };
 
   const handleCloseWizard = () => {
     setIsWizardOpen(false);
     setWizardStep(1);
     setProjectError("");
+    setProjectSuccess("");
+    setCreatedPortalLink("");
   };
 
   const getCreateProjectError = (error) => {
@@ -137,6 +168,8 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
 
   const handleCreateProject = async () => {
     setProjectError("");
+    setProjectSuccess("");
+    setCreatedPortalLink("");
     setIsCreatingProject(true);
 
     try {
@@ -152,9 +185,21 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
         revisions: formData.revisions || "3 revisions",
       });
 
+      const portalToken = createdProject.portal_token || createdProject.portalToken;
+
+      if (!portalToken) {
+        throw new Error("Project was created, but no client portal token was returned.");
+      }
+
+      const portalLink = `http://localhost:3000/client/${portalToken}`;
+
+      await copyClientPortalLink(portalLink);
+
       setProjects((current) => [createdProject, ...current]);
       setSelectedStatus("All statuses");
-      showSuccess("Project created successfully.");
+      setCreatedPortalLink(portalLink);
+      setProjectSuccess("Client portal link copied.");
+      showSuccess("Client portal link copied.");
       handleCloseWizard();
     } catch (error) {
       console.error("Failed to create project:", error);
@@ -286,6 +331,12 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                   </div>
 
                   {projectError ? <div className="project-wizard-note">{projectError}</div> : null}
+                  {projectSuccess ? <div className="project-wizard-note">{projectSuccess}</div> : null}
+                  {createdPortalLink ? (
+                    <div className="project-wizard-note">
+                      Client portal link: {createdPortalLink}
+                    </div>
+                  ) : null}
 
                   <div className="project-wizard-actions">
                     <button className="project-text-btn" type="button" onClick={() => setWizardStep(2)}>

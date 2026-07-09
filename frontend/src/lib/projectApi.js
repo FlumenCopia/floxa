@@ -1,4 +1,10 @@
-import { apiRequest } from "./api";
+import {
+  API_BASE_URL,
+  apiRequest,
+  ensureCsrfCookie,
+  getCsrfToken,
+  parseApiResponse,
+} from "./api";
 
 const statusLabels = {
   created: "Created",
@@ -93,4 +99,81 @@ export async function createProject(data) {
 
 export async function getProject(id) {
   return apiRequest(`/projects/${id}/`);
+}
+
+export async function getDiscoverySummary(projectId) {
+  return apiRequest(`/projects/${projectId}/discovery-summary/`);
+}
+
+export async function getBrandDNA(projectId) {
+  return apiRequest(`/projects/${projectId}/brand-dna/`);
+}
+
+export async function generateBrandDNA(projectId) {
+  return apiRequest(`/projects/${projectId}/brand-dna/generate/`, {
+    method: "POST",
+  });
+}
+
+export async function getMoodboards(projectId) {
+  return apiRequest(`/projects/${projectId}/moodboards/`);
+}
+
+export async function getProjectActivities(projectId) {
+  return apiRequest(`/projects/${projectId}/activities/`);
+}
+
+export async function getConsultantActivities() {
+  return apiRequest("/projects/activities/");
+}
+
+export async function markProjectActivitiesRead(projectId) {
+  return apiRequest(`/projects/${projectId}/activities/mark-read/`, {
+    method: "POST",
+  });
+}
+
+export async function markConsultantActivitiesRead() {
+  return apiRequest("/projects/activities/mark-read/", {
+    method: "POST",
+  });
+}
+
+async function refreshCookieSession() {
+  const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  return response.ok;
+}
+
+async function uploadMoodboardRequest(projectId, formData, headers) {
+  return fetch(`${API_BASE_URL}/projects/${projectId}/moodboards/`, {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: formData,
+  });
+}
+
+export async function uploadMoodboard(projectId, formData) {
+  await ensureCsrfCookie();
+
+  const csrfToken = getCsrfToken();
+  const headers = csrfToken ? { "X-CSRFToken": csrfToken } : {};
+  let response = await uploadMoodboardRequest(projectId, formData, headers);
+
+  if (response.status === 401) {
+    const refreshed = await refreshCookieSession();
+
+    if (refreshed) {
+      response = await uploadMoodboardRequest(projectId, formData, headers);
+    }
+  }
+
+  return parseApiResponse(response);
 }

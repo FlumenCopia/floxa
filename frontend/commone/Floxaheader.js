@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCurrentConsultant, logoutConsultant } from "../src/lib/authApi";
+import { getConsultantActivities, markConsultantActivitiesRead } from "../src/lib/projectApi";
 import { showError, showSuccess } from "../src/lib/toast";
 
 const primaryNavItems = [
@@ -30,6 +31,44 @@ let hasValidatedSession = false;
 
 function hasStoredAccessToken() {
   return typeof window !== "undefined" && Boolean(localStorage.getItem("access_token"));
+}
+
+function getRelativeTime(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) {
+    return "Just now";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} min ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+
+  if (diffHours < 24) {
+    return `${diffHours} hr ago`;
+  }
+
+  if (diffHours < 48) {
+    return "Yesterday";
+  }
+
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function Icon({ type }) {
@@ -129,13 +168,26 @@ function MobileTabItem({ item, onClick }) {
   );
 }
 
-export default function Floxaheader({ children, title = "Dashboard", activeNav = "Dashboard" }) {
+export default function Floxaheader({
+  children,
+  title = "Dashboard",
+  activeNav = "Dashboard",
+  notificationCount = 0,
+  notifications = [],
+  notificationsLoading = false,
+  onNotificationClick,
+  onNotificationsOpen,
+  onMarkNotificationsRead,
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentProjectSearch = searchParams.get("search") || "";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAuthChecked, setIsAuthChecked] = useState(() => hasValidatedSession || hasStoredAccessToken());
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [headerNotifications, setHeaderNotifications] = useState([]);
+  const [headerNotificationsLoading, setHeaderNotificationsLoading] = useState(false);
   const [consultant, setConsultant] = useState(cachedConsultant);
   const [projectSearch, setProjectSearch] = useState(() => searchParams.get("search") || "");
   const resolvedActiveNav = pathname === "/project" ? "Projects" : activeNav;
@@ -153,6 +205,11 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
       (resolvedActiveNav === "Client Portal" && item.label === "Portal") ||
       (resolvedActiveNav === "Settings" && item.label === "Settings"),
   }));
+  const visibleNotifications = headerNotifications.length ? headerNotifications : notifications;
+  const visibleNotificationsLoading = headerNotificationsLoading || notificationsLoading;
+  const visibleNotificationCount = headerNotifications.length
+    ? headerNotifications.filter((notification) => !notification.is_read).length
+    : notificationCount;
 
   useEffect(() => {
     let isMounted = true;
@@ -176,7 +233,6 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
         localStorage.removeItem("consultant");
-        document.cookie = "floxa_auth=; Path=/; Max-Age=0; SameSite=Lax";
         router.replace("/login");
       }
     }
@@ -187,6 +243,42 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
       isMounted = false;
     };
   }, [router]);
+
+  useEffect(() => {
+    if (!isAuthChecked) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadHeaderNotifications() {
+      setHeaderNotificationsLoading(true);
+
+      try {
+        const data = await getConsultantActivities();
+
+        if (isMounted) {
+          setHeaderNotifications(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error("Failed to load consultant notifications:", error);
+
+        if (isMounted) {
+          setHeaderNotifications([]);
+        }
+      } finally {
+        if (isMounted) {
+          setHeaderNotificationsLoading(false);
+        }
+      }
+    }
+
+    loadHeaderNotifications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthChecked]);
 
   useEffect(() => {
     const handleEscape = (event) => {
@@ -256,6 +348,58 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
     router.replace("/project");
   };
 
+  const handleNotificationViewAll = () => {
+    setIsNotificationOpen(false);
+    const firstNotification = visibleNotifications[0];
+
+    if (onNotificationClick) {
+      onNotificationClick(firstNotification);
+      return;
+    }
+
+    if (firstNotification?.project_id) {
+      router.push(`/discovery?projectId=${firstNotification.project_id}&tab=activity`);
+    }
+  };
+
+  const handleNotificationToggle = async () => {
+    const nextOpen = !isNotificationOpen;
+    setIsNotificationOpen(nextOpen);
+
+    if (nextOpen) {
+      if (onNotificationsOpen) {
+        await onNotificationsOpen();
+      } else {
+        await markConsultantActivitiesRead();
+        const readAt = new Date().toISOString();
+        setHeaderNotifications((currentNotifications) =>
+          currentNotifications.map((notification) => ({
+            ...notification,
+            is_read: true,
+            read_at: notification.read_at || readAt,
+          }))
+        );
+      }
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    if (onMarkNotificationsRead) {
+      await onMarkNotificationsRead();
+      return;
+    }
+
+    await markConsultantActivitiesRead();
+    const readAt = new Date().toISOString();
+    setHeaderNotifications((currentNotifications) =>
+      currentNotifications.map((notification) => ({
+        ...notification,
+        is_read: true,
+        read_at: notification.read_at || readAt,
+      }))
+    );
+  };
+
   const handleLogout = async () => {
     const confirmed = window.confirm("Are you sure you want to logout?");
 
@@ -263,17 +407,13 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
       return;
     }
 
-    const refreshToken = localStorage.getItem("refresh_token");
-
     try {
-      await logoutConsultant(refreshToken);
+      await logoutConsultant();
       showSuccess("Logout successful.");
     } catch (error) {
       console.error("Logout failed:", error);
       showError(error?.detail || "Logout failed.");
     } finally {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
       localStorage.removeItem("consultant");
       closeSidebar();
       router.push("/login");
@@ -360,9 +500,56 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
               onChange={(event) => setProjectSearch(event.target.value)}
             />
           </form>
-          <button className="icon-btn" type="button" aria-label="No notifications">
-            <Icon type="bell" />
-          </button>
+          <div className="notification-wrap">
+            <button
+              className="icon-btn"
+              type="button"
+              aria-label={visibleNotificationCount ? `${visibleNotificationCount} notifications` : "No notifications"}
+              aria-expanded={isNotificationOpen}
+              onClick={handleNotificationToggle}
+            >
+              <Icon type="bell" />
+              {visibleNotificationCount ? <span className="notification-dot" /> : null}
+            </button>
+            {isNotificationOpen ? (
+              <div className="notification-dropdown">
+                <div className="notification-head">
+                  <div>
+                    <span>Notifications</span>
+                    <strong>{visibleNotificationCount} unread</strong>
+                  </div>
+                  <button type="button" onClick={handleMarkAllRead}>Mark all read</button>
+                </div>
+                <div className="notification-list">
+                  {visibleNotificationsLoading ? (
+                    <div className="notification-empty">
+                      <strong>Loading notifications...</strong>
+                      <span>Checking recent project activity.</span>
+                    </div>
+                  ) : null}
+                  {!visibleNotificationsLoading && visibleNotifications.length === 0 ? (
+                    <div className="notification-empty">
+                      <strong>No notifications yet.</strong>
+                      <span>Client actions will appear here.</span>
+                    </div>
+                  ) : null}
+                  {!visibleNotificationsLoading && visibleNotifications.slice(0, 5).map((notification) => (
+                    <div className="notification-item" key={notification.id}>
+                      <span className="notification-status-dot" />
+                      <div className="notification-copy">
+                        <p>{notification.description || notification.action}</p>
+                        {notification.actor_type ? <small>{notification.actor_type}</small> : null}
+                      </div>
+                      <time>{getRelativeTime(notification.created_at)}</time>
+                    </div>
+                  ))}
+                </div>
+                <button className="notification-view-all" type="button" onClick={handleNotificationViewAll}>
+                  View All
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
         <div key={pathname} className="page-transition">
           {children}

@@ -1,10 +1,7 @@
 from django.db import models
-
-# Create your models here.
-from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 
-# consultant manager to handle user creation and management
+
 class ConsultantManager(BaseUserManager):
     def create_user(self, email, name, password=None, **extra_fields):
         if not email:

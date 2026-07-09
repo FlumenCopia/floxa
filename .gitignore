@@ -2,3 +2,9 @@
 .env.local
 .env.production
 .env.uat
+__pycache__/
+*.pyc
+backend/media/
+venv/
+.next/
+node_modules/

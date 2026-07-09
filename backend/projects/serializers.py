@@ -1,8 +1,245 @@
 from rest_framework import serializers
-from .models import Client, Project
+from .models import (
+    BrandDNA,
+    Client,
+    ClientProfile,
+    DiscoveryCompetitor,
+    DiscoveryEmotion,
+    DiscoverySliderResponse,
+    DiscoveryVisualStyle,
+    Moodboard,
+    Project,
+    ProjectActivity,
+    ProjectDiscovery,
+)
 
-from rest_framework import serializers
-from .models import Client, Project
+
+class ClientProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClientProfile
+        fields = [
+            "id",
+            "client_name",
+            "company_name",
+            "industry",
+            "year_started",
+            "location",
+            "phone",
+            "email",
+            "website",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class DiscoverySliderResponseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiscoverySliderResponse
+        fields = [
+            "id",
+            "slider_key",
+            "left_label",
+            "right_label",
+            "value",
+        ]
+        read_only_fields = ["id"]
+
+
+class DiscoveryEmotionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiscoveryEmotion
+        fields = [
+            "id",
+            "emotion",
+        ]
+        read_only_fields = ["id"]
+
+
+class DiscoveryCompetitorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiscoveryCompetitor
+        fields = [
+            "id",
+            "name",
+            "rating",
+            "reason",
+        ]
+        read_only_fields = ["id"]
+
+
+class DiscoveryVisualStyleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DiscoveryVisualStyle
+        fields = [
+            "id",
+            "style",
+        ]
+        read_only_fields = ["id"]
+
+
+class ProjectDiscoverySerializer(serializers.ModelSerializer):
+    sliders = DiscoverySliderResponseSerializer(many=True, required=False)
+    emotions = DiscoveryEmotionSerializer(many=True, required=False)
+    competitors = DiscoveryCompetitorSerializer(many=True, required=False)
+    visual_styles = DiscoveryVisualStyleSerializer(many=True, required=False)
+
+    class Meta:
+        model = ProjectDiscovery
+        fields = [
+            "id",
+            "what_business_does",
+            "target_customer",
+            "why_choose_us",
+            "brand_feeling",
+            "audience_archetype",
+            "sliders",
+            "emotions",
+            "competitors",
+            "visual_styles",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class DiscoverySummarySerializer(serializers.Serializer):
+    company_name = serializers.CharField(allow_blank=True)
+    client_name = serializers.CharField(allow_blank=True)
+    industry = serializers.CharField(allow_blank=True)
+    target_customer = serializers.CharField(allow_blank=True)
+    what_business_does = serializers.CharField(allow_blank=True)
+    why_choose_us = serializers.CharField(allow_blank=True)
+    brand_feeling = serializers.CharField(allow_blank=True)
+    audience_archetype = serializers.CharField(allow_blank=True)
+    emotions = serializers.ListField(child=serializers.CharField())
+    visual_styles = serializers.ListField(child=serializers.CharField())
+    top_competitors = serializers.ListField(
+        child=serializers.DictField(child=serializers.CharField())
+    )
+
+
+class BrandDNASerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BrandDNA
+        fields = [
+            "id",
+            "brand_personality_cluster",
+            "business_summary",
+            "target_audience_summary",
+            "positioning_summary",
+            "brand_feeling_summary",
+            "visual_direction_summary",
+            "competitor_summary",
+            "generated_from_discovery",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class ClientPortalBrandDNASerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BrandDNA
+        fields = [
+            "brand_personality_cluster",
+            "business_summary",
+            "target_audience_summary",
+            "positioning_summary",
+            "brand_feeling_summary",
+            "visual_direction_summary",
+            "competitor_summary",
+            "generated_from_discovery",
+            "updated_at",
+        ]
+
+
+class MoodboardSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Moodboard
+        fields = [
+            "id",
+            "title",
+            "description",
+            "image",
+            "image_url",
+            "is_selected",
+            "created_at",
+        ]
+        read_only_fields = ["id", "image_url", "is_selected", "created_at"]
+
+    def get_image_url(self, obj):
+        if not obj.image:
+            return ""
+
+        request = self.context.get("request")
+        image_url = obj.image.url
+
+        return request.build_absolute_uri(image_url) if request else image_url
+
+
+class ClientPortalMoodboardSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Moodboard
+        fields = [
+            "id",
+            "title",
+            "description",
+            "image_url",
+            "is_selected",
+            "created_at",
+        ]
+
+    def get_image_url(self, obj):
+        if not obj.image:
+            return ""
+
+        request = self.context.get("request")
+        image_url = obj.image.url
+
+        return request.build_absolute_uri(image_url) if request else image_url
+
+
+class ClientPortalProjectSerializer(serializers.ModelSerializer):
+    project_id = serializers.IntegerField(source="id", read_only=True)
+    client_name = serializers.CharField(source="client.name", read_only=True)
+    client_email = serializers.EmailField(source="client.email", read_only=True)
+
+    class Meta:
+        model = Project
+        fields = [
+            "project_id",
+            "company_name",
+            "client_name",
+            "client_email",
+            "sector",
+            "status",
+        ]
+
+
+class ProjectActivitySerializer(serializers.ModelSerializer):
+    project_id = serializers.IntegerField(source="project.id", read_only=True)
+    project_name = serializers.CharField(source="project.company_name", read_only=True)
+
+    class Meta:
+        model = ProjectActivity
+        fields = [
+            "id",
+            "project_id",
+            "project_name",
+            "actor_type",
+            "action",
+            "description",
+            "metadata",
+            "is_read",
+            "read_at",
+            "created_at",
+        ]
+        read_only_fields = fields
 
 
 class ProjectSerializer(serializers.ModelSerializer):
