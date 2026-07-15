@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { clientPortalService } from "../../services/clientPortalService";
 import { ClientDashboard } from "./ClientDashboard";
 import "./ClientPortal.css";
 import { DiscoveryFlow } from "./DiscoveryFlow";
+import { DiscoveryReview } from "./DiscoveryReview";
 import { ProfileScreen } from "./ProfileScreen";
 import { LoginScreen, SplashScreen } from "./SplashScreen";
 
@@ -44,7 +45,7 @@ function writeStoredScreen(token, screen) {
   }
 }
 
-function getInitialScreen(token, status) {
+function getDemoInitialScreen(token, status) {
   const storedScreen = readStoredScreen(token);
   const normalizedStatus = String(status || "").toLowerCase();
 
@@ -59,19 +60,52 @@ function getInitialScreen(token, status) {
   return "splash";
 }
 
+function isRealPortalToken(token) {
+  return Boolean(token && token !== "test-token");
+}
+
+function getBackendResumeScreen(savedProfile, savedDiscovery) {
+  if (!savedProfile) {
+    return "profile";
+  }
+
+  if (savedDiscovery?.isSubmitted) {
+    return "dashboard";
+  }
+
+  if (savedDiscovery?.isComplete) {
+    return "review";
+  }
+
+  return "discovery";
+}
+
+function writeDiscoveryDraft(projectId, discovery) {
+  if (typeof window === "undefined" || !projectId || !discovery?.draft) {
+    return;
+  }
+
+  window.localStorage.setItem(
+    `floxa-discovery-${projectId}`,
+    JSON.stringify(discovery.draft)
+  );
+}
+
 export function ClientPortal({ token }) {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [screen, setScreen] = useState(() => readStoredScreen(token) || "splash");
+  const [resumeTargetScreen, setResumeTargetScreen] = useState("");
   const [clientData, setClientData] = useState({});
+  const [profileReturnScreen, setProfileReturnScreen] = useState("");
 
-  const applyProject = (portalProject) => {
+  const applyProject = useCallback((portalProject) => {
     setProject(portalProject);
     setClientData(portalProject.brandDNA ?? {});
-  };
+  }, []);
 
-  const refreshProject = async () => {
+  const refreshProject = useCallback(async () => {
     const response = await clientPortalService.getProject();
     const portalProject = "success" in response ? response.data : response;
 
@@ -80,27 +114,105 @@ export function ClientPortal({ token }) {
     }
 
     return portalProject;
-  };
+  }, [applyProject]);
 
   const goToScreen = (nextScreen) => {
+    setProfileReturnScreen(
+      nextScreen === "profile" && ["dashboard", "review"].includes(screen) ? screen : ""
+    );
     writeStoredScreen(token, nextScreen);
     setScreen(nextScreen);
+  };
+
+  const loadSavedPortalProgress = useCallback(async (portalProject) => {
+    const profileResponse = await clientPortalService.getClientProfile(portalProject.id);
+    if (!profileResponse.success) {
+      throw new Error(profileResponse.error || "Unable to load portal progress.");
+    }
+
+    const savedProfile = profileResponse.success ? profileResponse.data : null;
+    const discoveryResponse = await clientPortalService.getDiscoveryDraft(portalProject.id);
+    if (!discoveryResponse.success) {
+      throw new Error(discoveryResponse.error || "Unable to load discovery progress.");
+    }
+
+    const savedDiscovery = discoveryResponse.success ? discoveryResponse.data : null;
+    const projectWithSavedData = savedProfile
+      ? {
+          ...portalProject,
+          clientEmail: savedProfile.clientEmail || portalProject.clientEmail,
+          brandDNA: {
+            ...portalProject.brandDNA,
+            ...savedProfile,
+            ...(savedDiscovery?.clientData || {}),
+          },
+        }
+      : portalProject;
+
+    if (savedDiscovery) {
+      writeDiscoveryDraft(portalProject.id, savedDiscovery);
+    }
+
+    applyProject(projectWithSavedData);
+
+    return getBackendResumeScreen(savedProfile, savedDiscovery);
+  }, [applyProject]);
+
+  const handlePortalAccess = async (password) => {
+    const response = await clientPortalService.verifyPortalPassword(password, token);
+
+    if (!response.success) {
+      return response;
+    }
+
+    const projectResponse = await clientPortalService.getProject();
+    const verifiedProject = projectResponse.success ? projectResponse.data : project;
+    const nextScreen = await loadSavedPortalProgress(verifiedProject);
+    setResumeTargetScreen(nextScreen);
+    goToScreen(nextScreen);
+
+    return response;
   };
 
   useEffect(() => {
     clientPortalService
       .createSession(token)
-      .then((portalProject) => {
+      .then(async (portalProject) => {
         if (portalProject) {
           applyProject(portalProject);
-          setScreen(getInitialScreen(token, portalProject.status));
+
+          if (isRealPortalToken(token)) {
+            try {
+              const accessResponse = await clientPortalService.checkPortalAccess(token);
+
+              if (!accessResponse.success) {
+                setResumeTargetScreen("");
+                setScreen("login");
+                return;
+              }
+
+              const verifiedProject = accessResponse.data || portalProject;
+              applyProject(verifiedProject);
+              const nextScreen = await loadSavedPortalProgress(verifiedProject);
+              setResumeTargetScreen(nextScreen);
+              setScreen(nextScreen);
+            } catch {
+              setResumeTargetScreen("");
+              setScreen("login");
+            }
+          } else {
+            setScreen(getDemoInitialScreen(token, portalProject.status));
+          }
+        } else if (isRealPortalToken(token)) {
+          setResumeTargetScreen("");
+          setScreen("login");
         } else {
           setError("Invalid link");
         }
       })
       .catch(() => setError("Something went wrong. Please try again."))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [applyProject, loadSavedPortalProgress, token]);
 
   useEffect(() => {
     if (!loading && project && screen) {
@@ -138,8 +250,11 @@ export function ClientPortal({ token }) {
     branding,
     clientData,
     setClientData,
-    resumeScreen: getResumeScreen(project?.status),
+    profileReturnScreen,
+    resumeScreen: resumeTargetScreen || getResumeScreen(project?.status),
+    requiresPassword: isRealPortalToken(token),
     onNext: goToScreen,
+    onVerifyPassword: handlePortalAccess,
     onProjectRefresh: refreshProject,
   };
 
@@ -149,6 +264,7 @@ export function ClientPortal({ token }) {
       {screen === "login" ? <LoginScreen {...screenProps} /> : null}
       {screen === "profile" ? <ProfileScreen {...screenProps} /> : null}
       {screen === "discovery" ? <DiscoveryFlow {...screenProps} /> : null}
+      {screen === "review" ? <DiscoveryReview {...screenProps} /> : null}
       {screen === "dashboard" ? (
         <ClientDashboard
           {...screenProps}

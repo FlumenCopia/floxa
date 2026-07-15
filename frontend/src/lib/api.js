@@ -68,7 +68,15 @@ async function getRequestHeaders(options = {}, { includeAuth = true } = {}) {
 }
 
 export async function parseApiResponse(response) {
-  const data = await response.json();
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+  const data = isJson
+    ? await response.json()
+    : {
+        detail: response.ok
+          ? "Unexpected response from server."
+          : "Server returned an unexpected response. Please try again.",
+      };
 
   if (!response.ok) {
     throw data;

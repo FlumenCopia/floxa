@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 export function SplashScreen({ project, branding, onNext }) {
   return (
     <section className="client-welcome-stage">
@@ -7,9 +9,9 @@ export function SplashScreen({ project, branding, onNext }) {
         <div className="client-welcome-copy">
           <div className="client-wordmark">FLOXA</div>
           <p className="client-welcome-subtitle">{branding.heading}</p>
-          <div className="client-project-label">{project.name}</div>
+          <div className="client-project-label">{project?.name || "Private Project"}</div>
 
-          {project.meetingSummary ? (
+          {project?.meetingSummary ? (
             <p className="client-meeting-summary">{project.meetingSummary}</p>
           ) : null}
 
@@ -29,7 +31,49 @@ export function SplashScreen({ project, branding, onNext }) {
   );
 }
 
-export function LoginScreen({ project, branding, resumeScreen, onNext }) {
+export function LoginScreen({
+  project,
+  branding,
+  resumeScreen,
+  requiresPassword = false,
+  onNext,
+  onVerifyPassword,
+}) {
+  const [password, setPassword] = useState("");
+  const [accessError, setAccessError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setAccessError("");
+
+    if (!requiresPassword) {
+      onNext(resumeScreen || "profile");
+      return;
+    }
+
+    const nextPassword = password.trim();
+
+    if (!nextPassword) {
+      setAccessError("Enter your portal password.");
+      return;
+    }
+
+    setIsVerifying(true);
+
+    try {
+      const response = await onVerifyPassword(nextPassword);
+
+      if (!response?.success) {
+        setAccessError(response?.error || "Incorrect portal password.");
+      }
+    } catch {
+      setAccessError("Unable to verify portal password.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   return (
     <section className="client-welcome-stage">
       <div className="client-welcome-glass client-access-glass client-design-enter">
@@ -50,41 +94,51 @@ export function LoginScreen({ project, branding, resumeScreen, onNext }) {
           </button>
         </div>
 
-        <div className="client-access-form">
-          <div className="client-access-field">
-            <span className="client-access-icon" aria-hidden="true">
-              o
-            </span>
-            <div>
-              <span className="client-access-label">Client access</span>
-              <strong>{project.clientEmail || "Private portal link"}</strong>
-            </div>
+        <form className="client-access-form" onSubmit={handleSubmit}>
+          <div className="client-access-card-head">
+            <span className="client-access-label">Project Workspace</span>
+            <h1>{project?.name || "Private Project"}</h1>
+            <p>{project?.clientEmail || "Private portal link"}</p>
           </div>
 
-          <div className="client-access-field">
-            <span className="client-access-icon" aria-hidden="true">
-              &lt;&gt;
-            </span>
+          <div className="client-access-stage">
             <div>
-              <span className="client-access-label">Project</span>
-              <strong>{project.name}</strong>
+              <span className="client-access-label">Current Stage</span>
+              <strong>Profile Setup</strong>
             </div>
+            <span className="client-stage-dot" aria-hidden="true" />
           </div>
+
+          <div className="client-access-badges" aria-label="Workspace security">
+            <span>Secure Workspace</span>
+            <span>Private Project Link</span>
+          </div>
+
+          {requiresPassword ? (
+            <label className="client-access-password">
+              <span className="client-access-label">Portal Password</span>
+              <input
+                autoComplete="current-password"
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setAccessError("");
+                }}
+                type="password"
+                value={password}
+              />
+            </label>
+          ) : null}
+
+          {accessError ? <div className="client-access-error">{accessError}</div> : null}
 
           <button
-            type="button"
+            type="submit"
             className="client-access-submit"
-            onClick={() => onNext(resumeScreen || "profile")}
+            disabled={isVerifying}
           >
-            Get Started <span aria-hidden="true">-&gt;</span>
+            {isVerifying ? "Verifying..." : "Start Project"} <span aria-hidden="true">-&gt;</span>
           </button>
-
-          <div className="client-access-verified">
-            <span />
-            Secure private link verified
-            <span />
-          </div>
-        </div>
+        </form>
       </div>
     </section>
   );

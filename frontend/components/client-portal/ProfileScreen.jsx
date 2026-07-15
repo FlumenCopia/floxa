@@ -75,6 +75,7 @@ export function ProfileScreen({
   setClientData,
   onNext,
   onProjectRefresh,
+  profileReturnScreen,
 }) {
   const [fields, setFields] = useState({
     name: clientData.clientName ?? "",
@@ -102,6 +103,11 @@ export function ProfileScreen({
       return;
     }
 
+    if (!/^\d{10}$/.test(fields.phone.trim())) {
+      setError("Phone number must be exactly 10 digits.");
+      return;
+    }
+
     const profilePayload = {
       client_name: fields.name.trim(),
       company_name: fields.company.trim(),
@@ -123,9 +129,9 @@ export function ProfileScreen({
         throw new Error(response.error ?? "Unable to save your profile.");
       }
 
-      setClientData(response.data);
       await onProjectRefresh();
-      onNext("discovery");
+      setClientData(response.data);
+      onNext(profileReturnScreen || "discovery");
     } catch (err) {
       console.error("Client profile save failed:", err);
       setError(formatProfileSaveError(err));

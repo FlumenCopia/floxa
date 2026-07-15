@@ -4,6 +4,23 @@ import { useEffect, useState } from "react";
 import { getCurrentConsultant, updateCurrentConsultant } from "../../src/lib/authApi";
 import { showError, showSuccess } from "../../src/lib/toast";
 
+function getAccountErrorMessage(error, fallback = "Profile could not be updated.") {
+  if (error?.detail) {
+    return Array.isArray(error.detail) ? error.detail.join(" ") : error.detail;
+  }
+
+  if (error?.message) {
+    return error.message;
+  }
+
+  const firstFieldError = Object.values(error || {}).flat()[0];
+  if (firstFieldError) {
+    return Array.isArray(firstFieldError) ? firstFieldError.join(" ") : firstFieldError;
+  }
+
+  return fallback;
+}
+
 export default function Account() {
   const [formData, setFormData] = useState({
     name: "",
@@ -33,7 +50,9 @@ export default function Account() {
       } catch (error) {
         console.error("Failed to load account profile:", error);
         if (isMounted) {
-          setMessage("Profile could not be loaded.");
+          const message = getAccountErrorMessage(error, "Profile could not be loaded.");
+          setMessage(message);
+          showError(message);
         }
       }
     }
@@ -55,11 +74,29 @@ export default function Account() {
   const handleSave = async () => {
     setMessage("");
 
+    const name = formData.name.trim();
+    const company = formData.company.trim();
+    const phone = formData.phone.trim();
+
+    if (!name || !company) {
+      const message = "Please complete all required account fields.";
+      setMessage(message);
+      showError(message);
+      return;
+    }
+
+    if (phone && !/^\d{10}$/.test(phone)) {
+      const message = "Phone number must be exactly 10 digits.";
+      setMessage(message);
+      showError(message);
+      return;
+    }
+
     try {
       const updatedConsultant = await updateCurrentConsultant({
-        name: formData.name,
-        company: formData.company,
-        phone: formData.phone,
+        name,
+        company,
+        phone,
       });
 
       setFormData({
@@ -72,7 +109,7 @@ export default function Account() {
       showSuccess("Profile updated successfully.");
     } catch (error) {
       console.error("Failed to update account profile:", error);
-      const message = error?.detail || "Profile could not be updated.";
+      const message = getAccountErrorMessage(error);
       setMessage(message);
       showError(message);
     }

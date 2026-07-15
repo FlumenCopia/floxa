@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentConsultant, logoutConsultant } from "../src/lib/authApi";
 import { getConsultantActivities, markConsultantActivitiesRead } from "../src/lib/projectApi";
 import { showError, showSuccess } from "../src/lib/toast";
@@ -26,11 +26,37 @@ const mobileTabItems = [
   { label: "Settings", icon: "settings", route: "/settings" },
 ];
 
+const notificationTabByAction = {
+  client_profile_submitted: "discovery",
+  client_profile_updated: "discovery",
+  discovery_submitted: "discovery",
+  discovery_updated: "discovery",
+  moodboard_selected: "moodboards",
+  concept_approved: "concepts",
+  concept_changes_requested: "concepts",
+  agreement_uploaded: "agreement",
+  agreement_updated: "agreement",
+  agreement_removed: "agreement",
+  agreement_opened: "agreement",
+  agreement_downloaded: "agreement",
+  agreement_signed: "agreement",
+  agreement_accepted: "agreement",
+  deliverable_shared: "deliverables",
+  deliverable_reshared: "deliverables",
+  deliverable_removed: "deliverables",
+  deliverable_downloaded: "deliverables",
+  deliverable_accepted: "deliverables",
+  project_signed_off: "deliverables",
+  payment_requested: "payments",
+  payment_received: "payments",
+  payment_paid: "payments",
+};
+
 let cachedConsultant = null;
 let hasValidatedSession = false;
 
-function hasStoredAccessToken() {
-  return typeof window !== "undefined" && Boolean(localStorage.getItem("access_token"));
+function getNotificationProjectId(notification) {
+  return notification?.project_id || notification?.metadata?.project_id || notification?.metadata?.project?.id;
 }
 
 function getRelativeTime(value) {
@@ -175,6 +201,7 @@ export default function Floxaheader({
   notificationCount = 0,
   notifications = [],
   notificationsLoading = false,
+  readActivityIds = [],
   onNotificationClick,
   onNotificationsOpen,
   onMarkNotificationsRead,
@@ -184,12 +211,13 @@ export default function Floxaheader({
   const searchParams = useSearchParams();
   const currentProjectSearch = searchParams.get("search") || "";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isAuthChecked, setIsAuthChecked] = useState(() => hasValidatedSession || hasStoredAccessToken());
+  const [isAuthChecked, setIsAuthChecked] = useState(() => hasValidatedSession);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [headerNotifications, setHeaderNotifications] = useState([]);
   const [headerNotificationsLoading, setHeaderNotificationsLoading] = useState(false);
   const [consultant, setConsultant] = useState(cachedConsultant);
   const [projectSearch, setProjectSearch] = useState(() => searchParams.get("search") || "");
+  const notificationsRequestRef = useRef(false);
   const resolvedActiveNav = pathname === "/project" ? "Projects" : activeNav;
   const resolvedPrimaryNavItems = primaryNavItems.map((item) => ({
     ...item,
@@ -212,6 +240,64 @@ export default function Floxaheader({
     : notificationCount;
 
   useEffect(() => {
+    if (!readActivityIds.length) {
+      return;
+    }
+
+    const readIdSet = new Set(readActivityIds);
+    const readAt = new Date().toISOString();
+
+    setHeaderNotifications((currentNotifications) =>
+      currentNotifications.map((notification) =>
+        readIdSet.has(notification.id)
+          ? {
+              ...notification,
+              is_read: true,
+              read_at: notification.read_at || readAt,
+            }
+          : notification
+      )
+    );
+  }, [readActivityIds]);
+
+  const markHeaderNotificationsRead = useCallback(() => {
+    const readAt = new Date().toISOString();
+
+    setHeaderNotifications((currentNotifications) =>
+      currentNotifications.map((notification) => ({
+        ...notification,
+        is_read: true,
+        read_at: notification.read_at || readAt,
+      }))
+    );
+  }, []);
+
+  const loadHeaderNotifications = useCallback(async ({ showLoading = false } = {}) => {
+    if (notificationsRequestRef.current) {
+      return;
+    }
+
+    notificationsRequestRef.current = true;
+
+    if (showLoading) {
+      setHeaderNotificationsLoading(true);
+    }
+
+    try {
+      const data = await getConsultantActivities();
+      setHeaderNotifications(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load consultant notifications:", error);
+    } finally {
+      notificationsRequestRef.current = false;
+
+      if (showLoading) {
+        setHeaderNotificationsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function validateSession() {
@@ -230,8 +316,6 @@ export default function Floxaheader({
         console.error("Session validation failed:", error);
         cachedConsultant = null;
         hasValidatedSession = false;
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
         localStorage.removeItem("consultant");
         router.replace("/login");
       }
@@ -250,35 +334,23 @@ export default function Floxaheader({
     }
 
     let isMounted = true;
-
-    async function loadHeaderNotifications() {
-      setHeaderNotificationsLoading(true);
-
-      try {
-        const data = await getConsultantActivities();
-
-        if (isMounted) {
-          setHeaderNotifications(Array.isArray(data) ? data : []);
-        }
-      } catch (error) {
-        console.error("Failed to load consultant notifications:", error);
-
-        if (isMounted) {
-          setHeaderNotifications([]);
-        }
-      } finally {
-        if (isMounted) {
-          setHeaderNotificationsLoading(false);
-        }
+    const initialLoadId = window.setTimeout(() => {
+      if (isMounted) {
+        loadHeaderNotifications({ showLoading: true });
       }
-    }
-
-    loadHeaderNotifications();
+    }, 0);
+    const intervalId = window.setInterval(() => {
+      if (isMounted) {
+        loadHeaderNotifications();
+      }
+    }, 30000);
 
     return () => {
       isMounted = false;
+      window.clearTimeout(initialLoadId);
+      window.clearInterval(intervalId);
     };
-  }, [isAuthChecked]);
+  }, [isAuthChecked, loadHeaderNotifications]);
 
   useEffect(() => {
     const handleEscape = (event) => {
@@ -362,42 +434,68 @@ export default function Floxaheader({
     }
   };
 
+  const handleNotificationItemClick = (notification) => {
+    setIsNotificationOpen(false);
+
+    const projectId = getNotificationProjectId(notification);
+    const tab = notificationTabByAction[notification?.action];
+
+    if (projectId && tab) {
+      router.push(`/discovery?projectId=${encodeURIComponent(projectId)}&tab=${tab}`);
+      return;
+    }
+
+    if (onNotificationClick) {
+      onNotificationClick(notification);
+    }
+  };
+
   const handleNotificationToggle = async () => {
     const nextOpen = !isNotificationOpen;
     setIsNotificationOpen(nextOpen);
 
     if (nextOpen) {
       if (onNotificationsOpen) {
-        await onNotificationsOpen();
+        markHeaderNotificationsRead();
+
+        try {
+          await onNotificationsOpen();
+        } catch (error) {
+          console.error("Failed to mark consultant notifications as read:", error);
+          await loadHeaderNotifications();
+        }
       } else {
-        await markConsultantActivitiesRead();
-        const readAt = new Date().toISOString();
-        setHeaderNotifications((currentNotifications) =>
-          currentNotifications.map((notification) => ({
-            ...notification,
-            is_read: true,
-            read_at: notification.read_at || readAt,
-          }))
-        );
+        markHeaderNotificationsRead();
+
+        try {
+          await markConsultantActivitiesRead();
+        } catch (error) {
+          console.error("Failed to mark consultant notifications as read:", error);
+          await loadHeaderNotifications();
+        }
       }
     }
   };
 
   const handleMarkAllRead = async () => {
+    markHeaderNotificationsRead();
+
     if (onMarkNotificationsRead) {
-      await onMarkNotificationsRead();
+      try {
+        await onMarkNotificationsRead();
+      } catch (error) {
+        console.error("Failed to mark consultant notifications as read:", error);
+        await loadHeaderNotifications();
+      }
       return;
     }
 
-    await markConsultantActivitiesRead();
-    const readAt = new Date().toISOString();
-    setHeaderNotifications((currentNotifications) =>
-      currentNotifications.map((notification) => ({
-        ...notification,
-        is_read: true,
-        read_at: notification.read_at || readAt,
-      }))
-    );
+    try {
+      await markConsultantActivitiesRead();
+    } catch (error) {
+      console.error("Failed to mark consultant notifications as read:", error);
+      await loadHeaderNotifications();
+    }
   };
 
   const handleLogout = async () => {
@@ -415,6 +513,7 @@ export default function Floxaheader({
       showError(error?.detail || "Logout failed.");
     } finally {
       localStorage.removeItem("consultant");
+      setHeaderNotifications([]);
       closeSidebar();
       router.push("/login");
     }
@@ -534,7 +633,19 @@ export default function Floxaheader({
                     </div>
                   ) : null}
                   {!visibleNotificationsLoading && visibleNotifications.slice(0, 5).map((notification) => (
-                    <div className="notification-item" key={notification.id}>
+                    <div
+                      className="notification-item"
+                      key={notification.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleNotificationItemClick(notification)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleNotificationItemClick(notification);
+                        }
+                      }}
+                    >
                       <span className="notification-status-dot" />
                       <div className="notification-copy">
                         <p>{notification.description || notification.action}</p>

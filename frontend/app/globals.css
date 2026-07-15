@@ -202,14 +202,14 @@ textarea {
 }
 
 .logo-area {
-  padding: 20px 14px 17px;
+  padding: 24px 20px 18px;
   border-bottom: 1px solid rgba(119, 181, 150, 0.12);
 }
 
 .logo {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   color: var(--neon);
 }
 
@@ -222,13 +222,13 @@ textarea {
 }
 
 .nav-section {
-  padding: 12px 0 10px;
+  padding: 14px 0 10px;
 }
 
 .nav-lbl {
-  padding: 0 12px 10px;
+  padding: 0 20px 12px;
   font-size: 10px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: #607f72;
   font-weight: 500;
@@ -239,7 +239,7 @@ textarea {
   align-items: center;
   gap: 11px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 11px 20px;
   border: none;
   background: transparent;
   color: #9fbeaf;
@@ -248,8 +248,6 @@ textarea {
   position: relative;
   cursor: pointer;
   transition: 0.18s ease;
-  border-top: 1px solid transparent;
-  border-bottom: 1px solid transparent;
 }
 
 .nav-item:hover {
@@ -258,21 +256,22 @@ textarea {
 }
 
 .nav-item.active {
-  color: #d9f7e7;
-  background: rgba(255, 255, 255, 0.02);
-  border-top-color: rgba(188, 219, 202, 0.18);
-  border-bottom-color: rgba(188, 219, 202, 0.18);
+  color: #f0fbf5;
+  background: rgba(77, 255, 160, 0.055);
 }
 
-.nav-item.active::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: rgba(231, 244, 237, 0.8);
-  border-radius: 0;
+.nav-item:focus {
+  outline: none;
+}
+
+.nav-item:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+.nav-item:focus-visible {
+  outline: 2px solid rgba(77, 255, 160, 0.75);
+  outline-offset: -2px;
 }
 
 .nav-icon {
@@ -303,7 +302,7 @@ textarea {
 
 .sidebar-footer {
   margin-top: auto;
-  padding: 20px 16px 28px;
+  padding: 22px 20px 28px;
   border-top: 1px solid rgba(119, 181, 150, 0.12);
 }
 
@@ -508,6 +507,8 @@ textarea {
   flex-direction: column;
   max-height: 360px;
   overflow-y: auto;
+  scrollbar-color: rgba(77, 255, 160, 0.18) transparent;
+  scrollbar-width: thin;
 }
 
 .notification-item {
@@ -805,7 +806,7 @@ textarea {
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
-  gap: 16px;
+  gap: 14px;
 }
 
 .card {
@@ -824,7 +825,7 @@ textarea {
 }
 
 .dashboard-card-header {
-  padding: 16px 20px 14px;
+  padding: 14px 18px 12px;
   margin: 0;
 }
 
@@ -949,6 +950,8 @@ textarea {
   border: none;
   border-top: 1px solid rgba(77, 255, 160, 0.1);
   border-radius: 0;
+  max-height: 340px;
+  overflow-y: auto;
 }
 
 .dash-table {
@@ -961,7 +964,7 @@ textarea {
 }
 
 .dash-table th {
-  padding: 14px 18px;
+  padding: 12px 18px;
   text-align: left;
   font-size: 10px;
   text-transform: uppercase;
@@ -971,7 +974,7 @@ textarea {
 }
 
 .dash-table td {
-  padding: 18px 18px;
+  padding: 15px 18px;
   font-size: 12px;
   color: #b6d0c3;
   border-top: 1px solid rgba(77, 255, 160, 0.06);
@@ -1016,8 +1019,8 @@ textarea {
 }
 
 .activity-date {
-  margin: 12px 0 10px;
-  padding: 0 22px;
+  margin: 10px 0 8px;
+  padding: 0 20px;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -1028,8 +1031,8 @@ textarea {
 .activity-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 18px 22px;
+  gap: 11px;
+  padding: 15px 20px;
   border-top: 1px solid rgba(77, 255, 160, 0.06);
 }
 
@@ -1076,17 +1079,8 @@ textarea {
   border-radius: 12px;
 }
 
-.dashboard-quick-actions {
-  margin-top: 18px;
-  padding: 16px 18px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(20, 50, 31, 0.96), rgba(16, 41, 27, 0.96));
-  border: 1px solid rgba(77, 255, 160, 0.12);
-}
-
-.dashboard-chip-btn {
-  border-radius: 12px;
-  padding: 0 14px;
+.dashboard-projects-card {
+  max-height: 400px;
 }
 
 .badge-muted {
@@ -1617,18 +1611,38 @@ textarea {
   cursor: pointer;
   transition: 0.18s ease;
   font-size: 12px;
+  position: relative;
 }
 
 .discovery-tab:hover {
   color: #e9f7ef;
 }
 
+.discovery-tab:focus {
+  outline: none;
+}
+
+.discovery-tab:focus-visible {
+  outline: 2px solid rgba(77, 255, 160, 0.75);
+  outline-offset: 2px;
+}
+
 .discovery-tab.active {
   color: #4dffa0;
-  border-color: rgba(231, 244, 237, 0.82);
-  border-bottom-color: #02100a;
+  border-color: transparent;
   background: rgba(255, 255, 255, 0.01);
   margin-bottom: -1px;
+}
+
+.discovery-tab-dot {
+  position: absolute;
+  top: 6px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #4dffa0;
+  box-shadow: 0 0 8px rgba(77, 255, 160, 0.7);
 }
 
 .discovery-overview-grid {
@@ -1802,6 +1816,17 @@ textarea {
   color: #f0b429;
 }
 
+.discovery-pill.ready,
+.discovery-pill.requested {
+  background: rgba(240, 180, 41, 0.12);
+  color: #f0b429;
+}
+
+.discovery-pill.paid {
+  background: rgba(77, 255, 160, 0.12);
+  color: #4dffa0;
+}
+
 .discovery-pill.locked {
   background: rgba(129, 160, 149, 0.12);
   color: #7ea092;
@@ -1830,6 +1855,225 @@ textarea {
 .discovery-setting-row strong {
   color: #f4f8f2;
   font-size: 13px;
+}
+
+.discovery-overview-card {
+  padding: 12px 14px;
+}
+
+.discovery-overview-card .discovery-panel-title {
+  margin-bottom: 10px;
+}
+
+.discovery-overview-card .discovery-timeline-item {
+  padding: 9px 0;
+  gap: 10px;
+}
+
+.discovery-overview-card .discovery-timeline-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+}
+
+.discovery-overview-card .discovery-payment-bar {
+  margin-bottom: 9px;
+}
+
+.discovery-overview-card .discovery-payment-bar span {
+  height: 7px;
+}
+
+.discovery-overview-card .discovery-payment-legend {
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.discovery-overview-card .discovery-payment-list,
+.discovery-overview-card .discovery-info-list {
+  gap: 8px;
+}
+
+.discovery-overview-card .discovery-payment-item {
+  padding: 9px 12px;
+}
+
+.discovery-overview-card .discovery-info-row,
+.discovery-overview-card .discovery-setting-row {
+  gap: 14px;
+}
+
+.discovery-overview-timeline-card {
+  max-height: 300px;
+  overflow: hidden;
+}
+
+.discovery-overview-timeline-card .discovery-timeline {
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.discovery-overview-timeline-card .discovery-timeline::-webkit-scrollbar {
+  width: 6px;
+}
+
+.discovery-overview-timeline-card .discovery-timeline::-webkit-scrollbar-thumb {
+  background: rgba(77, 255, 160, 0.18);
+  border-radius: 6px;
+}
+
+.discovery-overview-timeline-card .discovery-timeline::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.discovery-concept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.discovery-concept-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(77, 255, 160, 0.14);
+  border-radius: 8px;
+  background: rgba(6, 28, 17, 0.72);
+}
+
+.discovery-concept-preview {
+  min-height: 160px;
+  border-bottom: 1px solid rgba(77, 255, 160, 0.1);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.discovery-concept-preview.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(142, 176, 160, 0.72);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(77, 255, 160, 0.13), transparent 34%),
+    rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+}
+
+.discovery-concept-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+}
+
+.discovery-concept-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.discovery-concept-heading h3 {
+  margin: 0 0 6px;
+  color: #f4f8f2;
+  font-size: 15px;
+}
+
+.discovery-concept-heading p,
+.discovery-concept-feedback p {
+  margin: 0;
+  color: #8eb0a0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.discovery-concept-meta,
+.discovery-concept-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.discovery-concept-meta span {
+  color: #8eb0a0;
+  font-size: 12px;
+}
+
+.discovery-concept-feedback {
+  padding: 12px;
+  border: 1px solid rgba(255, 204, 51, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 204, 51, 0.06);
+}
+
+.discovery-concept-feedback span {
+  display: block;
+  margin-bottom: 6px;
+  color: #ffcc33;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.discovery-concept-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(77, 255, 160, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.discovery-concept-edit label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.discovery-concept-edit label span {
+  color: #8eb0a0;
+  font-size: 12px;
+}
+
+.discovery-concept-edit input,
+.discovery-concept-edit textarea {
+  width: 100%;
+  border: 1px solid rgba(77, 255, 160, 0.12);
+  border-radius: 8px;
+  outline: 0;
+  color: #f4f8f2;
+  background: rgba(1, 13, 8, 0.5);
+  font: inherit;
+}
+
+.discovery-concept-edit input,
+.discovery-concept-edit textarea {
+  padding: 9px 10px;
+}
+
+.discovery-concept-edit input[type="file"] {
+  padding: 8px;
+}
+
+.discovery-concept-edit textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.discovery-concept-actions {
+  margin-top: auto;
+}
+
+.discovery-concept-actions a {
+  color: #4dffa0;
+  font-size: 13px;
+  text-decoration: none;
 }
 
 .discovery-value {
@@ -2231,15 +2475,15 @@ textarea {
 }
 
 .discovery-agreement-card {
-  width: min(100%, 560px);
-  padding: 18px;
+  width: min(100%, 700px);
+  padding: 22px;
 }
 
 .discovery-agreement-icon {
-  width: 62px;
-  height: 62px;
-  border-radius: 18px;
-  margin: 44px auto 18px;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  margin: 18px auto 20px;
   background: rgba(255, 255, 255, 0.08);
   color: #94b2a2;
   display: flex;
@@ -2247,6 +2491,77 @@ textarea {
   justify-content: center;
   font-size: 16px;
   font-weight: 700;
+}
+
+.discovery-agreement-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.discovery-agreement-summary-item {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(177, 239, 215, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.discovery-agreement-summary-item span {
+  display: block;
+  margin-bottom: 7px;
+  color: #8eb0a0;
+  font-size: 12px;
+}
+
+.discovery-agreement-summary-item strong {
+  display: block;
+  color: #f4f8f2;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.discovery-agreement-history {
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(177, 239, 215, 0.1);
+}
+
+.discovery-agreement-history h3 {
+  margin: 0 0 12px;
+  color: #f4f8f2;
+  font-size: 14px;
+}
+
+.discovery-agreement-history ul {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.discovery-agreement-history li {
+  display: grid;
+  grid-template-columns: 12px 1fr;
+  gap: 10px;
+  align-items: start;
+  color: #f4f8f2;
+}
+
+.discovery-agreement-history li span {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--floxa-neon);
+  box-shadow: 0 0 0 4px rgba(77, 255, 160, 0.12);
+}
+
+.discovery-agreement-history li strong {
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .discovery-agreement-title {
@@ -2289,6 +2604,11 @@ textarea {
   color: #041008;
   font-weight: 700;
   cursor: pointer;
+}
+
+.discovery-request-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .discovery-addon-card {
@@ -3121,8 +3441,21 @@ textarea {
 
 .analytics-bottom-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  align-items: stretch;
+}
+
+.analytics-bottom-grid .analytics-report-card {
+  height: 270px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.analytics-bottom-grid .analytics-card-head {
+  flex: 0 0 auto;
 }
 
 .analytics-acceptance-chart {
@@ -3130,20 +3463,21 @@ textarea {
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 6px;
   align-items: end;
+  max-width: 760px;
 }
 
 .analytics-acceptance-yaxis {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 170px;
+  height: 190px;
   color: #77998a;
   font-size: 10px;
 }
 
 .analytics-acceptance-plot {
   position: relative;
-  height: 158px;
+  height: 178px;
 }
 
 .analytics-acceptance-grid {
@@ -3268,6 +3602,11 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-color: rgba(77, 255, 160, 0.18) transparent;
+  scrollbar-width: thin;
 }
 
 .analytics-sector-row {
@@ -3303,17 +3642,26 @@ textarea {
 }
 
 .activity-card::-webkit-scrollbar,
+.dashboard-table-wrap::-webkit-scrollbar,
+.analytics-sector-list::-webkit-scrollbar,
+.notification-list::-webkit-scrollbar,
 .content::-webkit-scrollbar {
   width: 6px;
 }
 
 .activity-card::-webkit-scrollbar-thumb,
+.dashboard-table-wrap::-webkit-scrollbar-thumb,
+.analytics-sector-list::-webkit-scrollbar-thumb,
+.notification-list::-webkit-scrollbar-thumb,
 .content::-webkit-scrollbar-thumb {
   background: rgba(77, 255, 160, 0.18);
   border-radius: 6px;
 }
 
 .activity-card::-webkit-scrollbar-track,
+.dashboard-table-wrap::-webkit-scrollbar-track,
+.analytics-sector-list::-webkit-scrollbar-track,
+.notification-list::-webkit-scrollbar-track,
 .content::-webkit-scrollbar-track {
   background: transparent;
 }
@@ -4637,6 +4985,10 @@ textarea {
   .discovery-form-card,
   .discovery-agreement-card {
     width: 100%;
+  }
+
+  .discovery-agreement-summary-grid {
+    grid-template-columns: 1fr;
   }
 
   .discovery-slider-row {

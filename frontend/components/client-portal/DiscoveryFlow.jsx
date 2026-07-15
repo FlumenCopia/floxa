@@ -11,7 +11,7 @@ const personalityClusters = [
   { min: 2.1, max: 4, name: "Electric Leader" },
 ];
 
-const slidersOne = [
+export const slidersOne = [
   { key: "playfulSerious", left: "Playful", right: "Serious" },
   { key: "unconventionalMainstream", left: "Unconventional", right: "Mainstream" },
   { key: "industrialNatural", left: "Industrial", right: "Natural" },
@@ -20,7 +20,7 @@ const slidersOne = [
   { key: "refinedStrong", left: "Refined", right: "Strong" },
 ];
 
-const slidersTwo = [
+export const slidersTwo = [
   { key: "feminineMasculine", left: "Feminine", right: "Masculine" },
   { key: "simpleComplex", left: "Simple", right: "Complex" },
   { key: "youthfulEstablished", left: "Youthful", right: "Established" },
@@ -30,7 +30,7 @@ const slidersTwo = [
   { key: "economicalExpensive", left: "Economical", right: "Expensive" },
 ];
 
-const emotionsList = [
+export const emotionsList = [
   "Trust",
   "Bold",
   "Warm",
@@ -61,14 +61,14 @@ const emotionsList = [
   "Classic",
 ];
 
-const personas = [
+export const personas = [
   { name: "Budget Conscious", desc: "Price-sensitive, value-focused buyers" },
   { name: "Quality Seeker", desc: "Research-driven, pay premium for quality" },
   { name: "Trend Follower", desc: "Culture-aware early adopters" },
   { name: "Premium Loyalist", desc: "Exclusive tastes, brand-loyal, high LTV" },
 ];
 
-const visualStyles = [
+export const visualStyles = [
   "Minimal Clean",
   "Bold Geometric",
   "Organic Warm",
@@ -80,13 +80,13 @@ const visualStyles = [
   "Street Urban",
 ];
 
-const defaultCompetitors = [
+export const defaultCompetitors = [
   { name: "", rating: "", reason: "" },
   { name: "", rating: "", reason: "" },
   { name: "", rating: "", reason: "" },
 ];
 
-const allSliderDefinitions = [...slidersOne, ...slidersTwo];
+export const allSliderDefinitions = [...slidersOne, ...slidersTwo];
 
 function getSliderDefinitionsForStep(step) {
   if (step < 2) {
@@ -100,7 +100,7 @@ function getSliderDefinitionsForStep(step) {
   return allSliderDefinitions;
 }
 
-function readStoredDraft(draftKey) {
+export function readStoredDraft(draftKey) {
   if (typeof window === "undefined") {
     return {};
   }
@@ -117,18 +117,11 @@ function toBackendSliderValue(value) {
   return Math.round(((Number(value || 0) + 3) / 6) * 100);
 }
 
-function normalizeCompetitorName(name) {
-  return /^Competitor [1-3]$/.test(name || "") ? "" : name;
+export function getCompetitorNameForPayload(competitor) {
+  return String(competitor.name || "").trim();
 }
 
-function getCompetitorNameForPayload(competitor) {
-  return (
-    normalizeCompetitorName(competitor.name).trim() ||
-    competitor.reason.trim()
-  );
-}
-
-function buildDiscoveryPayload({ basics, sliders, emotions, persona, comps, styles, step }) {
+export function buildDiscoveryPayload({ basics, sliders, emotions, persona, comps, styles, step }) {
   const sliderDefinitions = getSliderDefinitionsForStep(step);
 
   return {
@@ -169,9 +162,7 @@ function formatDiscoverySaveError(error) {
 
 export function DiscoveryFlow({
   project,
-  setClientData,
   onNext,
-  onProjectRefresh,
 }) {
   const draftKey = `floxa-discovery-${project.id}`;
   const [step, setStep] = useState(() => {
@@ -183,10 +174,7 @@ export function DiscoveryFlow({
   const [persona, setPersona] = useState(() => readStoredDraft(draftKey).persona ?? "");
   const [styles, setStyles] = useState(() => readStoredDraft(draftKey).styles ?? []);
   const [comps, setComps] = useState([
-    ...(readStoredDraft(draftKey).comps ?? defaultCompetitors).map((competitor) => ({
-      ...competitor,
-      name: normalizeCompetitorName(competitor.name),
-    })),
+    ...(readStoredDraft(draftKey).comps ?? defaultCompetitors),
   ]);
   const [basics, setBasics] = useState(() => ({
     whatDo: readStoredDraft(draftKey).basics?.whatDo ?? "",
@@ -205,11 +193,21 @@ export function DiscoveryFlow({
     window.localStorage.setItem(draftKey, JSON.stringify(draft));
 
     const timeout = window.setTimeout(() => {
-      clientPortalService.saveDiscoveryDraft(draft, step).catch(() => undefined);
+      const payload = buildDiscoveryPayload({
+        basics,
+        sliders,
+        emotions,
+        persona,
+        comps,
+        styles,
+        step,
+      });
+
+      clientPortalService.saveDiscoveryDraft(project.id, payload).catch(() => undefined);
     }, 500);
 
     return () => window.clearTimeout(timeout);
-  }, [draftKey, step, basics, sliders, emotions, persona, styles, comps]);
+  }, [draftKey, project.id, step, basics, sliders, emotions, persona, styles, comps]);
 
   const updateSlider = useCallback((key, val) => {
     setSliders((current) => ({ ...current, [key]: val }));
@@ -240,7 +238,7 @@ export function DiscoveryFlow({
       step,
     });
 
-    return clientPortalService.submitDiscovery(project.id, payload);
+    return clientPortalService.saveDiscoveryDraft(project.id, payload);
   };
 
   const handleFinish = async () => {
@@ -249,29 +247,8 @@ export function DiscoveryFlow({
       return;
     }
 
-    setSaving(true);
     setMessage("");
-
-    try {
-      const data = await saveDiscoveryProgress();
-
-      if (data.success) {
-        if (data.data) {
-          setClientData(data.data);
-        }
-
-        await onProjectRefresh();
-        window.localStorage.removeItem(draftKey);
-        onNext("dashboard");
-      } else {
-        setMessage(data.error ?? "Something went wrong.");
-      }
-    } catch (error) {
-      console.error("Client discovery save failed:", error);
-      setMessage(formatDiscoverySaveError(error));
-    } finally {
-      setSaving(false);
-    }
+    onNext("review");
   };
 
   async function nextStep() {
@@ -558,8 +535,8 @@ export function DiscoveryFlow({
               Next -&gt;
             </button>
           ) : (
-            <button type="button" onClick={handleFinish} disabled={saving}>
-              {saving ? "Submitting Discovery..." : "Submit Discovery -> Create Brand Summary"}
+            <button type="button" className="client-review-pulse-btn" onClick={handleFinish} disabled={saving}>
+              Review Before Submit
             </button>
           )}
         </div>

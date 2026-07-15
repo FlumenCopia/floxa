@@ -1,21 +1,46 @@
 from django.urls import path
 from .views import (
+    AgreementView,
     BrandDNAGenerateView,
     BrandDNAView,
     ClientProfileView,
     ConsultantActivityMarkReadView,
     ConsultantActivityView,
+    ConceptDetailView,
+    ConceptShareView,
+    ConceptView,
+    DeliverableDetailView,
+    DeliverableFileView,
+    DeliverableShareView,
+    DeliverableView,
     DiscoverySummaryView,
+    GeneratedAgreementView,
+    GeneratedAgreementPDFRegenerateView,
+    GeneratedAgreementPDFView,
+    GeneratedAgreementShareView,
     MoodboardView,
+    PaymentMilestoneActionView,
+    PaymentMilestoneView,
+    ProjectAnalyticsView,
+    ProjectAgreementGenerateView,
+    ProjectAgreementShareView,
+    ProjectAgreementSignatureRequestView,
+    ProjectAgreementSignedEmailRetryView,
     ProjectActivityMarkReadView,
     ProjectActivityView,
     ProjectDetailView,
+    ProjectDiscoverySubmitView,
     ProjectDiscoveryView,
     ProjectListCreateView,
 )
 
 urlpatterns = [
     path("", ProjectListCreateView.as_view(), name="project-list-create"),
+    path(
+        "analytics/",
+        ProjectAnalyticsView.as_view(),
+        name="project-analytics",
+    ),
     path(
         "activities/",
         ConsultantActivityView.as_view(),
@@ -37,6 +62,11 @@ urlpatterns = [
         name="project-discovery",
     ),
     path(
+        "<int:project_id>/discovery/submit/",
+        ProjectDiscoverySubmitView.as_view(),
+        name="project-discovery-submit",
+    ),
+    path(
         "<int:project_id>/discovery-summary/",
         DiscoverySummaryView.as_view(),
         name="project-discovery-summary",
@@ -55,6 +85,103 @@ urlpatterns = [
         "<int:project_id>/moodboards/",
         MoodboardView.as_view(),
         name="project-moodboards",
+    ),
+    path(
+        "<int:project_id>/concepts/",
+        ConceptView.as_view(),
+        name="project-concepts",
+    ),
+    path(
+        "<int:project_id>/concepts/<int:concept_id>/",
+        ConceptDetailView.as_view(),
+        name="project-concept-detail",
+    ),
+    path(
+        "<int:project_id>/concepts/<int:concept_id>/share/",
+        ConceptShareView.as_view(),
+        name="project-concept-share",
+    ),
+    path(
+        "<int:project_id>/deliverables/",
+        DeliverableView.as_view(),
+        name="project-deliverables",
+    ),
+    path(
+        "<int:project_id>/agreement/",
+        AgreementView.as_view(),
+        name="project-agreement",
+    ),
+    path(
+        "<int:project_id>/agreement/generate/",
+        ProjectAgreementGenerateView.as_view(),
+        name="project-agreement-generate",
+    ),
+    path(
+        "<int:project_id>/agreement/share/",
+        ProjectAgreementShareView.as_view(),
+        name="project-agreement-share",
+    ),
+    path(
+        "<int:project_id>/agreement/request-signature/",
+        ProjectAgreementSignatureRequestView.as_view(),
+        name="project-agreement-request-signature",
+    ),
+    path(
+        "<int:project_id>/agreement/retry-signed-email/",
+        ProjectAgreementSignedEmailRetryView.as_view(),
+        name="project-agreement-retry-signed-email",
+    ),
+    path(
+        "<int:project_id>/generated-agreement/pdf/",
+        GeneratedAgreementPDFView.as_view(),
+        name="project-generated-agreement-pdf",
+    ),
+    path(
+        "<int:project_id>/generated-agreement/",
+        GeneratedAgreementView.as_view(),
+        name="project-generated-agreement",
+    ),
+    path(
+        "<int:project_id>/generated-agreement/pdf/regenerate/",
+        GeneratedAgreementPDFRegenerateView.as_view(),
+        name="project-generated-agreement-pdf-regenerate",
+    ),
+    path(
+        "<int:project_id>/generated-agreement/share/",
+        GeneratedAgreementShareView.as_view(),
+        name="project-generated-agreement-share",
+    ),
+    path(
+        "<int:project_id>/payments/",
+        PaymentMilestoneView.as_view(),
+        name="project-payments",
+    ),
+    path(
+        "<int:project_id>/payments/<int:milestone_id>/request/",
+        PaymentMilestoneActionView.as_view(),
+        {"action": "request"},
+        name="project-payment-request",
+    ),
+    path(
+        "<int:project_id>/payments/<int:milestone_id>/mark-paid/",
+        PaymentMilestoneActionView.as_view(),
+        {"action": "mark_paid"},
+        name="project-payment-mark-paid",
+    ),
+    path(
+        "<int:project_id>/deliverables/<int:deliverable_id>/",
+        DeliverableDetailView.as_view(),
+        name="project-deliverable-detail",
+    ),
+    path(
+        "<int:project_id>/deliverables/<int:deliverable_id>/file/",
+        DeliverableFileView.as_view(),
+        name="project-deliverable-file",
+    ),
+    path(
+        "<int:project_id>/deliverables/<int:deliverable_id>/share/",
+        DeliverableShareView.as_view(),
+        name="project-deliverable-share",
     ),
     path(
         "<int:project_id>/activities/",

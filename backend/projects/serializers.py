@@ -1,17 +1,24 @@
+from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from .models import (
+    Agreement,
     BrandDNA,
     Client,
     ClientProfile,
+    Concept,
+    Deliverable,
     DiscoveryCompetitor,
     DiscoveryEmotion,
     DiscoverySliderResponse,
     DiscoveryVisualStyle,
     Moodboard,
+    PaymentMilestone,
     Project,
     ProjectActivity,
     ProjectDiscovery,
 )
+from .progress import calculate_project_progress, calculate_project_workflow_status
+from .upload_validation import validate_upload_file
 
 
 class ClientProfileSerializer(serializers.ModelSerializer):
@@ -31,6 +38,14 @@ class ClientProfileSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_phone(self, value):
+        phone = str(value or "").strip()
+
+        if not phone.isdigit() or len(phone) != 10:
+            raise serializers.ValidationError("Phone number must be exactly 10 digits.")
+
+        return phone
 
 
 class DiscoverySliderResponseSerializer(serializers.ModelSerializer):
@@ -97,10 +112,11 @@ class ProjectDiscoverySerializer(serializers.ModelSerializer):
             "emotions",
             "competitors",
             "visual_styles",
+            "submitted_at",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "submitted_at", "created_at", "updated_at"]
 
 
 class DiscoverySummarySerializer(serializers.Serializer):
@@ -114,6 +130,8 @@ class DiscoverySummarySerializer(serializers.Serializer):
     audience_archetype = serializers.CharField(allow_blank=True)
     emotions = serializers.ListField(child=serializers.CharField())
     visual_styles = serializers.ListField(child=serializers.CharField())
+    sliders = serializers.ListField(child=serializers.DictField(), required=False)
+    discovery_updated_at = serializers.DateTimeField(required=False, allow_null=True)
     top_competitors = serializers.ListField(
         child=serializers.DictField(child=serializers.CharField())
     )
@@ -179,6 +197,11 @@ class MoodboardSerializer(serializers.ModelSerializer):
 
         return request.build_absolute_uri(image_url) if request else image_url
 
+    def validate(self, attrs):
+        validate_upload_file(attrs.get("image"), "moodboard_image", "image")
+
+        return attrs
+
 
 class ClientPortalMoodboardSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
@@ -199,15 +222,288 @@ class ClientPortalMoodboardSerializer(serializers.ModelSerializer):
             return ""
 
         request = self.context.get("request")
+        image_url = f"/api/client-portal/{obj.project.portal_token}/moodboards/{obj.id}/image/"
+
+        return request.build_absolute_uri(image_url) if request else image_url
+
+
+class ConsultantConceptSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Concept
+        fields = [
+            "id",
+            "project",
+            "title",
+            "description",
+            "image",
+            "image_url",
+            "file",
+            "file_url",
+            "version",
+            "status",
+            "client_feedback",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "project",
+            "image_url",
+            "file_url",
+            "client_feedback",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_image_url(self, obj):
+        if not obj.image:
+            return ""
+
+        request = self.context.get("request")
+        image_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/image/"
+
+        return request.build_absolute_uri(image_url) if request else image_url
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return ""
+
+        request = self.context.get("request")
+        file_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/file/"
+
+        return request.build_absolute_uri(file_url) if request else file_url
+
+    def validate(self, attrs):
+        has_existing_media = self.instance and (self.instance.image or self.instance.file)
+
+        validate_upload_file(attrs.get("image"), "concept_image", "image")
+        validate_upload_file(attrs.get("file"), "concept_file", "file")
+
+        if not attrs.get("image") and not attrs.get("file") and not has_existing_media:
+            raise serializers.ValidationError(
+                {"detail": "Upload an image or file for this concept."}
+            )
+
+        return attrs
+
+
+class ClientPortalConceptSerializer(serializers.ModelSerializer):
+    image_url = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Concept
+        fields = [
+            "id",
+            "title",
+            "description",
+            "image_url",
+            "file_url",
+            "version",
+            "status",
+            "client_feedback",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_image_url(self, obj):
+        if not obj.image:
+            return ""
+
+        request = self.context.get("request")
         image_url = obj.image.url
 
         return request.build_absolute_uri(image_url) if request else image_url
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return ""
+
+        request = self.context.get("request")
+        file_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/file/"
+
+        return request.build_absolute_uri(file_url) if request else file_url
+
+
+class ConsultantDeliverableSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
+    file_size = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Deliverable
+        fields = [
+            "id",
+            "project",
+            "title",
+            "description",
+            "file",
+            "file_url",
+            "file_name",
+            "file_size",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "project",
+            "file_url",
+            "file_name",
+            "file_size",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return ""
+
+        request = self.context.get("request")
+        file_url = f"/api/projects/{obj.project.id}/deliverables/{obj.id}/file/"
+
+        return request.build_absolute_uri(file_url) if request else file_url
+
+    def get_file_name(self, obj):
+        return obj.file.name.split("/")[-1] if obj.file else ""
+
+    def get_file_size(self, obj):
+        return obj.file.size if obj.file else 0
+
+    def validate(self, attrs):
+        has_existing_file = self.instance and self.instance.file
+
+        validate_upload_file(attrs.get("file"), "deliverable_file", "file")
+
+        if not attrs.get("file") and not has_existing_file:
+            raise serializers.ValidationError(
+                {"detail": "Upload a file for this deliverable."}
+            )
+
+        return attrs
+
+
+class ConsultantAgreementSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
+    file_size = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Agreement
+        fields = [
+            "id",
+            "project",
+            "title",
+            "file",
+            "file_url",
+            "file_name",
+            "file_size",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "project",
+            "file_url",
+            "file_name",
+            "file_size",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return ""
+
+        request = self.context.get("request")
+        file_url = obj.file.url
+
+        return request.build_absolute_uri(file_url) if request else file_url
+
+    def get_file_name(self, obj):
+        return obj.file.name.split("/")[-1] if obj.file else ""
+
+    def get_file_size(self, obj):
+        return obj.file.size if obj.file else 0
+
+    def validate(self, attrs):
+        has_existing_file = self.instance and self.instance.file
+
+        validate_upload_file(attrs.get("file"), "agreement_file", "file")
+
+        if not attrs.get("file") and not has_existing_file:
+            raise serializers.ValidationError(
+                {"detail": "Upload a file for this agreement."}
+            )
+
+        return attrs
+
+
+class ClientPortalAgreementSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Agreement
+        fields = [
+            "title",
+            "file_url",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return ""
+
+        request = self.context.get("request")
+        file_url = obj.file.url
+
+        return request.build_absolute_uri(file_url) if request else file_url
+
+
+class ClientPortalDeliverableSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
+    file_size = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Deliverable
+        fields = [
+            "id",
+            "title",
+            "description",
+            "file_url",
+            "file_name",
+            "file_size",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return ""
+
+        request = self.context.get("request")
+        file_url = f"/api/client-portal/{obj.project.portal_token}/deliverables/{obj.id}/file/"
+
+        return request.build_absolute_uri(file_url) if request else file_url
+
+    def get_file_name(self, obj):
+        return obj.file.name.split("/")[-1] if obj.file else ""
+
+    def get_file_size(self, obj):
+        return obj.file.size if obj.file else 0
 
 
 class ClientPortalProjectSerializer(serializers.ModelSerializer):
     project_id = serializers.IntegerField(source="id", read_only=True)
     client_name = serializers.CharField(source="client.name", read_only=True)
     client_email = serializers.EmailField(source="client.email", read_only=True)
+    progress = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -218,7 +514,13 @@ class ClientPortalProjectSerializer(serializers.ModelSerializer):
             "client_email",
             "sector",
             "status",
+            "progress",
+            "client_signed_off",
+            "signed_off_at",
         ]
+
+    def get_progress(self, obj):
+        return calculate_project_progress(obj)
 
 
 class ProjectActivitySerializer(serializers.ModelSerializer):
@@ -239,12 +541,60 @@ class ProjectActivitySerializer(serializers.ModelSerializer):
             "read_at",
             "created_at",
         ]
+
+
+class ClientPortalActivitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectActivity
+        fields = [
+            "id",
+            "action",
+            "description",
+            "metadata",
+            "client_is_read",
+            "client_read_at",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class PaymentMilestoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentMilestone
+        fields = [
+            "id",
+            "project",
+            "type",
+            "percentage",
+            "amount",
+            "status",
+            "requested_at",
+            "paid_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class ClientPortalPaymentMilestoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentMilestone
+        fields = [
+            "type",
+            "percentage",
+            "amount",
+            "status",
+            "requested_at",
+            "paid_at",
+        ]
         read_only_fields = fields
 
 
 class ProjectSerializer(serializers.ModelSerializer):
     client_name = serializers.CharField(source="client.name", read_only=True)
     client_email = serializers.EmailField(source="client.email", read_only=True)
+    progress = serializers.SerializerMethodField()
+    workflow_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
@@ -254,6 +604,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "company_name",
             "sector",
             "status",
+            "workflow_status",
             "project_value",
             "advance_percentage",
             "mid_percentage",
@@ -261,12 +612,20 @@ class ProjectSerializer(serializers.ModelSerializer):
             "revision_limit",
             "portal_token",
             "progress",
+            "client_signed_off",
+            "signed_off_at",
             "is_archived",
             "client_name",
             "client_email",
             "created_at",
             "updated_at",
         ]
+
+    def get_progress(self, obj):
+        return calculate_project_progress(obj)
+
+    def get_workflow_status(self, obj):
+        return calculate_project_workflow_status(obj)
 
 
 class ProjectCreateSerializer(serializers.Serializer):
@@ -275,10 +634,27 @@ class ProjectCreateSerializer(serializers.Serializer):
     company = serializers.CharField(max_length=255)
     sector = serializers.CharField(max_length=100)
     value = serializers.DecimalField(max_digits=12, decimal_places=2)
+    portal_password = serializers.CharField(write_only=True, min_length=8)
     advance = serializers.IntegerField(required=False, default=50, min_value=0, max_value=100)
     mid = serializers.IntegerField(required=False, default=25, min_value=0, max_value=100)
     final = serializers.IntegerField(required=False, default=25, min_value=0, max_value=100)
     revisions = serializers.CharField(max_length=50, required=False, allow_blank=True, default="3 revisions")
+
+    def validate_value(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Project value must be a positive amount.")
+
+        return value
+
+    def validate(self, attrs):
+        total = attrs.get("advance", 50) + attrs.get("mid", 25) + attrs.get("final", 25)
+
+        if total != 100:
+            raise serializers.ValidationError(
+                {"payment_split": "Advance, mid, and final payment percentages must total 100%."}
+            )
+
+        return attrs
 
     def create(self, validated_data):
         consultant = self.context["request"].user
@@ -297,12 +673,13 @@ class ProjectCreateSerializer(serializers.Serializer):
             company_name=validated_data["company"],
             sector=validated_data["sector"],
             project_value=validated_data["value"],
+            portal_password_hash=make_password(validated_data["portal_password"]),
             advance_percentage=validated_data["advance"],
             mid_percentage=validated_data["mid"],
             final_percentage=validated_data["final"],
             revision_limit=validated_data["revisions"] or "3 revisions",
-            status=Project.Status.DISCOVERY,
-            progress=20,
+            status=Project.Status.CREATED,
+            progress=5,
         )
 
         return project
