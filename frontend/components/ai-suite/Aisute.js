@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const projects = ["Craft & Co", "Bloom Studio", "Helix Tech"];
+const projects = [];
 
 const tools = [
   {
@@ -14,7 +14,7 @@ const tools = [
     badge: "Core",
     badgeClass: "core",
     action: "Run",
-    result: (project) => `Suggestions are now attached to active discovery fields for ${project}.`,
+    result: () => "Suggestions are unavailable until project data is connected.",
   },
   {
     id: "enhance-brand-dna",
@@ -25,7 +25,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: (project) => `Brand DNA for ${project} was enhanced with sharper positioning and 3 refined tagline routes.`,
+    result: () => "Brand DNA enhancement is unavailable until project data is connected.",
   },
   {
     id: "voice-simulator",
@@ -36,7 +36,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: (project) => `Voice simulator for ${project} produced a tone guide and three sample copy snippets.`,
+    result: () => "Voice simulation is unavailable until project data is connected.",
   },
   {
     id: "moodboard-directions",
@@ -47,7 +47,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: (project) => `Three moodboard directions for ${project} were generated with validated palettes.`,
+    result: () => "Moodboard directions are unavailable until project data is connected.",
   },
   {
     id: "concept-strategies",
@@ -58,7 +58,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: (project) => `Three concept strategies for ${project} are ready with risk and differentiation scoring.`,
+    result: () => "Concept strategies are unavailable until project data is connected.",
   },
   {
     id: "creative-brief",
@@ -69,7 +69,7 @@ const tools = [
     badge: "Core",
     badgeClass: "core",
     action: "Generate",
-    result: (project) => `Creative brief for ${project} was generated and staged for export.`,
+    result: () => "Creative brief generation is unavailable until project data is connected.",
   },
   {
     id: "proposal-generator",
@@ -80,7 +80,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: (project) => `Proposal draft for ${project} was assembled with six structured sections.`,
+    result: () => "Proposal generation is unavailable until project data is connected.",
   },
   {
     id: "project-health-ai",
@@ -91,7 +91,7 @@ const tools = [
     badge: "Agency",
     badgeClass: "agency",
     action: "Run",
-    result: (project) => `Project health for ${project} scored at 82 with two follow-up suggestions.`,
+    result: () => "Project health scoring is unavailable until project data is connected.",
   },
   {
     id: "ai-usage-stats",
@@ -102,7 +102,7 @@ const tools = [
     badge: "Core",
     badgeClass: "core",
     action: "Run",
-    result: (project) => `Usage stats for ${project} were refreshed with the latest cost and acceptance metrics.`,
+    result: () => "Usage stats are unavailable until project data is connected.",
   },
 ];
 
@@ -130,7 +130,7 @@ function ToolIcon({ type }) {
 }
 
 export default function Aisute() {
-  const [selectedProject, setSelectedProject] = useState(projects[0]);
+  const [selectedProject, setSelectedProject] = useState("");
   const [activeToolId, setActiveToolId] = useState("");
   const [runningToolId, setRunningToolId] = useState("");
   const [isCopilotLive, setIsCopilotLive] = useState(true);
@@ -148,7 +148,7 @@ export default function Aisute() {
 
   const activeResult = useMemo(() => {
     if (!latestOutput) {
-      return `${selectedProject} is ready. Choose a tool to run brand workflows.`;
+      return selectedProject ? `${selectedProject} is ready. Choose a tool to run brand workflows.` : "No projects available.";
     }
 
     return `${latestOutput.message} Updated ${latestOutput.time}.`;
@@ -204,11 +204,15 @@ export default function Aisute() {
             <label className="ai-suite-project-picker">
               <span className="ai-suite-project-label">Project</span>
               <select value={selectedProject} onChange={handleProjectChange}>
-                {projects.map((project) => (
-                  <option key={project} value={project}>
-                    {project}
-                  </option>
-                ))}
+                {projects.length > 0 ? (
+                  projects.map((project) => (
+                    <option key={project} value={project}>
+                      {project}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No projects available</option>
+                )}
               </select>
             </label>
           </div>

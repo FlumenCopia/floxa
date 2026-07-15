@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Jost } from "next/font/google";
+import ToastProvider from "./ToastProvider";
 import "./globals.css";
+import "react-toastify/dist/ReactToastify.css";
+import "../components/dashboard/projectWizard.css";
 
 const jost = Jost({
   variable: "--font-jost",
@@ -27,7 +30,10 @@ export default function RootLayout({
       lang="en"
       className={`${jost.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <ToastProvider />
+      </body>
     </html>
   );
 }

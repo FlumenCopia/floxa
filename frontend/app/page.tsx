@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import Floxaheader from "../commone/Floxaheader";
-import Dashboardsection from "../components/dashboard/Dashboardsection";
+import Dashboardsection from "../components/dashboard/Dashboardsection.jsx";
 import Login from "../login/Login";
 
 export default async function Home() {

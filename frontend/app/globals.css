@@ -122,6 +122,42 @@ textarea {
   color: var(--dim);
 }
 
+.auth-switch {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: rgba(77, 255, 160, 0.035);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.signup-link {
+  color: var(--neon);
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.18s ease, opacity 0.18s ease;
+}
+
+.signup-link:hover {
+  color: var(--foreground);
+}
+
+.floxa-toast {
+  border: 1px solid var(--border2);
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.38);
+  font-family: var(--font-jost), Arial, Helvetica, sans-serif;
+}
+
+.floxa-toast-progress {
+  background: var(--neon) !important;
+}
+
 .google-btn {
   width: 100%;
   height: 42px;
@@ -937,6 +973,24 @@ textarea {
 
 .project-filter-wrap {
   position: relative;
+}
+
+.page-transition {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  animation: pageFadeIn 0.16s ease both;
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0.92;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .project-filter-btn {

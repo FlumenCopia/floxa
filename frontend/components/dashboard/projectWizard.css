@@ -1,0 +1,11 @@
+.project-payment-bar-error {
+  border: 1px solid #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.project-payment-error-message {
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 8px;
+}

@@ -1,19 +1,13 @@
 "use client";
 
-const planFeatures = [
-  "Unlimited projects",
-  "All 9 AI modules included",
-  "Project Health AI (daily scoring)",
-  "White-label client portal",
-  "Priority support",
-];
+const planFeatures = ["Plan details unavailable"];
 
 export default function Billing() {
   return (
     <div className="card settings-card settings-plan-card">
       <div className="row-sb settings-card-title-row">
         <div className="font-6 settings-card-title">Current plan</div>
-        <span className="badge badge-blue">Agency</span>
+        <span className="badge badge-blue">Unavailable</span>
       </div>
 
       <div className="settings-feature-list">
@@ -27,7 +21,7 @@ export default function Billing() {
         ))}
       </div>
 
-      <div className="text-sm text-muted">Next billing: July 1, 2026 - Rs 9,999/month</div>
+      <div className="text-sm text-muted">Billing data unavailable</div>
     </div>
   );
 }

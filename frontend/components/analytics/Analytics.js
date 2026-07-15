@@ -6,111 +6,107 @@ const timeframeOptions = ["Last 7 days", "Last 30 days", "This quarter"];
 
 const analyticsByRange = {
   "Last 7 days": {
-    summary: "Performance is steady this week with stronger AI acceptance and lower revision risk.",
+    summary: "Analytics data unavailable.",
     metrics: [
-      { label: "Total revenue", value: "Rs2.1L", delta: "8% WoW", tone: "up" },
-      { label: "Projects completed", value: "7", delta: "2 this week", tone: "up" },
-      { label: "AI acceptance rate", value: "71%", delta: "5% vs last week", tone: "up" },
-      { label: "Avg project value", value: "Rs58K", delta: "Rs4K WoW", tone: "up" },
+      { label: "Total revenue", value: "Unavailable", delta: "Revenue data unavailable", tone: "" },
+      { label: "Projects completed", value: "Unavailable", delta: "Project completion data unavailable", tone: "" },
+      { label: "AI acceptance rate", value: "Unavailable", delta: "AI usage data unavailable", tone: "" },
+      { label: "Avg project value", value: "Unavailable", delta: "Project value data unavailable", tone: "" },
     ],
     trend: [
-      { label: "Mon", value: 28, amount: "Rs1.3L" },
-      { label: "Tue", value: 56, amount: "Rs1.7L" },
-      { label: "Wed", value: 41, amount: "Rs1.5L" },
-      { label: "Thu", value: 80, amount: "Rs2.0L" },
-      { label: "Fri", value: 68, amount: "Rs1.9L" },
-      { label: "Sat", value: 35, amount: "Rs1.4L" },
-      { label: "Sun", value: 62, amount: "Rs1.8L" },
+      { label: "Mon", value: 0, amount: "Unavailable" },
+      { label: "Tue", value: 0, amount: "Unavailable" },
+      { label: "Wed", value: 0, amount: "Unavailable" },
+      { label: "Thu", value: 0, amount: "Unavailable" },
+      { label: "Fri", value: 0, amount: "Unavailable" },
+      { label: "Sat", value: 0, amount: "Unavailable" },
+      { label: "Sun", value: 0, amount: "Unavailable" },
     ],
     modules: [
-      { name: "Copilot", value: "74%", width: 74, runs: 34 },
-      { name: "Enhance", value: "69%", width: 69, runs: 20 },
-      { name: "Voice", value: "71%", width: 71, runs: 14 },
-      { name: "Moodboard", value: "82%", width: 82, runs: 18 },
-      { name: "Concepts", value: "65%", width: 65, runs: 11 },
-      { name: "Brief", value: "73%", width: 73, runs: 16 },
-      { name: "Proposal", value: "59%", width: 59, runs: 9 },
+      { name: "Copilot", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Enhance", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Voice", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Moodboard", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Concepts", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Brief", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Proposal", value: "Unavailable", width: 0, runs: 0 },
     ],
     status: [
-      { label: "Discovery", value: 22, color: "#f5bc2d", count: 4 },
-      { label: "Advance Paid", value: 24, color: "#48f39b", count: 5 },
-      { label: "Concepts", value: 16, color: "#4f95f1", count: 3 },
-      { label: "Delivered", value: 32, color: "#10cb79", count: 6 },
-      { label: "Cancelled", value: 6, color: "#ff6a73", count: 1 },
+      { label: "Discovery", value: 0, color: "#f5bc2d", count: 0 },
+      { label: "Advance Paid", value: 0, color: "#48f39b", count: 0 },
+      { label: "Concepts", value: 0, color: "#4f95f1", count: 0 },
+      { label: "Delivered", value: 0, color: "#10cb79", count: 0 },
+      { label: "Cancelled", value: 0, color: "#ff6a73", count: 0 },
     ],
   },
   "Last 30 days": {
-    summary: "Monthly analytics show strong conversion from discovery to downstream AI-assisted deliverables.",
+    summary: "Analytics data unavailable.",
     metrics: [
-      { label: "Total revenue", value: "Rs8.4L", delta: "24% YoY", tone: "up" },
-      { label: "Projects completed", value: "34", delta: "8 this quarter", tone: "up" },
-      { label: "AI acceptance rate", value: "68%", delta: "12% vs Q1", tone: "up" },
-      { label: "Avg project value", value: "Rs62K", delta: "Rs8K vs last year", tone: "up" },
+      { label: "Total revenue", value: "Unavailable", delta: "Revenue data unavailable", tone: "" },
+      { label: "Projects completed", value: "Unavailable", delta: "Project completion data unavailable", tone: "" },
+      { label: "AI acceptance rate", value: "Unavailable", delta: "AI usage data unavailable", tone: "" },
+      { label: "Avg project value", value: "Unavailable", delta: "Project value data unavailable", tone: "" },
     ],
     trend: [
-      { label: "Jan", value: 18, amount: "Rs1.2L" },
-      { label: "Feb", value: 65, amount: "Rs1.85L" },
-      { label: "Mar", value: 38, amount: "Rs1.4L" },
-      { label: "Apr", value: 92, amount: "Rs2.2L" },
-      { label: "May", value: 72, amount: "Rs1.9L" },
-      { label: "Jun", value: 100, amount: "Rs2.4L" },
+      { label: "Jan", value: 0, amount: "Unavailable" },
+      { label: "Feb", value: 0, amount: "Unavailable" },
+      { label: "Mar", value: 0, amount: "Unavailable" },
+      { label: "Apr", value: 0, amount: "Unavailable" },
+      { label: "May", value: 0, amount: "Unavailable" },
+      { label: "Jun", value: 0, amount: "Unavailable" },
     ],
     modules: [
-      { name: "Copilot", value: "70%", width: 70, runs: 92 },
-      { name: "Enhance", value: "66%", width: 66, runs: 44 },
-      { name: "Voice", value: "73%", width: 73, runs: 29 },
-      { name: "Moodboard", value: "80%", width: 80, runs: 37 },
-      { name: "Concepts", value: "62%", width: 62, runs: 21 },
-      { name: "Brief", value: "68%", width: 68, runs: 32 },
-      { name: "Proposal", value: "56%", width: 56, runs: 18 },
+      { name: "Copilot", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Enhance", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Voice", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Moodboard", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Concepts", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Brief", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Proposal", value: "Unavailable", width: 0, runs: 0 },
     ],
     status: [
-      { label: "Discovery", value: 25, color: "#f5bc2d", count: 8 },
-      { label: "Advance Paid", value: 20, color: "#48f39b", count: 6 },
-      { label: "Concepts", value: 12, color: "#4f95f1", count: 4 },
-      { label: "Delivered", value: 38, color: "#10cb79", count: 12 },
-      { label: "Cancelled", value: 5, color: "#ff6a73", count: 2 },
+      { label: "Discovery", value: 0, color: "#f5bc2d", count: 0 },
+      { label: "Advance Paid", value: 0, color: "#48f39b", count: 0 },
+      { label: "Concepts", value: 0, color: "#4f95f1", count: 0 },
+      { label: "Delivered", value: 0, color: "#10cb79", count: 0 },
+      { label: "Cancelled", value: 0, color: "#ff6a73", count: 0 },
     ],
   },
   "This quarter": {
-    summary: "Quarterly performance shows stable revenue growth with AI adoption now embedded in the workflow.",
+    summary: "Analytics data unavailable.",
     metrics: [
-      { label: "Total revenue", value: "Rs21.7L", delta: "31% YoY", tone: "up" },
-      { label: "Projects completed", value: "91", delta: "21 this quarter", tone: "up" },
-      { label: "AI acceptance rate", value: "72%", delta: "15% vs Q1", tone: "up" },
-      { label: "Avg project value", value: "Rs66K", delta: "Rs10K vs last year", tone: "up" },
+      { label: "Total revenue", value: "Unavailable", delta: "Revenue data unavailable", tone: "" },
+      { label: "Projects completed", value: "Unavailable", delta: "Project completion data unavailable", tone: "" },
+      { label: "AI acceptance rate", value: "Unavailable", delta: "AI usage data unavailable", tone: "" },
+      { label: "Avg project value", value: "Unavailable", delta: "Project value data unavailable", tone: "" },
     ],
     trend: [
-      { label: "Q1", value: 40, amount: "Rs5.8L" },
-      { label: "Q2", value: 57, amount: "Rs7.6L" },
-      { label: "Q3", value: 74, amount: "Rs9.1L" },
-      { label: "Q4", value: 94, amount: "Rs10.8L" },
+      { label: "Q1", value: 0, amount: "Unavailable" },
+      { label: "Q2", value: 0, amount: "Unavailable" },
+      { label: "Q3", value: 0, amount: "Unavailable" },
+      { label: "Q4", value: 0, amount: "Unavailable" },
     ],
     modules: [
-      { name: "Copilot", value: "78%", width: 78, runs: 230 },
-      { name: "Enhance", value: "71%", width: 71, runs: 116 },
-      { name: "Voice", value: "76%", width: 76, runs: 77 },
-      { name: "Moodboard", value: "84%", width: 84, runs: 93 },
-      { name: "Concepts", value: "67%", width: 67, runs: 58 },
-      { name: "Brief", value: "74%", width: 74, runs: 82 },
-      { name: "Proposal", value: "61%", width: 61, runs: 49 },
+      { name: "Copilot", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Enhance", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Voice", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Moodboard", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Concepts", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Brief", value: "Unavailable", width: 0, runs: 0 },
+      { name: "Proposal", value: "Unavailable", width: 0, runs: 0 },
     ],
     status: [
-      { label: "Discovery", value: 21, color: "#f5bc2d", count: 17 },
-      { label: "Advance Paid", value: 23, color: "#48f39b", count: 18 },
-      { label: "Concepts", value: 14, color: "#4f95f1", count: 11 },
-      { label: "Delivered", value: 36, color: "#10cb79", count: 29 },
-      { label: "Cancelled", value: 6, color: "#ff6a73", count: 5 },
+      { label: "Discovery", value: 0, color: "#f5bc2d", count: 0 },
+      { label: "Advance Paid", value: 0, color: "#48f39b", count: 0 },
+      { label: "Concepts", value: 0, color: "#4f95f1", count: 0 },
+      { label: "Delivered", value: 0, color: "#10cb79", count: 0 },
+      { label: "Cancelled", value: 0, color: "#ff6a73", count: 0 },
     ],
   },
 };
 
 const sectorRows = [
-  { label: "Consumer Goods", value: 8, width: 68 },
-  { label: "Technology & SaaS", value: 6, width: 50 },
-  { label: "Health & Wellness", value: 5, width: 42 },
-  { label: "Food & Beverage", value: 4, width: 33 },
-  { label: "Fashion & Lifestyle", value: 3, width: 26 },
+  { label: "No sector data", value: 0, width: 0 },
 ];
 
 export default function Analytics() {
@@ -245,14 +241,20 @@ export default function Analytics() {
   }, [trendBars]);
 
   const donutGradient = useMemo(() => {
-    let current = 0;
-    return `conic-gradient(${statusSegments
-      .map((item) => {
-        const start = current;
-        current += item.value;
-        return `${item.color} ${start}% ${current}%`;
-      })
-      .join(", ")})`;
+    const segments = statusSegments.reduce(
+      (result, item) => {
+        const start = result.current;
+        const end = result.current + item.value;
+
+        return {
+          current: end,
+          parts: [...result.parts, `${item.color} ${start}% ${end}%`],
+        };
+      },
+      { current: 0, parts: [] }
+    );
+
+    return `conic-gradient(${segments.parts.join(", ")})`;
   }, [statusSegments]);
 
   return (
@@ -282,7 +284,7 @@ export default function Analytics() {
               <section className="analytics-card analytics-metric-card" key={item.label}>
                 <div className="analytics-metric-label">{item.label}</div>
                 <div className="analytics-metric-value">{item.value}</div>
-                <div className={`analytics-metric-delta ${item.tone}`.trim()}>&uarr; {item.delta}</div>
+                <div className={`analytics-metric-delta ${item.tone}`.trim()}>{item.delta}</div>
               </section>
             ))}
           </div>
@@ -290,18 +292,18 @@ export default function Analytics() {
           <div className="analytics-main-grid">
             <section className="analytics-card analytics-chart-card">
               <div className="analytics-card-head">
-                <h2>Revenue - last 6 months</h2>
+                <h2>Revenue</h2>
                 <span>{selectedTrendPoint.amount}</span>
               </div>
               <div className="analytics-line-chart">
                 <div className="analytics-line-yaxis">
-                  <span>Rs2.4L</span>
-                  <span>Rs2.2L</span>
-                  <span>Rs2.0L</span>
-                  <span>Rs1.8L</span>
-                  <span>Rs1.6L</span>
-                  <span>Rs1.4L</span>
-                  <span>Rs1.2L</span>
+                  <span>Unavailable</span>
+                  <span>Unavailable</span>
+                  <span>Unavailable</span>
+                  <span>Unavailable</span>
+                  <span>Unavailable</span>
+                  <span>Unavailable</span>
+                  <span>Unavailable</span>
                 </div>
                 <div
                   className="analytics-line-plot"
@@ -464,7 +466,7 @@ export default function Analytics() {
                       }}
                     >
                       <strong>{hoveredModule.name}</strong>
-                      <span>{hoveredModule.value} acceptance</span>
+                      <span>{hoveredModule.value}</span>
                       <span>{hoveredModule.runs} runs</span>
                     </div>
                   ) : null}
@@ -472,8 +474,8 @@ export default function Analytics() {
               </div>
               <div className="analytics-module-summary">
                 <strong>{selectedModule.name}</strong>
-                <span>{selectedModule.value} acceptance</span>
-                <span>{selectedModule.runs} runs in {selectedRange.toLowerCase()}</span>
+                <span>{selectedModule.value}</span>
+                <span>{selectedModule.runs} runs</span>
               </div>
             </section>
 

@@ -1,6 +1,83 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { getCurrentConsultant, updateCurrentConsultant } from "../../src/lib/authApi";
+import { showError, showSuccess } from "../../src/lib/toast";
+
 export default function Account() {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    company: "",
+    phone: "",
+  });
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAccount() {
+      try {
+        const consultant = await getCurrentConsultant();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setFormData({
+          name: consultant?.name || "",
+          email: consultant?.email || "",
+          company: consultant?.company || "",
+          phone: consultant?.phone || "",
+        });
+      } catch (error) {
+        console.error("Failed to load account profile:", error);
+        if (isMounted) {
+          setMessage("Profile could not be loaded.");
+        }
+      }
+    }
+
+    loadAccount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleChange = (field, value) => {
+    setFormData((currentData) => ({
+      ...currentData,
+      [field]: value,
+    }));
+  };
+
+  const handleSave = async () => {
+    setMessage("");
+
+    try {
+      const updatedConsultant = await updateCurrentConsultant({
+        name: formData.name,
+        company: formData.company,
+        phone: formData.phone,
+      });
+
+      setFormData({
+        name: updatedConsultant?.name || "",
+        email: updatedConsultant?.email || "",
+        company: updatedConsultant?.company || "",
+        phone: updatedConsultant?.phone || "",
+      });
+      setMessage("Profile updated successfully.");
+      showSuccess("Profile updated successfully.");
+    } catch (error) {
+      console.error("Failed to update account profile:", error);
+      const message = error?.detail || "Profile could not be updated.";
+      setMessage(message);
+      showError(message);
+    }
+  };
+
   return (
     <>
       <div className="card settings-card mb-3">
@@ -10,7 +87,12 @@ export default function Account() {
             <label className="form-label" htmlFor="account-name">
               Full name
             </label>
-            <input className="form-input settings-input" id="account-name" defaultValue="Anoop Krishna V A" />
+            <input
+              className="form-input settings-input"
+              id="account-name"
+              value={formData.name}
+              onChange={(event) => handleChange("name", event.target.value)}
+            />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="account-email">
@@ -19,7 +101,7 @@ export default function Account() {
             <input
               className="form-input settings-input"
               id="account-email"
-              defaultValue="anoop@flumenx.com"
+              value={formData.email}
               readOnly
             />
             <div className="form-hint">Change via Firebase</div>
@@ -28,16 +110,27 @@ export default function Account() {
             <label className="form-label" htmlFor="account-company">
               Company
             </label>
-            <input className="form-input settings-input" id="account-company" defaultValue="FlumenX" />
+            <input
+              className="form-input settings-input"
+              id="account-company"
+              value={formData.company}
+              onChange={(event) => handleChange("company", event.target.value)}
+            />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="account-phone">
               Phone
             </label>
-            <input className="form-input settings-input" id="account-phone" defaultValue="+91 98765 43210" />
+            <input
+              className="form-input settings-input"
+              id="account-phone"
+              value={formData.phone}
+              onChange={(event) => handleChange("phone", event.target.value)}
+            />
           </div>
         </div>
-        <button className="btn btn-primary settings-save-btn" type="button">
+        {message ? <div className="form-hint">{message}</div> : null}
+        <button className="btn btn-primary settings-save-btn" type="button" onClick={handleSave}>
           Save changes
         </button>
       </div>

@@ -1,12 +1,14 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { getCurrentConsultant, logoutConsultant } from "../src/lib/authApi";
+import { showError, showSuccess } from "../src/lib/toast";
 
 const primaryNavItems = [
-  { label: "Dashboard", icon: "grid", badge: "3", badgeClass: "g", route: "/" },
+  { label: "Dashboard", icon: "grid", route: "/" },
   { label: "Projects", icon: "mail", route: "/project" },
-  { label: "Discovery", icon: "search", badge: "1", route: "/discovery" },
+  { label: "Discovery", icon: "search", route: "/discovery" },
   { label: "AI Suite", icon: "star", route: "/ai-suite" },
   { label: "Analytics", icon: "chart", route: "/analytics" },
 ];
@@ -22,6 +24,13 @@ const mobileTabItems = [
   { label: "Portal", icon: "portal", route: "/client-portal" },
   { label: "Settings", icon: "settings", route: "/settings" },
 ];
+
+let cachedConsultant = null;
+let hasValidatedSession = false;
+
+function hasStoredAccessToken() {
+  return typeof window !== "undefined" && Boolean(localStorage.getItem("access_token"));
+}
 
 function Icon({ type }) {
   const commonProps = {
@@ -81,6 +90,14 @@ function Icon({ type }) {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
       );
+    case "logout":
+      return (
+        <svg {...commonProps}>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <path d="M16 17l5-5-5-5" />
+          <path d="M21 12H9" />
+        </svg>
+      );
     default:
       return (
         <svg {...commonProps}>
@@ -115,7 +132,12 @@ function MobileTabItem({ item, onClick }) {
 export default function Floxaheader({ children, title = "Dashboard", activeNav = "Dashboard" }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentProjectSearch = searchParams.get("search") || "";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAuthChecked, setIsAuthChecked] = useState(() => hasValidatedSession || hasStoredAccessToken());
+  const [consultant, setConsultant] = useState(cachedConsultant);
+  const [projectSearch, setProjectSearch] = useState(() => searchParams.get("search") || "");
   const resolvedActiveNav = pathname === "/project" ? "Projects" : activeNav;
   const resolvedPrimaryNavItems = primaryNavItems.map((item) => ({
     ...item,
@@ -133,6 +155,40 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
   }));
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function validateSession() {
+      try {
+        const currentConsultant = await getCurrentConsultant();
+        cachedConsultant = currentConsultant;
+        hasValidatedSession = true;
+
+        if (!isMounted) {
+          return;
+        }
+
+        setConsultant(currentConsultant);
+        setIsAuthChecked(true);
+      } catch (error) {
+        console.error("Session validation failed:", error);
+        cachedConsultant = null;
+        hasValidatedSession = false;
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("consultant");
+        document.cookie = "floxa_auth=; Path=/; Max-Age=0; SameSite=Lax";
+        router.replace("/login");
+      }
+    }
+
+    validateSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  useEffect(() => {
     const handleEscape = (event) => {
       if (event.key === "Escape") {
         setIsSidebarOpen(false);
@@ -142,6 +198,32 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, []);
+
+  useEffect(() => {
+    const searchValue = projectSearch.trim();
+
+    if (!searchValue && pathname !== "/project") {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (searchValue) {
+        const nextRoute = `/project?search=${encodeURIComponent(searchValue)}`;
+
+        if (pathname !== "/project" || currentProjectSearch !== searchValue) {
+          router.replace(nextRoute);
+        }
+
+        return;
+      }
+
+      if (pathname === "/project" && currentProjectSearch) {
+        router.replace("/project");
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [currentProjectSearch, pathname, projectSearch, router]);
 
   useEffect(() => {
     if (!isSidebarOpen) {
@@ -160,6 +242,47 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
       router.push(route);
     }
   };
+
+  const handleProjectSearch = (event) => {
+    event.preventDefault();
+
+    const searchValue = projectSearch.trim();
+
+    if (searchValue) {
+      router.replace(`/project?search=${encodeURIComponent(searchValue)}`);
+      return;
+    }
+
+    router.replace("/project");
+  };
+
+  const handleLogout = async () => {
+    const confirmed = window.confirm("Are you sure you want to logout?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    const refreshToken = localStorage.getItem("refresh_token");
+
+    try {
+      await logoutConsultant(refreshToken);
+      showSuccess("Logout successful.");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      showError(error?.detail || "Logout failed.");
+    } finally {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("consultant");
+      closeSidebar();
+      router.push("/login");
+    }
+  };
+
+  if (!isAuthChecked) {
+    return null;
+  }
 
   return (
     <>
@@ -194,14 +317,15 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
           {accountNavItems.map((item) => (
             <NavItem key={item.label} item={item} onClick={() => handleNavigation(item.route)} />
           ))}
+          <NavItem item={{ label: "Logout", icon: "logout" }} onClick={handleLogout} />
         </div>
 
         <div className="sidebar-footer">
           <div className="user-chip">
             <div className="avatar">AK</div>
             <div>
-              <div className="user-name">Anoop Krishna</div>
-              <div className="user-plan">Agency Plan</div>
+              <div className="user-name">{consultant?.name || "Consultant"}</div>
+              <div className="user-plan">Plan unavailable</div>
             </div>
           </div>
         </div>
@@ -224,19 +348,25 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
           </button>
           <div className="topbar-title">{title}</div>
           <div className="spacer" />
-          <div className="search-wrap">
+          <form className="search-wrap" onSubmit={handleProjectSearch}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-            <input type="text" placeholder="Search projects..." />
-          </div>
-          <button className="icon-btn" type="button" aria-label="Notifications">
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={projectSearch}
+              onChange={(event) => setProjectSearch(event.target.value)}
+            />
+          </form>
+          <button className="icon-btn" type="button" aria-label="No notifications">
             <Icon type="bell" />
-            <div className="notif-dot" />
           </button>
         </div>
-        {children}
+        <div key={pathname} className="page-transition">
+          {children}
+        </div>
       </div>
 
       <div className="mobile-tabbar">

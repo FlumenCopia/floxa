@@ -1,59 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-
-const initialProjectRows = [
-  {
-    client: "Craft & Co",
-    email: "craft@company.com",
-    sector: "Consumer Goods",
-    status: "Discovery",
-    statusClass: "badge-amber",
-    value: "Rs50,000",
-    progress: 45,
-    created: "Jun 1",
-  },
-  {
-    client: "Bloom Studio",
-    email: "hello@bloom.in",
-    sector: "Beauty & Wellness",
-    status: "Advance Paid",
-    statusClass: "badge-green",
-    value: "Rs75,000",
-    progress: 60,
-    created: "May 28",
-  },
-  {
-    client: "Helix Tech",
-    email: "brand@helixtech.io",
-    sector: "Technology",
-    status: "Concepts",
-    statusClass: "badge-blue",
-    value: "Rs1,20,000",
-    progress: 80,
-    created: "May 20",
-  },
-  {
-    client: "Luna Spa",
-    email: "connect@lunaspa.in",
-    sector: "Wellness",
-    status: "Delivered",
-    statusClass: "badge-green",
-    value: "Rs60,000",
-    progress: 100,
-    created: "May 10",
-  },
-  {
-    client: "Aether Foods",
-    email: "brand@aether.co",
-    sector: "Food & Beverage",
-    status: "Created",
-    statusClass: "badge-muted",
-    value: "Rs40,000",
-    progress: 8,
-    created: "Jun 3",
-  },
-];
+import { useEffect, useMemo, useState } from "react";
+import { createProject, getProjects } from "../../src/lib/projectApi";
+import { useRouter, useSearchParams } from "next/navigation";
+import { showError, showSuccess } from "../../src/lib/toast";
 
 const statusOptions = ["All statuses", "Discovery", "Advance Paid", "Concepts", "Delivered", "Created"];
 const wizardSteps = [
@@ -61,6 +11,32 @@ const wizardSteps = [
   { id: 2, label: "Payments" },
   { id: 3, label: "Review" },
 ];
+
+function getStatusLabel(status) {
+  const labels = {
+    created: "Created",
+    discovery: "Discovery",
+    advance_paid: "Advance Paid",
+    concepts: "Concepts",
+    delivered: "Delivered",
+    archived: "Archived",
+  };
+
+  return labels[status] || status;
+}
+
+function getStatusClass(status) {
+  const classes = {
+    created: "badge-muted",
+    discovery: "badge-amber",
+    advance_paid: "badge-green",
+    concepts: "badge-blue",
+    delivered: "badge-green",
+    archived: "badge-muted",
+  };
+
+  return classes[status] || "badge-muted";
+}
 
 function StepIndicator({ done, active, step }) {
   if (done) {
@@ -77,29 +53,55 @@ function StepIndicator({ done, active, step }) {
 }
 
 export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen = () => {} }) {
-  const [projects, setProjects] = useState(initialProjectRows);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectSearch = (searchParams.get("search") || "").trim();
+
+  const [projects, setProjects] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState("All statuses");
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [projectError, setProjectError] = useState("");
   const [formData, setFormData] = useState({
-    client: "Priya Sharma",
-    email: "priya@studio.in",
-    company: "Nova Brands Pvt Ltd",
-    sector: "Consumer Goods",
-    value: "50000",
-    advance: "50",
-    mid: "25",
-    final: "25",
-    revisions: "3 revisions",
+    client: "",
+    email: "",
+    company: " ",
+    sector: " ",
+    value: "",
+    advance: "",
+    mid: "",
+    final: "",
+    revisions: "",
   });
 
   const filteredProjects = useMemo(() => {
-    if (selectedStatus === "All statuses") {
-      return projects;
+    const statusFilteredProjects =
+      selectedStatus === "All statuses"
+        ? projects
+        : projects.filter((row) => getStatusLabel(row.status) === selectedStatus);
+
+    return statusFilteredProjects;
+  }, [projects, selectedStatus]);
+
+  useEffect(() => {
+    async function loadProjects() {
+      setProjectError("");
+
+      try {
+        const data = await getProjects(projectSearch);
+        setProjects(data.results || []);
+      } catch (error) {
+        console.error("Failed to load projects:", error);
+        setProjectError(error?.detail || "Projects could not be loaded.");
+      } finally {
+        setIsLoadingProjects(false);
+      }
     }
 
-    return projects.filter((row) => row.status === selectedStatus);
-  }, [projects, selectedStatus]);
+    loadProjects();
+  }, [projectSearch]);
 
   const handleFieldChange = (field) => (event) => {
     setFormData((current) => ({
@@ -117,23 +119,51 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
   const handleCloseWizard = () => {
     setIsWizardOpen(false);
     setWizardStep(1);
+    setProjectError("");
   };
 
-  const handleCreateProject = () => {
-    const nextProject = {
-      client: formData.company || formData.client,
-      email: formData.email,
-      sector: formData.sector,
-      status: "Discovery",
-      statusClass: "badge-amber",
-      value: `Rs${formData.value || "0"}`,
-      progress: 20,
-      created: "Today",
-    };
+  const getCreateProjectError = (error) => {
+    if (error?.detail) {
+      return error.detail;
+    }
 
-    setProjects((current) => [nextProject, ...current]);
-    setSelectedStatus("All statuses");
-    handleCloseWizard();
+    if (error?.message) {
+      return error.message;
+    }
+
+    const firstFieldError = Object.values(error || {}).flat()[0];
+    return firstFieldError || "Project could not be created. Please try again.";
+  };
+
+  const handleCreateProject = async () => {
+    setProjectError("");
+    setIsCreatingProject(true);
+
+    try {
+      const createdProject = await createProject({
+        client: formData.client,
+        email: formData.email,
+        company: formData.company,
+        sector: formData.sector,
+        value: formData.value,
+        advance: formData.advance || "50",
+        mid: formData.mid || "25",
+        final: formData.final || "25",
+        revisions: formData.revisions || "3 revisions",
+      });
+
+      setProjects((current) => [createdProject, ...current]);
+      setSelectedStatus("All statuses");
+      showSuccess("Project created successfully.");
+      handleCloseWizard();
+    } catch (error) {
+      console.error("Failed to create project:", error);
+      const message = getCreateProjectError(error);
+      setProjectError(message);
+      showError(message);
+    } finally {
+      setIsCreatingProject(false);
+    }
   };
 
   return (
@@ -255,12 +285,14 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                     </div>
                   </div>
 
+                  {projectError ? <div className="project-wizard-note">{projectError}</div> : null}
+
                   <div className="project-wizard-actions">
                     <button className="project-text-btn" type="button" onClick={() => setWizardStep(2)}>
                       {"<- Back"}
                     </button>
-                    <button className="btn btn-primary project-wizard-btn" type="button" onClick={handleCreateProject}>
-                      Create & send link
+                    <button className="btn btn-primary project-wizard-btn" type="button" onClick={handleCreateProject} disabled={isCreatingProject}>
+                      {isCreatingProject ? "Creating..." : "Create & send link"}
                     </button>
                   </div>
                 </>
@@ -313,6 +345,8 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
               </div>
             </div>
 
+            {projectError ? <div className="project-wizard-note">{projectError}</div> : null}
+
             <div className="project-table-card">
               <div className="project-table-wrap">
                 <table className="project-table">
@@ -327,31 +361,46 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProjects.map((row) => (
-                      <tr key={`${row.client}-${row.created}`}>
-                        <td>
-                          <div className="project-client-name">{row.client}</div>
-                          <div className="project-client-email">{row.email}</div>
-                        </td>
-                        <td>{row.sector}</td>
-                        <td>
-                          <span className={`badge ${row.statusClass}`}>{row.status}</span>
-                        </td>
-                        <td className="project-value">{row.value}</td>
-                        <td>
-                          <div className="project-progress-cell">
-                            <div className="project-progress-track">
-                              <div className="project-progress-fill" style={{ width: `${row.progress}%` }} />
-                            </div>
-                          </div>
-                        </td>
-                        <td>{row.created}</td>
-                      </tr>
-                    ))}
-                    {filteredProjects.length === 0 ? (
+                    {isLoadingProjects ? (
                       <tr>
                         <td className="project-empty-state" colSpan="6">
-                          No projects found for this status.
+                          Loading projects...
+                        </td>
+                      </tr>
+                    ) : null}
+
+                    {!isLoadingProjects &&
+                      filteredProjects.map((row) => (
+                        <tr
+                          key={row.id}
+                          onClick={() => router.push(`/discovery?projectId=${row.id}`)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <td>
+                            <div className="project-client-name">{row.company_name || row.client_name}</div>
+                            <div className="project-client-email">{row.client_email}</div>
+                          </td>
+                          <td>{row.sector}</td>
+                          <td>
+                            <span className={`badge ${getStatusClass(row.status)}`}>
+                              {getStatusLabel(row.status)}
+                            </span>
+                          </td>
+                          <td className="project-value">Rs {row.project_value}</td>
+                          <td>
+                            <div className="project-progress-cell">
+                              <div className="project-progress-track">
+                                <div className="project-progress-fill" style={{ width: `${row.progress}%` }} />
+                              </div>
+                            </div>
+                          </td>
+                          <td>{new Date(row.created_at).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                    {!isLoadingProjects && filteredProjects.length === 0 ? (
+                      <tr>
+                        <td className="project-empty-state" colSpan="6">
+                          {projectSearch ? "No projects found for this search." : "No projects found for this status."}
                         </td>
                       </tr>
                     ) : null}

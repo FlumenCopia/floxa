@@ -4,7 +4,7 @@ import { useState } from "react";
 
 export default function Branding() {
   const [primaryColor, setPrimaryColor] = useState("#4DFFA0");
-  const [heading, setHeading] = useState("FlumenX Brand Discovery");
+  const [heading, setHeading] = useState("Your Studio");
 
   const previewOrbStyle = {
     background: `radial-gradient(circle at 35% 35%, ${primaryColor}, #1c8050, #0a1912)`,
