@@ -1,25 +1,82 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-export function getAuthHeaders() {
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  if (typeof window === "undefined") {
-    return headers;
+export function getCookie(name) {
+  if (typeof document === "undefined") {
+    return "";
   }
 
-  const token = localStorage.getItem("access_token");
+  const cookies = document.cookie ? document.cookie.split("; ") : [];
+  const prefix = `${encodeURIComponent(name)}=`;
+  const cookie = cookies.find((item) => item.startsWith(prefix));
 
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  if (!cookie) {
+    return "";
+  }
+
+  return decodeURIComponent(cookie.slice(prefix.length));
+}
+
+export function getCsrfToken() {
+  return getCookie("csrftoken");
+}
+
+export async function ensureCsrfCookie() {
+  const response = await fetch(`${API_BASE_URL}/auth/csrf/`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  return parseApiResponse(response);
+}
+
+export function getAuthHeaders() {
+  return {
+    "Content-Type": "application/json",
+  };
+}
+
+function isUnsafeMethod(method = "GET") {
+  return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase());
+}
+
+async function getRequestHeaders(options = {}, { includeAuth = true } = {}) {
+  const headers = includeAuth
+    ? {
+        ...getAuthHeaders(),
+        ...(options.headers || {}),
+      }
+    : {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      };
+
+  if (!includeAuth) {
+    delete headers.Authorization;
+    delete headers.authorization;
+  }
+
+  if (isUnsafeMethod(options.method)) {
+    await ensureCsrfCookie();
+    const csrfToken = getCsrfToken();
+
+    if (csrfToken) {
+      headers["X-CSRFToken"] = csrfToken;
+    }
   }
 
   return headers;
 }
 
 export async function parseApiResponse(response) {
-  const data = await response.json();
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+  const data = isJson
+    ? await response.json()
+    : {
+        detail: response.ok
+          ? "Unexpected response from server."
+          : "Server returned an unexpected response. Please try again.",
+      };
 
   if (!response.ok) {
     throw data;
@@ -33,49 +90,37 @@ async function refreshAccessToken() {
     return null;
   }
 
-  const refreshToken = localStorage.getItem("refresh_token");
-
-  if (!refreshToken) {
-    return null;
-  }
-
   const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      refresh: refreshToken,
-    }),
   });
 
   if (!response.ok) {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
     localStorage.removeItem("consultant");
     return null;
   }
 
   const data = await response.json();
 
-  localStorage.setItem("access_token", data.access);
-
-  return data.access;
+  return data.access || true;
 }
 
 export async function apiRequest(endpoint, options = {}) {
+  const headers = await getRequestHeaders(options);
+
   let response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    headers: {
-      ...getAuthHeaders(),
-      ...(options.headers || {}),
-    },
+    credentials: "include",
+    headers,
   });
 
   if (response.status === 401) {
-    const newAccessToken = await refreshAccessToken();
+    const refreshed = await refreshAccessToken();
 
-    if (!newAccessToken) {
+    if (!refreshed) {
       throw {
         detail: "Session expired. Please login again.",
       };
@@ -83,11 +128,8 @@ export async function apiRequest(endpoint, options = {}) {
 
     response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${newAccessToken}`,
-        ...(options.headers || {}),
-      },
+      credentials: "include",
+      headers: await getRequestHeaders(options, { includeAuth: false }),
     });
   }
 

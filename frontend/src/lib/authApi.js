@@ -15,6 +15,7 @@ export async function registerConsultant(data) {
 export async function loginConsultant(data) {
   const response = await fetch(`${API_BASE_URL}/auth/login/`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },
@@ -35,11 +36,8 @@ export async function updateCurrentConsultant(data) {
   });
 }
 
-export async function logoutConsultant(refreshToken) {
+export async function logoutConsultant() {
   return apiRequest("/auth/logout/", {
     method: "POST",
-    body: JSON.stringify({
-      refresh: refreshToken,
-    }),
   });
 }

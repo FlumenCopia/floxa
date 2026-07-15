@@ -6,8 +6,6 @@ import Link from "next/link";
 import { loginConsultant } from "../src/lib/authApi";
 import { showError, showSuccess } from "../src/lib/toast";
 
-const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
-
 export default function Login() {
   const router = useRouter();
 
@@ -39,17 +37,19 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const data = await loginConsultant({
+      const loginData = await loginConsultant({
         email: formData.email,
         password: formData.password,
       });
 
-      localStorage.setItem("access_token", data.access);
-      localStorage.setItem("refresh_token", data.refresh);
-      document.cookie = `floxa_auth=1; Path=/; Max-Age=${AUTH_COOKIE_MAX_AGE}; SameSite=Lax`;
-      // localStorage.setItem("consultant", JSON.stringify(data.consultant));
+      const username =
+        loginData?.consultant?.name ||
+        loginData?.consultant?.full_name ||
+        loginData?.consultant?.username ||
+        loginData?.consultant?.email ||
+        "there";
 
-      showSuccess("Login successful.");
+      showSuccess(`Welcome back, ${username}!`);
       router.push("/");
     } catch (error) {
       const message = getLoginError(error);

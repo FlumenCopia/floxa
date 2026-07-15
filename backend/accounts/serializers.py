@@ -3,6 +3,7 @@ from .models import Consultant
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 
+
 class ConsultantRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
 
@@ -16,7 +17,7 @@ class ConsultantRegisterSerializer(serializers.ModelSerializer):
             name=validated_data["name"],
             password=validated_data["password"]
         )
-    
+
 
 class ConsultantLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -48,7 +49,8 @@ class ConsultantLoginSerializer(serializers.Serializer):
                 "email": consultant.email,
             }
         }
-    
+
+
 class ConsultantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Consultant

@@ -1,30 +1,28 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from django.conf import settings
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import (
-    ConsultantRegisterSerializer,
-    ConsultantLoginSerializer,
-)
-from rest_framework.permissions import IsAuthenticated
+
+from .serializers import ConsultantLoginSerializer, ConsultantRegisterSerializer, ConsultantSerializer
 
 
+@method_decorator(ensure_csrf_cookie, name="dispatch")
+class CsrfBootstrapView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
-
-from .serializers import (
-    ConsultantRegisterSerializer,
-    ConsultantLoginSerializer,
-    ConsultantSerializer,
-)
-
-from .serializers import ConsultantRegisterSerializer
-
-
-
+    def get(self, request):
+        return Response({"detail": "CSRF cookie set."})
 
 
 class ConsultantRegisterView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = ConsultantRegisterSerializer(data=request.data)
 
@@ -44,22 +42,85 @@ class ConsultantRegisterView(APIView):
             )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
 
 class ConsultantLoginView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = ConsultantLoginSerializer(data=request.data)
 
         if serializer.is_valid():
-            return Response(
+            response = Response(
                 serializer.validated_data,
                 status=status.HTTP_200_OK
             )
 
+            response.set_cookie(
+                settings.AUTH_ACCESS_COOKIE_NAME,
+                serializer.validated_data["access"],
+                httponly=settings.AUTH_COOKIE_HTTP_ONLY,
+                secure=settings.AUTH_COOKIE_SECURE,
+                samesite=settings.AUTH_COOKIE_SAMESITE,
+                path=settings.AUTH_COOKIE_PATH,
+            )
+            response.set_cookie(
+                settings.AUTH_REFRESH_COOKIE_NAME,
+                serializer.validated_data["refresh"],
+                httponly=settings.AUTH_COOKIE_HTTP_ONLY,
+                secure=settings.AUTH_COOKIE_SECURE,
+                samesite=settings.AUTH_COOKIE_SAMESITE,
+                path=settings.AUTH_COOKIE_PATH,
+            )
+
+            return response
+
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
-        )    
+        )
+
+
+class ConsultantTokenRefreshView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get(
+            settings.AUTH_REFRESH_COOKIE_NAME
+        ) or request.data.get("refresh")
+
+        if not refresh_token:
+            return Response(
+                {"detail": "Refresh token is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            refresh = RefreshToken(refresh_token)
+            access_token = str(refresh.access_token)
+        except Exception:
+            return Response(
+                {"detail": "Invalid refresh token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        response = Response(
+            {"access": access_token},
+            status=status.HTTP_200_OK,
+        )
+        response.set_cookie(
+            settings.AUTH_ACCESS_COOKIE_NAME,
+            access_token,
+            httponly=settings.AUTH_COOKIE_HTTP_ONLY,
+            secure=settings.AUTH_COOKIE_SECURE,
+            samesite=settings.AUTH_COOKIE_SAMESITE,
+            path=settings.AUTH_COOKIE_PATH,
+        )
+
+        return response
+
 
 class ConsultantMeView(APIView):
     permission_classes = [IsAuthenticated]
@@ -81,16 +142,15 @@ class ConsultantMeView(APIView):
             return Response(serializer.data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
 
 
-##logout functionality   
-class ConsultantLogoutView(APIView): 
-    class ConsultantLogoutView(APIView):
-     permission_classes = [IsAuthenticated]
+class ConsultantLogoutView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        refresh_token = request.data.get("refresh")
+        refresh_token = request.COOKIES.get(
+            settings.AUTH_REFRESH_COOKIE_NAME
+        ) or request.data.get("refresh")
 
         if not refresh_token:
             return Response(
@@ -102,10 +162,22 @@ class ConsultantLogoutView(APIView):
             token = RefreshToken(refresh_token)
             token.blacklist()
 
-            return Response(
+            response = Response(
                 {"detail": "Logout successful."},
                 status=status.HTTP_200_OK,
             )
+            response.delete_cookie(
+                settings.AUTH_ACCESS_COOKIE_NAME,
+                path=settings.AUTH_COOKIE_PATH,
+                samesite=settings.AUTH_COOKIE_SAMESITE,
+            )
+            response.delete_cookie(
+                settings.AUTH_REFRESH_COOKIE_NAME,
+                path=settings.AUTH_COOKIE_PATH,
+                samesite=settings.AUTH_COOKIE_SAMESITE,
+            )
+
+            return response
 
         except Exception:
             return Response(
