@@ -68,6 +68,59 @@ function getActivePhaseIndex(progress) {
 }
 
 const conceptNotificationActions = new Set(["concept_shared", "concept_reshared", "concept_removed"]);
+const RAZORPAY_CHECKOUT_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
+
+let razorpayCheckoutScriptPromise = null;
+
+function loadRazorpayCheckoutScript() {
+  if (typeof window === "undefined" || typeof document === "undefined") {
+    return Promise.reject(new Error("Payment checkout is not available in this browser."));
+  }
+
+  if (window.Razorpay) {
+    return Promise.resolve();
+  }
+
+  if (razorpayCheckoutScriptPromise) {
+    return razorpayCheckoutScriptPromise;
+  }
+
+  const existingScript = document.querySelector(`script[src="${RAZORPAY_CHECKOUT_SCRIPT}"]`);
+
+  razorpayCheckoutScriptPromise = new Promise((resolve, reject) => {
+    function handleLoad(event) {
+      if (window.Razorpay) {
+        resolve();
+        return;
+      }
+
+      event?.target?.remove?.();
+      razorpayCheckoutScriptPromise = null;
+      reject(new Error("Payment checkout could not be loaded."));
+    }
+
+    function handleError(event) {
+      event?.target?.remove?.();
+      razorpayCheckoutScriptPromise = null;
+      reject(new Error("Payment checkout could not be loaded."));
+    }
+
+    if (existingScript) {
+      existingScript.addEventListener("load", handleLoad, { once: true });
+      existingScript.addEventListener("error", handleError, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = RAZORPAY_CHECKOUT_SCRIPT;
+    script.async = true;
+    script.onload = handleLoad;
+    script.onerror = handleError;
+    document.body.appendChild(script);
+  });
+
+  return razorpayCheckoutScriptPromise;
+}
 
 function getPaymentTypeLabel(type) {
   const labels = {
@@ -100,6 +153,10 @@ function formatPaymentAmount(value) {
   return `Rs${amount.toLocaleString("en-IN", {
     maximumFractionDigits: 0,
   })}`;
+}
+
+function isPayableMilestone(milestone) {
+  return milestone?.status === "requested" && Number(milestone?.amount) > 0 && Boolean(milestone?.id);
 }
 
 function getRelativeTime(value) {
@@ -163,6 +220,12 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const [payments, setPayments] = useState([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentsError, setPaymentsError] = useState("");
+  const [paymentCheckoutLoadingId, setPaymentCheckoutLoadingId] = useState(null);
+  const [activePaymentCheckoutId, setActivePaymentCheckoutId] = useState(null);
+  const [paymentCheckoutMessage, setPaymentCheckoutMessage] = useState("");
+  const [paymentCallbackData, setPaymentCallbackData] = useState(null);
+  const paymentCheckoutActiveRef = useRef(false);
+  const paymentVerificationActiveRef = useRef(false);
   const [signOffError, setSignOffError] = useState("");
   const [concepts, setConcepts] = useState(project.concepts || []);
   const [conceptsLoading, setConceptsLoading] = useState(false);
@@ -507,6 +570,157 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
+  async function startPaymentCheckout(milestone) {
+    if (!isPayableMilestone(milestone) || paymentCheckoutActiveRef.current) {
+      return;
+    }
+
+    paymentCheckoutActiveRef.current = true;
+    setPaymentCheckoutLoadingId(milestone.id);
+    setActivePaymentCheckoutId(milestone.id);
+    setPaymentsError("");
+    setPaymentCheckoutMessage("");
+    setPaymentCallbackData(null);
+
+    try {
+      const orderResponse = await clientPortalService.createPaymentOrder(milestone.id);
+
+      if (!orderResponse.success) {
+        setPaymentsError(orderResponse.error || "Unable to start payment checkout.");
+        setPaymentCheckoutLoadingId(null);
+        setActivePaymentCheckoutId(null);
+        paymentCheckoutActiveRef.current = false;
+        return;
+      }
+
+      await loadRazorpayCheckoutScript();
+
+      if (!window.Razorpay) {
+        setPaymentsError("Payment checkout could not be loaded.");
+        setPaymentCheckoutLoadingId(null);
+        setActivePaymentCheckoutId(null);
+        paymentCheckoutActiveRef.current = false;
+        return;
+      }
+
+      const order = orderResponse.data;
+      const paymentLabel = getPaymentTypeLabel(order?.milestone?.type || milestone.type);
+      let checkoutCompleted = false;
+      const checkout = new window.Razorpay({
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.razorpay_order_id,
+        name: "FLOXA",
+        description: `${paymentLabel} Payment`,
+        prefill: project.clientEmail ? { email: project.clientEmail } : undefined,
+        handler: async (response) => {
+          checkoutCompleted = true;
+          const callbackData = {
+            milestoneId: milestone.id,
+            razorpay_payment_id: response?.razorpay_payment_id || "",
+            razorpay_order_id: response?.razorpay_order_id || "",
+            razorpay_signature: response?.razorpay_signature || "",
+          };
+
+          await verifyPaymentCallback(callbackData);
+        },
+        modal: {
+          ondismiss: () => {
+            if (checkoutCompleted) {
+              return;
+            }
+
+            setPaymentCheckoutMessage("Payment checkout closed. You can try again when ready.");
+            setPaymentCheckoutLoadingId(null);
+            setActivePaymentCheckoutId(null);
+            paymentCheckoutActiveRef.current = false;
+          },
+        },
+      });
+
+      checkout.on("payment.failed", () => {
+        checkoutCompleted = true;
+        setPaymentsError("Payment failed. Please try again.");
+        setPaymentCheckoutLoadingId(null);
+        setActivePaymentCheckoutId(null);
+        paymentCheckoutActiveRef.current = false;
+      });
+
+      checkout.open();
+      setPaymentCheckoutLoadingId(null);
+    } catch (error) {
+      setPaymentsError(error instanceof Error ? error.message : "Unable to start payment checkout.");
+      setPaymentCheckoutLoadingId(null);
+      setActivePaymentCheckoutId(null);
+      paymentCheckoutActiveRef.current = false;
+    }
+  }
+
+  async function refreshClientPayments() {
+    const response = await clientPortalService.getClientPayments();
+    setPayments(response.success ? response.data : []);
+    setPaymentsError(response.success ? "" : response.error || "Payments are not available yet.");
+    return response;
+  }
+
+  async function verifyPaymentCallback(callbackData) {
+    if (paymentVerificationActiveRef.current) {
+      return;
+    }
+
+    const hasRequiredFields = Boolean(
+      callbackData?.razorpay_order_id &&
+        callbackData?.razorpay_payment_id &&
+        callbackData?.razorpay_signature
+    );
+
+    if (!hasRequiredFields) {
+      setPaymentsError("Payment could not be confirmed because Razorpay did not return complete verification details.");
+      setPaymentCheckoutMessage("");
+      setPaymentCallbackData(callbackData || null);
+      setPaymentCheckoutLoadingId(null);
+      setActivePaymentCheckoutId(null);
+      paymentCheckoutActiveRef.current = false;
+      return;
+    }
+
+    paymentVerificationActiveRef.current = true;
+    paymentCheckoutActiveRef.current = true;
+    setPaymentCallbackData(callbackData);
+    setPaymentCheckoutLoadingId(callbackData.milestoneId || null);
+    setActivePaymentCheckoutId(callbackData.milestoneId || null);
+    setPaymentsError("");
+    setPaymentCheckoutMessage("Verifying payment...");
+
+    try {
+      const verifyResponse = await clientPortalService.verifyPayment(callbackData);
+
+      if (!verifyResponse.success) {
+        setPaymentsError(
+          verifyResponse.error ||
+            "Payment could not be confirmed yet. Please retry verification or refresh the page."
+        );
+        setPaymentCheckoutMessage("");
+        return;
+      }
+
+      await refreshClientPayments();
+      await onProjectRefresh?.();
+      await loadClientActivities();
+      setPaymentCallbackData(null);
+      setPaymentCheckoutMessage("Payment verified successfully.");
+    } catch {
+      setPaymentsError("Payment could not be confirmed yet. Please retry verification or refresh the page.");
+      setPaymentCheckoutMessage("");
+    } finally {
+      paymentVerificationActiveRef.current = false;
+      paymentCheckoutActiveRef.current = false;
+      setPaymentCheckoutLoadingId(null);
+      setActivePaymentCheckoutId(null);
+    }
+  }
+
   async function openPanel(nextPanel) {
     setPanel(nextPanel);
     setSignOffError("");
@@ -584,6 +798,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     if (nextPanel === "payments") {
       setPaymentsLoading(true);
       setPaymentsError("");
+      setPaymentCheckoutMessage("");
+      setPaymentCallbackData(null);
 
       try {
         const response = await clientPortalService.getClientPayments();
@@ -1320,19 +1536,59 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                   <p>{paymentsError}</p>
                 </article>
               ) : null}
-              {!paymentsLoading && payments.map((item) => (
-                <article key={item.type} className="client-delivery-row">
-                  <div>
-                    <h3>{getPaymentTypeLabel(item.type)} payment</h3>
-                    <p>
-                      {item.percentage}% - {formatPaymentAmount(item.amount)}
-                    </p>
-                  </div>
-                  <span className="client-panel-action secondary">
-                    {getPaymentStatusLabel(item.status)}
-                  </span>
+              {!paymentsLoading && (paymentCheckoutMessage || paymentCallbackData) ? (
+                <article aria-live="polite">
+                  <p>
+                    {paymentCheckoutMessage ||
+                      "Payment could not be confirmed yet. Please retry verification or refresh the page."}
+                  </p>
+                  {paymentCallbackData && !paymentCheckoutMessage ? (
+                    <button
+                      type="button"
+                      className="client-panel-action"
+                      disabled={Boolean(paymentCheckoutLoadingId)}
+                      onClick={() => verifyPaymentCallback(paymentCallbackData)}
+                    >
+                      {paymentCheckoutLoadingId ? "Verifying..." : "Retry verification"}
+                    </button>
+                  ) : null}
                 </article>
-              ))}
+              ) : null}
+              {!paymentsLoading && payments.map((item) => {
+                const paymentBusy = paymentCheckoutLoadingId === item.id || activePaymentCheckoutId === item.id;
+                const canPayNow = isPayableMilestone(item);
+                const checkoutBlocked = Boolean(activePaymentCheckoutId) && activePaymentCheckoutId !== item.id;
+
+                return (
+                  <article key={item.id || item.type} className="client-delivery-row">
+                    <div>
+                      <h3>{getPaymentTypeLabel(item.type)} payment</h3>
+                      <p>
+                        {item.percentage}% - {formatPaymentAmount(item.amount)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="client-panel-action secondary">
+                        {getPaymentStatusLabel(item.status)}
+                      </span>
+                      {item.status === "requested" ? (
+                        <button
+                          type="button"
+                          disabled={!canPayNow || paymentBusy || checkoutBlocked}
+                          onClick={() => startPaymentCheckout(item)}
+                          className="client-panel-action"
+                        >
+                          {paymentBusy && paymentCheckoutMessage === "Verifying payment..."
+                            ? "Verifying..."
+                            : paymentBusy
+                              ? "Opening..."
+                              : "Pay Now"}
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : null}
         </section>

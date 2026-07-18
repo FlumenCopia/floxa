@@ -12,6 +12,7 @@ from .models import (
     DiscoveryVisualStyle,
     Moodboard,
     PaymentMilestone,
+    PaymentTransaction,
     ProjectAgreement,
     ProjectAgreementAppendix,
     ProjectActivity,
@@ -27,6 +28,36 @@ admin.site.register(Agreement)
 admin.site.register(ProjectAgreement)
 admin.site.register(ProjectAgreementAppendix)
 admin.site.register(PaymentMilestone)
+
+
+@admin.register(PaymentTransaction)
+class PaymentTransactionAdmin(admin.ModelAdmin):
+    list_display = (
+        "project",
+        "milestone",
+        "amount",
+        "currency",
+        "status",
+        "razorpay_order_id",
+        "razorpay_payment_id",
+        "created_at",
+        "verified_at",
+    )
+    list_filter = ("status", "currency", "created_at", "verified_at")
+    search_fields = (
+        "project__company_name",
+        "razorpay_order_id",
+        "razorpay_payment_id",
+    )
+    readonly_fields = (
+        "razorpay_order_id",
+        "razorpay_payment_id",
+        "created_at",
+        "updated_at",
+        "verified_at",
+    )
+
+
 admin.site.register(Moodboard)
 admin.site.register(ProjectActivity)
 admin.site.register(ProjectDiscovery)

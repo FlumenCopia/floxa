@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from decimal import Decimal, ROUND_HALF_UP
 import uuid
@@ -458,6 +459,113 @@ class PaymentMilestone(models.Model):
 
     def __str__(self):
         return f"{self.get_type_display()} payment - {self.project}"
+
+
+class PaymentTransaction(models.Model):
+    class Status(models.TextChoices):
+        CREATED = "created", "Created"
+        VERIFIED = "verified", "Verified"
+        FAILED = "failed", "Failed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="payment_transactions",
+    )
+    milestone = models.ForeignKey(
+        PaymentMilestone,
+        on_delete=models.CASCADE,
+        related_name="transactions",
+    )
+    razorpay_order_id = models.CharField(max_length=255, unique=True)
+    razorpay_payment_id = models.CharField(max_length=255, blank=True, null=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=10, default="INR")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CREATED,
+    )
+    failure_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["razorpay_payment_id"],
+                condition=(
+                    models.Q(razorpay_payment_id__isnull=False)
+                    & ~models.Q(razorpay_payment_id="")
+                ),
+                name="uniq_populated_razorpay_pid",
+            ),
+            models.UniqueConstraint(
+                fields=["milestone"],
+                condition=models.Q(status="verified"),
+                name="uniq_verified_tx_per_milestone",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["milestone", "status"],
+                name="paytx_milestone_status_idx",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        if self.milestone_id and self.project_id and self.milestone.project_id != self.project_id:
+            raise ValidationError(
+                {"project": "Payment transaction project must match the milestone project."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.razorpay_order_id} - {self.get_status_display()}"
+
+
+class RazorpayWebhookEvent(models.Model):
+    class ProcessingStatus(models.TextChoices):
+        RECEIVED = "received", "Received"
+        PROCESSED = "processed", "Processed"
+        IGNORED = "ignored", "Ignored"
+        FAILED = "failed", "Failed"
+
+    razorpay_event_id = models.CharField(max_length=255, unique=True)
+    event_type = models.CharField(max_length=100)
+    payload = models.JSONField(default=dict, blank=True)
+    processing_status = models.CharField(
+        max_length=20,
+        choices=ProcessingStatus.choices,
+        default=ProcessingStatus.RECEIVED,
+    )
+    payment_id = models.CharField(max_length=255, blank=True)
+    order_id = models.CharField(max_length=255, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    failure_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["event_type", "processing_status"],
+                name="rzpwh_event_status_idx",
+            ),
+            models.Index(fields=["payment_id"], name="rzpwh_payment_idx"),
+            models.Index(fields=["order_id"], name="rzpwh_order_idx"),
+        ]
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.razorpay_event_id} - {self.processing_status}"
 
 
 class ProjectActivity(models.Model):

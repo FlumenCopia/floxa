@@ -156,7 +156,23 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                     onClick={() => setIsStatusOpen((open) => !open)}
                   >
                     {selectedStatus}
-                    <span className="project-filter-caret">{isStatusOpen ? "^" : "v"}</span>
+                    <svg
+                      className="project-filter-caret"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 14 14"
+                      fill="none"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path
+                        d="M3.5 5.25L7 8.75L10.5 5.25"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </button>
 
                   {isStatusOpen ? (

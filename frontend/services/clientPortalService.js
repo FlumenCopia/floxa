@@ -479,6 +479,55 @@ export const clientPortalService = {
     }
   },
 
+  async createPaymentOrder(milestoneId, portalToken = activeToken) {
+    if (!portalToken || portalToken === "test-token") {
+      return { success: false, error: "Online payment is not available in demo mode." };
+    }
+
+    if (!milestoneId) {
+      return { success: false, error: "Payment milestone is not available." };
+    }
+
+    try {
+      const order = await apiRequest(`/client-portal/${portalToken}/payments/${milestoneId}/create-order/`, {
+        method: "POST",
+      });
+
+      return { success: true, data: order };
+    } catch (error) {
+      if (error?.detail) {
+        return { success: false, error: error.detail };
+      }
+
+      return { success: false, error: "Unable to start payment checkout." };
+    }
+  },
+
+  async verifyPayment(payload, portalToken = activeToken) {
+    if (!portalToken || portalToken === "test-token") {
+      return { success: false, error: "Online payment verification is not available in demo mode." };
+    }
+
+    try {
+      const result = await apiRequest(`/client-portal/${portalToken}/payments/verify/`, {
+        method: "POST",
+        body: JSON.stringify({
+          razorpay_order_id: payload?.razorpay_order_id || "",
+          razorpay_payment_id: payload?.razorpay_payment_id || "",
+          razorpay_signature: payload?.razorpay_signature || "",
+        }),
+      });
+
+      return { success: true, data: result };
+    } catch (error) {
+      if (error?.detail) {
+        return { success: false, error: error.detail };
+      }
+
+      return { success: false, error: "Payment could not be confirmed yet. Please retry verification or refresh the page." };
+    }
+  },
+
   async getClientActivities(portalToken = activeToken) {
     if (!portalToken || portalToken === "test-token") {
       return { success: true, data: [] };

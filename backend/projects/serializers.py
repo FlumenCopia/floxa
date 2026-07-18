@@ -580,6 +580,7 @@ class ClientPortalPaymentMilestoneSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentMilestone
         fields = [
+            "id",
             "type",
             "percentage",
             "amount",

@@ -33,17 +33,25 @@ from projects.views import (
     ClientPortalLogoutView,
     ClientPortalMoodboardSelectView,
     ClientPortalMoodboardView,
+    ClientPortalPaymentOrderCreateView,
+    ClientPortalPaymentVerifyView,
     ClientPortalPasswordVerifyView,
     ClientPortalPaymentMilestoneView,
     ClientPortalProjectAgreementPDFView,
     ClientPortalProjectAgreementSignView,
     ClientPortalProjectView,
     ClientPortalSignOffView,
+    RazorpayWebhookView,
 )
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.urls")),
+    path(
+        "api/payments/razorpay/webhook/",
+        RazorpayWebhookView.as_view(),
+        name="razorpay-payment-webhook",
+    ),
     path(
         "api/client-portal/<uuid:portal_token>/",
         ClientPortalProjectView.as_view(),
@@ -153,6 +161,16 @@ urlpatterns = [
         "api/client-portal/<uuid:portal_token>/payments/",
         ClientPortalPaymentMilestoneView.as_view(),
         name="client-portal-payments",
+    ),
+    path(
+        "api/client-portal/<uuid:portal_token>/payments/<int:milestone_id>/create-order/",
+        ClientPortalPaymentOrderCreateView.as_view(),
+        name="client-portal-payment-create-order",
+    ),
+    path(
+        "api/client-portal/<uuid:portal_token>/payments/verify/",
+        ClientPortalPaymentVerifyView.as_view(),
+        name="client-portal-payment-verify",
     ),
     path(
         "api/client-portal/<uuid:portal_token>/sign-off/",

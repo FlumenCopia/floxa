@@ -951,7 +951,10 @@ textarea {
   border-top: 1px solid rgba(77, 255, 160, 0.1);
   border-radius: 0;
   max-height: 340px;
+  overflow-x: auto;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .dash-table {
@@ -1141,9 +1144,24 @@ textarea {
 }
 
 .project-filter-caret {
+  width: 14px;
+  height: 14px;
   margin-left: 12px;
-  font-size: 12px;
-  line-height: 1;
+  flex: 0 0 14px;
+  opacity: 0.68;
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+.project-filter-wrap.open .project-filter-caret {
+  opacity: 0.95;
+  transform: rotate(180deg);
+}
+
+.project-filter-btn:hover .project-filter-caret,
+.project-filter-btn:focus-visible .project-filter-caret {
+  opacity: 0.95;
 }
 
 .project-filter-menu {
@@ -1278,6 +1296,8 @@ textarea {
   margin-bottom: 18px;
   font-size: 13px;
   color: #8cb0a1;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .project-payment-grid {
@@ -1855,6 +1875,8 @@ textarea {
 .discovery-setting-row strong {
   color: #f4f8f2;
   font-size: 13px;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .discovery-overview-card {
@@ -1980,6 +2002,8 @@ textarea {
   margin: 0 0 6px;
   color: #f4f8f2;
   font-size: 15px;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .discovery-concept-heading p,
@@ -1988,6 +2012,8 @@ textarea {
   color: #8eb0a0;
   font-size: 13px;
   line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .discovery-concept-meta,
@@ -2001,6 +2027,8 @@ textarea {
 .discovery-concept-meta span {
   color: #8eb0a0;
   font-size: 12px;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .discovery-concept-feedback {
@@ -2416,7 +2444,10 @@ textarea {
 }
 
 .discovery-table-card {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .discovery-table {
@@ -2519,6 +2550,8 @@ textarea {
   color: #f4f8f2;
   font-size: 14px;
   line-height: 1.4;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .discovery-agreement-history {
@@ -2562,6 +2595,8 @@ textarea {
 .discovery-agreement-history li strong {
   font-size: 13px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .discovery-agreement-title {
@@ -2774,6 +2809,8 @@ textarea {
   color: #e7f3ed;
   font-size: 12px;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .discovery-activity-time {
@@ -3036,6 +3073,8 @@ textarea {
   color: #eef8f3;
   font-size: 12px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .analytics-shell {
@@ -4525,12 +4564,12 @@ textarea {
   }
 
   .dashboard-table-wrap {
-    overflow-x: hidden;
+    overflow-x: auto;
   }
 
   .dash-table {
-    min-width: 0;
-    table-layout: fixed;
+    min-width: 430px;
+    table-layout: auto;
   }
 
   .dash-table th {
@@ -5284,6 +5323,20 @@ textarea {
 
   .kpi-value {
     font-size: 18px;
+  }
+}
+
+@media (max-width: 359px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-payment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-payment-grid .form-group:last-child {
+    grid-column: auto;
   }
 }
 

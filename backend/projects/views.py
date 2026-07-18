@@ -1,7 +1,10 @@
 import base64
+import json
 import logging
 import threading
+import uuid
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.http import FileResponse
 from django.conf import settings
@@ -9,6 +12,7 @@ from django.core.files.base import ContentFile
 from django.core.mail import EmailMessage, send_mail
 from django.contrib.auth.hashers import check_password
 from django.core import signing
+from django.db import IntegrityError, transaction
 from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
 from rest_framework import status
@@ -34,11 +38,13 @@ from .models import (
     GeneratedAgreementSnapshot,
     Moodboard,
     PaymentMilestone,
+    PaymentTransaction,
     Project,
     ProjectAgreement,
     ProjectAgreementAppendix,
     ProjectActivity,
     ProjectDiscovery,
+    RazorpayWebhookEvent,
 )
 from .serializers import (
     BrandDNASerializer,
@@ -63,6 +69,16 @@ from .serializers import (
     ProjectSerializer,
 )
 from .progress import calculate_project_progress, calculate_project_workflow_status
+from .razorpay_service import (
+    RazorpayConfigurationError,
+    RazorpayGatewayError,
+    RazorpayProviderError,
+    RazorpaySignatureVerificationError,
+    create_razorpay_order,
+    fetch_razorpay_payment,
+    verify_razorpay_payment_signature,
+    verify_razorpay_webhook_signature,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -1414,7 +1430,21 @@ class ProjectListCreateView(APIView):
                 | Q(client__email__icontains=search)
             )
 
-        projects = projects.order_by("-created_at")
+        projects = projects.order_by("-created_at").select_related(
+            "client_profile",
+            "discovery",
+            "brand_dna",
+            "project_agreement",
+            "agreement",
+        ).prefetch_related(
+            "discovery__emotions",
+            "discovery__competitors",
+            "discovery__visual_styles",
+            "moodboards",
+            "concepts",
+            "deliverables",
+            "payment_milestones",
+        )
 
         paginator = ProjectPagination()
         paginated_projects = paginator.paginate_queryset(projects, request)
@@ -1503,11 +1533,30 @@ class ProjectAnalyticsView(APIView):
         active_projects = projects.exclude(
             Q(status=Project.Status.DELIVERED) | Q(client_signed_off=True)
         ).count()
+        projects_for_progress = (
+            projects.order_by("-created_at")
+            .select_related(
+                "client_profile",
+                "discovery",
+                "brand_dna",
+                "project_agreement",
+                "agreement",
+            )
+            .prefetch_related(
+                "discovery__emotions",
+                "discovery__competitors",
+                "discovery__visual_styles",
+                "moodboards",
+                "concepts",
+                "deliverables",
+                "payment_milestones",
+            )
+        )
         project_progress = []
         progress_values = []
         status_counts = {}
 
-        for project in projects.order_by("-created_at"):
+        for project in projects_for_progress:
             progress = calculate_project_progress(project)
             workflow_status = calculate_project_workflow_status(project)
             status_counts[workflow_status] = status_counts.get(workflow_status, 0) + 1
@@ -1568,7 +1617,7 @@ class ProjectDetailView(APIView):
 
     def get(self, request, pk):
         try:
-            project = Project.objects.get(
+            project = Project.objects.select_related("client").get(
                 id=pk,
                 consultant=request.user,
                 is_archived=False,
@@ -1712,7 +1761,7 @@ class ClientPortalMoodboardView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        moodboards = project.moodboards.order_by("-created_at")
+        moodboards = project.moodboards.select_related("project").order_by("-created_at")
         serializer = ClientPortalMoodboardSerializer(
             moodboards,
             many=True,
@@ -1796,7 +1845,7 @@ class ClientPortalConceptView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        concepts = project.concepts.filter(
+        concepts = project.concepts.select_related("project").filter(
             status__in=[
                 Concept.Status.SHARED,
                 Concept.Status.APPROVED,
@@ -1948,7 +1997,7 @@ class ClientPortalDeliverableView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        deliverables = project.deliverables.filter(
+        deliverables = project.deliverables.select_related("project").filter(
             status=Deliverable.Status.SHARED,
         ).order_by("-created_at")
         serializer = ClientPortalDeliverableSerializer(
@@ -2390,6 +2439,655 @@ class ClientPortalPaymentMilestoneView(APIView):
         serializer = ClientPortalPaymentMilestoneSerializer(milestones, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ClientPortalPaymentOrderCreateView(APIView):
+    authentication_classes = []
+    permission_classes = [ClientPortalAccessPermission]
+
+    def get_project(self, portal_token):
+        try:
+            return Project.objects.get(
+                portal_token=portal_token,
+                is_archived=False,
+            )
+        except Project.DoesNotExist:
+            return None
+
+    def get_milestone(self, project, milestone_id):
+        try:
+            return project.payment_milestones.get(id=milestone_id)
+        except PaymentMilestone.DoesNotExist:
+            return None
+
+    def amount_to_smallest_unit(self, amount):
+        smallest_unit = (Decimal(amount) * Decimal("100")).quantize(
+            Decimal("1"),
+            rounding=ROUND_HALF_UP,
+        )
+        return int(smallest_unit)
+
+    def get_reusable_transaction(self, milestone):
+        return (
+            milestone.transactions.filter(
+                status=PaymentTransaction.Status.CREATED,
+                razorpay_order_id__gt="",
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+    def build_response_payload(self, transaction_obj, milestone, *, reused):
+        return {
+            "transaction_id": transaction_obj.id,
+            "razorpay_order_id": transaction_obj.razorpay_order_id,
+            "amount": self.amount_to_smallest_unit(transaction_obj.amount),
+            "currency": transaction_obj.currency,
+            "key_id": settings.RAZORPAY_KEY_ID,
+            "milestone": {
+                "id": milestone.id,
+                "type": milestone.type,
+                "amount": str(milestone.amount),
+                "status": milestone.status,
+            },
+            "reused": reused,
+        }
+
+    def post(self, request, portal_token, milestone_id):
+        project = self.get_project(portal_token)
+
+        if project is None:
+            return Response(
+                {"detail": "Client portal link not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        milestone = self.get_milestone(project, milestone_id)
+
+        if milestone is None:
+            return Response(
+                {"detail": "Payment milestone not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if milestone.status == PaymentMilestone.Status.PAID:
+            return Response(
+                {"detail": "This payment milestone is already paid."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if milestone.status != PaymentMilestone.Status.REQUESTED:
+            return Response(
+                {"detail": "Only requested payment milestones can be paid online."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if milestone.amount <= 0:
+            return Response(
+                {"detail": "Payment amount must be greater than zero."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+            return Response(
+                {"detail": "Payment gateway is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        verified_transaction = milestone.transactions.filter(
+            status=PaymentTransaction.Status.VERIFIED,
+        ).first()
+
+        if verified_transaction is not None:
+            return Response(
+                {"detail": "This payment milestone is already completed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reusable_transaction = self.get_reusable_transaction(milestone)
+
+        if reusable_transaction is not None:
+            return Response(
+                self.build_response_payload(
+                    reusable_transaction,
+                    milestone,
+                    reused=True,
+                ),
+                status=status.HTTP_200_OK,
+            )
+
+        currency = settings.RAZORPAY_CURRENCY or "INR"
+        order_amount = self.amount_to_smallest_unit(milestone.amount)
+        receipt = f"floxa-{milestone.id}-{uuid.uuid4().hex[:12]}"
+        notes = {
+            "project_id": str(project.id),
+            "milestone_id": str(milestone.id),
+            "milestone_type": milestone.type,
+        }
+
+        try:
+            order = create_razorpay_order(
+                amount=order_amount,
+                currency=currency,
+                receipt=receipt,
+                notes=notes,
+            )
+        except RazorpayConfigurationError:
+            return Response(
+                {"detail": "Payment gateway is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except RazorpayGatewayError:
+            return Response(
+                {"detail": "Unable to create payment order. Please try again later."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        razorpay_order_id = (order or {}).get("id")
+
+        if not razorpay_order_id:
+            return Response(
+                {"detail": "Payment gateway returned an invalid order."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        try:
+            with transaction.atomic():
+                transaction_obj = PaymentTransaction.objects.create(
+                    project=project,
+                    milestone=milestone,
+                    razorpay_order_id=razorpay_order_id,
+                    amount=milestone.amount,
+                    currency=currency,
+                    status=PaymentTransaction.Status.CREATED,
+                )
+        except IntegrityError:
+            transaction_obj = PaymentTransaction.objects.filter(
+                razorpay_order_id=razorpay_order_id,
+                milestone=milestone,
+                project=project,
+            ).first()
+
+            if transaction_obj is None:
+                return Response(
+                    {"detail": "Unable to save payment order. Please try again later."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        return Response(
+            self.build_response_payload(transaction_obj, milestone, reused=False),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ClientPortalPaymentVerifyView(APIView):
+    authentication_classes = []
+    permission_classes = [ClientPortalAccessPermission]
+
+    required_fields = [
+        "razorpay_order_id",
+        "razorpay_payment_id",
+        "razorpay_signature",
+    ]
+
+    def get_project(self, portal_token):
+        try:
+            return Project.objects.get(
+                portal_token=portal_token,
+                is_archived=False,
+            )
+        except Project.DoesNotExist:
+            return None
+
+    def get_payload_value(self, request, field):
+        value = request.data.get(field)
+
+        if not isinstance(value, str):
+            return ""
+
+        return value.strip()
+
+    def build_response_payload(self, transaction_obj, milestone):
+        return {
+            "detail": "Payment verified successfully.",
+            "transaction_id": transaction_obj.id,
+            "transaction_status": transaction_obj.status,
+            "milestone": ClientPortalPaymentMilestoneSerializer(milestone).data,
+        }
+
+    def amount_to_smallest_unit(self, amount):
+        smallest_unit = (Decimal(amount) * Decimal("100")).quantize(
+            Decimal("1"),
+            rounding=ROUND_HALF_UP,
+        )
+        return int(smallest_unit)
+
+    def validate_provider_payment(self, payment, transaction_obj, payload):
+        if not isinstance(payment, dict):
+            raise PaymentCompletionError("Payment verification details could not be confirmed.")
+
+        expected_amount = self.amount_to_smallest_unit(transaction_obj.amount)
+        provider_amount = payment.get("amount")
+        provider_currency = str(payment.get("currency") or "").upper()
+        expected_currency = str(transaction_obj.currency or "").upper()
+
+        try:
+            provider_amount = int(provider_amount)
+        except (TypeError, ValueError):
+            raise PaymentCompletionError("Payment amount could not be confirmed.")
+
+        if payment.get("id") != payload["razorpay_payment_id"]:
+            raise PaymentCompletionError("Payment details do not match this transaction.")
+
+        if payment.get("order_id") != transaction_obj.razorpay_order_id:
+            raise PaymentCompletionError("Payment order does not match this transaction.")
+
+        if provider_amount != expected_amount:
+            raise PaymentCompletionError("Payment amount does not match this transaction.")
+
+        if provider_currency != expected_currency:
+            raise PaymentCompletionError("Payment currency does not match this transaction.")
+
+        if payment.get("status") != "captured":
+            raise PaymentCompletionError("Payment has not been captured by Razorpay.")
+
+    def post(self, request, portal_token):
+        project = self.get_project(portal_token)
+
+        if project is None:
+            return Response(
+                {"detail": "Client portal link not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        payload = {
+            field: self.get_payload_value(request, field)
+            for field in self.required_fields
+        }
+        missing_fields = [
+            field
+            for field, value in payload.items()
+            if not value
+        ]
+
+        if missing_fields:
+            return Response(
+                {"detail": "Payment verification details are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        transaction_obj = PaymentTransaction.objects.select_related(
+            "project",
+            "milestone",
+            "project__consultant",
+        ).filter(
+            project=project,
+            razorpay_order_id=payload["razorpay_order_id"],
+        ).first()
+
+        if transaction_obj is None:
+            return Response(
+                {"detail": "Payment transaction not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        milestone = transaction_obj.milestone
+
+        if milestone.project_id != project.id:
+            return Response(
+                {"detail": "Payment transaction not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if transaction_obj.status == PaymentTransaction.Status.VERIFIED:
+            if (
+                transaction_obj.razorpay_payment_id
+                and transaction_obj.razorpay_payment_id != payload["razorpay_payment_id"]
+            ):
+                return Response(
+                    {"detail": "Payment transaction is already verified."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            return Response(
+                self.build_response_payload(transaction_obj, milestone),
+                status=status.HTTP_200_OK,
+            )
+
+        if transaction_obj.status != PaymentTransaction.Status.CREATED:
+            return Response(
+                {"detail": "Payment transaction is not eligible for verification."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if milestone.status != PaymentMilestone.Status.REQUESTED:
+            return Response(
+                {"detail": "Only requested payment milestones can be verified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            verify_razorpay_payment_signature(
+                razorpay_order_id=payload["razorpay_order_id"],
+                razorpay_payment_id=payload["razorpay_payment_id"],
+                razorpay_signature=payload["razorpay_signature"],
+            )
+        except RazorpayConfigurationError:
+            return Response(
+                {"detail": "Payment gateway is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except RazorpayProviderError:
+            return Response(
+                {"detail": "Payment gateway is temporarily unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except RazorpaySignatureVerificationError:
+            return Response(
+                {"detail": "Payment verification failed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            provider_payment = fetch_razorpay_payment(payload["razorpay_payment_id"])
+            self.validate_provider_payment(provider_payment, transaction_obj, payload)
+        except RazorpayConfigurationError:
+            return Response(
+                {"detail": "Payment gateway is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except RazorpayProviderError:
+            return Response(
+                {"detail": "Unable to confirm payment with Razorpay."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except PaymentCompletionError as error:
+            return Response(
+                {"detail": str(error)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            milestone = complete_payment_milestone(
+                milestone,
+                actor_type=ProjectActivity.ActorType.CLIENT,
+                payment_source="razorpay",
+                transaction_obj=transaction_obj,
+                razorpay_payment_id=payload["razorpay_payment_id"],
+            )
+        except PaymentCompletionError as error:
+            return Response(
+                {"detail": str(error)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except IntegrityError:
+            return Response(
+                {"detail": "Payment has already been verified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        transaction_obj.refresh_from_db()
+
+        return Response(
+            self.build_response_payload(transaction_obj, milestone),
+            status=status.HTTP_200_OK,
+        )
+
+
+class RazorpayWebhookView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    supported_event_type = "payment.captured"
+
+    def amount_to_smallest_unit(self, amount):
+        smallest_unit = (Decimal(amount) * Decimal("100")).quantize(
+            Decimal("1"),
+            rounding=ROUND_HALF_UP,
+        )
+        return int(smallest_unit)
+
+    def get_payment_entity(self, payload):
+        event_payload = payload.get("payload")
+
+        if not isinstance(event_payload, dict):
+            return {}
+
+        payment_payload = event_payload.get("payment")
+
+        if not isinstance(payment_payload, dict):
+            return {}
+
+        payment = payment_payload.get("entity")
+        return payment if isinstance(payment, dict) else {}
+
+    def get_safe_payload_snapshot(self, event_type, payment):
+        return {
+            "event": event_type,
+            "payment": {
+                "id": payment.get("id", ""),
+                "order_id": payment.get("order_id", ""),
+                "amount": payment.get("amount"),
+                "currency": payment.get("currency", ""),
+                "status": payment.get("status", ""),
+            } if payment else {},
+        }
+
+    def save_event_status(self, event, processing_status, *, failure_reason=""):
+        event.processing_status = processing_status
+        event.failure_reason = failure_reason
+        event.processed_at = timezone.now()
+        event.save(update_fields=[
+            "processing_status",
+            "failure_reason",
+            "processed_at",
+            "updated_at",
+        ])
+
+    def get_or_lock_event(self, event_id, event_type, payment):
+        return RazorpayWebhookEvent.objects.select_for_update().get_or_create(
+            razorpay_event_id=event_id,
+            defaults={
+                "event_type": event_type,
+                "payload": self.get_safe_payload_snapshot(event_type, payment),
+                "processing_status": RazorpayWebhookEvent.ProcessingStatus.RECEIVED,
+                "payment_id": payment.get("id", "") if payment else "",
+                "order_id": payment.get("order_id", "") if payment else "",
+            },
+        )
+
+    def validate_payment_entity(self, payment):
+        payment_id = str(payment.get("id") or "").strip()
+        order_id = str(payment.get("order_id") or "").strip()
+        currency = str(payment.get("currency") or "").upper()
+        payment_status = str(payment.get("status") or "").strip()
+
+        try:
+            amount = int(payment.get("amount"))
+        except (TypeError, ValueError):
+            raise PaymentCompletionError("Webhook payment amount is invalid.")
+
+        if not payment_id or not order_id:
+            raise PaymentCompletionError("Webhook payment identifiers are missing.")
+
+        if payment_status != "captured":
+            raise PaymentCompletionError("Webhook payment is not captured.")
+
+        return {
+            "payment_id": payment_id,
+            "order_id": order_id,
+            "amount": amount,
+            "currency": currency,
+        }
+
+    def validate_local_transaction(self, transaction_obj, payment_data):
+        if transaction_obj.project_id != transaction_obj.milestone.project_id:
+            raise PaymentCompletionError("Payment transaction project does not match milestone project.")
+
+        if transaction_obj.razorpay_order_id != payment_data["order_id"]:
+            raise PaymentCompletionError("Webhook payment order does not match this transaction.")
+
+        expected_amount = self.amount_to_smallest_unit(transaction_obj.amount)
+        expected_currency = str(transaction_obj.currency or "").upper()
+
+        if payment_data["amount"] != expected_amount:
+            raise PaymentCompletionError("Webhook payment amount does not match this transaction.")
+
+        if payment_data["currency"] != expected_currency:
+            raise PaymentCompletionError("Webhook payment currency does not match this transaction.")
+
+        if (
+            transaction_obj.status == PaymentTransaction.Status.VERIFIED
+            and transaction_obj.razorpay_payment_id
+            and transaction_obj.razorpay_payment_id != payment_data["payment_id"]
+        ):
+            raise PaymentCompletionError("Payment transaction is already verified with a different payment.")
+
+        if transaction_obj.status not in [
+            PaymentTransaction.Status.CREATED,
+            PaymentTransaction.Status.VERIFIED,
+        ]:
+            raise PaymentCompletionError("Payment transaction is not eligible for webhook completion.")
+
+    def post(self, request):
+        raw_body = request.body
+        signature = request.META.get("HTTP_X_RAZORPAY_SIGNATURE", "")
+        event_id = request.META.get("HTTP_X_RAZORPAY_EVENT_ID", "")
+
+        if not signature:
+            return Response(
+                {"detail": "Webhook signature is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not event_id:
+            return Response(
+                {"detail": "Webhook event id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            verify_razorpay_webhook_signature(
+                raw_body=raw_body,
+                razorpay_signature=signature,
+            )
+        except RazorpayConfigurationError:
+            logger.error("Razorpay webhook configuration is missing.")
+            return Response(
+                {"detail": "Payment webhook is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except RazorpaySignatureVerificationError:
+            logger.warning("Razorpay webhook signature verification failed for event %s.", event_id)
+            return Response(
+                {"detail": "Webhook signature verification failed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            payload = json.loads(raw_body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            logger.warning("Razorpay webhook payload could not be parsed for event %s.", event_id)
+            return Response(
+                {"detail": "Webhook payload is invalid."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not isinstance(payload, dict):
+            return Response(
+                {"detail": "Webhook payload is invalid."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        event_type = payload.get("event")
+
+        if not isinstance(event_type, str) or not event_type:
+            return Response(
+                {"detail": "Webhook event type is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payment = self.get_payment_entity(payload)
+        logger.info("Received Razorpay webhook event %s of type %s.", event_id, event_type)
+
+        try:
+            with transaction.atomic():
+                event, created = self.get_or_lock_event(event_id, event_type, payment)
+
+                if not created and event.processing_status in [
+                    RazorpayWebhookEvent.ProcessingStatus.PROCESSED,
+                    RazorpayWebhookEvent.ProcessingStatus.IGNORED,
+                ]:
+                    logger.info(
+                        "Ignoring duplicate Razorpay webhook event %s with status %s.",
+                        event_id,
+                        event.processing_status,
+                    )
+                    return Response({"detail": "Webhook already handled."}, status=status.HTTP_200_OK)
+
+                if event_type != self.supported_event_type:
+                    self.save_event_status(event, RazorpayWebhookEvent.ProcessingStatus.IGNORED)
+                    logger.info("Ignored unsupported Razorpay webhook event %s of type %s.", event_id, event_type)
+                    return Response({"detail": "Webhook ignored."}, status=status.HTTP_200_OK)
+
+                payment_data = self.validate_payment_entity(payment)
+                transaction_obj = PaymentTransaction.objects.select_for_update().select_related(
+                    "project",
+                    "project__consultant",
+                    "milestone",
+                ).filter(
+                    razorpay_order_id=payment_data["order_id"],
+                ).first()
+
+                if transaction_obj is None:
+                    raise PaymentCompletionError("Payment transaction not found for webhook order.")
+
+                self.validate_local_transaction(transaction_obj, payment_data)
+                milestone = complete_payment_milestone(
+                    transaction_obj.milestone,
+                    actor_type=ProjectActivity.ActorType.CLIENT,
+                    payment_source="razorpay_webhook",
+                    transaction_obj=transaction_obj,
+                    razorpay_payment_id=payment_data["payment_id"],
+                )
+                self.save_event_status(event, RazorpayWebhookEvent.ProcessingStatus.PROCESSED)
+                logger.info(
+                    "Processed Razorpay webhook event %s for payment %s and order %s.",
+                    event_id,
+                    payment_data["payment_id"],
+                    payment_data["order_id"],
+                )
+
+                return Response(
+                    {
+                        "detail": "Webhook processed.",
+                        "transaction_status": PaymentTransaction.Status.VERIFIED,
+                        "milestone_status": milestone.status,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+        except PaymentCompletionError as error:
+            with transaction.atomic():
+                event, _ = self.get_or_lock_event(event_id, event_type, payment)
+                self.save_event_status(
+                    event,
+                    RazorpayWebhookEvent.ProcessingStatus.FAILED,
+                    failure_reason=str(error),
+                )
+            logger.warning("Razorpay webhook event %s failed validation: %s", event_id, str(error))
+            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError:
+            logger.exception("Razorpay webhook event %s hit a local integrity conflict.", event_id)
+            return Response(
+                {"detail": "Webhook processing conflict. Please retry."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except Exception:
+            logger.exception("Unexpected error while processing Razorpay webhook event %s.", event_id)
+            return Response(
+                {"detail": "Webhook processing failed. Please retry."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
 
 class ClientPortalAssetDownloadView(APIView):
@@ -3088,7 +3786,7 @@ class MoodboardView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        moodboards = project.moodboards.order_by("-created_at")
+        moodboards = project.moodboards.select_related("project").order_by("-created_at")
         serializer = MoodboardSerializer(
             moodboards,
             many=True,
@@ -3163,7 +3861,7 @@ class ConceptView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        concepts = project.concepts.order_by("-created_at")
+        concepts = project.concepts.select_related("project").order_by("-created_at")
         serializer = ConsultantConceptSerializer(
             concepts,
             many=True,
@@ -3400,7 +4098,7 @@ class DeliverableView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        deliverables = project.deliverables.order_by("-created_at")
+        deliverables = project.deliverables.select_related("project").order_by("-created_at")
         serializer = ConsultantDeliverableSerializer(
             deliverables,
             many=True,
@@ -4169,8 +4867,116 @@ class PaymentMilestoneView(APIView):
         return Response(self.serialize_milestones(project), status=status.HTTP_200_OK)
 
 
+class PaymentCompletionError(Exception):
+    pass
+
+
+def format_payment_amount(amount):
+    return f"₹{Decimal(amount or 0):,.2f}"
+
+
+def complete_payment_milestone(
+    milestone,
+    *,
+    actor_type,
+    payment_source,
+    transaction_obj=None,
+    razorpay_payment_id="",
+    paid_at=None,
+):
+    with transaction.atomic():
+        milestone = PaymentMilestone.objects.select_for_update().select_related(
+            "project",
+            "project__consultant",
+        ).get(id=milestone.id)
+        verified_transaction = milestone.transactions.filter(
+            status=PaymentTransaction.Status.VERIFIED,
+        ).first()
+
+        if payment_source == "manual" and verified_transaction is not None:
+            raise PaymentCompletionError("This payment has already been verified through Razorpay.")
+
+        if transaction_obj is not None:
+            transaction_obj = PaymentTransaction.objects.select_for_update().select_related(
+                "project",
+                "milestone",
+            ).get(id=transaction_obj.id)
+
+            if transaction_obj.project_id != milestone.project_id or transaction_obj.milestone_id != milestone.id:
+                raise PaymentCompletionError("Payment transaction does not match this milestone.")
+
+            if transaction_obj.status == PaymentTransaction.Status.VERIFIED:
+                if transaction_obj.razorpay_payment_id != razorpay_payment_id:
+                    raise PaymentCompletionError("Payment transaction is already verified with a different payment.")
+
+                return milestone
+
+            if transaction_obj.status != PaymentTransaction.Status.CREATED:
+                raise PaymentCompletionError("Payment transaction is not eligible for completion.")
+
+            if razorpay_payment_id:
+                transaction_obj.razorpay_payment_id = razorpay_payment_id
+
+            if verified_transaction is not None and verified_transaction.id != transaction_obj.id:
+                raise PaymentCompletionError("This payment milestone is already verified.")
+
+        if milestone.status == PaymentMilestone.Status.PAID:
+            raise PaymentCompletionError("Only requested milestones can be marked paid.")
+
+        if milestone.status != PaymentMilestone.Status.REQUESTED:
+            raise PaymentCompletionError("Only requested milestones can be marked paid.")
+
+        completed_at = paid_at or timezone.now()
+        milestone.status = PaymentMilestone.Status.PAID
+        milestone.paid_at = completed_at
+        milestone.save(update_fields=["status", "paid_at", "amount", "updated_at"])
+
+        if transaction_obj is not None:
+            transaction_obj.status = PaymentTransaction.Status.VERIFIED
+            transaction_obj.verified_at = completed_at
+            transaction_obj.save(update_fields=["razorpay_payment_id", "status", "verified_at", "updated_at"])
+
+        activity_exists = milestone.project.activities.filter(
+            action="payment_received",
+            metadata__payment_milestone_id=milestone.id,
+        ).exists()
+
+        if not activity_exists:
+            milestone_label = milestone.get_type_display()
+            amount_display = format_payment_amount(milestone.amount)
+            description = f"Client paid {amount_display} for the {milestone_label} milestone."
+
+            ProjectActivity.objects.create(
+                project=milestone.project,
+                consultant=milestone.project.consultant,
+                actor_type=actor_type,
+                action="payment_received",
+                description=description,
+                metadata={
+                    "payment_milestone_id": milestone.id,
+                    "payment_type": milestone.type,
+                    "payment_source": payment_source,
+                    "amount": str(milestone.amount),
+                    "amount_display": amount_display,
+                    "transaction_id": transaction_obj.id if transaction_obj else None,
+                    "razorpay_order_id": transaction_obj.razorpay_order_id if transaction_obj else "",
+                    "razorpay_payment_id": transaction_obj.razorpay_payment_id if transaction_obj else "",
+                },
+                visible_to_client=payment_source in {"razorpay", "razorpay_webhook"},
+                client_is_read=False if payment_source in {"razorpay", "razorpay_webhook"} else True,
+            )
+
+        recalculate_payment_milestones(milestone.project)
+        return milestone
+
+
 class PaymentMilestoneActionView(APIView):
     permission_classes = [IsAuthenticated]
+    signed_agreement_statuses = {
+        ProjectAgreement.Status.SIGNED,
+        ProjectAgreement.Status.ACTIVE,
+        ProjectAgreement.Status.COMPLETED,
+    }
 
     def get_milestone(self, request, project_id, milestone_id):
         try:
@@ -4182,6 +4988,17 @@ class PaymentMilestoneActionView(APIView):
             return project.payment_milestones.get(id=milestone_id)
         except (Project.DoesNotExist, PaymentMilestone.DoesNotExist):
             return None
+
+    def is_project_agreement_signed(self, project):
+        try:
+            agreement = project.project_agreement
+        except ProjectAgreement.DoesNotExist:
+            return False
+
+        return bool(
+            agreement.signed_at
+            and agreement.status in self.signed_agreement_statuses
+        )
 
     def post(self, request, project_id, milestone_id, action):
         milestone = self.get_milestone(request, project_id, milestone_id)
@@ -4196,6 +5013,15 @@ class PaymentMilestoneActionView(APIView):
             if milestone.status != PaymentMilestone.Status.READY:
                 return Response(
                     {"detail": "Only ready milestones can be requested."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if (
+                milestone.type == PaymentMilestone.Type.ADVANCE
+                and not self.is_project_agreement_signed(milestone.project)
+            ):
+                return Response(
+                    {"detail": "The project agreement must be signed before requesting the advance payment."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -4222,33 +5048,17 @@ class PaymentMilestoneActionView(APIView):
                     client_is_read=False,
                 )
         elif action == "mark_paid":
-            if milestone.status != PaymentMilestone.Status.REQUESTED:
+            try:
+                milestone = complete_payment_milestone(
+                    milestone,
+                    actor_type=ProjectActivity.ActorType.CONSULTANT,
+                    payment_source="manual",
+                )
+            except PaymentCompletionError as error:
                 return Response(
-                    {"detail": "Only requested milestones can be marked paid."},
+                    {"detail": str(error)},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-            milestone.status = PaymentMilestone.Status.PAID
-            milestone.paid_at = timezone.now()
-            milestone.save(update_fields=["status", "paid_at", "amount", "updated_at"])
-            activity_exists = milestone.project.activities.filter(
-                action="payment_received",
-                metadata__payment_milestone_id=milestone.id,
-            ).exists()
-
-            if not activity_exists:
-                ProjectActivity.objects.create(
-                    project=milestone.project,
-                    consultant=milestone.project.consultant,
-                    actor_type=ProjectActivity.ActorType.CONSULTANT,
-                    action="payment_received",
-                    description=f"{milestone.get_type_display()} payment received.",
-                    metadata={
-                        "payment_milestone_id": milestone.id,
-                        "payment_type": milestone.type,
-                    },
-                )
-            recalculate_payment_milestones(milestone.project)
         else:
             return Response(
                 {"detail": "Unsupported payment action."},
@@ -4416,7 +5226,7 @@ class ProjectActivityView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        activities = project.activities.order_by("-created_at")[:50]
+        activities = project.activities.select_related("project").order_by("-created_at")[:50]
         serializer = ProjectActivitySerializer(activities, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
