@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Floxaheader from "../../commone/Floxaheader";
 import { getStatusClass, getStatusLabel } from "../Allproject/ProjectSection";
@@ -989,6 +989,7 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const imageInputRef = useRef(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -1057,6 +1058,14 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
     }
   }
 
+  function handleClearMoodboardImage() {
+    setForm((current) => ({ ...current, image: null }));
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+  }
+
   return (
     <div className="discovery-stack">
       <div className="discovery-section-bar">
@@ -1065,69 +1074,109 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
         </div>
       </div>
       <section className="discovery-card discovery-panel">
-        <h2 className="discovery-panel-title">Moodboards</h2>
-        <form className="discovery-info-list" onSubmit={handleUpload}>
-          <label className="discovery-info-row">
-            <span>Title</span>
+        <div className="discovery-moodboard-head">
+          <div>
+            <h2 className="discovery-panel-title">Moodboards</h2>
+            <p>Create polished visual directions for client review. Add one clear image, a concise title, and a short note for each option.</p>
+          </div>
+          <span>{moodboards.length} uploaded</span>
+        </div>
+        <form className="discovery-moodboard-upload" onSubmit={handleUpload}>
+          <div className="discovery-moodboard-fields">
+            <label>
+              <span>Title</span>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                placeholder="Moodboard title"
+              />
+            </label>
+            <label>
+              <span>Description</span>
+              <textarea
+                value={form.description}
+                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                placeholder="Short direction note"
+              />
+            </label>
+          </div>
+          <label className={`discovery-moodboard-dropzone ${form.image ? "has-file" : ""}`}>
             <input
-              type="text"
-              value={form.title}
-              onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-              placeholder="Moodboard title"
-            />
-          </label>
-          <label className="discovery-info-row">
-            <span>Description</span>
-            <textarea
-              value={form.description}
-              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Short direction note"
-            />
-          </label>
-          <label className="discovery-info-row">
-            <span>Image</span>
-            <input
+              ref={imageInputRef}
+              className="discovery-moodboard-file-input"
               type="file"
               accept="image/*"
               onChange={(event) => setForm((current) => ({ ...current, image: event.target.files?.[0] || null }))}
             />
+            <span>Image upload</span>
+            <strong>{form.image ? "Image ready to upload" : "Choose or drop moodboard image"}</strong>
+            <small>{form.image ? "Review the selected file below." : "PNG, JPG, or WebP recommended under 10 MB."}</small>
           </label>
-          <FileDetails file={form.image} />
-          {error ? (
-            <div className="discovery-info-row">
-              <span>Status</span>
-              <strong>{error}</strong>
+          {form.image ? (
+            <div className="discovery-moodboard-selected-file">
+              <div>
+                <span>Selected file</span>
+                <strong>{form.image.name}</strong>
+                <small>{form.image.type || "Image"} - {formatFileSize(form.image.size)}</small>
+              </div>
+              <button type="button" onClick={handleClearMoodboardImage}>
+                Remove
+              </button>
             </div>
           ) : null}
-          <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
-            {saving ? "Uploading..." : "+ Upload"}
-          </button>
+          {error ? (
+            <div className="discovery-moodboard-error">
+              {error}
+            </div>
+          ) : null}
+          <div className="discovery-moodboard-actions">
+            <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
+              {saving ? "Uploading..." : "+ Upload moodboard"}
+            </button>
+          </div>
         </form>
       </section>
       <section className="discovery-card discovery-panel">
-        <h2 className="discovery-panel-title">Uploaded moodboards</h2>
-        <div className="discovery-info-list">
+        <div className="discovery-moodboard-head">
+          <div>
+            <h2 className="discovery-panel-title">Uploaded moodboards</h2>
+            <p>Track shared directions and the client-selected option.</p>
+          </div>
+        </div>
+        <div className="discovery-moodboard-list">
           {loading ? (
-            <div className="discovery-info-row">
-              <span>Status</span>
+            <div className="discovery-moodboard-empty">
               <strong>Loading moodboards...</strong>
+              <span>Please wait while directions are fetched.</span>
             </div>
           ) : null}
           {!loading && moodboards.length === 0 ? (
-            <div className="discovery-info-row">
-              <span>Status</span>
+            <div className="discovery-moodboard-empty">
               <strong>No moodboards found</strong>
+              <span>Upload the first visual direction to begin moodboard review.</span>
             </div>
           ) : null}
           {moodboards.map((item) => (
-            <div className="discovery-info-row" key={item.id}>
-              <span>{item.is_selected ? `${item.title} - Selected` : item.title}</span>
-              <strong>{item.description || "No description"}</strong>
-              {item.image_url ? (
-                <a href={item.image_url} target="_blank" rel="noreferrer">
-                  View image
-                </a>
-              ) : null}
+            <div className={`discovery-moodboard-list-card ${item.is_selected ? "selected" : ""}`} key={item.id}>
+              <div
+                className="discovery-moodboard-preview"
+                style={item.image_url ? { backgroundImage: `url(${item.image_url})` } : undefined}
+              >
+                {!item.image_url ? <span>No image</span> : null}
+                {item.is_selected ? <strong>Selected</strong> : null}
+              </div>
+              <div className="discovery-moodboard-content">
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.description || "No description added."}</p>
+                </div>
+                {item.image_url ? (
+                  <a className="discovery-moodboard-link" href={item.image_url} target="_blank" rel="noreferrer">
+                    View image
+                  </a>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>
@@ -1145,6 +1194,8 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
   const [savingEditId, setSavingEditId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
+  const conceptImageInputRef = useRef(null);
+  const conceptFileInputRef = useRef(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -1224,6 +1275,22 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
       showError(message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  function handleClearConceptImage() {
+    setForm((current) => ({ ...current, image: null }));
+
+    if (conceptImageInputRef.current) {
+      conceptImageInputRef.current.value = "";
+    }
+  }
+
+  function handleClearConceptFile() {
+    setForm((current) => ({ ...current, file: null }));
+
+    if (conceptFileInputRef.current) {
+      conceptFileInputRef.current.value = "";
     }
   }
 
@@ -1370,67 +1437,113 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
         </div>
       </div>
       <section className="discovery-card discovery-panel">
-        <h2 className="discovery-panel-title">Concepts</h2>
-        <form className="discovery-info-list" onSubmit={handleUpload}>
-          <label className="discovery-info-row">
-            <span>Title</span>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-              placeholder="Concept title"
-            />
-          </label>
-          <label className="discovery-info-row">
-            <span>Description</span>
-            <textarea
-              value={form.description}
-              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-              placeholder="Short concept note"
-            />
-          </label>
-          <label className="discovery-info-row">
-            <span>Preview image</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(event) => setForm((current) => ({ ...current, image: event.target.files?.[0] || null }))}
-            />
-          </label>
-          <FileDetails file={form.image} />
-          <label className="discovery-info-row">
-            <span>PDF / file</span>
-            <input
-              type="file"
-              accept="application/pdf,image/*,.zip,.ai,.psd,.fig"
-              onChange={(event) => setForm((current) => ({ ...current, file: event.target.files?.[0] || null }))}
-            />
-          </label>
-          <FileDetails file={form.file} />
-          {error ? (
-            <div className="discovery-info-row">
-              <span>Status</span>
-              <strong>{error}</strong>
+        <div className="discovery-moodboard-head">
+          <div>
+            <h2 className="discovery-panel-title">Concepts</h2>
+            <p>Upload client-ready concept routes with a preview image, working file, and concise rationale.</p>
+          </div>
+          <span>{concepts.length} uploaded</span>
+        </div>
+        <form className="discovery-concept-upload" onSubmit={handleUpload}>
+          <div className="discovery-moodboard-fields">
+            <label>
+              <span>Title</span>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                placeholder="Concept title"
+              />
+            </label>
+            <label>
+              <span>Description</span>
+              <textarea
+                value={form.description}
+                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                placeholder="Short concept note"
+              />
+            </label>
+          </div>
+          <div className="discovery-concept-upload-files">
+            <label className={`discovery-moodboard-dropzone ${form.image ? "has-file" : ""}`}>
+              <input
+                ref={conceptImageInputRef}
+                className="discovery-moodboard-file-input"
+                type="file"
+                accept="image/*"
+                onChange={(event) => setForm((current) => ({ ...current, image: event.target.files?.[0] || null }))}
+              />
+              <span>Preview image</span>
+              <strong>{form.image ? "Preview image selected" : "Choose preview image"}</strong>
+              <small>{form.image ? "This image will represent the concept card." : "PNG, JPG, or WebP recommended under 10 MB."}</small>
+            </label>
+            <label className={`discovery-moodboard-dropzone ${form.file ? "has-file" : ""}`}>
+              <input
+                ref={conceptFileInputRef}
+                className="discovery-moodboard-file-input"
+                type="file"
+                accept="application/pdf,image/*,.zip,.ai,.psd,.fig"
+                onChange={(event) => setForm((current) => ({ ...current, file: event.target.files?.[0] || null }))}
+              />
+              <span>Concept file</span>
+              <strong>{form.file ? "Concept file selected" : "Choose PDF or source file"}</strong>
+              <small>{form.file ? "The attached file will be available with this concept." : "PDF, image, ZIP, AI, PSD, or Figma export."}</small>
+            </label>
+          </div>
+          {form.image ? (
+            <div className="discovery-moodboard-selected-file">
+              <div>
+                <span>Selected preview</span>
+                <strong>{form.image.name}</strong>
+                <small>{form.image.type || "Image"} - {formatFileSize(form.image.size)}</small>
+              </div>
+              <button type="button" onClick={handleClearConceptImage}>
+                Remove
+              </button>
             </div>
           ) : null}
-          <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
-            {saving ? "Uploading..." : "+ Upload concept"}
-          </button>
+          {form.file ? (
+            <div className="discovery-moodboard-selected-file">
+              <div>
+                <span>Selected file</span>
+                <strong>{form.file.name}</strong>
+                <small>{form.file.type || "File"} - {formatFileSize(form.file.size)}</small>
+              </div>
+              <button type="button" onClick={handleClearConceptFile}>
+                Remove
+              </button>
+            </div>
+          ) : null}
+          {error ? (
+            <div className="discovery-moodboard-error">
+              {error}
+            </div>
+          ) : null}
+          <div className="discovery-moodboard-actions">
+            <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
+              {saving ? "Uploading..." : "+ Upload concept"}
+            </button>
+          </div>
         </form>
       </section>
       <section className="discovery-card discovery-panel">
-        <h2 className="discovery-panel-title">Uploaded concepts</h2>
-        <div className="discovery-info-list">
+        <div className="discovery-moodboard-head">
+          <div>
+            <h2 className="discovery-panel-title">Uploaded concepts</h2>
+            <p>Review versions, status, client feedback, and available concept files.</p>
+          </div>
+        </div>
+        <div className="discovery-moodboard-list">
           {loading ? (
-            <div className="discovery-info-row">
-              <span>Status</span>
+            <div className="discovery-moodboard-empty">
               <strong>Loading concepts...</strong>
+              <span>Please wait while concept routes are fetched.</span>
             </div>
           ) : null}
           {!loading && concepts.length === 0 ? (
-            <div className="discovery-info-row">
-              <span>Status</span>
+            <div className="discovery-moodboard-empty">
               <strong>No concepts found</strong>
+              <span>Upload the first concept route when the visual direction is ready.</span>
             </div>
           ) : null}
           {concepts.length > 0 ? (
@@ -2425,13 +2538,14 @@ function PaymentsPanel({ project, onProjectRefresh }) {
         )}
       </section>
 
-      <section className="discovery-card discovery-addon-card">
+
+      {/* <section className="discovery-card discovery-addon-card">
         <div>
           <div className="discovery-addon-title">AI Add-on</div>
           <div className="discovery-addon-copy">AI add-on pricing is unavailable.</div>
         </div>
         <button className="btn btn-primary discovery-addon-btn" type="button">Unlock</button>
-      </section>
+      </section> */}
     </div>
   );
 }

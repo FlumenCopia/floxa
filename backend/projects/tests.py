@@ -7,17 +7,78 @@ from unittest.mock import patch
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import Consultant
 
-from .models import Client, Concept, PaymentMilestone, PaymentTransaction, Project, RazorpayWebhookEvent
+from .models import Client, Concept, PaymentMilestone, PaymentTransaction, Project, ProjectAgreement, RazorpayWebhookEvent
+from .progress import calculate_project_progress
 from .views import (
     PORTAL_ACCESS_COOKIE_NAME,
     PaymentCompletionError,
     complete_payment_milestone,
     sign_portal_access_token,
 )
+
+
+class ProjectProgressCalculationTests(TestCase):
+    def setUp(self):
+        self.consultant = Consultant.objects.create_user(
+            email="progress@example.com",
+            name="Progress",
+            password="pass12345",
+        )
+        self.client_record = Client.objects.create(
+            name="Client",
+            email="client-progress@example.com",
+            company_name="Client Co",
+            sector="Branding",
+        )
+        self.project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Progress Project",
+            company_name="Progress Co",
+            sector="Retail",
+            project_value=Decimal("1000.00"),
+        )
+        Concept.objects.create(
+            project=self.project,
+            title="Approved Concept",
+            status=Concept.Status.APPROVED,
+        )
+
+    def test_unsigned_project_agreement_does_not_award_agreement_progress(self):
+        ProjectAgreement.objects.create(
+            project=self.project,
+            status=ProjectAgreement.Status.DRAFT,
+        )
+
+        self.assertEqual(calculate_project_progress(self.project), 75)
+
+    def test_signature_requested_project_agreement_does_not_award_agreement_progress(self):
+        ProjectAgreement.objects.create(
+            project=self.project,
+            status=ProjectAgreement.Status.SIGNATURE_REQUESTED,
+        )
+
+        self.assertEqual(calculate_project_progress(self.project), 75)
+
+    def test_signed_project_agreement_awards_agreement_progress(self):
+        ProjectAgreement.objects.create(
+            project=self.project,
+            status=ProjectAgreement.Status.SIGNED,
+            signed_at=timezone.now(),
+        )
+
+        self.assertEqual(calculate_project_progress(self.project), 82)
+
+    def test_final_signoff_still_reaches_complete_progress(self):
+        self.project.client_signed_off = True
+        self.project.save(update_fields=["client_signed_off", "updated_at"])
+
+        self.assertEqual(calculate_project_progress(self.project), 100)
 
 
 @override_settings(

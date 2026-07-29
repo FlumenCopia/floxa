@@ -174,7 +174,11 @@ export default function Dashboardsection() {
             <div className="row-sb dashboard-card-header">
               <div className="font-6 dashboard-card-title">Recent projects</div>
               <div className="dashboard-card-actions">
-                <button className="btn btn-secondary dashboard-outline-btn" type="button">
+                <button
+                  className="btn btn-secondary dashboard-outline-btn"
+                  type="button"
+                  onClick={() => router.push("/project")}
+                >
                   View all
                 </button>
                 <button className="btn btn-primary dashboard-solid-btn" type="button" onClick={handleOpenWizard}>

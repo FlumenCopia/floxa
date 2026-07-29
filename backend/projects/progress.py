@@ -1,6 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 
-from .models import Concept, Deliverable, PaymentMilestone
+from .models import Concept, Deliverable, PaymentMilestone, ProjectAgreement
 
 
 def has_related_object(project, related_name):
@@ -42,6 +42,21 @@ def related_exists(instance, related_name, predicate=None):
 
 def has_project_agreement(project):
     return has_related_object(project, "project_agreement") or has_related_object(project, "agreement")
+
+
+def has_signed_project_agreement(project):
+    try:
+        agreement = project.project_agreement
+    except ObjectDoesNotExist:
+        return False
+
+    signed_statuses = {
+        ProjectAgreement.Status.SIGNED,
+        ProjectAgreement.Status.ACTIVE,
+        ProjectAgreement.Status.COMPLETED,
+    }
+
+    return bool(agreement.signed_at and agreement.status in signed_statuses)
 
 
 def has_complete_discovery(project):
@@ -119,7 +134,7 @@ def calculate_project_progress(project):
     if has_approved_concept:
         progress = max(progress, 75)
 
-    if has_project_agreement(project):
+    if has_signed_project_agreement(project):
         progress = max(progress, 82)
 
     has_shared_deliverable = related_exists(

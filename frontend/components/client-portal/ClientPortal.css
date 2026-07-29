@@ -1290,6 +1290,39 @@
   overflow-y: auto;
 }
 
+.client-profile-form-panel,
+.client-discovery-content,
+.client-notification-list {
+  scrollbar-color: rgba(77, 255, 160, 0.18) transparent;
+  scrollbar-width: thin;
+}
+
+.client-profile-form-panel::-webkit-scrollbar,
+.client-discovery-content::-webkit-scrollbar,
+.client-notification-list::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.client-profile-form-panel::-webkit-scrollbar-thumb,
+.client-discovery-content::-webkit-scrollbar-thumb,
+.client-notification-list::-webkit-scrollbar-thumb {
+  background: rgba(77, 255, 160, 0.18);
+  border-radius: 6px;
+}
+
+.client-profile-form-panel::-webkit-scrollbar-thumb:hover,
+.client-discovery-content::-webkit-scrollbar-thumb:hover,
+.client-notification-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(77, 255, 160, 0.32);
+}
+
+.client-profile-form-panel::-webkit-scrollbar-track,
+.client-discovery-content::-webkit-scrollbar-track,
+.client-notification-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .client-dashboard-actions .client-notification-item {
   width: 100%;
   display: grid;
