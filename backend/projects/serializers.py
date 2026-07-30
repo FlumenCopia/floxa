@@ -193,7 +193,7 @@ class MoodboardSerializer(serializers.ModelSerializer):
             return ""
 
         request = self.context.get("request")
-        image_url = obj.image.url
+        image_url = f"/api/projects/{obj.project.id}/moodboards/{obj.id}/image/"
 
         return request.build_absolute_uri(image_url) if request else image_url
 
@@ -318,7 +318,7 @@ class ClientPortalConceptSerializer(serializers.ModelSerializer):
             return ""
 
         request = self.context.get("request")
-        image_url = obj.image.url
+        image_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/image/"
 
         return request.build_absolute_uri(image_url) if request else image_url
 
@@ -423,7 +423,7 @@ class ConsultantAgreementSerializer(serializers.ModelSerializer):
             return ""
 
         request = self.context.get("request")
-        file_url = obj.file.url
+        file_url = f"/api/projects/{obj.project.id}/agreement/{obj.id}/file/"
 
         return request.build_absolute_uri(file_url) if request else file_url
 
@@ -463,7 +463,7 @@ class ClientPortalAgreementSerializer(serializers.ModelSerializer):
             return ""
 
         request = self.context.get("request")
-        file_url = obj.file.url
+        file_url = f"/api/client-portal/{obj.project.portal_token}/agreement/file/"
 
         return request.build_absolute_uri(file_url) if request else file_url
 

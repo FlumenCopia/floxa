@@ -14,7 +14,7 @@ from rest_framework.test import APIClient
 from ai_assistant.services import GeminiProviderError, GeminiRateLimitError
 from accounts.models import Consultant
 
-from .models import Client, Concept, PaymentMilestone, PaymentTransaction, Project, ProjectAgreement, RazorpayWebhookEvent
+from .models import Client, Concept, PaymentMilestone, PaymentTransaction, Project, ProjectAgreement, RazorpayWebhookEvent, Moodboard, Agreement
 from .progress import calculate_project_progress
 from .views import (
     PORTAL_ACCESS_COOKIE_NAME,
@@ -1013,3 +1013,214 @@ class RazorpayPaymentVerificationTests(TestCase):
                 transaction_obj=transaction_obj,
                 razorpay_payment_id=payment_id,
             )
+
+
+class PrivateMediaHardeningTests(TestCase):
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.consultant = Consultant.objects.create_user(
+            email="consultant_media@example.com",
+            name="Consultant Media",
+            password="pass12345",
+        )
+        self.other_consultant = Consultant.objects.create_user(
+            email="other_media@example.com",
+            name="Other Consultant Media",
+            password="pass12345",
+        )
+        self.client_record = Client.objects.create(
+            name="Client Media",
+            email="client_media@example.com",
+            company_name="Client Co Media",
+            sector="Design",
+        )
+        self.project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Media Project",
+            company_name="Media Co",
+            sector="Retail",
+            project_value=Decimal("1000.00"),
+            advance_percentage=40,
+            mid_percentage=30,
+            final_percentage=30,
+        )
+        self.other_project = Project.objects.create(
+            consultant=self.other_consultant,
+            client=self.client_record,
+            title="Other Media Project",
+            company_name="Other Media Co",
+            sector="Retail",
+            project_value=Decimal("1000.00"),
+            advance_percentage=40,
+            mid_percentage=30,
+            final_percentage=30,
+        )
+        self.moodboard = Moodboard.objects.create(
+            project=self.project,
+            title="Moodboard 1",
+            image=SimpleUploadedFile("moodboard.jpg", b"image_data", content_type="image/jpeg"),
+        )
+        self.concept = Concept.objects.create(
+            project=self.project,
+            title="Concept 1",
+            image=SimpleUploadedFile("concept.jpg", b"image_data", content_type="image/jpeg"),
+            file=SimpleUploadedFile("concept.pdf", b"pdf_data", content_type="application/pdf"),
+            status=Concept.Status.SHARED,
+        )
+        self.agreement = Agreement.objects.create(
+            project=self.project,
+            title="Agreement 1",
+            file=SimpleUploadedFile("agreement.pdf", b"pdf_data", content_type="application/pdf"),
+        )
+        self.api_client = APIClient()
+
+    def test_consultant_asset_access_succeeds(self):
+        self.api_client.force_authenticate(user=self.consultant)
+        
+        # Moodboard image
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/moodboards/{self.moodboard.id}/image/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"image_data")
+
+        # Concept image
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/concepts/{self.concept.id}/image/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"image_data")
+
+        # Concept file
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/concepts/{self.concept.id}/file/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"pdf_data")
+
+        # Agreement file
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/agreement/{self.agreement.id}/file/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"pdf_data")
+
+    def test_consultant_access_to_other_consultants_project_is_denied(self):
+        self.api_client.force_authenticate(user=self.other_consultant)
+
+        # Moodboard image
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/moodboards/{self.moodboard.id}/image/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+        # Concept image
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/concepts/{self.concept.id}/image/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+        # Concept file
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/concepts/{self.concept.id}/file/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+        # Agreement file
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/agreement/{self.agreement.id}/file/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_client_portal_asset_access_succeeds_with_valid_cookie(self):
+        self.api_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            self.project.portal_token
+        )
+        
+        # Moodboard image
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/moodboards/{self.moodboard.id}/image/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"image_data")
+
+        # Concept image
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/concepts/{self.concept.id}/image/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"image_data")
+
+        # Concept file
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/concepts/{self.concept.id}/file/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"pdf_data")
+
+        # Agreement file
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/agreement/file/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), b"pdf_data")
+
+    def test_client_portal_asset_access_fails_with_invalid_cookie(self):
+        # Mismatched/invalid portal token
+        self.api_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            self.other_project.portal_token
+        )
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/moodboards/{self.moodboard.id}/image/"
+        )
+        self.assertEqual(response.status_code, 403)
+
+        # Missing cookie
+        self.api_client.cookies.clear()
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/moodboards/{self.moodboard.id}/image/"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_raw_media_urls_are_not_returned_by_serializers(self):
+        from .serializers import (
+            MoodboardSerializer,
+            ClientPortalMoodboardSerializer,
+            ConsultantConceptSerializer,
+            ClientPortalConceptSerializer,
+            ConsultantAgreementSerializer,
+            ClientPortalAgreementSerializer,
+        )
+        from rest_framework.test import APIRequestFactory
+        request = APIRequestFactory().get("/")
+        
+        # Moodboard image url
+        ser = MoodboardSerializer(self.moodboard, context={"request": request})
+        self.assertNotIn("/media/", ser.data["image_url"])
+        self.assertIn("/moodboards/", ser.data["image_url"])
+
+        # Client Portal Moodboard image url
+        ser = ClientPortalMoodboardSerializer(self.moodboard, context={"request": request})
+        self.assertNotIn("/media/", ser.data["image_url"])
+        self.assertIn("/moodboards/", ser.data["image_url"])
+
+        # Concept urls
+        ser = ConsultantConceptSerializer(self.concept, context={"request": request})
+        self.assertNotIn("/media/", ser.data["image_url"])
+        self.assertNotIn("/media/", ser.data["file_url"])
+
+        ser = ClientPortalConceptSerializer(self.concept, context={"request": request})
+        self.assertNotIn("/media/", ser.data["image_url"])
+        self.assertNotIn("/media/", ser.data["file_url"])
+
+        # Agreement urls
+        ser = ConsultantAgreementSerializer(self.agreement, context={"request": request})
+        self.assertNotIn("/media/", ser.data["file_url"])
+        self.assertIn("/agreement/", ser.data["file_url"])
+
+        ser = ClientPortalAgreementSerializer(self.agreement, context={"request": request})
+        self.assertNotIn("/media/", ser.data["file_url"])
+        self.assertIn("/agreement/", ser.data["file_url"])
+

@@ -6212,3 +6212,111 @@ class BrandDNAGenerateView(APIView):
         serializer = BrandDNASerializer(brand_dna)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ConsultantMoodboardImageView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, project_id, moodboard_id):
+        project = get_project_for_consultant(request, project_id)
+        if project is None:
+            return Response(
+                {"detail": "Project not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            moodboard = project.moodboards.get(id=moodboard_id)
+        except Moodboard.DoesNotExist:
+            return Response(
+                {"detail": "Moodboard not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not moodboard.image:
+            return Response(
+                {"detail": "Image not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return FileResponse(
+            moodboard.image.open("rb"),
+            as_attachment=False,
+            filename=moodboard.image.name.split("/")[-1],
+        )
+
+
+class ConsultantConceptAssetView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, project_id, concept_id, asset_type):
+        project = get_project_for_consultant(request, project_id)
+        if project is None:
+            return Response(
+                {"detail": "Project not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            concept = project.concepts.get(id=concept_id)
+        except Concept.DoesNotExist:
+            return Response(
+                {"detail": "Concept not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if asset_type == "image":
+            file_field = concept.image
+        elif asset_type == "file":
+            file_field = concept.file
+        else:
+            return Response(
+                {"detail": "Invalid asset type."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not file_field:
+            return Response(
+                {"detail": "File not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return FileResponse(
+            file_field.open("rb"),
+            as_attachment=False,
+            filename=file_field.name.split("/")[-1],
+        )
+
+
+class ConsultantAgreementFileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, project_id, agreement_id):
+        project = get_project_for_consultant(request, project_id)
+        if project is None:
+            return Response(
+                {"detail": "Project not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            agreement = project.agreement
+            if agreement.id != agreement_id:
+                raise Agreement.DoesNotExist()
+        except Agreement.DoesNotExist:
+            return Response(
+                {"detail": "Agreement not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not agreement.file:
+            return Response(
+                {"detail": "File not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return FileResponse(
+            agreement.file.open("rb"),
+            as_attachment=False,
+            filename=agreement.file.name.split("/")[-1],
+        )

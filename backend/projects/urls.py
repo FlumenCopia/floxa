@@ -33,6 +33,9 @@ from .views import (
     ProjectDiscoverySubmitView,
     ProjectDiscoveryView,
     ProjectListCreateView,
+    ConsultantMoodboardImageView,
+    ConsultantConceptAssetView,
+    ConsultantAgreementFileView,
 )
 
 urlpatterns = [
@@ -200,4 +203,28 @@ urlpatterns = [
         name="project-assistant-chat",
     ),
     path("<int:pk>/", ProjectDetailView.as_view(), name="project-detail"),
+
+    # Consultant asset download routes
+    path(
+        "<int:project_id>/moodboards/<int:moodboard_id>/image/",
+        ConsultantMoodboardImageView.as_view(),
+        name="project-moodboard-image",
+    ),
+    path(
+        "<int:project_id>/concepts/<int:concept_id>/image/",
+        ConsultantConceptAssetView.as_view(),
+        {"asset_type": "image"},
+        name="project-concept-image",
+    ),
+    path(
+        "<int:project_id>/concepts/<int:concept_id>/file/",
+        ConsultantConceptAssetView.as_view(),
+        {"asset_type": "file"},
+        name="project-concept-file",
+    ),
+    path(
+        "<int:project_id>/agreement/<int:agreement_id>/file/",
+        ConsultantAgreementFileView.as_view(),
+        name="project-agreement-file",
+    ),
 ]
