@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiRequest, parseApiResponse } from "./api";
+import { API_BASE_URL, apiRequest, parseApiResponse, registerRefreshFailureCallback } from "./api";
 
 let cachedConsultant = null;
 let consultantPromise = null;
@@ -91,3 +91,5 @@ export async function logoutConsultant() {
     method: "POST",
   });
 }
+
+registerRefreshFailureCallback(clearCurrentConsultantCache);

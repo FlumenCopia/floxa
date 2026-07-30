@@ -107,7 +107,7 @@ class ConsultantTokenRefreshView(APIView):
             )
 
         response = Response(
-            {"access": access_token},
+            {"detail": "Token refreshed successfully."},
             status=status.HTTP_200_OK,
         )
         response.set_cookie(
@@ -145,42 +145,34 @@ class ConsultantMeView(APIView):
 
 
 class ConsultantLogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
     def post(self, request):
         refresh_token = request.COOKIES.get(
             settings.AUTH_REFRESH_COOKIE_NAME
         ) or request.data.get("refresh")
 
-        if not refresh_token:
-            return Response(
-                {"detail": "Refresh token is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except Exception:
+                pass
 
-        try:
-            token = RefreshToken(refresh_token)
-            token.blacklist()
+        response = Response(
+            {"detail": "Logout successful."},
+            status=status.HTTP_200_OK,
+        )
+        response.delete_cookie(
+            settings.AUTH_ACCESS_COOKIE_NAME,
+            path=settings.AUTH_COOKIE_PATH,
+            samesite=settings.AUTH_COOKIE_SAMESITE,
+        )
+        response.delete_cookie(
+            settings.AUTH_REFRESH_COOKIE_NAME,
+            path=settings.AUTH_COOKIE_PATH,
+            samesite=settings.AUTH_COOKIE_SAMESITE,
+        )
 
-            response = Response(
-                {"detail": "Logout successful."},
-                status=status.HTTP_200_OK,
-            )
-            response.delete_cookie(
-                settings.AUTH_ACCESS_COOKIE_NAME,
-                path=settings.AUTH_COOKIE_PATH,
-                samesite=settings.AUTH_COOKIE_SAMESITE,
-            )
-            response.delete_cookie(
-                settings.AUTH_REFRESH_COOKIE_NAME,
-                path=settings.AUTH_COOKIE_PATH,
-                samesite=settings.AUTH_COOKIE_SAMESITE,
-            )
-
-            return response
-
-        except Exception:
-            return Response(
-                {"detail": "Invalid refresh token."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        return response

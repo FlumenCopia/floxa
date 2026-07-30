@@ -21,6 +21,12 @@ export function getCsrfToken() {
 }
 
 let pendingCsrfPromise = null;
+let pendingRefreshPromise = null;
+let onRefreshFailure = null;
+
+export function registerRefreshFailureCallback(callback) {
+  onRefreshFailure = callback;
+}
 
 export async function ensureCsrfCookie() {
   if (getCsrfToken()) {
@@ -110,22 +116,49 @@ async function refreshAccessToken() {
     return null;
   }
 
-  const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    localStorage.removeItem("consultant");
-    return null;
+  if (pendingRefreshPromise) {
+    return pendingRefreshPromise;
   }
 
-  const data = await response.json();
+  pendingRefreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-  return data.access || true;
+      if (!response.ok) {
+        localStorage.removeItem("consultant");
+        if (onRefreshFailure) {
+          try {
+            onRefreshFailure();
+          } catch (e) {
+            console.error("Refresh failure callback error:", e);
+          }
+        }
+        return null;
+      }
+
+      return true;
+    } catch {
+      localStorage.removeItem("consultant");
+      if (onRefreshFailure) {
+        try {
+          onRefreshFailure();
+        } catch (e) {
+          console.error("Refresh failure callback error:", e);
+        }
+      }
+      return null;
+    } finally {
+      pendingRefreshPromise = null;
+    }
+  })();
+
+  return pendingRefreshPromise;
 }
 
 export async function apiRequest(endpoint, options = {}) {
@@ -144,7 +177,12 @@ export async function apiRequest(endpoint, options = {}) {
     headers,
   });
 
-  if (response.status === 401) {
+  const isAuthRoute =
+    endpoint.includes("/auth/login/") ||
+    endpoint.includes("/auth/logout/") ||
+    endpoint.includes("/auth/token/refresh/");
+
+  if (response.status === 401 && !isAuthRoute) {
     const refreshed = await refreshAccessToken();
 
     if (!refreshed) {
@@ -154,10 +192,18 @@ export async function apiRequest(endpoint, options = {}) {
       };
     }
 
+    const retryHeaders = await getRequestHeaders(options);
+    if (isUnsafeMethod(options.method || "GET")) {
+      const match = endpoint.match(/^\/client-portal\/([a-f0-9-]+)/i);
+      if (match) {
+        retryHeaders["X-Client-Portal-Token"] = match[1];
+      }
+    }
+
     response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       credentials: "include",
-      headers: await getRequestHeaders(options, { includeAuth: false }),
+      headers: retryHeaders,
     });
   }
 
