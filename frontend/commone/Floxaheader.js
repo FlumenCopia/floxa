@@ -202,9 +202,9 @@ export default function Floxaheader({
   notifications = [],
   notificationsLoading = false,
   readActivityIds = [],
-  onNotificationClick,
-  onNotificationsOpen,
-  onMarkNotificationsRead,
+  onNotificationClick = () => {},
+  onNotificationsOpen = () => {},
+  onMarkNotificationsRead = () => {},
 }) {
   const router = useRouter();
   const pathname = usePathname();
