@@ -86,8 +86,6 @@ from .razorpay_service import (
     verify_razorpay_payment_signature,
     verify_razorpay_webhook_signature,
 )
-
-
 logger = logging.getLogger(__name__)
 
 PORTAL_ACCESS_COOKIE_NAME = "floxa_portal_access"
@@ -121,7 +119,16 @@ class ClientPortalAccessPermission(BasePermission):
 
     def has_permission(self, request, view):
         portal_token = view.kwargs.get("portal_token")
-        return bool(portal_token and is_verified_client_portal_access(request, portal_token))
+        if not portal_token:
+            return False
+
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            header_token = request.headers.get("X-Client-Portal-Token", "").strip()
+            if not header_token or header_token != str(portal_token):
+                self.message = "Portal token verification failed."
+                return False
+
+        return is_verified_client_portal_access(request, portal_token)
 
 
 def send_client_portal_invite(project, raw_portal_password):

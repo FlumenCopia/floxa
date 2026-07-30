@@ -447,7 +447,10 @@ class RazorpayPaymentVerificationTests(TestCase):
         payload.update(overrides)
         return payload
 
-    def verify(self, order_id, payment_id, signature):
+    def verify(self, order_id, payment_id, signature, headers=None):
+        extra = {"HTTP_X_CLIENT_PORTAL_TOKEN": str(self.project.portal_token)}
+        if headers is not None:
+            extra = headers
         return self.api_client.post(
             f"/api/client-portal/{self.project.portal_token}/payments/verify/",
             {
@@ -456,7 +459,30 @@ class RazorpayPaymentVerificationTests(TestCase):
                 "razorpay_signature": signature,
             },
             format="json",
+            **extra
         )
+
+    def test_unsafe_request_with_missing_header_returns_403(self):
+        milestone = self.create_milestone()
+        transaction_obj, payment_id = self.create_transaction(milestone)
+        response = self.verify(
+            transaction_obj.razorpay_order_id,
+            payment_id,
+            "signature_placeholder",
+            headers={}
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_unsafe_request_with_mismatched_header_returns_403(self):
+        milestone = self.create_milestone()
+        transaction_obj, payment_id = self.create_transaction(milestone)
+        response = self.verify(
+            transaction_obj.razorpay_order_id,
+            payment_id,
+            "signature_placeholder",
+            headers={"HTTP_X_CLIENT_PORTAL_TOKEN": "mismatched-uuid-token"}
+        )
+        self.assertEqual(response.status_code, 403)
 
     def webhook_signature(self, body):
         return hmac.new(

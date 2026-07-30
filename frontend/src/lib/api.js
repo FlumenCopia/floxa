@@ -131,6 +131,13 @@ async function refreshAccessToken() {
 export async function apiRequest(endpoint, options = {}) {
   const headers = await getRequestHeaders(options);
 
+  if (isUnsafeMethod(options.method || "GET")) {
+    const match = endpoint.match(/^\/client-portal\/([a-f0-9-]+)/i);
+    if (match) {
+      headers["X-Client-Portal-Token"] = match[1];
+    }
+  }
+
   let response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     credentials: "include",
