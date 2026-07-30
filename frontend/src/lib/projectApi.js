@@ -118,6 +118,13 @@ export async function getProject(id) {
   return apiRequest(`/projects/${id}/`);
 }
 
+export async function askProjectAssistant(projectId, message) {
+  return apiRequest(`/projects/${projectId}/assistant/chat/`, {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+}
+
 export async function getDiscoverySummary(projectId) {
   return apiRequest(`/projects/${projectId}/discovery-summary/?_=${Date.now()}`);
 }

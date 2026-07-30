@@ -156,6 +156,15 @@ RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET", default="")
 RAZORPAY_WEBHOOK_SECRET = config("RAZORPAY_WEBHOOK_SECRET", default="")
 RAZORPAY_CURRENCY = config("RAZORPAY_CURRENCY", default="INR")
 
+GEMINI_API_KEY = config("GEMINI_API_KEY", default="")
+GEMINI_MODELS = config(
+    "GEMINI_MODELS",
+    default="gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.5-pro",
+    cast=Csv(),
+)
+GEMINI_TIMEOUT_SECONDS = config("GEMINI_TIMEOUT_SECONDS", default=20, cast=int)
+GEMINI_MAX_OUTPUT_TOKENS = config("GEMINI_MAX_OUTPUT_TOKENS", default=700, cast=int)
+
 
 LOCAL_FRONTEND_ORIGINS = [
     "http://localhost:3000",

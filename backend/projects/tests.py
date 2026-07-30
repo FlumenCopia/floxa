@@ -7,9 +7,11 @@ from unittest.mock import patch
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from ai_assistant.services import GeminiProviderError, GeminiRateLimitError
 from accounts.models import Consultant
 
 from .models import Client, Concept, PaymentMilestone, PaymentTransaction, Project, ProjectAgreement, RazorpayWebhookEvent
@@ -17,6 +19,8 @@ from .progress import calculate_project_progress
 from .views import (
     PORTAL_ACCESS_COOKIE_NAME,
     PaymentCompletionError,
+    PROJECT_ASSISTANT_PROMPT_MAX_LENGTH,
+    _build_project_assistant_prompt,
     complete_payment_milestone,
     sign_portal_access_token,
 )
@@ -79,6 +83,296 @@ class ProjectProgressCalculationTests(TestCase):
         self.project.save(update_fields=["client_signed_off", "updated_at"])
 
         self.assertEqual(calculate_project_progress(self.project), 100)
+
+
+class ProjectAssistantChatEndpointTests(TestCase):
+    def setUp(self):
+        self.consultant = Consultant.objects.create_user(
+            email="assistant@example.com",
+            name="Assistant",
+            password="pass12345",
+        )
+        self.other_consultant = Consultant.objects.create_user(
+            email="assistant-other@example.com",
+            name="Other Assistant",
+            password="pass12345",
+        )
+        self.client_record = Client.objects.create(
+            name="Client",
+            email="assistant-client@example.com",
+            company_name="Client Co",
+            sector="Branding",
+        )
+        self.project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Assistant Project",
+            company_name="Assistant Co",
+            sector="Retail",
+            project_value=Decimal("500.00"),
+        )
+        self.archived_project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Archived Assistant Project",
+            company_name="Archived Co",
+            sector="Retail",
+            is_archived=True,
+        )
+        self.api_client = APIClient()
+        self.url = reverse(
+            "project-assistant-chat",
+            kwargs={"project_id": self.project.id},
+        )
+
+    def authenticate(self, user=None):
+        self.api_client.force_authenticate(user=user or self.consultant)
+
+    def test_route_resolves_to_expected_path(self):
+        self.assertEqual(
+            self.url,
+            f"/api/projects/{self.project.id}/assistant/chat/",
+        )
+
+    @patch("projects.views.generate_response")
+    def test_authenticated_owned_project_returns_gemini_response(self, generate_response):
+        generate_response.return_value = "Discovery is ready to review."
+        self.authenticate()
+
+        response = self.api_client.post(
+            self.url,
+            {
+                "message": "Summarize the client Discovery",
+                "project": {"portal_token": "frontend-forged-token"},
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["project_id"], self.project.id)
+        self.assertEqual(response.data["response"], "Discovery is ready to review.")
+        self.assertEqual(response.data["provider"], "gemini")
+        self.assertIn("project", response.data["sources"])
+        self.assertIn("workflow", response.data["sources"])
+
+        prompt = generate_response.call_args.args[0]
+        self.assertIn("Assistant Project", prompt)
+        self.assertIn("Summarize the client Discovery", prompt)
+        self.assertNotIn("frontend-forged-token", prompt)
+
+    def test_unauthenticated_request_is_rejected(self):
+        response = self.api_client.post(
+            self.url,
+            {"message": "Hello"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_other_consultant_project_returns_404(self):
+        self.authenticate(self.other_consultant)
+
+        response = self.api_client.post(
+            self.url,
+            {"message": "Hello"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_archived_project_returns_404(self):
+        self.authenticate()
+        url = reverse(
+            "project-assistant-chat",
+            kwargs={"project_id": self.archived_project.id},
+        )
+
+        response = self.api_client.post(
+            url,
+            {"message": "Hello"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_missing_project_returns_404(self):
+        self.authenticate()
+        url = reverse("project-assistant-chat", kwargs={"project_id": 999999})
+
+        response = self.api_client.post(
+            url,
+            {"message": "Hello"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    @patch("projects.views.generate_response")
+    def test_message_must_be_string(self, generate_response):
+        self.authenticate()
+
+        response = self.api_client.post(
+            self.url,
+            {"message": {"text": "Hello"}},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        generate_response.assert_not_called()
+
+    @patch("projects.views.generate_response")
+    def test_message_must_not_be_blank(self, generate_response):
+        self.authenticate()
+
+        response = self.api_client.post(
+            self.url,
+            {"message": "   "},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        generate_response.assert_not_called()
+
+    @patch("projects.views.generate_response")
+    def test_message_length_is_limited(self, generate_response):
+        self.authenticate()
+
+        response = self.api_client.post(
+            self.url,
+            {"message": "x" * 701},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        generate_response.assert_not_called()
+
+    @patch("projects.views.generate_response")
+    def test_provider_error_is_sanitized(self, generate_response):
+        generate_response.side_effect = GeminiProviderError("raw provider secret")
+        self.authenticate()
+
+        response = self.api_client.post(
+            self.url,
+            {"message": "Hello"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.data["detail"], "Gemini service is temporarily unavailable.")
+        self.assertNotIn("raw provider secret", response.data["detail"])
+
+    @patch("projects.views.generate_response")
+    def test_rate_limit_maps_to_429(self, generate_response):
+        generate_response.side_effect = GeminiRateLimitError()
+        self.authenticate()
+
+        response = self.api_client.post(
+            self.url,
+            {"message": "Hello"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.data["detail"], "Gemini API rate limit or quota was reached.")
+
+    def test_moodboard_prompt_preserves_brand_dna_when_context_is_large(self):
+        context = self.large_assistant_context()
+
+        prompt = _build_project_assistant_prompt(context, "Suggest moodboard directions")
+
+        self.assertLessEqual(len(prompt), PROJECT_ASSISTANT_PROMPT_MAX_LENGTH)
+        self.assertIn("Quality Seeker", prompt)
+        self.assertIn("visual_direction_summary", prompt)
+        self.assertIn("target_customer", prompt)
+        self.assertIn("Give 3 concise visual direction ideas", prompt)
+        self.assertIn("Do not answer with a project status summary unless asked", prompt)
+
+    def test_concept_prompt_preserves_brand_context_when_context_is_large(self):
+        context = self.large_assistant_context()
+
+        prompt = _build_project_assistant_prompt(context, "Give me concepts ideas")
+
+        self.assertLessEqual(len(prompt), PROJECT_ASSISTANT_PROMPT_MAX_LENGTH)
+        self.assertIn("Quality Seeker", prompt)
+        self.assertIn("visual_direction_summary", prompt)
+        self.assertIn("concepts", prompt)
+        self.assertIn("Give 3 concise concept directions", prompt)
+        self.assertNotIn("sources_available", prompt)
+
+    def test_next_action_prompt_keeps_workflow_and_relevant_sections(self):
+        context = self.large_assistant_context()
+
+        prompt = _build_project_assistant_prompt(context, "What should I do next?")
+
+        self.assertLessEqual(len(prompt), PROJECT_ASSISTANT_PROMPT_MAX_LENGTH)
+        self.assertIn("workflow", prompt)
+        self.assertIn("recommend one clear next action", prompt)
+        self.assertIn("payments", prompt)
+        self.assertNotIn("sources_available", prompt)
+
+    def large_assistant_context(self):
+        return {
+            "project": {
+                "title": "Assistant Project",
+                "company_name": "Assistant Co",
+                "sector": "Retail",
+            },
+            "workflow": {
+                "status": "moodboards",
+                "progress": 50,
+            },
+            "client_profile": {
+                "available": True,
+                "industry": "Premium retail",
+                "location": "India",
+            },
+            "discovery": {
+                "available": True,
+                "submitted": True,
+                "answers": {
+                    "target_customer": "Quality-focused buyers who want a confident and polished brand experience.",
+                    "brand_feeling": "Trustworthy, refined, sharp, vibrant, and easy to choose.",
+                    "why_choose_us": "The brand has a clear quality-first promise and strong service focus.",
+                },
+                "visual_styles": ["Clean", "Premium", "Modern"],
+                "emotions": ["Trust", "Confidence", "Energy"],
+            },
+            "brand_dna": {
+                "available": True,
+                "brand_personality_cluster": "Quality Seeker",
+                "business_summary": "Assistant Co should be presented as a focused quality-first retail brand.",
+                "target_audience_summary": "The brand should speak to buyers who care about reliability and polish.",
+                "positioning_summary": "Position the brand around practical quality, confidence, and trust.",
+                "brand_feeling_summary": "The brand should feel refined, vibrant, sharp, and credible.",
+                "visual_direction_summary": "Use clean structure, premium spacing, confident contrast, and focused imagery.",
+                "competitor_summary": "Avoid generic retail sameness and unclear visual signals.",
+            },
+            "moodboards": {
+                "count": 1,
+                "selected": None,
+                "items": [
+                    {
+                        "title": "Existing direction",
+                        "description": "A long moodboard description " * 30,
+                        "is_selected": False,
+                    }
+                ],
+            },
+            "payments": {
+                "milestones": [
+                    {"type": "advance", "status": "paid", "amount_display": "Rs49.20"},
+                ]
+            },
+            "recent_activity": {
+                "items": [
+                    {
+                        "action": f"activity_{index}",
+                        "description": "Long activity text " * 40,
+                    }
+                    for index in range(10)
+                ]
+            },
+        }
 
 
 @override_settings(

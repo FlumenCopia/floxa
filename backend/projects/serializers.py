@@ -18,7 +18,7 @@ from .models import (
     ProjectDiscovery,
 )
 from .progress import calculate_project_progress, calculate_project_workflow_status
-from .upload_validation import validate_upload_file
+from .upload_validation import optimize_uploaded_image, validate_upload_file
 
 
 class ClientProfileSerializer(serializers.ModelSerializer):
@@ -199,6 +199,8 @@ class MoodboardSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         validate_upload_file(attrs.get("image"), "moodboard_image", "image")
+        if attrs.get("image"):
+            attrs["image"] = optimize_uploaded_image(attrs["image"], "image")
 
         return attrs
 
@@ -281,6 +283,8 @@ class ConsultantConceptSerializer(serializers.ModelSerializer):
 
         validate_upload_file(attrs.get("image"), "concept_image", "image")
         validate_upload_file(attrs.get("file"), "concept_file", "file")
+        if attrs.get("image"):
+            attrs["image"] = optimize_uploaded_image(attrs["image"], "image")
 
         if not attrs.get("image") and not attrs.get("file") and not has_existing_media:
             raise serializers.ValidationError(

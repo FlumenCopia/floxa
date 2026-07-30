@@ -47,6 +47,7 @@ from projects.views import (
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.urls")),
+    path("api/ai/", include("ai_assistant.urls")),
     path(
         "api/payments/razorpay/webhook/",
         RazorpayWebhookView.as_view(),

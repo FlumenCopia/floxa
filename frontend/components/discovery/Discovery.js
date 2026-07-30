@@ -6,6 +6,7 @@ import Floxaheader from "../../commone/Floxaheader";
 import { getStatusClass, getStatusLabel } from "../Allproject/ProjectSection";
 import { showError, showSuccess } from "../../src/lib/toast";
 import {
+  askProjectAssistant,
   generateAgreement,
   generateBrandDNA,
   deleteConcept,
@@ -58,6 +59,29 @@ const discoveryTabByQuery = {
   agreement: "Agreement",
   payments: "Payments",
   activity: "Activity",
+};
+
+const assistantSuggestions = [
+  "Summarize this client's Discovery",
+  "What should I do next in this project?",
+  "Review the current Brand DNA",
+  "Suggest moodboard directions",
+  "Why is the next payment milestone locked?",
+  "Prepare a client follow-up message",
+];
+
+const assistantSourceLabels = {
+  project: "Project",
+  workflow: "Workflow",
+  client_profile: "Client Profile",
+  discovery: "Discovery",
+  brand_dna: "Brand DNA",
+  moodboards: "Moodboards",
+  concepts: "Concepts",
+  agreement: "Agreement",
+  payments: "Payments",
+  deliverables: "Deliverables",
+  recent_activity: "Recent Activity",
 };
 
 const activityActionsByTab = {
@@ -2591,6 +2615,286 @@ function ActivityPanel({ activities, loading }) {
   );
 }
 
+function createAssistantMessage(role, text, options = {}) {
+  return {
+    id: `${role}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    role,
+    text,
+    sources: options.sources || [],
+    isError: Boolean(options.isError),
+  };
+}
+
+function getAssistantErrorMessage(error) {
+  switch (error?.status) {
+    case 400:
+      return "Please enter a valid question.";
+    case 401:
+      return "Your session has expired. Please sign in again.";
+    case 404:
+      return "This project is unavailable.";
+    case 429:
+      return "The AI request limit has been reached. Please try again later.";
+    case 502:
+    case 503:
+      return "FLOXA Assistant is temporarily unavailable. Please try again.";
+    default:
+      return "Something went wrong. Please try again.";
+  }
+}
+
+function AssistantMessageText({ text }) {
+  const renderInlineText = (value) => {
+    const parts = String(value || "").split(/(\*\*[^*]+\*\*)/g);
+
+    return parts.map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        return <strong key={`${part}-${index}`}>{part.slice(2, -2)}</strong>;
+      }
+
+      return <span key={`${part}-${index}`}>{part}</span>;
+    });
+  };
+
+  return (
+    <div className="ai-chat-message-text">
+      {String(text || "")
+        .split("\n")
+        .map((line, index) => {
+          const trimmedLine = line.trim();
+          const bulletMatch = trimmedLine.match(/^\*\s+(.*)$/);
+
+          if (bulletMatch) {
+            return (
+              <div className="ai-chat-formatted-line bullet" key={`${line}-${index}`}>
+                <span className="ai-chat-bullet-dot" aria-hidden="true" />
+                <span>{renderInlineText(bulletMatch[1])}</span>
+              </div>
+            );
+          }
+
+          return (
+            <div className="ai-chat-formatted-line" key={`${line}-${index}`}>
+              {trimmedLine ? renderInlineText(line) : "\u00a0"}
+            </div>
+          );
+        })}
+    </div>
+  );
+}
+
+function AIChatbotPanel({ project, onClose }) {
+  const [messages, setMessages] = useState([]);
+  const [draft, setDraft] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [lastFailedMessage, setLastFailedMessage] = useState("");
+  const textareaRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const projectId = project?.id;
+  const projectName = project?.company_name || project?.title || project?.client_name || "Selected project";
+
+  useEffect(() => {
+    setMessages([]);
+    setDraft("");
+    setIsSending(false);
+    setLastFailedMessage("");
+  }, [projectId]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, isSending]);
+
+  useEffect(() => {
+    if (!textareaRef.current) {
+      return;
+    }
+
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
+  }, [draft]);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  const submitMessage = async (messageText = draft) => {
+    const trimmedMessage = String(messageText || "").trim();
+
+    if (!trimmedMessage || !projectId || isSending) {
+      return;
+    }
+
+    setLastFailedMessage("");
+    setDraft("");
+    setMessages((current) => [...current, createAssistantMessage("user", trimmedMessage)]);
+    setIsSending(true);
+
+    try {
+      const data = await askProjectAssistant(projectId, trimmedMessage);
+      const responseText = data?.response || data?.answer || "FLOXA Assistant returned an empty response.";
+
+      setMessages((current) => [
+        ...current,
+        createAssistantMessage("assistant", responseText, {
+          sources: Array.isArray(data?.sources) ? data.sources : [],
+        }),
+      ]);
+    } catch (error) {
+      setLastFailedMessage(trimmedMessage);
+      setMessages((current) => [
+        ...current,
+        createAssistantMessage("assistant", getAssistantErrorMessage(error), {
+          isError: true,
+        }),
+      ]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    submitMessage();
+  };
+
+  const clearConversation = () => {
+    setMessages([]);
+    setDraft("");
+    setLastFailedMessage("");
+    textareaRef.current?.focus();
+  };
+
+  const canSend = Boolean(projectId) && Boolean(draft.trim()) && !isSending;
+
+  return (
+    <section className="discovery-card project-ai-chat-card">
+      <div className="ai-chat-workspace project-ai-chat-workspace" aria-label="FLOXA Project Assistant chat">
+        <div className="ai-chat-workspace-head">
+          <div>
+            <div className="ai-chat-eyebrow">Project-aware</div>
+            <h2>FLOXA Project Assistant</h2>
+            <p className="project-ai-chat-project-name">{projectName}</p>
+          </div>
+          <div className="project-ai-chat-header-actions">
+            <button
+              className="ai-chat-clear-btn"
+              type="button"
+              onClick={clearConversation}
+              disabled={messages.length === 0 && !draft}
+            >
+              Clear conversation
+            </button>
+            {onClose ? (
+              <button className="project-ai-chat-close-btn" type="button" onClick={onClose} aria-label="Close assistant">
+                Close
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="ai-chat-scroll-area project-ai-chat-scroll">
+          {messages.length === 0 && !isSending ? (
+            <div className="ai-chat-empty-state">
+              <div className="ai-chat-empty-icon">AI</div>
+              <h3>Ask about this project</h3>
+              <p>
+                Ask about Discovery, Brand DNA, moodboards, concepts, agreements, payments, deliverables, or the next
+                consultant action.
+              </p>
+              <div className="ai-chat-suggestions" aria-label="Suggested questions">
+                {assistantSuggestions.map((question) => (
+                  <button
+                    key={question}
+                    className="ai-chat-suggestion-chip"
+                    type="button"
+                    onClick={() => submitMessage(question)}
+                    disabled={!projectId || isSending}
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="ai-chat-messages">
+              {messages.map((message) => (
+                <article
+                  key={message.id}
+                  className={`ai-chat-message ${message.role === "user" ? "user" : "assistant"} ${
+                    message.isError ? "error" : ""
+                  }`.trim()}
+                >
+                  <div className="ai-chat-bubble">
+                    <AssistantMessageText text={message.text} />
+                  </div>
+
+                  {message.role === "assistant" && message.sources.length > 0 ? (
+                    <div className="ai-chat-sources">
+                      Based on:{" "}
+                      {message.sources
+                        .map((source) => assistantSourceLabels[source] || getStatusLabel(source))
+                        .join(" · ")}
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          )}
+
+          {isSending ? (
+            <div className="ai-chat-message assistant">
+              <div className="ai-chat-bubble ai-chat-thinking">
+                <span>FLOXA is thinking</span>
+                <span className="ai-chat-dots" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              </div>
+            </div>
+          ) : null}
+
+          <div ref={chatEndRef} />
+        </div>
+
+        <div className="ai-chat-composer">
+          {lastFailedMessage ? (
+            <button
+              className="ai-chat-retry-btn"
+              type="button"
+              onClick={() => submitMessage(lastFailedMessage)}
+              disabled={isSending}
+            >
+              Retry last message
+            </button>
+          ) : null}
+
+          <div className="ai-chat-input-shell">
+            <textarea
+              ref={textareaRef}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value.slice(0, 700))}
+              onKeyDown={handleKeyDown}
+              placeholder={projectId ? "Ask about this project..." : "Project is still loading..."}
+              disabled={!projectId || isSending}
+              rows={1}
+              maxLength={700}
+            />
+            <button type="button" onClick={() => submitMessage()} disabled={!canSend}>
+              Send
+            </button>
+          </div>
+          <div className="ai-chat-composer-hint">Enter to send - Shift+Enter for a new line</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function renderTabPanel(
   activeTab,
   gateDeliverables,
@@ -2674,6 +2978,7 @@ export default function Discovery() {
   const [consultantActivities, setConsultantActivities] = useState([]);
   const [consultantActivitiesLoading, setConsultantActivitiesLoading] = useState(false);
   const [readActivityIds, setReadActivityIds] = useState([]);
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
   const refreshProject = useCallback(async () => {
     const projectId = new URLSearchParams(window.location.search).get("projectId");
@@ -2941,6 +3246,27 @@ export default function Discovery() {
     handleMarkTabActivitiesRead(activeTab);
   }, [activeTab, handleMarkTabActivitiesRead]);
 
+  useEffect(() => {
+    if (!isAssistantOpen) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsAssistantOpen(false);
+      }
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAssistantOpen]);
+
   const unreadActivities = projectActivities.filter((activity) => !activity.is_read);
   const overviewPaymentItems = paymentMilestones.length ? getPaymentItemsFromMilestones(paymentMilestones) : [];
 
@@ -3011,6 +3337,45 @@ export default function Discovery() {
                 refreshProject
               )}
             </div>
+
+            {project?.id ? (
+              <>
+                <button
+                  className="project-ai-floating-launcher"
+                  type="button"
+                  onClick={() => setIsAssistantOpen(true)}
+                  aria-label="Ask about this project"
+                  aria-haspopup="dialog"
+                  aria-expanded={isAssistantOpen}
+                >
+                  <span className="project-ai-floating-symbol" aria-hidden="true">
+                    ✦
+                  </span>
+                  <span className="project-ai-floating-label">Ask about this project…</span>
+                </button>
+
+                {isAssistantOpen ? (
+                  <div
+                    className="project-ai-modal-backdrop"
+                    role="presentation"
+                    onMouseDown={(event) => {
+                      if (event.target === event.currentTarget) {
+                        setIsAssistantOpen(false);
+                      }
+                    }}
+                  >
+                    <div
+                      className="project-ai-modal"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="FLOXA Project Assistant"
+                    >
+                      <AIChatbotPanel project={project} onClose={() => setIsAssistantOpen(false)} />
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
           </div>
         </div>
       </Floxaheader>

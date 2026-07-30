@@ -79,7 +79,10 @@ export async function parseApiResponse(response) {
       };
 
   if (!response.ok) {
-    throw data;
+    throw {
+      ...data,
+      status: response.status,
+    };
   }
 
   return data;
@@ -123,6 +126,7 @@ export async function apiRequest(endpoint, options = {}) {
     if (!refreshed) {
       throw {
         detail: "Session expired. Please login again.",
+        status: 401,
       };
     }
 

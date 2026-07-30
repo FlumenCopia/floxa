@@ -21,6 +21,7 @@ from .views import (
     MoodboardView,
     PaymentMilestoneActionView,
     PaymentMilestoneView,
+    ProjectAssistantChatView,
     ProjectAnalyticsView,
     ProjectAgreementGenerateView,
     ProjectAgreementShareView,
@@ -192,6 +193,11 @@ urlpatterns = [
         "<int:project_id>/activities/mark-read/",
         ProjectActivityMarkReadView.as_view(),
         name="project-activities-mark-read",
+    ),
+    path(
+        "<int:project_id>/assistant/chat/",
+        ProjectAssistantChatView.as_view(),
+        name="project-assistant-chat",
     ),
     path("<int:pk>/", ProjectDetailView.as_view(), name="project-detail"),
 ]
