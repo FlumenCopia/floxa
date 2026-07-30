@@ -20,13 +20,30 @@ export function getCsrfToken() {
   return getCookie("csrftoken");
 }
 
-export async function ensureCsrfCookie() {
-  const response = await fetch(`${API_BASE_URL}/auth/csrf/`, {
-    method: "GET",
-    credentials: "include",
-  });
+let pendingCsrfPromise = null;
 
-  return parseApiResponse(response);
+export async function ensureCsrfCookie() {
+  if (getCsrfToken()) {
+    return;
+  }
+
+  if (pendingCsrfPromise) {
+    return pendingCsrfPromise;
+  }
+
+  pendingCsrfPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/csrf/`, {
+        method: "GET",
+        credentials: "include",
+      });
+      return await parseApiResponse(response);
+    } finally {
+      pendingCsrfPromise = null;
+    }
+  })();
+
+  return pendingCsrfPromise;
 }
 
 export function getAuthHeaders() {

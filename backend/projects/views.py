@@ -3245,17 +3245,24 @@ class ClientPortalPaymentVerifyView(APIView):
                 razorpay_payment_id=payload["razorpay_payment_id"],
                 razorpay_signature=payload["razorpay_signature"],
             )
-        except RazorpayConfigurationError:
+        except RazorpayConfigurationError as error:
+            logger.error("Razorpay verification config error: %s", str(error))
             return Response(
                 {"detail": "Payment gateway is not configured."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        except RazorpayProviderError:
+        except RazorpayProviderError as error:
+            logger.error("Razorpay verification provider error: %s", str(error))
             return Response(
                 {"detail": "Payment gateway is temporarily unavailable."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         except RazorpaySignatureVerificationError:
+            logger.warning(
+                "Razorpay verification signature mismatch for order_id=%s, payment_id=%s",
+                payload["razorpay_order_id"],
+                payload["razorpay_payment_id"],
+            )
             return Response(
                 {"detail": "Payment verification failed."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -3264,19 +3271,26 @@ class ClientPortalPaymentVerifyView(APIView):
         try:
             provider_payment = fetch_razorpay_payment(payload["razorpay_payment_id"])
             self.validate_provider_payment(provider_payment, transaction_obj, payload)
-        except RazorpayConfigurationError:
+        except RazorpayConfigurationError as error:
+            logger.error("Razorpay fetch config error: %s", str(error))
             return Response(
                 {"detail": "Payment gateway is not configured."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        except RazorpayProviderError:
+        except RazorpayProviderError as error:
+            logger.error("Razorpay fetch provider error for payment_id=%s: %s", payload["razorpay_payment_id"], str(error))
             return Response(
                 {"detail": "Unable to confirm payment with Razorpay."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         except PaymentCompletionError as error:
+            logger.warning(
+                "Razorpay verification validation failed for order_id=%s: %s",
+                payload["razorpay_order_id"],
+                str(error),
+            )
             return Response(
-                {"detail": str(error)},
+                {"detail": "Payment verification failed."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -3289,11 +3303,17 @@ class ClientPortalPaymentVerifyView(APIView):
                 razorpay_payment_id=payload["razorpay_payment_id"],
             )
         except PaymentCompletionError as error:
+            logger.warning(
+                "Payment completion milestone error for order_id=%s: %s",
+                payload["razorpay_order_id"],
+                str(error),
+            )
             return Response(
-                {"detail": str(error)},
+                {"detail": "Payment verification failed."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except IntegrityError:
+        except IntegrityError as error:
+            logger.error("Payment completion integrity error for order_id=%s: %s", payload["razorpay_order_id"], str(error))
             return Response(
                 {"detail": "Payment has already been verified."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -3548,7 +3568,7 @@ class RazorpayWebhookView(APIView):
                     failure_reason=str(error),
                 )
             logger.warning("Razorpay webhook event %s failed validation: %s", event_id, str(error))
-            return Response({"detail": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Webhook validation failed."}, status=status.HTTP_400_BAD_REQUEST)
         except IntegrityError:
             logger.exception("Razorpay webhook event %s hit a local integrity conflict.", event_id)
             return Response(
