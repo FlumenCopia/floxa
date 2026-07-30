@@ -1423,6 +1423,21 @@ class ProjectPagination(PageNumberPagination):
     max_page_size = 50
 
 
+PROJECT_WORKFLOW_STATUS_FILTERS = {
+    "created",
+    "discovery",
+    "advance_payment",
+    "advance_paid",
+    "brand_dna",
+    "moodboards",
+    "concepts",
+    "agreement",
+    "deliverables",
+    "final_paid",
+    "delivered",
+}
+
+
 class ProjectListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1444,6 +1459,8 @@ class ProjectListCreateView(APIView):
                 | Q(client__email__icontains=search)
             )
 
+        workflow_status = request.query_params.get("status", "").strip()
+
         projects = projects.order_by("-created_at").select_related(
             "client_profile",
             "discovery",
@@ -1459,6 +1476,16 @@ class ProjectListCreateView(APIView):
             "deliverables",
             "payment_milestones",
         )
+
+        if workflow_status:
+            if workflow_status in PROJECT_WORKFLOW_STATUS_FILTERS:
+                projects = [
+                    project
+                    for project in projects
+                    if calculate_project_workflow_status(project) == workflow_status
+                ]
+            else:
+                projects = projects.none()
 
         paginator = ProjectPagination()
         paginated_projects = paginator.paginate_queryset(projects, request)

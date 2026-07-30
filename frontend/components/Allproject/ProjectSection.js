@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getProjects } from "../../src/lib/projectApi";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
@@ -57,22 +57,22 @@ export function getStatusClass(status) {
   return classes[status] || "badge-muted";
 }
 
-export function getStatusClassByLabel(label) {
-  const statusByLabel = {
-    Created: "created",
-    Discovery: "discovery",
-    "Advance Payment": "advance_payment",
-    "Advance Paid": "advance_paid",
-    "Brand DNA": "brand_dna",
-    Moodboards: "moodboards",
-    Concepts: "concepts",
-    Agreement: "agreement",
-    Deliverables: "deliverables",
-    "Final Paid": "final_paid",
-    Delivered: "delivered",
-    Archived: "archived",
-  };
+const statusByLabel = {
+  Created: "created",
+  Discovery: "discovery",
+  "Advance Payment": "advance_payment",
+  "Advance Paid": "advance_paid",
+  "Brand DNA": "brand_dna",
+  Moodboards: "moodboards",
+  Concepts: "concepts",
+  Agreement: "agreement",
+  Deliverables: "deliverables",
+  "Final Paid": "final_paid",
+  Delivered: "delivered",
+  Archived: "archived",
+};
 
+export function getStatusClassByLabel(label) {
   return getStatusClass(statusByLabel[label]);
 }
 
@@ -87,48 +87,102 @@ export function getStatusColorByLabel(label) {
   return colors[getStatusClassByLabel(label)] || colors["badge-muted"];
 }
 
+const PROJECT_PAGE_SIZE = 10;
+
 export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen = () => {} }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectSearch = (searchParams.get("search") || "").trim();
 
   const [projects, setProjects] = useState([]);
+  const [projectCount, setProjectCount] = useState(0);
+  const [pagination, setPagination] = useState({ next: null, previous: null });
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedStatus, setSelectedStatus] = useState("All statuses");
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [projectError, setProjectError] = useState("");
-
-  const filteredProjects = useMemo(() => {
-    const statusFilteredProjects =
-      selectedStatus === "All statuses"
-        ? projects
-        : projects.filter((row) => getStatusLabel(row.workflow_status || row.status) === selectedStatus);
-
-    return statusFilteredProjects;
-  }, [projects, selectedStatus]);
+  const requestIdRef = useRef(0);
+  const previousSearchRef = useRef(projectSearch);
 
   useEffect(() => {
+    if (previousSearchRef.current !== projectSearch) {
+      previousSearchRef.current = projectSearch;
+
+      if (currentPage !== 1) {
+        requestIdRef.current += 1;
+        Promise.resolve().then(() => setCurrentPage(1));
+        return;
+      }
+    }
+
     async function loadProjects() {
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      setIsLoadingProjects(true);
       setProjectError("");
 
       try {
-        const data = await getProjects(projectSearch);
-        setProjects(data.results || []);
+        const data = await getProjects({
+          search: projectSearch,
+          status: statusByLabel[selectedStatus] || "",
+          page: currentPage,
+          pageSize: PROJECT_PAGE_SIZE,
+        });
+
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
+        const nextProjects = Array.isArray(data.results) ? data.results : [];
+        const nextCount = Number(data.count || 0);
+        const nextTotalPages = Math.max(1, Math.ceil(nextCount / PROJECT_PAGE_SIZE));
+
+        if (currentPage > nextTotalPages) {
+          setCurrentPage(nextTotalPages);
+          return;
+        }
+
+        setProjects(nextProjects);
+        setProjectCount(nextCount);
+        setPagination({
+          next: data.next || null,
+          previous: data.previous || null,
+        });
       } catch (error) {
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
         console.error("Failed to load projects:", error);
         setProjectError(error?.detail || "Projects could not be loaded.");
+        setProjects([]);
+        setProjectCount(0);
+        setPagination({ next: null, previous: null });
       } finally {
-        setIsLoadingProjects(false);
+        if (requestId === requestIdRef.current) {
+          setIsLoadingProjects(false);
+        }
       }
     }
 
     loadProjects();
-  }, [projectSearch]);
+  }, [projectSearch, selectedStatus, currentPage]);
+
+  const totalPages = Math.max(1, Math.ceil(projectCount / PROJECT_PAGE_SIZE));
+  const showingStart = projectCount === 0 ? 0 : (currentPage - 1) * PROJECT_PAGE_SIZE + 1;
+  const showingEnd = projectCount === 0 ? 0 : Math.min(projectCount, showingStart + projects.length - 1);
 
   const handleOpenWizard = () => {
     setIsStatusOpen(false);
     setIsWizardOpen(true);
     setProjectError("");
+  };
+
+  const handleStatusSelect = (status) => {
+    setSelectedStatus(status);
+    setCurrentPage(1);
+    setIsStatusOpen(false);
   };
 
   return (
@@ -147,7 +201,7 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
         {!isWizardOpen ? (
           <>
             <div className="project-page-head">
-              <h1 className="project-page-title">{filteredProjects.length} projects</h1>
+              <h1 className="project-page-title">{projectCount} projects</h1>
               <div className="project-page-actions">
                 <div className={`project-filter-wrap ${isStatusOpen ? "open" : ""}`.trim()}>
                   <button
@@ -182,10 +236,7 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                           key={status}
                           className={`project-filter-option ${selectedStatus === status ? "active" : ""}`.trim()}
                           type="button"
-                          onClick={() => {
-                            setSelectedStatus(status);
-                            setIsStatusOpen(false);
-                          }}
+                          onClick={() => handleStatusSelect(status)}
                         >
                           {status}
                         </button>
@@ -225,7 +276,7 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                     ) : null}
 
                     {!isLoadingProjects &&
-                      filteredProjects.map((row) => (
+                      projects.map((row) => (
                         <tr
                           key={row.id}
                           onClick={() => router.push(`/discovery?projectId=${row.id}`)}
@@ -252,15 +303,43 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                           <td>{new Date(row.created_at).toLocaleDateString()}</td>
                         </tr>
                       ))}
-                    {!isLoadingProjects && filteredProjects.length === 0 ? (
+                    {!isLoadingProjects && projects.length === 0 ? (
                       <tr>
                         <td className="project-empty-state" colSpan="6">
-                          {projectSearch ? "No projects found for this search." : "No projects found for this status."}
+                          {projectSearch || selectedStatus !== "All statuses"
+                            ? "No projects found for this search or status."
+                            : "No projects found."}
                         </td>
                       </tr>
                     ) : null}
                   </tbody>
                 </table>
+              </div>
+              <div className="project-pagination">
+                <div className="project-pagination-summary">
+                  Showing {showingStart}-{showingEnd} of {projectCount} projects
+                </div>
+                <div className="project-pagination-controls">
+                  <button
+                    className="btn btn-secondary project-pagination-btn"
+                    type="button"
+                    disabled={!pagination.previous || isLoadingProjects}
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  >
+                    Previous
+                  </button>
+                  <span className="project-pagination-page">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    className="btn btn-secondary project-pagination-btn"
+                    type="button"
+                    disabled={!pagination.next || isLoadingProjects}
+                    onClick={() => setCurrentPage((page) => page + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
           </>

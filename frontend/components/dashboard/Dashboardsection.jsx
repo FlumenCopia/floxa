@@ -55,6 +55,7 @@ export default function Dashboardsection() {
       const router = useRouter();
 
   const [projects, setProjects] = useState([]);
+  const [totalProjectsCount, setTotalProjectsCount] = useState(0);
   const [activities, setActivities] = useState([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
@@ -65,9 +66,11 @@ export default function Dashboardsection() {
       try {
         const data = await getProjects();
         setProjects(data.results || []);
+        setTotalProjectsCount(Number(data.count || 0));
       } catch (error) {
         console.error("Failed to load projects:", error);
         setProjects([]);
+        setTotalProjectsCount(0);
       } finally {
         setIsLoadingProjects(false);
       }
@@ -92,10 +95,6 @@ export default function Dashboardsection() {
     loadActivities();
   }, []);
 
-  const activeProjectsCount = useMemo(() => {
-    return projects.filter((project) => (project.workflow_status || project.status) !== "delivered" && !project.is_archived).length;
-  }, [projects]);
-
   const averageCompletion = useMemo(() => {
     if (projects.length === 0) {
       return 0;
@@ -108,8 +107,8 @@ export default function Dashboardsection() {
   const stats = [
     {
       label: "Active Projects",
-      value: String(activeProjectsCount),
-      change: `${projects.length} total projects`,
+      value: String(totalProjectsCount),
+      change: `${totalProjectsCount} total projects`,
       icon: "project",
       deltaClass: "up",
     },
@@ -148,7 +147,10 @@ export default function Dashboardsection() {
         {isWizardOpen ? (
           <ProjectCreateWizard
             onClose={() => setIsWizardOpen(false)}
-            onProjectCreated={(createdProject) => setProjects((current) => [createdProject, ...current])}
+            onProjectCreated={(createdProject) => {
+              setProjects((current) => [createdProject, ...current]);
+              setTotalProjectsCount((current) => current + 1);
+            }}
           />
         ) : null}
 

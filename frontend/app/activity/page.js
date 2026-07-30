@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Floxaheader from "../../commone/Floxaheader";
 import { getProject, getProjectActivities } from "../../src/lib/projectApi";
@@ -64,7 +64,7 @@ function groupActivities(activities) {
   }, []);
 }
 
-export default function ActivityPage() {
+function ActivityPageContent() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId");
   const [project, setProject] = useState(null);
@@ -178,5 +178,13 @@ export default function ActivityPage() {
         </div>
       </Floxaheader>
     </div>
+  );
+}
+
+export default function ActivityPage() {
+  return (
+    <Suspense fallback={null}>
+      <ActivityPageContent />
+    </Suspense>
   );
 }

@@ -90,12 +90,31 @@ export function normalizeProject(project) {
   };
 }
 
-export async function getProjects(search = "") {
+export async function getProjects(options = "") {
   const params = new URLSearchParams();
-  const searchValue = search.trim();
+  const requestOptions =
+    typeof options === "string"
+      ? { search: options }
+      : options || {};
+  const searchValue = String(requestOptions.search || "").trim();
+  const statusValue = String(requestOptions.status || "").trim();
+  const pageValue = Number(requestOptions.page || 0);
+  const pageSizeValue = Number(requestOptions.pageSize || 0);
 
   if (searchValue) {
     params.set("search", searchValue);
+  }
+
+  if (statusValue) {
+    params.set("status", statusValue);
+  }
+
+  if (pageValue > 0) {
+    params.set("page", String(pageValue));
+  }
+
+  if (pageSizeValue > 0) {
+    params.set("page_size", String(pageSizeValue));
   }
 
   const queryString = params.toString();

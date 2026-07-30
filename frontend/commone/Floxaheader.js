@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getCurrentConsultant, logoutConsultant } from "../src/lib/authApi";
+import { getCurrentConsultant, logoutConsultant, subscribeToConsultantChange, clearCurrentConsultantCache } from "../src/lib/authApi";
 import { getConsultantActivities, markConsultantActivitiesRead } from "../src/lib/projectApi";
 import { showError, showSuccess } from "../src/lib/toast";
 
@@ -300,6 +300,12 @@ export default function Floxaheader({
   useEffect(() => {
     let isMounted = true;
 
+    const unsubscribe = subscribeToConsultantChange((updated) => {
+      if (isMounted) {
+        setConsultant(updated);
+      }
+    });
+
     async function validateSession() {
       try {
         const currentConsultant = await getCurrentConsultant();
@@ -316,6 +322,7 @@ export default function Floxaheader({
         console.error("Session validation failed:", error);
         cachedConsultant = null;
         hasValidatedSession = false;
+        clearCurrentConsultantCache();
         localStorage.removeItem("consultant");
         router.replace("/login");
       }
@@ -325,6 +332,7 @@ export default function Floxaheader({
 
     return () => {
       isMounted = false;
+      unsubscribe();
     };
   }, [router]);
 
