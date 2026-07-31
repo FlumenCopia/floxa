@@ -168,11 +168,13 @@ class ConsultantLogoutView(APIView):
             settings.AUTH_ACCESS_COOKIE_NAME,
             path=settings.AUTH_COOKIE_PATH,
             samesite=settings.AUTH_COOKIE_SAMESITE,
+            secure=settings.AUTH_COOKIE_SECURE,
         )
         response.delete_cookie(
             settings.AUTH_REFRESH_COOKIE_NAME,
             path=settings.AUTH_COOKIE_PATH,
             samesite=settings.AUTH_COOKIE_SAMESITE,
+            secure=settings.AUTH_COOKIE_SECURE,
         )
 
         return response

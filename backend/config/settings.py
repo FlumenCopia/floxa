@@ -27,7 +27,16 @@ SECRET_KEY = config("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", cast=bool)
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
+raw_allowed_hosts = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
+vercel_urls = []
+for env_var in ["VERCEL_URL", "VERCEL_PROJECT_PRODUCTION_URL"]:
+    val = config(env_var, default="")
+    if val:
+        host = val.replace("https://", "").replace("http://", "").strip("/")
+        if host:
+            vercel_urls.append(host)
+
+ALLOWED_HOSTS = list(dict.fromkeys(raw_allowed_hosts + vercel_urls))
 
 
 # Application definition
@@ -83,15 +92,22 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+DB_SSL_REQUIRE = config("DB_SSL_REQUIRE", default=False, cast=bool)
+
+db_config = {
+    'ENGINE': 'django.db.backends.postgresql',
+    'NAME': config("DB_NAME"),
+    'USER': config("DB_USER"),
+    'PASSWORD': config("DB_PASSWORD"),
+    'HOST': config("DB_HOST"),
+    'PORT': config("DB_PORT"),
+}
+
+if DB_SSL_REQUIRE:
+    db_config["OPTIONS"] = {"sslmode": "require"}
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config("DB_NAME"),
-        'USER': config("DB_USER"),
-        'PASSWORD': config("DB_PASSWORD"),
-        'HOST': config("DB_HOST"),
-        'PORT': config("DB_PORT"),
-    }
+    'default': db_config
 }
 
 
@@ -172,19 +188,22 @@ LOCAL_FRONTEND_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-CORS_ALLOWED_ORIGINS = list(dict.fromkeys(
-    config("CORS_ALLOWED_ORIGINS", cast=Csv()) + LOCAL_FRONTEND_ORIGINS
-))
+raw_cors_origins = config("CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://127.0.0.1:3000", cast=Csv())
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(raw_cors_origins + LOCAL_FRONTEND_ORIGINS))
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "x-client-portal-token",
 ]
 
-CSRF_TRUSTED_ORIGINS = LOCAL_FRONTEND_ORIGINS
+raw_csrf_origins = config("CSRF_TRUSTED_ORIGINS", default="http://localhost:3000,http://127.0.0.1:3000", cast=Csv())
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(raw_csrf_origins + LOCAL_FRONTEND_ORIGINS))
 
 AUTH_ACCESS_COOKIE_NAME = "floxa_access"
 AUTH_REFRESH_COOKIE_NAME = "floxa_refresh"
 AUTH_COOKIE_HTTP_ONLY = True
-AUTH_COOKIE_SECURE = False
-AUTH_COOKIE_SAMESITE = "Lax"
+AUTH_COOKIE_SECURE = config("AUTH_COOKIE_SECURE", default=False, cast=bool)
+AUTH_COOKIE_SAMESITE = config("AUTH_COOKIE_SAMESITE", default="Lax")
 AUTH_COOKIE_PATH = "/"
+
+CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=False, cast=bool)
+CSRF_COOKIE_SAMESITE = config("CSRF_COOKIE_SAMESITE", default="Lax")

@@ -154,23 +154,14 @@ def send_client_portal_invite(project, raw_portal_password):
     )
 
 
-def send_client_portal_invite_background(project_id, raw_portal_password):
-    def send_invite():
-        try:
-            project = Project.objects.select_related("client").get(id=project_id)
-            send_client_portal_invite(project, raw_portal_password)
-        except Exception:
-            logger.exception(
-                "Client portal invite email failed for project_id=%s.",
-                project_id,
-            )
-
-    thread = threading.Thread(
-        target=send_invite,
-        name=f"floxa-project-invite-{project_id}",
-        daemon=True,
-    )
-    thread.start()
+def send_client_portal_invite_safely(project, raw_portal_password):
+    try:
+        send_client_portal_invite(project, raw_portal_password)
+    except Exception:
+        logger.exception(
+            "Client portal invite email failed for project_id=%s.",
+            project.id,
+        )
 
 
 def send_project_agreement_share_email(project, agreement):
@@ -1507,7 +1498,7 @@ class ProjectListCreateView(APIView):
             response_serializer = ProjectSerializer(project)
             response_data = response_serializer.data
 
-            send_client_portal_invite_background(project.id, raw_portal_password)
+            send_client_portal_invite_safely(project, raw_portal_password)
 
             return Response(
                 response_data,
@@ -1756,7 +1747,7 @@ class ProjectAssistantChatView(APIView):
 
         if _is_pure_greeting(message):
             try:
-                project = Project.objects.get(id=project_id, consultant=request.user)
+                project = Project.objects.get(id=project_id, consultant=request.user, is_archived=False)
             except Project.DoesNotExist:
                 return Response(
                     {"detail": "Project not found."},
@@ -2297,6 +2288,7 @@ class ClientPortalLogoutView(APIView):
             PORTAL_ACCESS_COOKIE_NAME,
             path="/",
             samesite=settings.AUTH_COOKIE_SAMESITE,
+            secure=settings.AUTH_COOKIE_SECURE,
         )
 
         return response

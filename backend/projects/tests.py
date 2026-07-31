@@ -520,6 +520,55 @@ class ProjectAssistantChatEndpointTests(TestCase):
         self.assertEqual(_project_assistant_prompt_intent("hello show pending deliverables"), "deliverable")
 
 
+class ProjectCreationEmailDeliveryTests(TestCase):
+    def setUp(self):
+        self.api_client = APIClient()
+        self.consultant = Consultant.objects.create_user(
+            email="consultant-invite@example.com",
+            name="Consultant Invite",
+            password="password12345",
+        )
+        self.api_client.force_authenticate(user=self.consultant)
+        self.url = reverse("project-list-create")
+        self.payload = {
+            "client": "Acme Client",
+            "email": "acme-client@example.com",
+            "company": "Acme Corp",
+            "sector": "Branding",
+            "value": "15000.00",
+            "portal_password": "SecurePassword123!",
+            "advance": 50,
+            "mid": 25,
+            "final": 25,
+            "revisions": "3 revisions",
+        }
+
+    @patch("projects.views.send_mail")
+    def test_project_creation_sends_email_synchronously_to_client_email(self, mock_send_mail):
+        response = self.api_client.post(self.url, self.payload, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn("portal_password", response.data)
+        mock_send_mail.assert_called_once()
+
+        args, kwargs = mock_send_mail.call_args
+        self.assertEqual(args[3], ["acme-client@example.com"])
+        self.assertIn("Your FLOXA portal is ready for Acme Corp", args[0])
+        self.assertIn("SecurePassword123!", args[1])
+
+    @patch("projects.views.send_mail", side_effect=Exception("SMTP Connection Error"))
+    def test_smtp_failure_does_not_prevent_project_creation_or_duplicate_projects(self, mock_send_mail):
+        initial_count = Project.objects.count()
+
+        response = self.api_client.post(self.url, self.payload, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Project.objects.count(), initial_count + 1)
+        created_project = Project.objects.get(id=response.data["id"])
+        self.assertEqual(created_project.company_name, "Acme Corp")
+        self.assertEqual(created_project.client.email, "acme-client@example.com")
+
+
     def test_moodboard_prompt_preserves_brand_dna_when_context_is_large(self):
         context = self.large_assistant_context()
 
