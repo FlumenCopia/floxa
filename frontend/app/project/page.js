@@ -4,7 +4,7 @@ import { useState } from "react";
 import Floxaheader from "../../commone/Floxaheader";
 import ProjectSection from "../../components/Allproject/ProjectSection";
 
-export default function page() {
+export default function ProjectPage() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   return (

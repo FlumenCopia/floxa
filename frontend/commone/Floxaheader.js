@@ -1,12 +1,15 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getCurrentConsultant, logoutConsultant, subscribeToConsultantChange, clearCurrentConsultantCache } from "../src/lib/authApi";
+import { getConsultantActivities, markConsultantActivitiesRead } from "../src/lib/projectApi";
+import { showError, showSuccess } from "../src/lib/toast";
 
 const primaryNavItems = [
-  { label: "Dashboard", icon: "grid", badge: "3", badgeClass: "g", route: "/" },
+  { label: "Dashboard", icon: "grid", route: "/" },
   { label: "Projects", icon: "mail", route: "/project" },
-  { label: "Discovery", icon: "search", badge: "1", route: "/discovery" },
+  { label: "Discovery", icon: "search", route: "/discovery" },
   { label: "AI Suite", icon: "star", route: "/ai-suite" },
   { label: "Analytics", icon: "chart", route: "/analytics" },
 ];
@@ -22,6 +25,77 @@ const mobileTabItems = [
   { label: "Portal", icon: "portal", route: "/client-portal" },
   { label: "Settings", icon: "settings", route: "/settings" },
 ];
+
+const notificationTabByAction = {
+  client_profile_submitted: "discovery",
+  client_profile_updated: "discovery",
+  discovery_submitted: "discovery",
+  discovery_updated: "discovery",
+  moodboard_selected: "moodboards",
+  concept_approved: "concepts",
+  concept_changes_requested: "concepts",
+  agreement_uploaded: "agreement",
+  agreement_updated: "agreement",
+  agreement_removed: "agreement",
+  agreement_opened: "agreement",
+  agreement_downloaded: "agreement",
+  agreement_signed: "agreement",
+  agreement_accepted: "agreement",
+  deliverable_shared: "deliverables",
+  deliverable_reshared: "deliverables",
+  deliverable_removed: "deliverables",
+  deliverable_downloaded: "deliverables",
+  deliverable_accepted: "deliverables",
+  project_signed_off: "deliverables",
+  payment_requested: "payments",
+  payment_received: "payments",
+  payment_paid: "payments",
+};
+
+let cachedConsultant = null;
+let hasValidatedSession = false;
+
+function getNotificationProjectId(notification) {
+  return notification?.project_id || notification?.metadata?.project_id || notification?.metadata?.project?.id;
+}
+
+function getRelativeTime(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) {
+    return "Just now";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} min ago`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+
+  if (diffHours < 24) {
+    return `${diffHours} hr ago`;
+  }
+
+  if (diffHours < 48) {
+    return "Yesterday";
+  }
+
+  return date.toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 function Icon({ type }) {
   const commonProps = {
@@ -81,6 +155,14 @@ function Icon({ type }) {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
       );
+    case "logout":
+      return (
+        <svg {...commonProps}>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <path d="M16 17l5-5-5-5" />
+          <path d="M21 12H9" />
+        </svg>
+      );
     default:
       return (
         <svg {...commonProps}>
@@ -112,10 +194,30 @@ function MobileTabItem({ item, onClick }) {
   );
 }
 
-export default function Floxaheader({ children, title = "Dashboard", activeNav = "Dashboard" }) {
+export default function Floxaheader({
+  children,
+  title = "Dashboard",
+  activeNav = "Dashboard",
+  notificationCount = 0,
+  notifications = [],
+  notificationsLoading = false,
+  readActivityIds = [],
+  onNotificationClick = () => {},
+  onNotificationsOpen = () => {},
+  onMarkNotificationsRead = () => {},
+}) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentProjectSearch = searchParams.get("search") || "";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAuthChecked, setIsAuthChecked] = useState(() => hasValidatedSession);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [headerNotifications, setHeaderNotifications] = useState([]);
+  const [headerNotificationsLoading, setHeaderNotificationsLoading] = useState(false);
+  const [consultant, setConsultant] = useState(cachedConsultant);
+  const [projectSearch, setProjectSearch] = useState(() => searchParams.get("search") || "");
+  const notificationsRequestRef = useRef(false);
   const resolvedActiveNav = pathname === "/project" ? "Projects" : activeNav;
   const resolvedPrimaryNavItems = primaryNavItems.map((item) => ({
     ...item,
@@ -131,6 +233,132 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
       (resolvedActiveNav === "Client Portal" && item.label === "Portal") ||
       (resolvedActiveNav === "Settings" && item.label === "Settings"),
   }));
+  const visibleNotifications = headerNotifications.length ? headerNotifications : notifications;
+  const visibleNotificationsLoading = headerNotificationsLoading || notificationsLoading;
+  const visibleNotificationCount = headerNotifications.length
+    ? headerNotifications.filter((notification) => !notification.is_read).length
+    : notificationCount;
+
+  useEffect(() => {
+    if (!readActivityIds.length) {
+      return;
+    }
+
+    const readIdSet = new Set(readActivityIds);
+    const readAt = new Date().toISOString();
+
+    setHeaderNotifications((currentNotifications) =>
+      currentNotifications.map((notification) =>
+        readIdSet.has(notification.id)
+          ? {
+              ...notification,
+              is_read: true,
+              read_at: notification.read_at || readAt,
+            }
+          : notification
+      )
+    );
+  }, [readActivityIds]);
+
+  const markHeaderNotificationsRead = useCallback(() => {
+    const readAt = new Date().toISOString();
+
+    setHeaderNotifications((currentNotifications) =>
+      currentNotifications.map((notification) => ({
+        ...notification,
+        is_read: true,
+        read_at: notification.read_at || readAt,
+      }))
+    );
+  }, []);
+
+  const loadHeaderNotifications = useCallback(async ({ showLoading = false } = {}) => {
+    if (notificationsRequestRef.current) {
+      return;
+    }
+
+    notificationsRequestRef.current = true;
+
+    if (showLoading) {
+      setHeaderNotificationsLoading(true);
+    }
+
+    try {
+      const data = await getConsultantActivities();
+      setHeaderNotifications(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load consultant notifications:", error);
+    } finally {
+      notificationsRequestRef.current = false;
+
+      if (showLoading) {
+        setHeaderNotificationsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const unsubscribe = subscribeToConsultantChange((updated) => {
+      if (isMounted) {
+        setConsultant(updated);
+      }
+    });
+
+    async function validateSession() {
+      try {
+        const currentConsultant = await getCurrentConsultant();
+        cachedConsultant = currentConsultant;
+        hasValidatedSession = true;
+
+        if (!isMounted) {
+          return;
+        }
+
+        setConsultant(currentConsultant);
+        setIsAuthChecked(true);
+      } catch (error) {
+        console.error("Session validation failed:", error);
+        cachedConsultant = null;
+        hasValidatedSession = false;
+        clearCurrentConsultantCache();
+        localStorage.removeItem("consultant");
+        router.replace("/login");
+      }
+    }
+
+    validateSession();
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (!isAuthChecked) {
+      return;
+    }
+
+    let isMounted = true;
+    const initialLoadId = window.setTimeout(() => {
+      if (isMounted) {
+        loadHeaderNotifications({ showLoading: true });
+      }
+    }, 0);
+    const intervalId = window.setInterval(() => {
+      if (isMounted) {
+        loadHeaderNotifications();
+      }
+    }, 30000);
+
+    return () => {
+      isMounted = false;
+      window.clearTimeout(initialLoadId);
+      window.clearInterval(intervalId);
+    };
+  }, [isAuthChecked, loadHeaderNotifications]);
 
   useEffect(() => {
     const handleEscape = (event) => {
@@ -142,6 +370,32 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, []);
+
+  useEffect(() => {
+    const searchValue = projectSearch.trim();
+
+    if (!searchValue && pathname !== "/project") {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (searchValue) {
+        const nextRoute = `/project?search=${encodeURIComponent(searchValue)}`;
+
+        if (pathname !== "/project" || currentProjectSearch !== searchValue) {
+          router.replace(nextRoute);
+        }
+
+        return;
+      }
+
+      if (pathname === "/project" && currentProjectSearch) {
+        router.replace("/project");
+      }
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [currentProjectSearch, pathname, projectSearch, router]);
 
   useEffect(() => {
     if (!isSidebarOpen) {
@@ -160,6 +414,122 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
       router.push(route);
     }
   };
+
+  const handleProjectSearch = (event) => {
+    event.preventDefault();
+
+    const searchValue = projectSearch.trim();
+
+    if (searchValue) {
+      router.replace(`/project?search=${encodeURIComponent(searchValue)}`);
+      return;
+    }
+
+    router.replace("/project");
+  };
+
+  const handleNotificationViewAll = () => {
+    setIsNotificationOpen(false);
+    const firstNotification = visibleNotifications[0];
+
+    if (onNotificationClick) {
+      onNotificationClick(firstNotification);
+      return;
+    }
+
+    if (firstNotification?.project_id) {
+      router.push(`/discovery?projectId=${firstNotification.project_id}&tab=activity`);
+    }
+  };
+
+  const handleNotificationItemClick = (notification) => {
+    setIsNotificationOpen(false);
+
+    const projectId = getNotificationProjectId(notification);
+    const tab = notificationTabByAction[notification?.action];
+
+    if (projectId && tab) {
+      router.push(`/discovery?projectId=${encodeURIComponent(projectId)}&tab=${tab}`);
+      return;
+    }
+
+    if (onNotificationClick) {
+      onNotificationClick(notification);
+    }
+  };
+
+  const handleNotificationToggle = async () => {
+    const nextOpen = !isNotificationOpen;
+    setIsNotificationOpen(nextOpen);
+
+    if (nextOpen) {
+      if (onNotificationsOpen) {
+        markHeaderNotificationsRead();
+
+        try {
+          await onNotificationsOpen();
+        } catch (error) {
+          console.error("Failed to mark consultant notifications as read:", error);
+          await loadHeaderNotifications();
+        }
+      } else {
+        markHeaderNotificationsRead();
+
+        try {
+          await markConsultantActivitiesRead();
+        } catch (error) {
+          console.error("Failed to mark consultant notifications as read:", error);
+          await loadHeaderNotifications();
+        }
+      }
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    markHeaderNotificationsRead();
+
+    if (onMarkNotificationsRead) {
+      try {
+        await onMarkNotificationsRead();
+      } catch (error) {
+        console.error("Failed to mark consultant notifications as read:", error);
+        await loadHeaderNotifications();
+      }
+      return;
+    }
+
+    try {
+      await markConsultantActivitiesRead();
+    } catch (error) {
+      console.error("Failed to mark consultant notifications as read:", error);
+      await loadHeaderNotifications();
+    }
+  };
+
+  const handleLogout = async () => {
+    const confirmed = window.confirm("Are you sure you want to logout?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await logoutConsultant();
+      showSuccess("Logout successful.");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      showError(error?.detail || "Logout failed.");
+    } finally {
+      localStorage.removeItem("consultant");
+      setHeaderNotifications([]);
+      closeSidebar();
+      router.push("/login");
+    }
+  };
+
+  if (!isAuthChecked) {
+    return null;
+  }
 
   return (
     <>
@@ -194,14 +564,15 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
           {accountNavItems.map((item) => (
             <NavItem key={item.label} item={item} onClick={() => handleNavigation(item.route)} />
           ))}
+          <NavItem item={{ label: "Logout", icon: "logout" }} onClick={handleLogout} />
         </div>
 
         <div className="sidebar-footer">
           <div className="user-chip">
             <div className="avatar">AK</div>
             <div>
-              <div className="user-name">Anoop Krishna</div>
-              <div className="user-plan">Agency Plan</div>
+              <div className="user-name">{consultant?.name || "Consultant"}</div>
+              <div className="user-plan">Plan unavailable</div>
             </div>
           </div>
         </div>
@@ -224,19 +595,84 @@ export default function Floxaheader({ children, title = "Dashboard", activeNav =
           </button>
           <div className="topbar-title">{title}</div>
           <div className="spacer" />
-          <div className="search-wrap">
+          <form className="search-wrap" onSubmit={handleProjectSearch}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-            <input type="text" placeholder="Search projects..." />
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={projectSearch}
+              onChange={(event) => setProjectSearch(event.target.value)}
+            />
+          </form>
+          <div className="notification-wrap">
+            <button
+              className="icon-btn"
+              type="button"
+              aria-label={visibleNotificationCount ? `${visibleNotificationCount} notifications` : "No notifications"}
+              aria-expanded={isNotificationOpen}
+              onClick={handleNotificationToggle}
+            >
+              <Icon type="bell" />
+              {visibleNotificationCount ? <span className="notification-dot" /> : null}
+            </button>
+            {isNotificationOpen ? (
+              <div className="notification-dropdown">
+                <div className="notification-head">
+                  <div>
+                    <span>Notifications</span>
+                    <strong>{visibleNotificationCount} unread</strong>
+                  </div>
+                  <button type="button" onClick={handleMarkAllRead}>Mark all read</button>
+                </div>
+                <div className="notification-list">
+                  {visibleNotificationsLoading ? (
+                    <div className="notification-empty">
+                      <strong>Loading notifications...</strong>
+                      <span>Checking recent project activity.</span>
+                    </div>
+                  ) : null}
+                  {!visibleNotificationsLoading && visibleNotifications.length === 0 ? (
+                    <div className="notification-empty">
+                      <strong>No notifications yet.</strong>
+                      <span>Client actions will appear here.</span>
+                    </div>
+                  ) : null}
+                  {!visibleNotificationsLoading && visibleNotifications.slice(0, 5).map((notification) => (
+                    <div
+                      className="notification-item"
+                      key={notification.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleNotificationItemClick(notification)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleNotificationItemClick(notification);
+                        }
+                      }}
+                    >
+                      <span className="notification-status-dot" />
+                      <div className="notification-copy">
+                        <p>{notification.description || notification.action}</p>
+                        {notification.actor_type ? <small>{notification.actor_type}</small> : null}
+                      </div>
+                      <time>{getRelativeTime(notification.created_at)}</time>
+                    </div>
+                  ))}
+                </div>
+                <button className="notification-view-all" type="button" onClick={handleNotificationViewAll}>
+                  View All
+                </button>
+              </div>
+            ) : null}
           </div>
-          <button className="icon-btn" type="button" aria-label="Notifications">
-            <Icon type="bell" />
-            <div className="notif-dot" />
-          </button>
         </div>
-        {children}
+        <div key={pathname} className="page-transition">
+          {children}
+        </div>
       </div>
 
       <div className="mobile-tabbar">

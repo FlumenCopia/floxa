@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-
-const projects = ["Craft & Co", "Bloom Studio", "Helix Tech"];
+import { getBrandDNA, getDiscoverySummary, getProject, getProjects } from "../../src/lib/projectApi";
 
 const tools = [
   {
@@ -14,7 +13,7 @@ const tools = [
     badge: "Core",
     badgeClass: "core",
     action: "Run",
-    result: (project) => `Suggestions are now attached to active discovery fields for ${project}.`,
+    result: () => "Suggestions are unavailable until project data is connected.",
   },
   {
     id: "enhance-brand-dna",
@@ -25,7 +24,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: (project) => `Brand DNA for ${project} was enhanced with sharper positioning and 3 refined tagline routes.`,
+    result: () => "Brand DNA enhancement is unavailable until project data is connected.",
   },
   {
     id: "voice-simulator",
@@ -36,7 +35,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: (project) => `Voice simulator for ${project} produced a tone guide and three sample copy snippets.`,
+    result: () => "Voice simulation is unavailable until project data is connected.",
   },
   {
     id: "moodboard-directions",
@@ -47,7 +46,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: (project) => `Three moodboard directions for ${project} were generated with validated palettes.`,
+    result: () => "Moodboard directions are unavailable until project data is connected.",
   },
   {
     id: "concept-strategies",
@@ -58,7 +57,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: (project) => `Three concept strategies for ${project} are ready with risk and differentiation scoring.`,
+    result: () => "Concept strategies are unavailable until project data is connected.",
   },
   {
     id: "creative-brief",
@@ -69,7 +68,7 @@ const tools = [
     badge: "Core",
     badgeClass: "core",
     action: "Generate",
-    result: (project) => `Creative brief for ${project} was generated and staged for export.`,
+    result: () => "Creative brief generation is unavailable until project data is connected.",
   },
   {
     id: "proposal-generator",
@@ -80,7 +79,7 @@ const tools = [
     badge: "Add-on",
     badgeClass: "addon",
     action: "Run",
-    result: (project) => `Proposal draft for ${project} was assembled with six structured sections.`,
+    result: () => "Proposal generation is unavailable until project data is connected.",
   },
   {
     id: "project-health-ai",
@@ -91,7 +90,7 @@ const tools = [
     badge: "Agency",
     badgeClass: "agency",
     action: "Run",
-    result: (project) => `Project health for ${project} scored at 82 with two follow-up suggestions.`,
+    result: () => "Project health scoring is unavailable until project data is connected.",
   },
   {
     id: "ai-usage-stats",
@@ -102,7 +101,7 @@ const tools = [
     badge: "Core",
     badgeClass: "core",
     action: "Run",
-    result: (project) => `Usage stats for ${project} were refreshed with the latest cost and acceptance metrics.`,
+    result: () => "Usage stats are unavailable until project data is connected.",
   },
 ];
 
@@ -129,14 +128,138 @@ function ToolIcon({ type }) {
   }
 }
 
+function formatList(items, fallback = "Not available") {
+  if (!Array.isArray(items) || items.length === 0) {
+    return fallback;
+  }
+
+  return items.filter(Boolean).join(", ") || fallback;
+}
+
+function getCompetitorNames(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return "generic category references";
+  }
+
+  return items.map((item) => item?.name).filter(Boolean).slice(0, 3).join(", ") || "generic category references";
+}
+
+function getSectorPalette(sector = "") {
+  const value = sector.toLowerCase();
+
+  if (value.includes("tech") || value.includes("saas")) {
+    return ["#102A43", "#2F80ED", "#56CCF2", "#F6FAFF"];
+  }
+
+  if (value.includes("beauty") || value.includes("wellness") || value.includes("health")) {
+    return ["#173B2F", "#7BC6A4", "#F7D6D0", "#FFF7EF"];
+  }
+
+  if (value.includes("food") || value.includes("beverage")) {
+    return ["#3A1F12", "#D9822B", "#F7C948", "#FFF8E8"];
+  }
+
+  if (value.includes("consumer") || value.includes("goods")) {
+    return ["#123C33", "#35B779", "#F4B942", "#F8F5EF"];
+  }
+
+  return ["#102D1D", "#4DFFA0", "#7EA092", "#F4F8F2"];
+}
+
+function buildMoodboardDirections({ project, discovery, brandDNA }) {
+  const companyName = discovery?.company_name || project?.company_name || project?.title || "Selected project";
+  const sector = discovery?.industry || project?.sector || "brand";
+  const audience = discovery?.target_customer || brandDNA?.target_audience_summary || "the target audience";
+  const emotions = formatList(discovery?.emotions, "clarity, trust, confidence");
+  const visualStyles = formatList(discovery?.visual_styles, "clean, focused, modern");
+  const competitors = getCompetitorNames(discovery?.top_competitors);
+  const palette = getSectorPalette(sector);
+  const positioningSignal = brandDNA?.positioning_summary || discovery?.why_choose_us || "the brand's core differentiation";
+  const brandFeeling = brandDNA?.brand_feeling_summary || discovery?.brand_feeling || "make the audience feel confident and understood";
+
+  const directions = [
+    {
+      name: "Direction 1: Signal Clarity",
+      theme: `A precise, trustworthy system that makes ${companyName} feel easy to understand and credible in ${sector}.`,
+      palette: `${palette[0]} / ${palette[1]} / ${palette[3]} with small high-contrast accent usage.`,
+      typography: "Structured sans-serif headings, open humanist body text, generous line spacing.",
+      photography: "Clean product/service moments, confident client-facing scenes, minimal background noise.",
+      texture: "Soft grid systems, thin rule lines, matte surfaces, restrained interface-like layering.",
+      avoid: `Avoid overdecorated layouts and anything too close to ${competitors}.`,
+      reasoning: `Uses the audience need for clarity plus ${positioningSignal} to create a practical trust-first moodboard.`,
+    },
+    {
+      name: "Direction 2: Human Warmth",
+      theme: `A warmer, more relational direction built around ${emotions} without losing professional structure.`,
+      palette: `${palette[3]} / #F2C9A0 / #C97A4B / ${palette[0]} for approachability with depth.`,
+      typography: "Soft serif or rounded display accents paired with a highly readable sans-serif.",
+      photography: "Close human detail, hands, workspace/process images, natural light, candid confidence.",
+      texture: "Paper grain, soft shadows, organic crops, subtle tactile overlays.",
+      avoid: "Avoid cold corporate imagery, harsh neon dominance, and stock-photo smiles.",
+      reasoning: `Transforms the submitted emotional cues into a moodboard that can make ${audience} feel welcomed and reassured.`,
+    },
+    {
+      name: "Direction 3: Distinctive Edge",
+      theme: `A bolder editorial route that gives ${companyName} stronger recall while staying grounded in ${visualStyles}.`,
+      palette: `${palette[0]} / #111111 / ${palette[1]} / #FFFFFF with one unexpected accent from ${palette[2]}.`,
+      typography: "Condensed headline type or confident geometric display, balanced by simple body text.",
+      photography: "Sharper crops, directional lighting, striking compositions, selective color blocking.",
+      texture: "Layered panels, oversized type moments, cropped shapes, contrast between polished and raw details.",
+      avoid: "Avoid copying competitor category tropes, muted sameness, or overly safe template layouts.",
+      reasoning: `Uses the visual style inputs to push differentiation, giving the consultant a stronger option for moodboard exploration.`,
+    },
+  ];
+
+  return [
+    `Moodboard Directions - ${companyName}`,
+    `Context used: ${sector}; audience: ${audience}; emotions: ${emotions}; styles: ${visualStyles}.`,
+    "",
+    ...directions.flatMap((direction) => [
+      direction.name,
+      `Concept / visual theme: ${direction.theme}`,
+      `Color palette: ${direction.palette}`,
+      `Typography direction: ${direction.typography}`,
+      `Photography / image style: ${direction.photography}`,
+      `Texture / material direction: ${direction.texture}`,
+      `What to avoid: ${direction.avoid}`,
+      `Reasoning: ${direction.reasoning}`,
+      "",
+    ]),
+  ].join("\n");
+}
+
 export default function Aisute() {
-  const [selectedProject, setSelectedProject] = useState(projects[0]);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [projects, setProjects] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
   const [activeToolId, setActiveToolId] = useState("");
   const [runningToolId, setRunningToolId] = useState("");
   const [isCopilotLive, setIsCopilotLive] = useState(true);
   const [toolRuns, setToolRuns] = useState({});
   const [latestOutput, setLatestOutput] = useState(null);
   const runTimerRef = useRef(null);
+
+  useEffect(() => {
+    async function loadProjects() {
+      try {
+        const data = await getProjects();
+        const projectRows = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+
+        setProjects(projectRows);
+
+        if (projectRows.length > 0) {
+          setSelectedProject(String(projectRows[0].id));
+        }
+      } catch (error) {
+        console.error("Failed to load AI Suite projects:", error);
+        setProjects([]);
+      } finally {
+        setProjectsLoading(false);
+      }
+    }
+
+    loadProjects();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -146,21 +269,78 @@ export default function Aisute() {
     };
   }, []);
 
+  const selectedProjectData = useMemo(() => {
+    return projects.find((project) => String(project.id) === selectedProject) || null;
+  }, [projects, selectedProject]);
+
   const activeResult = useMemo(() => {
     if (!latestOutput) {
-      return `${selectedProject} is ready. Choose a tool to run brand workflows.`;
+      if (projectsLoading) {
+        return "Loading consultant projects.";
+      }
+
+      return selectedProjectData
+        ? `${selectedProjectData.company_name || selectedProjectData.title || "Selected project"} is ready. Choose a tool to run brand workflows.`
+        : "No projects available.";
     }
 
     return `${latestOutput.message} Updated ${latestOutput.time}.`;
-  }, [latestOutput, selectedProject]);
+  }, [latestOutput, projectsLoading, selectedProjectData]);
 
   const handleProjectChange = (event) => {
     setSelectedProject(event.target.value);
     setActiveToolId("");
     setRunningToolId("");
+    setLatestOutput(null);
   };
 
-  const handleToolAction = (tool) => {
+  const handleMoodboardDirections = async (tool) => {
+    if (!selectedProjectData?.id) {
+      setLatestOutput({
+        toolId: tool.id,
+        toolName: tool.name,
+        message: "Select a project before generating moodboard directions.",
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      });
+      return;
+    }
+
+    try {
+      const [project, discovery] = await Promise.all([
+        getProject(selectedProjectData.id),
+        getDiscoverySummary(selectedProjectData.id),
+      ]);
+      let brandDNA = null;
+
+      try {
+        brandDNA = await getBrandDNA(selectedProjectData.id);
+      } catch {
+        brandDNA = null;
+      }
+
+      setToolRuns((current) => ({
+        ...current,
+        [tool.id]: (current[tool.id] || 0) + 1,
+      }));
+
+      setLatestOutput({
+        toolId: tool.id,
+        toolName: tool.name,
+        message: buildMoodboardDirections({ project: project || selectedProjectData, discovery, brandDNA }),
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      });
+    } catch (error) {
+      console.error("Failed to generate moodboard directions:", error);
+      setLatestOutput({
+        toolId: tool.id,
+        toolName: tool.name,
+        message: error?.detail || "Moodboard directions could not be generated. Complete client discovery and try again.",
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      });
+    }
+  };
+
+  const handleToolAction = async (tool) => {
     if (runningToolId) {
       return;
     }
@@ -170,6 +350,12 @@ export default function Aisute() {
 
     if (runTimerRef.current) {
       clearTimeout(runTimerRef.current);
+    }
+
+    if (tool.id === "moodboard-directions") {
+      await handleMoodboardDirections(tool);
+      setRunningToolId("");
+      return;
     }
 
     runTimerRef.current = setTimeout(() => {
@@ -204,11 +390,17 @@ export default function Aisute() {
             <label className="ai-suite-project-picker">
               <span className="ai-suite-project-label">Project</span>
               <select value={selectedProject} onChange={handleProjectChange}>
-                {projects.map((project) => (
-                  <option key={project} value={project}>
-                    {project}
-                  </option>
-                ))}
+                {projectsLoading ? (
+                  <option value="">Loading projects...</option>
+                ) : projects.length > 0 ? (
+                  projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.company_name || project.title || project.client_name || `Project ${project.id}`}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No projects available</option>
+                )}
               </select>
             </label>
           </div>
@@ -270,7 +462,11 @@ export default function Aisute() {
             <div className="ai-suite-result-tool">
               {activeToolId ? tools.find((item) => item.id === activeToolId)?.name || "AI Suite" : "AI Suite"}
             </div>
-            <div className="ai-suite-result-text">{activeResult}</div>
+            <div className="ai-suite-result-text">
+              {activeResult.split("\n").map((line, index) => (
+                <div key={`${line}-${index}`}>{line || "\u00a0"}</div>
+              ))}
+            </div>
           </section>
         </div>
       </div>
