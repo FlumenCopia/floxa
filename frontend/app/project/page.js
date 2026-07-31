@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Floxaheader from "../../commone/Floxaheader";
 import ProjectSection from "../../components/Allproject/ProjectSection";
 
-export default function ProjectPage() {
+function ProjectPageContent() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   return (
@@ -13,5 +13,13 @@ export default function ProjectPage() {
         <ProjectSection isWizardOpen={isWizardOpen} setIsWizardOpen={setIsWizardOpen} />
       </Floxaheader>
     </div>
+  );
+}
+
+export default function ProjectPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProjectPageContent />
+    </Suspense>
   );
 }
