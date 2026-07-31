@@ -18,7 +18,9 @@ from .models import (
     ProjectActivity,
     ProjectDiscovery,
 )
+ 
 
+ 
 
 admin.site.register(ClientProfile)
 admin.site.register(BrandDNA)
