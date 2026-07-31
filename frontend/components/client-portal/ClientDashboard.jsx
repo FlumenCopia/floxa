@@ -29,38 +29,54 @@ function getAgreementStatusLabel(agreement) {
   return agreement?.status_label || labels[agreement?.status] || agreement?.status || "Not available";
 }
 
-function getActivePhaseIndex(progress) {
+function getActivePhaseIndex(progress, workflowStatus) {
+  if (workflowStatus) {
+    const statusMap = {
+      created: 0,
+      discovery: 1,
+      advance_payment: 1,
+      advance_paid: 1,
+      brand_dna: 2,
+      moodboards: 3,
+      concepts: 4,
+      agreement: 5,
+      deliverables: 6,
+      final_paid: 7,
+      delivered: 7,
+    };
+
+    if (workflowStatus in statusMap) {
+      return statusMap[workflowStatus];
+    }
+  }
+
   const pct = Number(progress || 0);
 
   if (pct >= 100) {
     return 7;
   }
 
-  if (pct >= 98) {
-    return 7;
-  }
-
-  if (pct >= 92) {
+  if (pct >= 85) {
     return 6;
   }
 
-  if (pct >= 82) {
+  if (pct >= 70) {
     return 5;
   }
 
-  if (pct >= 60) {
+  if (pct >= 55) {
     return 4;
   }
 
-  if (pct >= 40) {
+  if (pct >= 45) {
     return 3;
   }
 
-  if (pct >= 30) {
+  if (pct >= 25) {
     return 2;
   }
 
-  if (pct >= 20) {
+  if (pct >= 15) {
     return 1;
   }
 
@@ -196,7 +212,8 @@ function getRelativeTime(value) {
 
 export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }) {
   const pct = project.completionPct;
-  const activePhaseIndex = getActivePhaseIndex(pct);
+  const workflowStatus = project.workflowStatus || project.workflow_status;
+  const activePhaseIndex = getActivePhaseIndex(pct, workflowStatus);
   const activePhaseLabel = pct >= 100 ? "Complete" : phaseLabels[activePhaseIndex];
   const [panel, setPanel] = useState(null);
   const [working, setWorking] = useState("");
@@ -238,6 +255,92 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const [notificationsError, setNotificationsError] = useState("");
   const notificationsRef = useRef(null);
+  const [activePreview, setActivePreview] = useState(null);
+  const lastFocusedElementRef = useRef(null);
+  const closeButtonRef = useRef(null);
+
+  const openPreview = useCallback((item, type, event) => {
+    if (!item?.image_url) {
+      return;
+    }
+
+    if (event?.currentTarget) {
+      lastFocusedElementRef.current = event.currentTarget;
+    }
+
+    setActivePreview({
+      title: item.name || item.title || (type === "moodboard" ? "Moodboard Preview" : "Concept Preview"),
+      imageUrl: item.image_url,
+      type,
+    });
+
+    if (typeof document !== "undefined") {
+      document.body.style.overflow = "hidden";
+    }
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setActivePreview(null);
+
+    if (typeof document !== "undefined") {
+      document.body.style.overflow = "";
+    }
+
+    if (lastFocusedElementRef.current) {
+      try {
+        lastFocusedElementRef.current.focus();
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!activePreview) {
+      return;
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closePreview();
+        return;
+      }
+
+      if (event.key === "Tab" && closeButtonRef.current) {
+        const focusables = Array.from(
+          document.querySelectorAll(
+            '.client-preview-backdrop button, .client-preview-backdrop [tabindex]:not([tabindex="-1"])'
+          )
+        );
+
+        if (focusables.length === 0) {
+          return;
+        }
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    if (closeButtonRef.current) {
+      closeButtonRef.current.focus();
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activePreview, closePreview]);
 
   const loadClientActivities = useCallback(async () => {
     setNotificationsLoading(true);
@@ -323,29 +426,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       await onProjectRefresh?.();
     } catch (error) {
       setMoodboardsError(error?.detail || "Unable to select moodboard. Please try again.");
-    } finally {
-      setWorking("");
-    }
-  }
-
-  async function downloadDeliverable(deliverable) {
-    const finalPaymentPaid = payments.some((item) => item.type === "final" && item.status === "paid");
-
-    if (!finalPaymentPaid) {
-      window.alert(FINAL_PAYMENT_REQUIRED_MESSAGE);
-      return;
-    }
-
-    setWorking(deliverable.id);
-
-    try {
-      const response = await clientPortalService.downloadDeliverable(deliverable);
-
-      if (response.success && response.data?.fileUrl) {
-        window.open(response.data.fileUrl, "_blank", "noopener,noreferrer");
-      }
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Unable to download this file.");
     } finally {
       setWorking("");
     }
@@ -893,7 +973,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const visibleNotifications = notifications.slice(0, 5);
   const unreadCount = notifications.filter((item) => item.client_is_read === false).length;
   const hasSharedDelivery = deliverables.some((item) => item.status === "shared" || item.file_url || item.fileUrl);
-  const finalPaymentPaid = payments.some((item) => item.type === "final" && item.status === "paid");
   const allPaymentsPaid = payments.length > 0 && payments.every((item) => item.status === "paid");
   const signOffDisabledReason = !hasSharedDelivery
     ? "Final delivery is not available yet."
@@ -1141,8 +1220,31 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               {!moodboardsLoading && moodboards.map((item) => (
                 <article key={item.id} className={item.clientSelected || item.is_selected ? "selected" : ""}>
                   <div
-                    className="client-panel-image"
-                    style={item.image_url ? { backgroundImage: `url(${item.image_url})` } : undefined}
+                    className={`client-panel-image ${item.image_url ? "clickable" : ""}`.trim()}
+                    role={item.image_url ? "button" : undefined}
+                    tabIndex={item.image_url ? 0 : undefined}
+                    aria-label={item.image_url ? `Enlarge preview for ${item.name || item.title || "moodboard"}` : undefined}
+                    onClick={item.image_url ? (event) => openPreview(item, "moodboard", event) : undefined}
+                    onKeyDown={
+                      item.image_url
+                        ? (event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openPreview(item, "moodboard", event);
+                            }
+                          }
+                        : undefined
+                    }
+                    onContextMenu={(event) => event.preventDefault()}
+                    style={
+                      item.image_url
+                        ? {
+                            backgroundImage: `url(${item.image_url})`,
+                            userSelect: "none",
+                            WebkitUserDrag: "none",
+                          }
+                        : { userSelect: "none", WebkitUserDrag: "none" }
+                    }
                   />
                   <h3>{item.name || item.title}</h3>
                   {item.description ? <p>{item.description}</p> : null}
@@ -1191,8 +1293,23 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                 <article key={item.id}>
                   {item.image_url ? (
                     <section
-                      className="client-panel-image"
-                      style={{ backgroundImage: `url(${item.image_url})` }}
+                      className="client-panel-image clickable"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Enlarge preview for ${item.title || "concept"}`}
+                      onClick={(event) => openPreview(item, "concept", event)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openPreview(item, "concept", event);
+                        }
+                      }}
+                      onContextMenu={(event) => event.preventDefault()}
+                      style={{
+                        backgroundImage: `url(${item.image_url})`,
+                        userSelect: "none",
+                        WebkitUserDrag: "none",
+                      }}
                     />
                   ) : null}
                   <h3>{item.title}</h3>
@@ -1204,28 +1321,16 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                   {item.status === "changes_requested" && item.client_feedback ? (
                     <p>Latest feedback: {item.client_feedback}</p>
                   ) : null}
-                  {item.file_url || item.image_url ? (
+                  {item.file_url ? (
                     <div>
-                      {item.file_url ? (
-                        <a
-                          href={item.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="client-panel-action"
-                        >
-                          View file
-                        </a>
-                      ) : null}
-                      {item.image_url ? (
-                        <a
-                          href={item.image_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="client-panel-action secondary"
-                        >
-                          View image
-                        </a>
-                      ) : null}
+                      <a
+                        href={item.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="client-panel-action"
+                      >
+                        View file
+                      </a>
                     </div>
                   ) : null}
                   {item.status === "approved" ? (
@@ -1316,16 +1421,28 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       {item.file_name || item.fileFormat || item.category || "File"}
                       {item.created_at ? ` - ${new Date(item.created_at).toLocaleDateString()}` : ""}
                     </p>
-                    {!finalPaymentPaid ? <p>{FINAL_PAYMENT_REQUIRED_MESSAGE}</p> : null}
+                    {item.can_download === false || (!item.file_url && item.can_download !== true) ? (
+                      <p>{item.download_locked_reason || FINAL_PAYMENT_REQUIRED_MESSAGE}</p>
+                    ) : null}
                   </div>
-                  <button
-                    type="button"
-                    disabled={working === item.id || !finalPaymentPaid}
-                    onClick={() => downloadDeliverable(item)}
-                    className="client-panel-action"
-                  >
-                    {working === item.id ? "Opening..." : "Download"}
-                  </button>
+                  {item.can_download !== false && item.file_url ? (
+                    <a
+                      href={item.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="client-panel-action"
+                    >
+                      Download Final File
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="client-panel-action secondary"
+                    >
+                      Locked
+                    </button>
+                  )}
                 </article>
               ))}
               {!deliverablesLoading ? (
@@ -1592,6 +1709,42 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
             </div>
           ) : null}
         </section>
+      ) : null}
+
+      {activePreview ? (
+        <div
+          className="client-preview-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="client-preview-title"
+          onClick={closePreview}
+        >
+          <div
+            className="client-preview-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="client-preview-header">
+              <h3 id="client-preview-title">{activePreview.title}</h3>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                className="client-preview-close-btn"
+                onClick={closePreview}
+                aria-label="Close preview"
+              >
+                Close
+              </button>
+            </div>
+            <div className="client-preview-body">
+              <img
+                src={activePreview.imageUrl}
+                alt={activePreview.title}
+                draggable={false}
+                onContextMenu={(event) => event.preventDefault()}
+              />
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

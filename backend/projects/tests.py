@@ -14,13 +14,14 @@ from rest_framework.test import APIClient
 from ai_assistant.services import GeminiProviderError, GeminiRateLimitError
 from accounts.models import Consultant
 
-from .models import Client, Concept, PaymentMilestone, PaymentTransaction, Project, ProjectAgreement, RazorpayWebhookEvent, Moodboard, Agreement
+from .models import Client, Concept, Deliverable, PaymentMilestone, PaymentTransaction, Project, ProjectAgreement, RazorpayWebhookEvent, Moodboard, Agreement
 from .progress import calculate_project_progress
 from .views import (
     PORTAL_ACCESS_COOKIE_NAME,
     PaymentCompletionError,
     PROJECT_ASSISTANT_PROMPT_MAX_LENGTH,
     _build_project_assistant_prompt,
+    _get_project_assistant_prompt_max_length,
     complete_payment_milestone,
     sign_portal_access_token,
 )
@@ -59,7 +60,7 @@ class ProjectProgressCalculationTests(TestCase):
             status=ProjectAgreement.Status.DRAFT,
         )
 
-        self.assertEqual(calculate_project_progress(self.project), 75)
+        self.assertEqual(calculate_project_progress(self.project), 15)
 
     def test_signature_requested_project_agreement_does_not_award_agreement_progress(self):
         ProjectAgreement.objects.create(
@@ -67,7 +68,7 @@ class ProjectProgressCalculationTests(TestCase):
             status=ProjectAgreement.Status.SIGNATURE_REQUESTED,
         )
 
-        self.assertEqual(calculate_project_progress(self.project), 75)
+        self.assertEqual(calculate_project_progress(self.project), 15)
 
     def test_signed_project_agreement_awards_agreement_progress(self):
         ProjectAgreement.objects.create(
@@ -76,13 +77,211 @@ class ProjectProgressCalculationTests(TestCase):
             signed_at=timezone.now(),
         )
 
-        self.assertEqual(calculate_project_progress(self.project), 82)
+        self.assertEqual(calculate_project_progress(self.project), 25)
 
-    def test_final_signoff_still_reaches_complete_progress(self):
+    def test_blank_project_returns_zero_progress(self):
+        blank_project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Blank Project",
+            company_name="Blank Co",
+            sector="Design",
+            project_value=Decimal("500.00"),
+        )
+
+        self.assertEqual(calculate_project_progress(blank_project), 0)
+
+    def test_early_signed_agreement_does_not_jump_to_82(self):
+        blank_project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Early Agreement Project",
+            company_name="Early Co",
+            sector="Design",
+            project_value=Decimal("500.00"),
+        )
+        ProjectAgreement.objects.create(
+            project=blank_project,
+            status=ProjectAgreement.Status.SIGNED,
+            signed_at=timezone.now(),
+        )
+
+        self.assertEqual(calculate_project_progress(blank_project), 10)
+
+    def test_each_milestone_adds_only_its_assigned_weight(self):
+        proj = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Step Project",
+            company_name="Step Co",
+            sector="Retail",
+            project_value=Decimal("1000.00"),
+        )
+        self.assertEqual(calculate_project_progress(proj), 0)
+
+        # 1. Profile +5
+        from .models import ClientProfile, ProjectDiscovery, DiscoveryEmotion, DiscoveryCompetitor, DiscoveryVisualStyle, BrandDNA
+        ClientProfile.objects.create(
+            project=proj,
+            client_name="Test Client",
+            company_name="Step Co",
+            industry="Retail",
+        )
+        self.assertEqual(calculate_project_progress(proj), 5)
+
+        # 2. Complete Discovery +10
+        discovery = ProjectDiscovery.objects.create(
+            project=proj,
+            what_business_does="Retail sales",
+            target_customer="Consumers",
+            why_choose_us="Quality",
+            brand_feeling="Warm",
+            audience_archetype="Shoppers",
+            submitted_at=timezone.now(),
+        )
+        DiscoveryEmotion.objects.create(discovery=discovery, emotion="Joy")
+        DiscoveryCompetitor.objects.create(discovery=discovery, name="Comp", rating=4)
+        DiscoveryVisualStyle.objects.create(discovery=discovery, style="Minimal")
+        self.assertEqual(calculate_project_progress(proj), 15)
+
+        # 3. Complete Brand DNA +10
+        BrandDNA.objects.create(
+            project=proj,
+            brand_personality_cluster="Premium",
+            business_summary="Quality retail focus.",
+        )
+        self.assertEqual(calculate_project_progress(proj), 25)
+
+        # 4. Advance payment PAID +10
+        PaymentMilestone.objects.create(
+            project=proj,
+            type=PaymentMilestone.Type.ADVANCE,
+            percentage=30,
+            amount=Decimal("300.00"),
+            status=PaymentMilestone.Status.PAID,
+            paid_at=timezone.now(),
+        )
+        self.assertEqual(calculate_project_progress(proj), 35)
+
+        # 5. Moodboard created +5
+        mb = Moodboard.objects.create(
+            project=proj,
+            title="Moodboard 1",
+            is_selected=False,
+        )
+        self.assertEqual(calculate_project_progress(proj), 40)
+
+        # 6. Moodboard selected +5
+        mb.is_selected = True
+        mb.save()
+        self.assertEqual(calculate_project_progress(proj), 45)
+
+        # 7. Concept SHARED +5
+        concept = Concept.objects.create(
+            project=proj,
+            title="Concept 1",
+            status=Concept.Status.SHARED,
+        )
+        self.assertEqual(calculate_project_progress(proj), 50)
+
+        # 8. Concept APPROVED +10 additional (total 15 for concepts)
+        concept.status = Concept.Status.APPROVED
+        concept.save()
+        self.assertEqual(calculate_project_progress(proj), 60)
+
+        # 9. Agreement signed +10
+        ProjectAgreement.objects.create(
+            project=proj,
+            status=ProjectAgreement.Status.SIGNED,
+            signed_at=timezone.now(),
+        )
+        self.assertEqual(calculate_project_progress(proj), 70)
+
+        # 10. Mid payment PAID +5
+        PaymentMilestone.objects.create(
+            project=proj,
+            type=PaymentMilestone.Type.MID,
+            percentage=30,
+            amount=Decimal("300.00"),
+            status=PaymentMilestone.Status.PAID,
+            paid_at=timezone.now(),
+        )
+        self.assertEqual(calculate_project_progress(proj), 75)
+
+        # 11. Final deliverables shared +10
+        Deliverable.objects.create(
+            project=proj,
+            title="Logo Files",
+            status=Deliverable.Status.SHARED,
+        )
+        self.assertEqual(calculate_project_progress(proj), 85)
+
+        # 12. Final payment PAID +10
+        PaymentMilestone.objects.create(
+            project=proj,
+            type=PaymentMilestone.Type.FINAL,
+            percentage=40,
+            amount=Decimal("400.00"),
+            status=PaymentMilestone.Status.PAID,
+            paid_at=timezone.now(),
+        )
+        self.assertEqual(calculate_project_progress(proj), 95)
+
+        # 13. Client final sign-off +5
+        proj.client_signed_off = True
+        proj.save()
+        self.assertEqual(calculate_project_progress(proj), 100)
+
+    def test_incomplete_empty_records_do_not_count(self):
+        proj = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Empty Records Project",
+            company_name="Empty Co",
+            sector="Services",
+        )
+        from .models import ClientProfile, BrandDNA
+        ClientProfile.objects.create(project=proj)  # all blank fields
+        BrandDNA.objects.create(project=proj)       # all blank fields
+
+        self.assertEqual(calculate_project_progress(proj), 0)
+
+    def test_draft_or_rejected_concepts_do_not_count(self):
+        proj = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Draft Concept Project",
+            company_name="Draft Co",
+            sector="Tech",
+        )
+        Concept.objects.create(
+            project=proj,
+            title="Draft Concept",
+            status=Concept.Status.DRAFT,
+        )
+        Concept.objects.create(
+            project=proj,
+            title="Changes Requested Concept",
+            status=Concept.Status.CHANGES_REQUESTED,
+        )
+
+        self.assertEqual(calculate_project_progress(proj), 0)
+
+    def test_one_pending_mandatory_stage_prevents_100(self):
         self.project.client_signed_off = True
-        self.project.save(update_fields=["client_signed_off", "updated_at"])
+        self.project.save()
 
-        self.assertEqual(calculate_project_progress(self.project), 100)
+        # Approved concept (15) + Sign-off (5) = 20, less than 100
+        self.assertLess(calculate_project_progress(self.project), 100)
+
+    def test_serializers_and_dashboard_return_same_progress(self):
+        from .serializers import ProjectSerializer, ClientPortalProjectSerializer
+        proj_ser = ProjectSerializer(self.project).data
+        portal_ser = ClientPortalProjectSerializer(self.project).data
+        calc_val = calculate_project_progress(self.project)
+
+        self.assertEqual(proj_ser["progress"], calc_val)
+        self.assertEqual(portal_ser["progress"], calc_val)
 
 
 class ProjectAssistantChatEndpointTests(TestCase):
@@ -304,11 +503,80 @@ class ProjectAssistantChatEndpointTests(TestCase):
 
         prompt = _build_project_assistant_prompt(context, "What should I do next?")
 
-        self.assertLessEqual(len(prompt), PROJECT_ASSISTANT_PROMPT_MAX_LENGTH)
+        self.assertLessEqual(len(prompt), _get_project_assistant_prompt_max_length())
         self.assertIn("workflow", prompt)
         self.assertIn("recommend one clear next action", prompt)
         self.assertIn("payments", prompt)
         self.assertNotIn("sources_available", prompt)
+
+    def test_large_brand_dna_and_discovery_produce_valid_json(self):
+        context = self.large_assistant_context()
+        context["brand_dna"]["business_summary"] = "Very long business summary text. " * 300
+        context["brand_dna"]["visual_direction_summary"] = "Very detailed visual direction text. " * 300
+        context["discovery"]["answers"]["target_customer"] = "Extremely thorough discovery description. " * 300
+
+        prompt = _build_project_assistant_prompt(context, "Tell me about the Brand DNA")
+
+        self.assertLessEqual(len(prompt), _get_project_assistant_prompt_max_length())
+
+        json_start = prompt.find("FLOXA project context:\n") + len("FLOXA project context:\n")
+        json_end = prompt.find("\n\nConsultant question:")
+        json_str = prompt[json_start:json_end]
+
+        parsed = json.loads(json_str)
+        self.assertIn("brand_dna", parsed)
+        self.assertIsInstance(parsed["brand_dna"], dict)
+
+    @override_settings(GEMINI_MAX_INPUT_CHARACTERS=1500)
+    def test_prompt_stays_within_configured_input_limit_and_preserves_valid_json(self):
+        context = self.large_assistant_context()
+        context["brand_dna"]["business_summary"] = "Long text " * 100
+
+        prompt = _build_project_assistant_prompt(context, "Summarize Brand DNA")
+
+        max_allowed = _get_project_assistant_prompt_max_length()
+        self.assertLessEqual(len(prompt), max_allowed)
+
+        json_start = prompt.find("FLOXA project context:\n") + len("FLOXA project context:\n")
+        json_end = prompt.find("\n\nConsultant question:")
+        json_str = prompt[json_start:json_end]
+
+        parsed = json.loads(json_str)
+        self.assertIsInstance(parsed, dict)
+
+    def test_long_user_questions_handled_safely(self):
+        context = self.large_assistant_context()
+        long_question = "Explain " + ("the brand strategy and project direction " * 20)
+        long_question = long_question[:700]
+
+        prompt = _build_project_assistant_prompt(context, long_question)
+
+        self.assertLessEqual(len(prompt), _get_project_assistant_prompt_max_length())
+        self.assertIn(long_question, prompt)
+
+        json_start = prompt.find("FLOXA project context:\n") + len("FLOXA project context:\n")
+        json_end = prompt.find("\n\nConsultant question:")
+        json_str = prompt[json_start:json_end]
+
+        parsed = json.loads(json_str)
+        self.assertIsInstance(parsed, dict)
+
+    def test_no_raw_slicing_or_mid_key_truncation_under_tight_limit(self):
+        context = self.large_assistant_context()
+
+        with override_settings(GEMINI_MAX_INPUT_CHARACTERS=800):
+            prompt = _build_project_assistant_prompt(context, "What next?")
+
+            self.assertIn("Consultant question:", prompt)
+            self.assertTrue(prompt.endswith("What next?"))
+
+            json_start = prompt.find("FLOXA project context:\n") + len("FLOXA project context:\n")
+            json_end = prompt.find("\n\nConsultant question:")
+            json_str = prompt[json_start:json_end]
+
+            parsed = json.loads(json_str)
+            self.assertIn("project", parsed)
+            self.assertIn("workflow", parsed)
 
     def large_assistant_context(self):
         return {
@@ -1015,6 +1283,15 @@ class RazorpayPaymentVerificationTests(TestCase):
             )
 
 
+def create_test_image_bytes(width=300, height=300, color="red", format="JPEG"):
+    from io import BytesIO
+    from PIL import Image
+    buf = BytesIO()
+    img = Image.new("RGB", (width, height), color=color)
+    img.save(buf, format=format)
+    return buf.getvalue()
+
+
 class PrivateMediaHardeningTests(TestCase):
     def setUp(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
@@ -1056,15 +1333,16 @@ class PrivateMediaHardeningTests(TestCase):
             mid_percentage=30,
             final_percentage=30,
         )
+        self.test_image_data = create_test_image_bytes(300, 300, color="red")
         self.moodboard = Moodboard.objects.create(
             project=self.project,
             title="Moodboard 1",
-            image=SimpleUploadedFile("moodboard.jpg", b"image_data", content_type="image/jpeg"),
+            image=SimpleUploadedFile("moodboard.jpg", self.test_image_data, content_type="image/jpeg"),
         )
         self.concept = Concept.objects.create(
             project=self.project,
             title="Concept 1",
-            image=SimpleUploadedFile("concept.jpg", b"image_data", content_type="image/jpeg"),
+            image=SimpleUploadedFile("concept.jpg", self.test_image_data, content_type="image/jpeg"),
             file=SimpleUploadedFile("concept.pdf", b"pdf_data", content_type="application/pdf"),
             status=Concept.Status.SHARED,
         )
@@ -1083,14 +1361,14 @@ class PrivateMediaHardeningTests(TestCase):
             f"/api/projects/{self.project.id}/moodboards/{self.moodboard.id}/image/"
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(b"".join(response.streaming_content), b"image_data")
+        self.assertEqual(b"".join(response.streaming_content), self.test_image_data)
 
         # Concept image
         response = self.api_client.get(
             f"/api/projects/{self.project.id}/concepts/{self.concept.id}/image/"
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(b"".join(response.streaming_content), b"image_data")
+        self.assertEqual(b"".join(response.streaming_content), self.test_image_data)
 
         # Concept file
         response = self.api_client.get(
@@ -1134,23 +1412,29 @@ class PrivateMediaHardeningTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_client_portal_asset_access_succeeds_with_valid_cookie(self):
+        from .views import sign_portal_access_token
         self.api_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
             self.project.portal_token
         )
         
-        # Moodboard image
+        # Moodboard image preview
         response = self.api_client.get(
             f"/api/client-portal/{self.project.portal_token}/moodboards/{self.moodboard.id}/image/"
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(b"".join(response.streaming_content), b"image_data")
+        self.assertEqual(response.headers["Content-Type"], "image/jpeg")
+        self.assertEqual(response.headers["Cache-Control"], "private, no-store, max-age=0")
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response.headers["Content-Disposition"], "inline")
+        self.assertNotEqual(response.content, self.test_image_data)
 
-        # Concept image
+        # Concept image preview
         response = self.api_client.get(
             f"/api/client-portal/{self.project.portal_token}/concepts/{self.concept.id}/image/"
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(b"".join(response.streaming_content), b"image_data")
+        self.assertEqual(response.headers["Content-Type"], "image/jpeg")
+        self.assertNotEqual(response.content, self.test_image_data)
 
         # Concept file
         response = self.api_client.get(
@@ -1167,6 +1451,7 @@ class PrivateMediaHardeningTests(TestCase):
         self.assertEqual(b"".join(response.streaming_content), b"pdf_data")
 
     def test_client_portal_asset_access_fails_with_invalid_cookie(self):
+        from .views import sign_portal_access_token
         # Mismatched/invalid portal token
         self.api_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
             self.other_project.portal_token
@@ -1223,4 +1508,343 @@ class PrivateMediaHardeningTests(TestCase):
         ser = ClientPortalAgreementSerializer(self.agreement, context={"request": request})
         self.assertNotIn("/media/", ser.data["file_url"])
         self.assertIn("/agreement/", ser.data["file_url"])
+
+
+class ClientPortalWatermarkedPreviewTests(TestCase):
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .views import sign_portal_access_token
+        self.consultant = Consultant.objects.create_user(
+            email="preview_consultant@example.com",
+            name="Preview Consultant",
+            password="pass12345",
+        )
+        self.client_record = Client.objects.create(
+            name="Preview Client",
+            email="preview_client@example.com",
+            company_name="Acme Design Co",
+            sector="Design",
+        )
+        self.project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Preview Project",
+            company_name="Acme Design Co",
+            sector="Retail",
+            project_value=Decimal("1000.00"),
+            advance_percentage=40,
+            mid_percentage=30,
+            final_percentage=30,
+        )
+        self.other_project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Other Preview Project",
+            company_name="Other Design Co",
+            sector="Retail",
+            project_value=Decimal("1000.00"),
+            advance_percentage=40,
+            mid_percentage=30,
+            final_percentage=30,
+        )
+
+        self.large_image_data = create_test_image_bytes(2000, 1500, color="green")
+        self.small_image_data = create_test_image_bytes(200, 200, color="blue")
+
+        self.large_moodboard = Moodboard.objects.create(
+            project=self.project,
+            title="Large Moodboard",
+            image=SimpleUploadedFile("large_moodboard.jpg", self.large_image_data, content_type="image/jpeg"),
+        )
+        self.small_moodboard = Moodboard.objects.create(
+            project=self.project,
+            title="Small Moodboard",
+            image=SimpleUploadedFile("small_moodboard.jpg", self.small_image_data, content_type="image/jpeg"),
+        )
+        self.concept = Concept.objects.create(
+            project=self.project,
+            title="Concept Route",
+            image=SimpleUploadedFile("concept.jpg", self.large_image_data, content_type="image/jpeg"),
+            status=Concept.Status.SHARED,
+        )
+        self.other_concept = Concept.objects.create(
+            project=self.other_project,
+            title="Other Project Concept",
+            image=SimpleUploadedFile("other.jpg", self.small_image_data, content_type="image/jpeg"),
+            status=Concept.Status.SHARED,
+        )
+
+        self.api_client = APIClient()
+        self.api_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            self.project.portal_token
+        )
+
+    def test_client_fetches_moodboard_preview_and_dimensions_are_constrained(self):
+        from PIL import Image
+        from io import BytesIO
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/moodboards/{self.large_moodboard.id}/image/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["Content-Type"], "image/jpeg")
+        self.assertEqual(response.headers["Cache-Control"], "private, no-store, max-age=0")
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response.headers["Content-Disposition"], "inline")
+
+        preview_img = Image.open(BytesIO(response.content))
+        self.assertLessEqual(preview_img.width, 1400)
+        self.assertLessEqual(preview_img.height, 1400)
+        self.assertNotEqual(response.content, self.large_image_data)
+
+    def test_smaller_images_are_not_upscaled(self):
+        from PIL import Image
+        from io import BytesIO
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/moodboards/{self.small_moodboard.id}/image/"
+        )
+        self.assertEqual(response.status_code, 200)
+        preview_img = Image.open(BytesIO(response.content))
+        self.assertEqual(preview_img.width, 200)
+        self.assertEqual(preview_img.height, 200)
+
+    def test_client_fetches_concept_preview(self):
+        from PIL import Image
+        from io import BytesIO
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/concepts/{self.concept.id}/image/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["Content-Type"], "image/jpeg")
+        preview_img = Image.open(BytesIO(response.content))
+        self.assertIsNotNone(preview_img)
+        self.assertNotEqual(response.content, self.large_image_data)
+
+    def test_cross_project_image_access_is_prevented(self):
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/concepts/{self.other_concept.id}/image/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_corrupt_image_returns_controlled_404(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        corrupt_moodboard = Moodboard.objects.create(
+            project=self.project,
+            title="Corrupt Moodboard",
+            image=SimpleUploadedFile("corrupt.jpg", b"not_a_valid_image", content_type="image/jpeg"),
+        )
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/moodboards/{corrupt_moodboard.id}/image/"
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {"detail": "Asset not found."})
+
+    def test_consultant_endpoint_returns_unaltered_original(self):
+        self.api_client.force_authenticate(user=self.consultant)
+
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/moodboards/{self.large_moodboard.id}/image/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), self.large_image_data)
+
+
+class ClientPortalPhase3DeliverableReleaseTests(TestCase):
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from .views import sign_portal_access_token
+
+        self.consultant = Consultant.objects.create_user(
+            email="phase3_consultant@example.com",
+            name="Phase 3 Consultant",
+            password="pass12345",
+        )
+        self.client_record = Client.objects.create(
+            name="Phase 3 Client",
+            email="phase3_client@example.com",
+            company_name="Phase 3 Co",
+            sector="Design",
+        )
+        self.project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Phase 3 Project",
+            company_name="Phase 3 Co",
+            sector="Retail",
+            project_value=Decimal("1000.00"),
+            advance_percentage=40,
+            mid_percentage=30,
+            final_percentage=30,
+        )
+        self.other_project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_record,
+            title="Other Phase 3 Project",
+            company_name="Other Co",
+            sector="Retail",
+            project_value=Decimal("1000.00"),
+            advance_percentage=40,
+            mid_percentage=30,
+            final_percentage=30,
+        )
+
+        self.deliverable_file_bytes = b"FINAL_DELIVERABLE_ORIGINAL_BYTES_XYZ"
+        self.deliverable = Deliverable.objects.create(
+            project=self.project,
+            title="Final Brand Package",
+            description="Logo and brand guidelines",
+            file=SimpleUploadedFile("brand_package.zip", self.deliverable_file_bytes, content_type="application/zip"),
+            status=Deliverable.Status.SHARED,
+        )
+        self.draft_deliverable = Deliverable.objects.create(
+            project=self.project,
+            title="Draft Deliverable",
+            description="Draft",
+            file=SimpleUploadedFile("draft.zip", b"DRAFT_BYTES", content_type="application/zip"),
+            status=Deliverable.Status.DRAFT,
+        )
+        self.other_deliverable = Deliverable.objects.create(
+            project=self.other_project,
+            title="Other Project Deliverable",
+            description="Other",
+            file=SimpleUploadedFile("other.zip", b"OTHER_BYTES", content_type="application/zip"),
+            status=Deliverable.Status.SHARED,
+        )
+
+        self.advance_pm, _ = PaymentMilestone.objects.get_or_create(
+            project=self.project,
+            type=PaymentMilestone.Type.ADVANCE,
+            defaults={"percentage": 40, "amount": Decimal("400.00"), "status": PaymentMilestone.Status.LOCKED},
+        )
+        self.mid_pm, _ = PaymentMilestone.objects.get_or_create(
+            project=self.project,
+            type=PaymentMilestone.Type.MID,
+            defaults={"percentage": 30, "amount": Decimal("300.00"), "status": PaymentMilestone.Status.LOCKED},
+        )
+        self.final_pm, _ = PaymentMilestone.objects.get_or_create(
+            project=self.project,
+            type=PaymentMilestone.Type.FINAL,
+            defaults={"percentage": 30, "amount": Decimal("300.00"), "status": PaymentMilestone.Status.LOCKED},
+        )
+
+        self.api_client = APIClient()
+        self.api_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            self.project.portal_token
+        )
+
+    def test_locked_serializer_omits_file_url_and_exposes_locked_reason(self):
+        from .serializers import ClientPortalDeliverableSerializer
+        from rest_framework.test import APIRequestFactory
+
+        request = APIRequestFactory().get("/")
+        ser = ClientPortalDeliverableSerializer(self.deliverable, context={"request": request})
+
+        self.assertFalse(ser.data["can_download"])
+        self.assertIsNone(ser.data["file_url"])
+        self.assertIn("Final files will be available", ser.data["download_locked_reason"])
+        self.assertNotIn("/media/", str(ser.data))
+
+    def test_download_denied_when_final_payment_milestone_unpaid(self):
+        self.advance_pm.status = PaymentMilestone.Status.PAID
+        self.advance_pm.save()
+        self.mid_pm.status = PaymentMilestone.Status.PAID
+        self.mid_pm.save()
+        self.final_pm.status = PaymentMilestone.Status.REQUESTED
+        self.final_pm.save()
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json(), {"detail": "Final files will be available after the required payment is confirmed."})
+
+    def test_download_denied_when_final_is_paid_but_advance_is_unpaid(self):
+        self.advance_pm.status = PaymentMilestone.Status.REQUESTED
+        self.advance_pm.save()
+        self.mid_pm.status = PaymentMilestone.Status.PAID
+        self.mid_pm.save()
+        self.final_pm.status = PaymentMilestone.Status.PAID
+        self.final_pm.save()
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_download_denied_for_draft_unshared_deliverable(self):
+        self.advance_pm.status = PaymentMilestone.Status.PAID
+        self.advance_pm.save()
+        self.mid_pm.status = PaymentMilestone.Status.PAID
+        self.mid_pm.save()
+        self.final_pm.status = PaymentMilestone.Status.PAID
+        self.final_pm.save()
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.draft_deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_download_denied_for_deliverable_of_another_project(self):
+        self.advance_pm.status = PaymentMilestone.Status.PAID
+        self.advance_pm.save()
+        self.mid_pm.status = PaymentMilestone.Status.PAID
+        self.mid_pm.save()
+        self.final_pm.status = PaymentMilestone.Status.PAID
+        self.final_pm.save()
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.other_deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_download_denied_for_invalid_cookie(self):
+        self.api_client.cookies.clear()
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_download_succeeds_when_all_payments_paid_and_deliverable_shared(self):
+        from .serializers import ClientPortalDeliverableSerializer
+        from rest_framework.test import APIRequestFactory
+
+        self.advance_pm.status = PaymentMilestone.Status.PAID
+        self.advance_pm.save()
+        self.mid_pm.status = PaymentMilestone.Status.PAID
+        self.mid_pm.save()
+        self.final_pm.status = PaymentMilestone.Status.PAID
+        self.final_pm.save()
+
+        request = APIRequestFactory().get("/")
+        ser = ClientPortalDeliverableSerializer(self.deliverable, context={"request": request})
+        self.assertTrue(ser.data["can_download"])
+        self.assertIsNotNone(ser.data["file_url"])
+        self.assertNotIn("/media/", ser.data["file_url"])
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), self.deliverable_file_bytes)
+        self.assertEqual(response.headers["Cache-Control"], "private, no-store, max-age=0")
+        self.assertEqual(response.headers["Pragma"], "no-cache")
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        self.assertIn("attachment", response.headers["Content-Disposition"])
+        self.assertIn("brand_package", response.headers["Content-Disposition"])
+
+    def test_consultant_endpoint_returns_unlocked_file_regardless_of_payment(self):
+        self.api_client.force_authenticate(user=self.consultant)
+
+        self.final_pm.status = PaymentMilestone.Status.REQUESTED
+        self.final_pm.save()
+
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/deliverables/{self.deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), self.deliverable_file_bytes)
+
+
 

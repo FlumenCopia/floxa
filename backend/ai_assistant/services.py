@@ -143,7 +143,8 @@ def generate_response(prompt):
     if not prompt_text:
         raise GeminiInvalidRequestError()
 
-    if len(prompt_text) > 2000:
+    max_characters = int(getattr(settings, "GEMINI_MAX_INPUT_CHARACTERS", 12000))
+    if len(prompt_text) > max_characters:
         raise GeminiInvalidRequestError()
 
     models = _get_configured_models()

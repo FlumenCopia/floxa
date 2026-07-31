@@ -18,6 +18,7 @@ from .models import (
     ProjectDiscovery,
 )
 from .progress import calculate_project_progress, calculate_project_workflow_status
+from .upload_validation import can_client_download_deliverable
 from .upload_validation import optimize_uploaded_image, validate_upload_file
 
 
@@ -472,6 +473,8 @@ class ClientPortalDeliverableSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
     file_name = serializers.SerializerMethodField()
     file_size = serializers.SerializerMethodField()
+    can_download = serializers.SerializerMethodField()
+    download_locked_reason = serializers.SerializerMethodField()
 
     class Meta:
         model = Deliverable
@@ -483,13 +486,27 @@ class ClientPortalDeliverableSerializer(serializers.ModelSerializer):
             "file_name",
             "file_size",
             "status",
+            "can_download",
+            "download_locked_reason",
             "created_at",
             "updated_at",
         ]
 
+    def get_can_download(self, obj):
+        can_download, _ = can_client_download_deliverable(obj.project, obj)
+        return can_download
+
+    def get_download_locked_reason(self, obj):
+        _, reason = can_client_download_deliverable(obj.project, obj)
+        return reason
+
     def get_file_url(self, obj):
         if not obj.file:
-            return ""
+            return None
+
+        can_download, _ = can_client_download_deliverable(obj.project, obj)
+        if not can_download:
+            return None
 
         request = self.context.get("request")
         file_url = f"/api/client-portal/{obj.project.portal_token}/deliverables/{obj.id}/file/"

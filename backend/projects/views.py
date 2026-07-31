@@ -86,6 +86,7 @@ from .razorpay_service import (
     verify_razorpay_payment_signature,
     verify_razorpay_webhook_signature,
 )
+from .upload_validation import can_client_download_deliverable, generate_client_preview_response
 logger = logging.getLogger(__name__)
 
 PORTAL_ACCESS_COOKIE_NAME = "floxa_portal_access"
@@ -1678,7 +1679,12 @@ class ProjectDetailView(APIView):
 
 
 PROJECT_ASSISTANT_MESSAGE_MAX_LENGTH = 700
-PROJECT_ASSISTANT_PROMPT_MAX_LENGTH = 1950
+def _get_project_assistant_prompt_max_length():
+    max_input = int(getattr(settings, "GEMINI_MAX_INPUT_CHARACTERS", 12000))
+    return max(1000, max_input - 50)
+
+
+PROJECT_ASSISTANT_PROMPT_MAX_LENGTH = 11950
 
 
 PROJECT_ASSISTANT_SYSTEM_INSTRUCTION = (
@@ -1762,23 +1768,50 @@ class ProjectAssistantChatView(APIView):
 
 
 def _build_project_assistant_prompt(context, message):
+    max_length = _get_project_assistant_prompt_max_length()
+
+    # 1. Try full context payload with standard text formatting
     context_payload = _project_assistant_prompt_context(context, message)
     prompt = _format_project_assistant_prompt(context_payload, message)
 
-    if len(prompt) <= PROJECT_ASSISTANT_PROMPT_MAX_LENGTH:
+    if len(prompt) <= max_length:
         return prompt
 
-    for string_limit in [140, 100, 70]:
+    # 2. Progressive string compaction on full context payload
+    for string_limit in [300, 200, 140, 100, 70, 40, 20]:
         compact_payload = _compact_prompt_value(context_payload, string_limit=string_limit)
         prompt = _format_project_assistant_prompt(compact_payload, message)
 
-        if len(prompt) <= PROJECT_ASSISTANT_PROMPT_MAX_LENGTH:
+        if len(prompt) <= max_length:
             return prompt
 
+    # 3. Fall back to minimal prompt context payload (focuses on intent & core sections)
     minimal_payload = _minimal_project_assistant_prompt_context(context, message)
     prompt = _format_project_assistant_prompt(minimal_payload, message)
 
-    return prompt[:PROJECT_ASSISTANT_PROMPT_MAX_LENGTH]
+    if len(prompt) <= max_length:
+        return prompt
+
+    # 4. Progressive string compaction on minimal context payload
+    for string_limit in [50, 30, 15, 5, 0]:
+        compact_minimal = _compact_prompt_value(minimal_payload, string_limit=string_limit)
+        prompt = _format_project_assistant_prompt(compact_minimal, message)
+
+        if len(prompt) <= max_length:
+            return prompt
+
+    # 5. Emergency fallback: Absolute minimal valid structured dictionary context
+    emergency_payload = {
+        "project": _compact_prompt_value(context.get("project", {}), string_limit=30),
+        "workflow": context.get("workflow", {}),
+    }
+    prompt = _format_project_assistant_prompt(emergency_payload, message)
+
+    if len(prompt) <= max_length:
+        return prompt
+
+    # 6. Never perform raw string slicing. Always return valid structured prompt.
+    return prompt
 
 
 def _format_project_assistant_prompt(context_payload, message):
@@ -3661,7 +3694,7 @@ class ClientPortalAssetDownloadView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            return self.stream_file(moodboard.image)
+            return generate_client_preview_response(moodboard.image, project=project)
 
         if asset_type == "concept-image":
             try:
@@ -3679,7 +3712,7 @@ class ClientPortalAssetDownloadView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            return self.stream_file(concept.image)
+            return generate_client_preview_response(concept.image, project=project)
 
         if asset_type == "concept-file":
             try:
@@ -3712,25 +3745,24 @@ class ClientPortalAssetDownloadView(APIView):
 
         if asset_type == "deliverable-file":
             try:
-                deliverable = project.deliverables.get(
-                    id=asset_id,
-                    status=Deliverable.Status.SHARED,
-                )
+                deliverable = project.deliverables.get(id=asset_id)
             except Deliverable.DoesNotExist:
                 return Response(
                     {"detail": "Asset not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            final_payment_paid = project.payment_milestones.filter(
-                type=PaymentMilestone.Type.FINAL,
-                status=PaymentMilestone.Status.PAID,
-            ).exists()
-
-            if not final_payment_paid:
+            can_download, reason = can_client_download_deliverable(project, deliverable)
+            if not can_download:
                 return Response(
-                    {"detail": "Final payment must be completed before downloading deliverables."},
+                    {"detail": "Final files will be available after the required payment is confirmed."},
                     status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if not deliverable.file:
+                return Response(
+                    {"detail": "Asset not found."},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
 
             downloaded_activity = ProjectActivity.objects.create(
@@ -3755,7 +3787,29 @@ class ClientPortalAssetDownloadView(APIView):
                 event_key=f"deliverable_downloaded:{deliverable.id}",
             )
 
-            return self.stream_file(deliverable.file)
+            from pathlib import Path
+            import re
+            filename = Path(deliverable.file.name).name
+            filename = re.sub(r'[^\w\.\-\_]', '_', filename)
+
+            try:
+                deliverable.file.open("rb")
+            except (OSError, ValueError, AttributeError):
+                return Response(
+                    {"detail": "Asset not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            response = FileResponse(
+                deliverable.file,
+                as_attachment=True,
+                filename=filename,
+            )
+            response["Cache-Control"] = "private, no-store, max-age=0"
+            response["Pragma"] = "no-cache"
+            response["X-Content-Type-Options"] = "nosniff"
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
 
         return Response(
             {"detail": "Asset not found."},

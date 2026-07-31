@@ -187,3 +187,140 @@ def raise_upload_error(message, field_name):
         raise serializers.ValidationError({field_name: [message]})
 
     raise serializers.ValidationError(message)
+
+
+MAX_CLIENT_PREVIEW_EDGE = 1400
+
+
+def generate_client_preview_response(file_field, project=None):
+    import re
+    from django.http import HttpResponse
+    from rest_framework import status
+    from rest_framework.response import Response
+    from PIL import ImageDraw, ImageFont
+
+    if not file_field:
+        return Response({"detail": "Asset not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        file_field.open("rb")
+        raw_bytes = file_field.read()
+    except (OSError, ValueError, AttributeError):
+        return Response({"detail": "Asset not found."}, status=status.HTTP_404_NOT_FOUND)
+    finally:
+        try:
+            file_field.close()
+        except Exception:
+            pass
+
+    if not raw_bytes:
+        return Response({"detail": "Asset not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(BytesIO(raw_bytes)) as opened_img:
+                opened_img.verify()
+
+            with Image.open(BytesIO(raw_bytes)) as opened_img:
+                img = ImageOps.exif_transpose(opened_img)
+                img.load()
+                img = img.copy()
+    except Exception:
+        return Response({"detail": "Asset not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    width, height = img.size
+    if width > MAX_CLIENT_PREVIEW_EDGE or height > MAX_CLIENT_PREVIEW_EDGE:
+        img.thumbnail(
+            (MAX_CLIENT_PREVIEW_EDGE, MAX_CLIENT_PREVIEW_EDGE),
+            Image.Resampling.LANCZOS,
+        )
+
+    rgba_img = img.convert("RGBA")
+    overlay = Image.new("RGBA", rgba_img.size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    watermark_text = "FLOXA PREVIEW"
+    if project:
+        company = getattr(project, "company_name", "") or ""
+        if not company and hasattr(project, "client_profile"):
+            try:
+                company = project.client_profile.company_name or ""
+            except Exception:
+                company = ""
+        company = re.sub(r"[\r\n\t]+", " ", str(company)).strip()
+        if company:
+            watermark_text = f"FLOXA PREVIEW • {company[:30]}"
+
+    font = ImageFont.load_default()
+
+    w_width, w_height = rgba_img.size
+    step_x = max(240, w_width // 3)
+    step_y = max(180, w_height // 3)
+
+    for y in range(20, w_height, step_y):
+        for x in range(20, w_width, step_x):
+            offset = 50 if ((y // step_y) % 2 == 1) else 0
+            pos_x = x + offset
+            if pos_x < w_width:
+                draw.text(
+                    (pos_x, y),
+                    watermark_text,
+                    fill=(255, 255, 255, 95),
+                    font=font,
+                )
+                draw.text(
+                    (pos_x + 1, y + 1),
+                    watermark_text,
+                    fill=(0, 0, 0, 75),
+                    font=font,
+                )
+
+    watermarked = Image.alpha_composite(rgba_img, overlay)
+
+    final_img = Image.new("RGB", watermarked.size, (255, 255, 255))
+    final_img.paste(watermarked, mask=watermarked.getchannel("A"))
+
+    output = BytesIO()
+    final_img.save(output, format="JPEG", quality=85, optimize=True)
+    preview_bytes = output.getvalue()
+
+    response = HttpResponse(preview_bytes, content_type="image/jpeg")
+    response["Cache-Control"] = "private, no-store, max-age=0"
+    response["Pragma"] = "no-cache"
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Content-Disposition"] = "inline"
+    return response
+
+
+def can_client_download_deliverable(project, deliverable):
+    from .models import Deliverable, PaymentMilestone
+
+    if not project or not deliverable:
+        return False, "Deliverable unavailable."
+
+    if getattr(project, "is_archived", False):
+        return False, "Project is archived."
+
+    if deliverable.project_id != project.id:
+        return False, "Deliverable unavailable."
+
+    if deliverable.status != Deliverable.Status.SHARED:
+        return False, "Deliverable is not shared with client."
+
+    milestones = list(project.payment_milestones.all())
+    final_milestone = next((m for m in milestones if m.type == PaymentMilestone.Type.FINAL), None)
+
+    if not final_milestone:
+        return False, "Final files will be available after the required payment is confirmed."
+
+    if final_milestone.status != PaymentMilestone.Status.PAID:
+        return False, "Final files will be available after the required payment is confirmed."
+
+    for milestone in milestones:
+        if milestone.status != PaymentMilestone.Status.PAID:
+            return False, "Final files will be available after the required payment is confirmed."
+
+    return True, ""
+
+
