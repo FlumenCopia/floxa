@@ -452,7 +452,7 @@ class ProjectAssistantChatEndpointTests(TestCase):
 
         response = self.api_client.post(
             self.url,
-            {"message": "Hello"},
+            {"message": "What should I do next?"},
             format="json",
         )
 
@@ -467,12 +467,58 @@ class ProjectAssistantChatEndpointTests(TestCase):
 
         response = self.api_client.post(
             self.url,
-            {"message": "Hello"},
+            {"message": "What should I do next?"},
             format="json",
         )
 
         self.assertEqual(response.status_code, 429)
         self.assertEqual(response.data["detail"], "Gemini API rate limit or quota was reached.")
+
+    @patch("projects.views.generate_response")
+    @patch("projects.views.build_project_context")
+    def test_pure_greetings_return_short_circuit_response_without_calling_gemini(
+        self, build_project_context, generate_response
+    ):
+        self.authenticate()
+
+        greeting_samples = ["hy", "HI", "hello!", "  good   morning  ", "greetings"]
+        for sample in greeting_samples:
+            response = self.api_client.post(
+                self.url,
+                {"message": sample},
+                format="json",
+            )
+
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("Hello! How can I help you with the", response.data["response"])
+            self.assertEqual(response.data["provider"], "assistant")
+            self.assertEqual(response.data["sources"], ["project"])
+
+        generate_response.assert_not_called()
+        build_project_context.assert_not_called()
+
+    @patch("projects.views.generate_response")
+    def test_greeting_with_question_is_passed_to_intent_classification_and_gemini(
+        self, generate_response
+    ):
+        from projects.views import _project_assistant_prompt_intent
+
+        generate_response.return_value = "Payment status is locked."
+        self.authenticate()
+
+        response = self.api_client.post(
+            self.url,
+            {"message": "hi what is the payment status?"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["provider"], "gemini")
+        generate_response.assert_called_once()
+        self.assertEqual(_project_assistant_prompt_intent("hi what is the payment status?"), "payment")
+
+        self.assertEqual(_project_assistant_prompt_intent("hello show pending deliverables"), "deliverable")
+
 
     def test_moodboard_prompt_preserves_brand_dna_when_context_is_large(self):
         context = self.large_assistant_context()

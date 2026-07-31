@@ -1697,6 +1697,32 @@ PROJECT_ASSISTANT_SYSTEM_INSTRUCTION = (
 )
 
 
+PURE_GREETING_VARIANTS = {
+    "hi",
+    "hy",
+    "hii",
+    "hiii",
+    "hey",
+    "hello",
+    "hello there",
+    "greetings",
+    "good morning",
+    "good afternoon",
+    "good evening",
+}
+
+
+def _normalize_greeting_message(message):
+    text = " ".join(str(message or "").lower().split())
+    text = text.strip("!.,? \t\n\r")
+    return " ".join(text.split())
+
+
+def _is_pure_greeting(message):
+    normalized = _normalize_greeting_message(message)
+    return normalized in PURE_GREETING_VARIANTS
+
+
 class ProjectAssistantChatView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1726,6 +1752,26 @@ class ProjectAssistantChatView(APIView):
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if _is_pure_greeting(message):
+            try:
+                project = Project.objects.get(id=project_id, consultant=request.user)
+            except Project.DoesNotExist:
+                return Response(
+                    {"detail": "Project not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            project_title = project.title or "project"
+            return Response(
+                {
+                    "project_id": project_id,
+                    "response": f"Hello! How can I help you with the {project_title} project today?",
+                    "sources": ["project"],
+                    "provider": "assistant",
+                },
+                status=status.HTTP_200_OK,
             )
 
         try:
