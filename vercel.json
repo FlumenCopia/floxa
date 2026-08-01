@@ -1,10 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/**/*.py": {
+    "**/*.py": {
       "maxDuration": 60
     },
     "backend/**/*.py": {
+      "maxDuration": 60
+    },
+    "api/**/*.py": {
       "maxDuration": 60
     }
   }
