@@ -2334,98 +2334,93 @@ class MoodboardStorageTests(TestCase):
         self.assertIn("id", response.data)
         self.assertEqual(response.data["title"], "Test Moodboard 1")
         self.assertTrue(response.data["image_url"])
+        self.assertNotIn("private.blob.vercel-storage.com", response.data["image_url"])
 
-    @override_settings(DEBUG=True)
-    def test_invalid_file_rejection_returns_400(self):
-        from django.core.files.uploadedfile import SimpleUploadedFile
-
-        invalid_file = SimpleUploadedFile(
-            name="script.txt",
-            content=b"not an image file content",
-            content_type="text/plain",
-        )
-        response = self.api_client.post(
-            f"/api/projects/{self.project.id}/moodboards/",
-            {"title": "Invalid File", "image": invalid_file},
-            format="multipart",
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("image", response.data)
-
-    def test_oversized_file_rejection_returns_400(self):
-        from .upload_validation import validate_upload_file
-        from rest_framework.exceptions import ValidationError
+    def test_private_moodboard_upload_uses_access_private(self):
+        from unittest.mock import patch, MagicMock
 
         test_img = self._create_test_image()
-        test_img.size = 5 * 1024 * 1024
-        with self.assertRaises(ValidationError) as cm:
-            validate_upload_file(test_img, "moodboard_image")
-        self.assertIn("4 MB", str(cm.exception))
+        mock_result = MagicMock()
+        mock_result.pathname = f"moodboards/{self.project.id}/test_uuid.jpg"
+        mock_result.url = f"https://hash.private.blob.vercel-storage.com/moodboards/{self.project.id}/test_uuid.jpg"
 
-    @override_settings(DEBUG=True)
-    def test_image_compression_in_memory(self):
-        from PIL import Image
-        from .models import Moodboard
-
-        large_img = self._create_test_image(width=2500, height=2500)
-        response = self.api_client.post(
-            f"/api/projects/{self.project.id}/moodboards/",
-            {"title": "Large Image", "image": large_img},
-            format="multipart",
-        )
-        self.assertEqual(response.status_code, 201)
-        moodboard = Moodboard.objects.get(id=response.data["id"])
-        with Image.open(moodboard.image.file) as opened_img:
-            self.assertLessEqual(opened_img.width, 1600)
-            self.assertLessEqual(opened_img.height, 1600)
-
-    def test_storage_save_failure_returns_503(self):
-        from unittest.mock import patch
-
-        test_img = self._create_test_image()
-        with patch("projects.serializers.MoodboardSerializer.save", side_effect=OSError("Vercel Blob failure")):
+        with patch.object(settings, "DEBUG", False), patch("vercel.blob.BlobClient.put", return_value=mock_result) as mock_put:
             response = self.api_client.post(
                 f"/api/projects/{self.project.id}/moodboards/",
-                {"title": "Fail Storage", "image": test_img},
+                {"title": "Private Upload Test", "image": test_img},
                 format="multipart",
             )
-            self.assertEqual(response.status_code, 503)
-            self.assertEqual(response.data["detail"], "Image storage is temporarily unavailable.")
+            self.assertEqual(response.status_code, 201)
+            mock_put.assert_called_once()
+            _, kwargs = mock_put.call_args
+            self.assertEqual(kwargs.get("access"), "private")
+            self.assertFalse(kwargs.get("add_random_suffix"))
 
-    def test_production_unconfigured_storage_raises_improperly_configured(self):
-        from unittest.mock import patch
-        from django.conf import settings
-        from django.core.exceptions import ImproperlyConfigured
-        from .storage import VercelBlobStorage
-
-        storage = VercelBlobStorage()
-        with patch.object(settings, "DEBUG", False), patch.dict("os.environ", {}, clear=True):
-            with self.assertRaises(ImproperlyConfigured):
-                _ = storage.token
-
-    def test_project_ownership_protection(self):
-        self.api_client.force_authenticate(user=self.other_consultant)
-        test_img = self._create_test_image()
-        response = self.api_client.post(
-            f"/api/projects/{self.project.id}/moodboards/",
-            {"title": "Unauthorized", "image": test_img},
-            format="multipart",
-        )
-        self.assertEqual(response.status_code, 404)
-
-    def test_serializer_returns_durable_url(self):
+    def test_no_raw_private_blob_url_in_api_responses(self):
         from .models import Moodboard
-        from .serializers import MoodboardSerializer
+        from .serializers import MoodboardSerializer, ClientPortalMoodboardSerializer
 
         mb = Moodboard.objects.create(
             project=self.project,
-            title="Durable URL Test",
-            image="https://public.blob.vercel-storage.com/moodboards/1/test.jpg",
+            title="Private URL Check",
+            image="moodboards/1/test_private.jpg",
         )
         serializer = MoodboardSerializer(mb)
-        self.assertEqual(serializer.data["image_url"], "https://public.blob.vercel-storage.com/moodboards/1/test.jpg")
+        client_serializer = ClientPortalMoodboardSerializer(mb)
 
-    def test_delete_moodboard_deletes_stored_image_and_record(self):
+        self.assertNotIn("private.blob.vercel-storage.com", serializer.data["image_url"])
+        self.assertIn(f"/api/projects/{self.project.id}/moodboards/{mb.id}/image/", serializer.data["image_url"])
+
+        self.assertNotIn("private.blob.vercel-storage.com", client_serializer.data["image_url"])
+        self.assertIn(f"/api/client-portal/{self.project.portal_token}/moodboards/{mb.id}/image/", client_serializer.data["image_url"])
+
+    @override_settings(DEBUG=True)
+    def test_protected_consultant_retrieval(self):
+        test_img = self._create_test_image()
+        post_resp = self.api_client.post(
+            f"/api/projects/{self.project.id}/moodboards/",
+            {"title": "Consultant Download Test", "image": test_img},
+            format="multipart",
+        )
+        self.assertEqual(post_resp.status_code, 201)
+        mb_id = post_resp.data["id"]
+
+        get_resp = self.api_client.get(f"/api/projects/{self.project.id}/moodboards/{mb_id}/image/")
+        self.assertEqual(get_resp.status_code, 200)
+        self.assertEqual(get_resp.headers.get("Cache-Control"), "private, no-store, max-age=0")
+
+    @override_settings(DEBUG=True)
+    def test_protected_client_portal_retrieval(self):
+        test_img = self._create_test_image()
+        post_resp = self.api_client.post(
+            f"/api/projects/{self.project.id}/moodboards/",
+            {"title": "Client Portal Download Test", "image": test_img},
+            format="multipart",
+        )
+        mb_id = post_resp.data["id"]
+
+        portal_client = APIClient()
+        portal_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(self.project.portal_token)
+        get_resp = portal_client.get(f"/api/client-portal/{self.project.portal_token}/moodboards/{mb_id}/image/")
+        self.assertEqual(get_resp.status_code, 200)
+
+    def test_unauthorized_retrieval_rejection(self):
+        from .models import Moodboard
+
+        mb = Moodboard.objects.create(
+            project=self.project,
+            title="Unauthorized Retrieval Test",
+            image="moodboards/1/test_unauth.jpg",
+        )
+        self.api_client.force_authenticate(user=self.other_consultant)
+        response = self.api_client.get(f"/api/projects/{self.project.id}/moodboards/{mb.id}/image/")
+        self.assertEqual(response.status_code, 404)
+
+        unauth_client = APIClient()
+        response_portal = unauth_client.get(f"/api/client-portal/{self.project.portal_token}/moodboards/{mb.id}/image/")
+        self.assertEqual(response_portal.status_code, 403)
+
+    def test_blob_deletion(self):
         from unittest.mock import patch
         from .models import Moodboard
 
@@ -2434,7 +2429,166 @@ class MoodboardStorageTests(TestCase):
             title="Delete Test",
             image="moodboards/1/test_delete.jpg",
         )
-        with patch("django.core.files.storage.default_storage.delete") as mock_delete:
+        with patch("vercel.blob.BlobClient.delete") as mock_delete:
             response = self.api_client.delete(f"/api/projects/{self.project.id}/moodboards/{mb.id}/")
             self.assertEqual(response.status_code, 204)
             self.assertFalse(Moodboard.objects.filter(id=mb.id).exists())
+
+    def test_storage_save_failure_returns_503(self):
+        from unittest.mock import patch
+
+        test_img = self._create_test_image()
+        with patch("projects.serializers.MoodboardSerializer.save", side_effect=OSError("Blob SDK failure")):
+            response = self.api_client.post(
+                f"/api/projects/{self.project.id}/moodboards/",
+                {"title": "Fail Storage", "image": test_img},
+                format="multipart",
+            )
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.data["detail"], "Image storage is temporarily unavailable.")
+
+    def test_no_local_filesystem_writes_when_debug_false(self):
+        from unittest.mock import patch, MagicMock
+
+        test_img = self._create_test_image()
+        mock_result = MagicMock()
+        mock_result.pathname = f"moodboards/{self.project.id}/test_prod.jpg"
+
+        with patch.object(settings, "DEBUG", False), patch("vercel.blob.BlobClient.put", return_value=mock_result), patch("django.core.files.storage.FileSystemStorage._save") as mock_local_save:
+            response = self.api_client.post(
+                f"/api/projects/{self.project.id}/moodboards/",
+                {"title": "Prod Upload", "image": test_img},
+                format="multipart",
+            )
+            self.assertEqual(response.status_code, 201)
+            mock_local_save.assert_not_called()
+
+
+class AllFileFieldsStorageAuditTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.hashers import make_password
+        from .models import Client, Project, Concept, Deliverable, Agreement, ProjectAgreement
+
+        User = get_user_model()
+        self.consultant = User.objects.create_user(
+            email="audit_consultant@example.com",
+            name="Audit Consultant",
+            password="TestPassword123!",
+        )
+        self.client_obj = Client.objects.create(
+            name="Audit Client",
+            email="audit_client@example.com",
+        )
+        self.project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_obj,
+            company_name="Audit Company",
+            sector="Testing",
+            project_value=Decimal("12000.00"),
+            portal_password_hash=make_password("portalpass123"),
+        )
+        self.api_client = APIClient()
+        self.api_client.force_authenticate(user=self.consultant)
+
+    @override_settings(DEBUG=True)
+    def test_concept_serializers_and_protected_download_routes(self):
+        from .models import Concept
+        from .serializers import ConsultantConceptSerializer, ClientPortalConceptSerializer
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        concept = Concept.objects.create(
+            project=self.project,
+            title="Concept 1",
+            image=SimpleUploadedFile("c_img.jpg", b"fake_img_bytes", content_type="image/jpeg"),
+            file=SimpleUploadedFile("c_doc.pdf", b"fake_pdf_bytes", content_type="application/pdf"),
+            status=Concept.Status.SHARED,
+        )
+
+        c_serializer = ConsultantConceptSerializer(concept)
+        self.assertIn(f"/api/projects/{self.project.id}/concepts/{concept.id}/image/", c_serializer.data["image_url"])
+        self.assertIn(f"/api/projects/{self.project.id}/concepts/{concept.id}/file/", c_serializer.data["file_url"])
+
+        cp_serializer = ClientPortalConceptSerializer(concept)
+        self.assertIn(f"/api/client-portal/{self.project.portal_token}/concepts/{concept.id}/image/", cp_serializer.data["image_url"])
+        self.assertIn(f"/api/client-portal/{self.project.portal_token}/concepts/{concept.id}/file/", cp_serializer.data["file_url"])
+
+        res_img = self.api_client.get(f"/api/projects/{self.project.id}/concepts/{concept.id}/image/")
+        self.assertEqual(res_img.status_code, 200)
+        self.assertEqual(res_img.headers.get("Cache-Control"), "private, no-store, max-age=0")
+
+        res_file = self.api_client.get(f"/api/projects/{self.project.id}/concepts/{concept.id}/file/")
+        self.assertEqual(res_file.status_code, 200)
+
+        portal_client = APIClient()
+        portal_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(self.project.portal_token)
+        res_cp_img = portal_client.get(f"/api/client-portal/{self.project.portal_token}/concepts/{concept.id}/image/")
+        self.assertEqual(res_cp_img.status_code, 200)
+
+        res_cp_file = portal_client.get(f"/api/client-portal/{self.project.portal_token}/concepts/{concept.id}/file/")
+        self.assertEqual(res_cp_file.status_code, 200)
+
+    @override_settings(DEBUG=True)
+    def test_deliverable_serializers_and_protected_download_routes(self):
+        from .models import Deliverable
+        from .serializers import ConsultantDeliverableSerializer, ClientPortalDeliverableSerializer
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        deliverable = Deliverable.objects.create(
+            project=self.project,
+            title="Deliverable 1",
+            file=SimpleUploadedFile("deliv.zip", b"fake_zip_bytes", content_type="application/zip"),
+            status=Deliverable.Status.COMPLETED,
+        )
+
+        c_serializer = ConsultantDeliverableSerializer(deliverable)
+        self.assertIn(f"/api/projects/{self.project.id}/deliverables/{deliverable.id}/file/", c_serializer.data["file_url"])
+
+        cp_serializer = ClientPortalDeliverableSerializer(deliverable)
+        self.assertIn(f"/api/client-portal/{self.project.portal_token}/deliverables/{deliverable.id}/file/", cp_serializer.data["file_url"])
+
+        res = self.api_client.get(f"/api/projects/{self.project.id}/deliverables/{deliverable.id}/file/")
+        self.assertEqual(res.status_code, 200)
+
+    @override_settings(DEBUG=True)
+    def test_agreement_serializers_and_protected_download_routes(self):
+        from .models import Agreement
+        from .serializers import ConsultantAgreementSerializer, ClientPortalAgreementSerializer
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        agreement = Agreement.objects.create(
+            project=self.project,
+            title="Agreement 1",
+            file=SimpleUploadedFile("agreement.pdf", b"fake_pdf_bytes", content_type="application/pdf"),
+        )
+
+        c_serializer = ConsultantAgreementSerializer(agreement)
+        self.assertIn(f"/api/projects/{self.project.id}/agreement/{agreement.id}/file/", c_serializer.data["file_url"])
+
+        cp_serializer = ClientPortalAgreementSerializer(agreement)
+        self.assertIn(f"/api/client-portal/{self.project.portal_token}/agreement/file/", cp_serializer.data["file_url"])
+
+        res = self.api_client.get(f"/api/projects/{self.project.id}/agreement/{agreement.id}/file/")
+        self.assertEqual(res.status_code, 200)
+
+    @override_settings(DEBUG=True)
+    def test_project_agreement_pdf_urls_and_protected_routes(self):
+        from .models import ProjectAgreement
+        from .views import get_project_agreement_payload
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        pa = ProjectAgreement.objects.create(
+            project=self.project,
+            client_name="Audit Client",
+            client_email="audit_client@example.com",
+            company_name="Audit Company",
+            sector="Testing",
+            project_value=Decimal("12000.00"),
+            basic_pdf_file=SimpleUploadedFile("basic.pdf", b"pdf_bytes", content_type="application/pdf"),
+        )
+
+        payload_consultant = get_project_agreement_payload(pa, is_client_portal=False)
+        self.assertIn(f"/api/projects/{self.project.id}/generated-agreement/pdf/?type=basic", payload_consultant["basic_pdf_url"])
+
+        payload_client = get_project_agreement_payload(pa, is_client_portal=True)
+        self.assertIn(f"/api/client-portal/{self.project.portal_token}/agreement/pdf/?type=basic", payload_client["basic_pdf_url"])

@@ -879,10 +879,21 @@ def is_complete_client_profile(profile):
     )
 
 
-def get_project_agreement_payload(agreement, request=None):
-    basic_pdf_url = agreement.basic_pdf_file.url if agreement.basic_pdf_file else ""
-    original_signed_pdf_url = agreement.original_signed_pdf_file.url if agreement.original_signed_pdf_file else ""
-    signed_pdf_url = agreement.signed_pdf_file.url if agreement.signed_pdf_file else ""
+def get_project_agreement_payload(agreement, request=None, is_client_portal=False):
+    if not is_client_portal and request and getattr(request, "resolver_match", None):
+        is_client_portal = "portal_token" in (request.resolver_match.kwargs or {})
+
+    if is_client_portal:
+        token = agreement.project.portal_token
+        basic_pdf_url = f"/api/client-portal/{token}/agreement/pdf/?type=basic" if agreement.basic_pdf_file else ""
+        original_signed_pdf_url = f"/api/client-portal/{token}/agreement/pdf/?type=original_signed" if agreement.original_signed_pdf_file else ""
+        signed_pdf_url = f"/api/client-portal/{token}/agreement/pdf/?type=signed" if agreement.signed_pdf_file else ""
+    else:
+        pid = agreement.project.id
+        basic_pdf_url = f"/api/projects/{pid}/generated-agreement/pdf/?type=basic" if agreement.basic_pdf_file else ""
+        original_signed_pdf_url = f"/api/projects/{pid}/generated-agreement/pdf/?type=original_signed" if agreement.original_signed_pdf_file else ""
+        signed_pdf_url = f"/api/projects/{pid}/generated-agreement/pdf/?type=signed" if agreement.signed_pdf_file else ""
+
     appendices = list(agreement.appendices.order_by("created_at", "id"))
     version_history = []
 
@@ -4499,26 +4510,10 @@ class MoodboardView(APIView):
         try:
             moodboard = serializer.save(project=project)
         except Exception as exc:
-            import importlib.metadata
-            import os
-            from django.core.files.storage import default_storage
-
-            pkg_version = "not_installed"
-            for pkg in ("vercel", "vercel-blob", "vercel_blob"):
-                try:
-                    pkg_version = importlib.metadata.version(pkg)
-                    break
-                except Exception:
-                    pass
-
             logger.exception(
-                "Moodboard Blob storage upload failed: exception_class=%s, storage_backend=%s, vercel_pkg_version=%s, has_blob_read_write_token=%s, has_vercel_oidc_token=%s, has_blob_store_id=%s, blob_access_mode=public",
+                "Moodboard Blob storage upload failed: exception_class=%s, is_vercel_env=%s",
                 exc.__class__.__name__,
-                default_storage.__class__.__name__,
-                pkg_version,
-                bool(os.environ.get("BLOB_READ_WRITE_TOKEN") or os.environ.get("VERCEL_BLOB_READ_WRITE_TOKEN")),
-                bool(os.environ.get("VERCEL_OIDC_TOKEN")),
-                bool(os.environ.get("BLOB_STORE_ID")),
+                bool(os.environ.get("VERCEL")),
             )
             return Response(
                 {"detail": "Image storage is temporarily unavailable."},
@@ -6533,11 +6528,24 @@ class ConsultantConceptAssetView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        return FileResponse(
-            file_field.open("rb"),
+        try:
+            opened_file = file_field.open("rb")
+        except FileNotFoundError:
+            return Response(
+                {"detail": "File not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        content_type, _ = mimetypes.guess_type(file_field.name)
+        response = FileResponse(
+            opened_file,
+            content_type=content_type or "application/octet-stream",
             as_attachment=False,
             filename=file_field.name.split("/")[-1],
         )
+        response["Cache-Control"] = "private, no-store, max-age=0"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
 
 class ConsultantAgreementFileView(APIView):
@@ -6567,8 +6575,21 @@ class ConsultantAgreementFileView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        return FileResponse(
-            agreement.file.open("rb"),
+        try:
+            opened_file = agreement.file.open("rb")
+        except FileNotFoundError:
+            return Response(
+                {"detail": "File not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        content_type, _ = mimetypes.guess_type(agreement.file.name)
+        response = FileResponse(
+            opened_file,
+            content_type=content_type or "application/octet-stream",
             as_attachment=False,
             filename=agreement.file.name.split("/")[-1],
         )
+        response["Cache-Control"] = "private, no-store, max-age=0"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response

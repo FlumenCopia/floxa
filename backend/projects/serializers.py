@@ -196,10 +196,6 @@ class MoodboardSerializer(serializers.ModelSerializer):
         if not obj.image:
             return ""
 
-        url = str(obj.image.url)
-        if url.startswith("http://") or url.startswith("https://"):
-            return url
-
         request = self.context.get("request")
         image_url = f"/api/projects/{obj.project.id}/moodboards/{obj.id}/image/"
 
@@ -235,10 +231,6 @@ class ClientPortalMoodboardSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         if not obj.image:
             return ""
-
-        url = str(obj.image.url)
-        if url.startswith("http://") or url.startswith("https://"):
-            return url
 
         request = self.context.get("request")
         image_url = f"/api/client-portal/{obj.project.portal_token}/moodboards/{obj.id}/image/"
@@ -282,7 +274,7 @@ class ConsultantConceptSerializer(serializers.ModelSerializer):
             return ""
 
         request = self.context.get("request")
-        image_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/image/"
+        image_url = f"/api/projects/{obj.project.id}/concepts/{obj.id}/image/"
 
         return request.build_absolute_uri(image_url) if request else image_url
 
@@ -291,7 +283,7 @@ class ConsultantConceptSerializer(serializers.ModelSerializer):
             return ""
 
         request = self.context.get("request")
-        file_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/file/"
+        file_url = f"/api/projects/{obj.project.id}/concepts/{obj.id}/file/"
 
         return request.build_absolute_uri(file_url) if request else file_url
 
