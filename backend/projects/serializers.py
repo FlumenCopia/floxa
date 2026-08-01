@@ -239,6 +239,8 @@ class ClientPortalMoodboardSerializer(serializers.ModelSerializer):
 
 
 class ConsultantConceptSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(write_only=True, required=False, allow_null=True)
+    file = serializers.FileField(write_only=True, required=False, allow_null=True)
     image_url = serializers.SerializerMethodField()
     file_url = serializers.SerializerMethodField()
 
@@ -287,6 +289,25 @@ class ConsultantConceptSerializer(serializers.ModelSerializer):
 
         return request.build_absolute_uri(file_url) if request else file_url
 
+    def to_representation(self, instance):
+        image_url = self.get_image_url(instance)
+        file_url = self.get_file_url(instance)
+        return {
+            "id": instance.id,
+            "project": instance.project_id,
+            "title": instance.title,
+            "description": instance.description,
+            "image": image_url,
+            "image_url": image_url,
+            "file": file_url,
+            "file_url": file_url,
+            "version": instance.version,
+            "status": instance.status,
+            "client_feedback": instance.client_feedback,
+            "created_at": instance.created_at.isoformat() if instance.created_at else "",
+            "updated_at": instance.updated_at.isoformat() if instance.updated_at else "",
+        }
+
     def validate(self, attrs):
         has_existing_media = self.instance and (self.instance.image or self.instance.file)
 
@@ -313,7 +334,9 @@ class ClientPortalConceptSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "description",
+            "image",
             "image_url",
+            "file",
             "file_url",
             "version",
             "status",
@@ -339,6 +362,24 @@ class ClientPortalConceptSerializer(serializers.ModelSerializer):
         file_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/file/"
 
         return request.build_absolute_uri(file_url) if request else file_url
+
+    def to_representation(self, instance):
+        image_url = self.get_image_url(instance)
+        file_url = self.get_file_url(instance)
+        return {
+            "id": instance.id,
+            "title": instance.title,
+            "description": instance.description,
+            "image": image_url,
+            "image_url": image_url,
+            "file": file_url,
+            "file_url": file_url,
+            "version": instance.version,
+            "status": instance.status,
+            "client_feedback": instance.client_feedback,
+            "created_at": instance.created_at.isoformat() if instance.created_at else "",
+            "updated_at": instance.updated_at.isoformat() if instance.updated_at else "",
+        }
 
 
 class ConsultantDeliverableSerializer(serializers.ModelSerializer):

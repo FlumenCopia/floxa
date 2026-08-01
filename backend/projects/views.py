@@ -4619,6 +4619,19 @@ class ConceptView(APIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def _cleanup_blobs(self, image_name, file_name):
+        from django.core.files.storage import default_storage
+        if image_name:
+            try:
+                default_storage.delete(image_name)
+            except Exception as exc:
+                logger.warning("Failed to cleanup newly uploaded image Blob %s: %s", image_name, exc)
+        if file_name:
+            try:
+                default_storage.delete(file_name)
+            except Exception as exc:
+                logger.warning("Failed to cleanup newly uploaded file Blob %s: %s", file_name, exc)
+
     def post(self, request, project_id):
         t_request_start = time.perf_counter()
         project = self.get_project(request, project_id)
@@ -4640,25 +4653,43 @@ class ConceptView(APIView):
         t_val_end = time.perf_counter()
 
         t_db_start = time.perf_counter()
+        uploaded_image_name = None
+        uploaded_file_name = None
+        concept = None
+        response_data = None
+
         try:
             with transaction.atomic():
                 concept = serializer.save(project=project)
+                uploaded_image_name = concept.image.name if concept.image else None
+                uploaded_file_name = concept.file.name if concept.file else None
+
+                response_serializer = ConsultantConceptSerializer(
+                    concept,
+                    context={"request": request},
+                )
+                response_data = response_serializer.data
         except (OSError, BlobError) as storage_exc:
             logger.exception(
                 "Concept storage upload failed for project %s: %s",
                 project_id,
                 storage_exc.__class__.__name__,
             )
+            self._cleanup_blobs(uploaded_image_name, uploaded_file_name)
             return Response(
                 {"detail": "Image storage is temporarily unavailable."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
+        except serializers.ValidationError as val_exc:
+            self._cleanup_blobs(uploaded_image_name, uploaded_file_name)
+            return Response(val_exc.detail, status=status.HTTP_400_BAD_REQUEST)
         except Exception as exc:
             logger.exception(
                 "Unexpected error saving concept for project %s: %s",
                 project_id,
                 exc.__class__.__name__,
             )
+            self._cleanup_blobs(uploaded_image_name, uploaded_file_name)
             return Response(
                 {"detail": "Unable to save concept. Please try again."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -4691,11 +4722,6 @@ class ConceptView(APIView):
                 activity_exc.__class__.__name__,
             )
 
-        response_serializer = ConsultantConceptSerializer(
-            concept,
-            context={"request": request},
-        )
-
         t_total_end = time.perf_counter()
         logger.info(
             "[Concept Upload Timing] concept_id=%d, validation_opt_ms=%.2f, db_save_ms=%.2f, total_duration_ms=%.2f",
@@ -4705,7 +4731,7 @@ class ConceptView(APIView):
             round((t_total_end - t_request_start) * 1000, 2),
         )
 
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class ConceptDetailView(APIView):
