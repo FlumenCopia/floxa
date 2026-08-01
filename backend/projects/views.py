@@ -4720,15 +4720,7 @@ class ConceptView(APIView):
                 activity_exc.__class__.__name__,
             )
 
-        t_total_end = time.perf_counter()
-        logger.info(
-            "[Concept Upload Timing] concept_id=%d, validation_opt_ms=%.2f, db_save_ms=%.2f, total_duration_ms=%.2f",
-            concept.id,
-            round((t_val_end - t_val_start) * 1000, 2),
-            round((t_db_end - t_db_start) * 1000, 2),
-            round((t_total_end - t_request_start) * 1000, 2),
-        )
-
+        logger.info("[Concept Upload] Successfully created concept %d for project %s", concept.id, project_id)
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
