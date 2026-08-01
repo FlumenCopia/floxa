@@ -327,4 +327,75 @@ class AuthenticationArchitectureRegressionTests(TestCase):
         self.assertFalse(access_cookie["domain"])
         self.assertFalse(refresh_cookie["domain"])
 
+    def test_proxy_forwarded_project_creation_with_csrf_header_and_referer(self):
+        client = APIClient(enforce_csrf_checks=True)
+        login_res = client.post(
+            reverse("login"),
+            {"email": "arch_user@example.com", "password": "SecurePassword123!"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+
+        csrf_res = client.get(reverse("csrf"))
+        csrf_token = csrf_res.data["csrfToken"]
+
+        project_res = client.post(
+            reverse("project-list-create"),
+            {
+                "client": "Acme Inc",
+                "email": "acme@example.com",
+                "company": "Acme Corp",
+                "sector": "Branding",
+                "value": "10000.00",
+                "portal_password": "SecurePassword123!",
+            },
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+            HTTP_ORIGIN="https://floxa-frontend-test-lyart.vercel.app",
+            HTTP_REFERER="https://floxa-frontend-test-lyart.vercel.app/project",
+        )
+        self.assertEqual(project_res.status_code, 201)
+
+    def test_proxy_forwarded_project_creation_without_csrf_token_returns_403(self):
+        client = APIClient(enforce_csrf_checks=True)
+        login_res = client.post(
+            reverse("login"),
+            {"email": "arch_user@example.com", "password": "SecurePassword123!"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+
+        project_res = client.post(
+            reverse("project-list-create"),
+            {
+                "client": "Bad Inc",
+                "email": "bad@example.com",
+                "company": "Bad Corp",
+                "sector": "Branding",
+                "value": "10000.00",
+                "portal_password": "SecurePassword123!",
+            },
+            format="json",
+            HTTP_ORIGIN="https://floxa-frontend-test-lyart.vercel.app",
+            HTTP_REFERER="https://floxa-frontend-test-lyart.vercel.app/project",
+        )
+        self.assertEqual(project_res.status_code, 403)
+
+    def test_proxy_forwarded_activities_request_with_cookie_succeeds(self):
+        client = APIClient()
+        login_res = client.post(
+            reverse("login"),
+            {"email": "arch_user@example.com", "password": "SecurePassword123!"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+
+        activities_res = client.get(
+            reverse("consultant-activity-list-mark-read"),
+            HTTP_ORIGIN="https://floxa-frontend-test-lyart.vercel.app",
+            HTTP_REFERER="https://floxa-frontend-test-lyart.vercel.app/activity",
+        )
+        self.assertEqual(activities_res.status_code, 200)
+
+
 
