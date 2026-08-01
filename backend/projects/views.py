@@ -28,6 +28,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 
+logger = logging.getLogger(__name__)
+
 from accounts.authentication import CookieOrHeaderJWTAuthentication
 from ai_assistant.assistant_context import build_project_context
 from ai_assistant.services import (
