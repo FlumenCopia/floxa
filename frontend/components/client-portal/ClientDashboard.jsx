@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clientPortalService } from "../../services/clientPortalService";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
-import { downloadProtectedAsset } from "@/src/lib/api";
+import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/src/lib/api";
 
 const phaseLabels = [
   "Profile",
@@ -437,34 +437,89 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   }
 
   async function downloadAgreement() {
-    if (!agreement) {
+    if (!agreement?.file_url) {
+      window.alert("Agreement file is not available.");
       return;
     }
 
     setWorking("agreement");
 
     try {
-      const response = await clientPortalService.downloadAgreement(agreement);
-
-      if (response.success && response.data?.fileUrl) {
-        window.open(response.data.fileUrl, "_blank", "noopener,noreferrer");
-      } else {
-        window.alert(response.error || "Agreement file is not available.");
-      }
+      await downloadProtectedAsset(
+        agreement.file_url,
+        `${agreement.title || "agreement"}.pdf`
+      );
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Unable to open this agreement.");
+      const status = error?.status;
+      let userMessage = "Unable to download agreement PDF.";
+
+      if (status === 401 || status === 403) {
+        userMessage = "Authentication failure: You are not authorized to download this agreement.";
+      } else if (status === 404) {
+        userMessage = "Agreement PDF file not found.";
+      } else if (status === 503) {
+        userMessage = "Storage service is temporarily unavailable. Please try again later.";
+      } else if (error?.detail) {
+        userMessage = error.detail;
+      }
+
+      window.alert(userMessage);
     } finally {
       setWorking("");
     }
   }
 
-  function previewAgreement() {
+  async function previewAgreement() {
     if (!agreement?.file_url) {
       window.alert("Agreement file is not available.");
       return;
     }
 
-    window.open(agreement.file_url, "_blank", "noopener,noreferrer");
+    const newTab = window.open("about:blank", "_blank");
+
+    if (!newTab) {
+      window.alert("Popup was blocked by your browser. Please allow popups for this site to view the agreement PDF.");
+      return;
+    }
+
+    newTab.opener = null;
+
+    setWorking("agreement");
+
+    try {
+      const { blob, contentType } = await fetchProtectedAssetBlob(agreement.file_url);
+      const pdfBlob = blob?.type === "application/pdf"
+        ? blob
+        : new Blob([blob], { type: contentType || "application/pdf" });
+      const objectUrl = URL.createObjectURL(pdfBlob);
+
+      newTab.location.href = objectUrl;
+
+      setTimeout(() => {
+        URL.revokeObjectURL(objectUrl);
+      }, 60000);
+    } catch (error) {
+      if (newTab && !newTab.closed) {
+        newTab.close();
+      }
+
+      const status = error?.status;
+      let userMessage = "Unable to open agreement PDF.";
+
+      if (status === 401 || status === 403) {
+        userMessage = "Authentication failure: You are not authorized to view this agreement.";
+      } else if (status === 404) {
+        userMessage = "Agreement PDF file not found.";
+      } else if (status === 503) {
+        userMessage = "Storage service is temporarily unavailable. Please try again later.";
+      } else if (error?.detail) {
+        userMessage = error.detail;
+      }
+
+      window.alert(userMessage);
+    } finally {
+      setWorking("");
+    }
   }
 
   function getCanvasPoint(event) {
