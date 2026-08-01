@@ -277,8 +277,10 @@ class ConsultantConceptSerializer(serializers.ModelSerializer):
 
         request = self.context.get("request")
         image_url = f"/api/projects/{obj.project.id}/concepts/{obj.id}/image/"
-
-        return request.build_absolute_uri(image_url) if request else image_url
+        try:
+            return request.build_absolute_uri(image_url) if request else image_url
+        except Exception:
+            return image_url
 
     def get_file_url(self, obj):
         if not obj.file:
@@ -286,8 +288,10 @@ class ConsultantConceptSerializer(serializers.ModelSerializer):
 
         request = self.context.get("request")
         file_url = f"/api/projects/{obj.project.id}/concepts/{obj.id}/file/"
-
-        return request.build_absolute_uri(file_url) if request else file_url
+        try:
+            return request.build_absolute_uri(file_url) if request else file_url
+        except Exception:
+            return file_url
 
     def to_representation(self, instance):
         image_url = self.get_image_url(instance)
@@ -351,8 +355,10 @@ class ClientPortalConceptSerializer(serializers.ModelSerializer):
 
         request = self.context.get("request")
         image_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/image/"
-
-        return request.build_absolute_uri(image_url) if request else image_url
+        try:
+            return request.build_absolute_uri(image_url) if request else image_url
+        except Exception:
+            return image_url
 
     def get_file_url(self, obj):
         if not obj.file:
@@ -360,8 +366,10 @@ class ClientPortalConceptSerializer(serializers.ModelSerializer):
 
         request = self.context.get("request")
         file_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/file/"
-
-        return request.build_absolute_uri(file_url) if request else file_url
+        try:
+            return request.build_absolute_uri(file_url) if request else file_url
+        except Exception:
+            return file_url
 
     def to_representation(self, instance):
         image_url = self.get_image_url(instance)

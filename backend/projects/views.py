@@ -4,9 +4,12 @@ import logging
 import mimetypes
 import os
 import threading
+import time
 import uuid
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
+
+from vercel.blob.errors import BlobError, BlobNotFoundError
 
 from django.http import FileResponse, Http404
 from django.conf import settings
