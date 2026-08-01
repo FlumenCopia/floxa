@@ -5,7 +5,7 @@ import {
   ensureCsrfCookie,
   getCsrfToken,
   parseApiResponse,
-} from "./api";
+} from "./api.js";
 
 const statusLabels = {
   created: "Created",
@@ -231,11 +231,45 @@ export async function getProjectActivities(projectId) {
   return apiRequest(`/projects/${projectId}/activities/`);
 }
 
-export async function getConsultantActivities() {
-  return apiRequest("/projects/activities/");
+let consultantActivitiesCache = null;
+let consultantActivitiesTimestamp = 0;
+let consultantActivitiesPromise = null;
+const ACTIVITIES_FRESHNESS_MS = 5000;
+
+export function invalidateConsultantActivitiesCache() {
+  consultantActivitiesCache = null;
+  consultantActivitiesTimestamp = 0;
+  consultantActivitiesPromise = null;
+}
+
+export async function getConsultantActivities(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && consultantActivitiesCache && (now - consultantActivitiesTimestamp < ACTIVITIES_FRESHNESS_MS)) {
+    return consultantActivitiesCache;
+  }
+  if (!forceRefresh && consultantActivitiesPromise) {
+    return consultantActivitiesPromise;
+  }
+
+  consultantActivitiesPromise = (async () => {
+    try {
+      const data = await apiRequest("/projects/activities/");
+      consultantActivitiesCache = data;
+      consultantActivitiesTimestamp = Date.now();
+      return data;
+    } catch (error) {
+      invalidateConsultantActivitiesCache();
+      throw error;
+    } finally {
+      consultantActivitiesPromise = null;
+    }
+  })();
+
+  return consultantActivitiesPromise;
 }
 
 export async function markProjectActivitiesRead(projectId, actions = []) {
+  invalidateConsultantActivitiesCache();
   return apiRequest(`/projects/${projectId}/activities/mark-read/`, {
     method: "POST",
     body: JSON.stringify({ actions }),
@@ -243,6 +277,7 @@ export async function markProjectActivitiesRead(projectId, actions = []) {
 }
 
 export async function markConsultantActivitiesRead() {
+  invalidateConsultantActivitiesCache();
   return apiRequest("/projects/activities/mark-read/", {
     method: "POST",
   });
@@ -270,34 +305,42 @@ async function uploadProjectFormDataRequest(endpoint, formData, headers, method 
 }
 
 export async function uploadMoodboard(projectId, formData) {
+  invalidateConsultantActivitiesCache();
   return uploadProjectFormData(`/projects/${projectId}/moodboards/`, formData);
 }
 
 export async function uploadConcept(projectId, formData) {
+  invalidateConsultantActivitiesCache();
   return uploadProjectFormData(`/projects/${projectId}/concepts/`, formData);
 }
 
 export async function updateConcept(projectId, conceptId, formData) {
+  invalidateConsultantActivitiesCache();
   return uploadProjectFormData(`/projects/${projectId}/concepts/${conceptId}/`, formData, "PATCH");
 }
 
 export async function uploadDeliverable(projectId, formData) {
+  invalidateConsultantActivitiesCache();
   return uploadProjectFormData(`/projects/${projectId}/deliverables/`, formData);
 }
 
 export async function updateDeliverable(projectId, deliverableId, formData) {
+  invalidateConsultantActivitiesCache();
   return uploadProjectFormData(`/projects/${projectId}/deliverables/${deliverableId}/`, formData, "PATCH");
 }
 
 export async function uploadAgreement(projectId, formData) {
+  invalidateConsultantActivitiesCache();
   return uploadProjectFormData(`/projects/${projectId}/agreement/`, formData);
 }
 
 export async function updateAgreement(projectId, formData) {
+  invalidateConsultantActivitiesCache();
   return uploadProjectFormData(`/projects/${projectId}/agreement/`, formData, "PATCH");
 }
 
 export async function deleteConcept(projectId, conceptId) {
+  invalidateConsultantActivitiesCache();
   await ensureCsrfCookie();
 
   const endpoint = `/projects/${projectId}/concepts/${conceptId}/`;
@@ -329,6 +372,7 @@ export async function deleteConcept(projectId, conceptId) {
 }
 
 export async function deleteDeliverable(projectId, deliverableId) {
+  invalidateConsultantActivitiesCache();
   await ensureCsrfCookie();
 
   const endpoint = `/projects/${projectId}/deliverables/${deliverableId}/`;
@@ -360,6 +404,7 @@ export async function deleteDeliverable(projectId, deliverableId) {
 }
 
 export async function deleteAgreement(projectId) {
+  invalidateConsultantActivitiesCache();
   await ensureCsrfCookie();
 
   const endpoint = `/projects/${projectId}/agreement/`;
@@ -391,24 +436,28 @@ export async function deleteAgreement(projectId) {
 }
 
 export async function shareConcept(projectId, conceptId) {
+  invalidateConsultantActivitiesCache();
   return apiRequest(`/projects/${projectId}/concepts/${conceptId}/share/`, {
     method: "PATCH",
   });
 }
 
 export async function shareDeliverable(projectId, deliverableId) {
+  invalidateConsultantActivitiesCache();
   return apiRequest(`/projects/${projectId}/deliverables/${deliverableId}/share/`, {
     method: "PATCH",
   });
 }
 
 export async function requestPaymentMilestone(projectId, milestoneId) {
+  invalidateConsultantActivitiesCache();
   return apiRequest(`/projects/${projectId}/payments/${milestoneId}/request/`, {
     method: "POST",
   });
 }
 
 export async function markPaymentMilestonePaid(projectId, milestoneId) {
+  invalidateConsultantActivitiesCache();
   return apiRequest(`/projects/${projectId}/payments/${milestoneId}/mark-paid/`, {
     method: "POST",
   });

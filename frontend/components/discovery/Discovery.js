@@ -2994,37 +2994,42 @@ export default function Discovery() {
       return;
     }
 
-    async function loadDiscoverySummary() {
+    let isMounted = true;
+
+    async function loadTabSummaryData() {
       setDiscoverySummaryLoading(true);
 
-      try {
-        const data = await getDiscoverySummary(project.id);
-        setDiscoverySummary(data);
-      } catch {
+      const [summaryRes, brandDnaRes] = await Promise.allSettled([
+        getDiscoverySummary(project.id),
+        activeTab === "Brand DNA" ? getBrandDNA(project.id) : Promise.resolve(null),
+      ]);
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (summaryRes.status === "fulfilled") {
+        setDiscoverySummary(summaryRes.value);
+      } else {
         setDiscoverySummary(null);
-      } finally {
-        setDiscoverySummaryLoading(false);
       }
-    }
 
-    loadDiscoverySummary();
-  }, [activeTab, project?.id]);
-
-  useEffect(() => {
-    if (activeTab !== "Brand DNA" || !project?.id) {
-      return;
-    }
-
-    async function loadBrandDNA() {
-      try {
-        const data = await getBrandDNA(project.id);
-        setBrandDNA(data);
-      } catch {
-        setBrandDNA(null);
+      if (activeTab === "Brand DNA") {
+        if (brandDnaRes.status === "fulfilled") {
+          setBrandDNA(brandDnaRes.value);
+        } else {
+          setBrandDNA(null);
+        }
       }
+
+      setDiscoverySummaryLoading(false);
     }
 
-    loadBrandDNA();
+    loadTabSummaryData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [activeTab, project?.id]);
 
   useEffect(() => {

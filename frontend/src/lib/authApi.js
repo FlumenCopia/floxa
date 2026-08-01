@@ -1,4 +1,5 @@
-import { apiRequest, registerRefreshFailureCallback } from "./api";
+import { apiRequest, registerRefreshFailureCallback } from "./api.js";
+import { invalidateConsultantActivitiesCache } from "./projectApi.js";
 
 let cachedConsultant = null;
 let consultantPromise = null;
@@ -7,6 +8,7 @@ let listeners = [];
 export function clearCurrentConsultantCache() {
   cachedConsultant = null;
   consultantPromise = null;
+  invalidateConsultantActivitiesCache();
   notifyConsultantChange(null);
 }
 
@@ -42,11 +44,11 @@ export async function loginConsultant(data) {
   });
 }
 
-export async function getCurrentConsultant() {
-  if (cachedConsultant) {
+export async function getCurrentConsultant(forceRefresh = false) {
+  if (!forceRefresh && cachedConsultant) {
     return cachedConsultant;
   }
-  if (consultantPromise) {
+  if (!forceRefresh && consultantPromise) {
     return consultantPromise;
   }
   consultantPromise = (async () => {
