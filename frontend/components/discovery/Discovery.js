@@ -1070,14 +1070,20 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
     try {
       const createdMoodboard = await uploadMoodboard(projectId, formData);
       if (createdMoodboard && createdMoodboard.id) {
-        setMoodboards((current) => [createdMoodboard, ...current.filter((item) => item.id !== createdMoodboard.id)]);
+        setMoodboards((current) => [
+          createdMoodboard,
+          ...current.filter((item) => item.id !== createdMoodboard.id),
+        ]);
       }
       setForm({ title: "", description: "", image: null });
       uploadForm.reset();
       showSuccess("Moodboard uploaded.");
     } catch (uploadError) {
       console.error("Failed to upload moodboard:", uploadError);
-      const message = getApiErrorMessage(uploadError, "Unable to upload moodboard. Please try again.");
+      const message = getApiErrorMessage(
+        uploadError,
+        "Unable to upload moodboard. Please try again."
+      );
       setError(message);
       showError(message);
     } finally {
