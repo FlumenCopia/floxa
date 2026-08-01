@@ -84,7 +84,7 @@ class GeminiAssistantServiceTests(TestCase):
     @override_settings(GEMINI_API_KEY="test_key", GEMINI_MODELS=["gemini-3.1-flash-lite", "gemini-flash-lite-latest"])
     def test_all_models_return_429_raises_controlled_rate_limit_error(self):
         mock_client = MagicMock()
-        error_429 = errors.ClientError(message="Resource Exhausted", code=429)
+        error_429 = errors.ClientError(429, {"error": {"code": 429, "message": "Resource Exhausted"}}, None)
         mock_client.models.generate_content.side_effect = [error_429, error_429]
 
         with patch("ai_assistant.services._get_client", return_value=mock_client):

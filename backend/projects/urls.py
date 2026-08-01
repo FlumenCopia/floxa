@@ -34,6 +34,7 @@ from .views import (
     ProjectDiscoverySubmitView,
     ProjectDiscoveryView,
     ProjectListCreateView,
+    ProjectInviteRetryView,
     ConsultantMoodboardImageView,
     ConsultantConceptAssetView,
     ConsultantAgreementFileView,
@@ -41,6 +42,11 @@ from .views import (
 
 urlpatterns = [
     path("", ProjectListCreateView.as_view(), name="project-list-create"),
+    path(
+        "<int:project_id>/invite/retry/",
+        ProjectInviteRetryView.as_view(),
+        name="project-invite-retry",
+    ),
     path(
         "analytics/",
         ProjectAnalyticsView.as_view(),

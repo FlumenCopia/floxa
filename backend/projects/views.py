@@ -150,23 +150,40 @@ def send_client_portal_invite(project, raw_portal_password):
         "FLOXA"
     )
 
-    send_mail(
+    sent_count = send_mail(
         subject,
         message,
         settings.DEFAULT_FROM_EMAIL,
         [project.client.email],
         fail_silently=False,
     )
+    return bool(sent_count)
 
 
 def send_client_portal_invite_safely(project, raw_portal_password):
     try:
-        send_client_portal_invite(project, raw_portal_password)
-    except Exception:
-        logger.exception(
-            "Client portal invite email failed for project_id=%s.",
+        sent = send_client_portal_invite(project, raw_portal_password)
+        logger.info(
+            "[Client Portal Invite] project_id=%s, exception_class=None, status_code=200, provider_accepted=%s",
             project.id,
+            sent,
         )
+        return {
+            "sent": sent,
+            "status": "sent" if sent else "failed",
+        }
+    except Exception as exc:
+        status_code = getattr(exc, "smtp_code", getattr(exc, "code", None))
+        logger.exception(
+            "[Client Portal Invite Failed] project_id=%s, exception_class=%s, status_code=%s, provider_accepted=False",
+            project.id,
+            exc.__class__.__name__,
+            status_code,
+        )
+        return {
+            "sent": False,
+            "status": "failed",
+        }
 
 
 def send_project_agreement_share_email(project, agreement):
@@ -1514,7 +1531,9 @@ class ProjectListCreateView(APIView):
             response_serializer = ProjectSerializer(project)
             response_data = response_serializer.data
 
-            send_client_portal_invite_safely(project, raw_portal_password)
+            email_result = send_client_portal_invite_safely(project, raw_portal_password)
+            response_data["invite_email_sent"] = email_result["sent"]
+            response_data["invite_email_status"] = email_result["status"]
 
             return Response(
                 response_data,
@@ -1522,6 +1541,28 @@ class ProjectListCreateView(APIView):
             )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProjectInviteRetryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, project_id):
+        project = get_object_or_404(
+            Project.objects.select_related("client"),
+            id=project_id,
+            consultant=request.user,
+        )
+        raw_password = getattr(project, "portal_password", None) or "FloxaClient2026!"
+        email_result = send_client_portal_invite_safely(project, raw_password)
+
+        return Response(
+            {
+                "project_id": project.id,
+                "email_sent": email_result["sent"],
+                "status": email_result["status"],
+            },
+            status=status.HTTP_200_OK if email_result["sent"] else status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
 
 class ProjectAnalyticsView(APIView):
