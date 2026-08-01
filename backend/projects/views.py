@@ -1571,7 +1571,7 @@ class ProjectInviteRetryView(APIView):
                 "email_sent": email_result["sent"],
                 "status": email_result["status"],
             },
-            status=status.HTTP_200_OK if email_result["sent"] else status.HTTP_503_SERVICE_UNAVAILABLE,
+            status=status.HTTP_200_OK,
         )
 
 
