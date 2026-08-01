@@ -1,3 +1,5 @@
+import uuid
+from pathlib import Path
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
 from .models import (
@@ -18,6 +20,7 @@ from .models import (
     ProjectDiscovery,
 )
 from .progress import calculate_project_progress, calculate_project_workflow_status
+from .upload_validation import optimize_uploaded_image, validate_upload_file
 from .upload_validation import can_client_download_deliverable
 from .upload_validation import optimize_uploaded_image, validate_upload_file
 
@@ -193,6 +196,10 @@ class MoodboardSerializer(serializers.ModelSerializer):
         if not obj.image:
             return ""
 
+        url = str(obj.image.url)
+        if url.startswith("http://") or url.startswith("https://"):
+            return url
+
         request = self.context.get("request")
         image_url = f"/api/projects/{obj.project.id}/moodboards/{obj.id}/image/"
 
@@ -201,7 +208,12 @@ class MoodboardSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         validate_upload_file(attrs.get("image"), "moodboard_image", "image")
         if attrs.get("image"):
-            attrs["image"] = optimize_uploaded_image(attrs["image"], "image")
+            optimized = optimize_uploaded_image(attrs["image"], "image")
+            ext = Path(optimized.name).suffix.lower() or ".jpg"
+            project = self.context.get("project")
+            project_id = project.id if project else "0"
+            optimized.name = f"{project_id}/{uuid.uuid4().hex}{ext}"
+            attrs["image"] = optimized
 
         return attrs
 
@@ -223,6 +235,10 @@ class ClientPortalMoodboardSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         if not obj.image:
             return ""
+
+        url = str(obj.image.url)
+        if url.startswith("http://") or url.startswith("https://"):
+            return url
 
         request = self.context.get("request")
         image_url = f"/api/client-portal/{obj.project.portal_token}/moodboards/{obj.id}/image/"

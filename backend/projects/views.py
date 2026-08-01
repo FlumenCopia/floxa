@@ -4490,13 +4490,20 @@ class MoodboardView(APIView):
 
         serializer = MoodboardSerializer(
             data=request.data,
-            context={"request": request},
+            context={"request": request, "project": project},
         )
 
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        moodboard = serializer.save(project=project)
+        try:
+            moodboard = serializer.save(project=project)
+        except Exception as exc:
+            return Response(
+                {"detail": "Storage service currently unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         activity_exists = project.activities.filter(
             action="moodboard_uploaded",
             metadata__moodboard_id=moodboard.id,
@@ -4517,10 +4524,50 @@ class MoodboardView(APIView):
             )
         response_serializer = MoodboardSerializer(
             moodboard,
-            context={"request": request},
+            context={"request": request, "project": project},
         )
 
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class MoodboardDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_project(self, request, project_id):
+        try:
+            return Project.objects.get(
+                id=project_id,
+                consultant=request.user,
+                is_archived=False,
+            )
+        except Project.DoesNotExist:
+            return None
+
+    def delete(self, request, project_id, moodboard_id):
+        project = self.get_project(request, project_id)
+
+        if project is None:
+            return Response(
+                {"detail": "Project not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            moodboard = project.moodboards.get(id=moodboard_id)
+        except Moodboard.DoesNotExist:
+            return Response(
+                {"detail": "Moodboard not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if moodboard.image:
+            try:
+                moodboard.image.delete(save=False)
+            except Exception:
+                pass
+
+        moodboard.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ConceptView(APIView):

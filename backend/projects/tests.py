@@ -2048,6 +2048,201 @@ class ClientPortalDiscoveryReportTests(TestCase):
         url = f"/api/client-portal/{self.project.portal_token}/discovery/"
         response = other_cookie_client.get(url)
         self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json(), {"detail": "Final files will be available after the required payment is confirmed."})
+
+    def test_download_denied_when_final_is_paid_but_advance_is_unpaid(self):
+        self.advance_pm.status = PaymentMilestone.Status.REQUESTED
+        self.advance_pm.save()
+        self.mid_pm.status = PaymentMilestone.Status.PAID
+        self.mid_pm.save()
+        self.final_pm.status = PaymentMilestone.Status.PAID
+        self.final_pm.save()
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_download_denied_for_draft_unshared_deliverable(self):
+        self.advance_pm.status = PaymentMilestone.Status.PAID
+        self.advance_pm.save()
+        self.mid_pm.status = PaymentMilestone.Status.PAID
+        self.mid_pm.save()
+        self.final_pm.status = PaymentMilestone.Status.PAID
+        self.final_pm.save()
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.draft_deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_download_denied_for_deliverable_of_another_project(self):
+        self.advance_pm.status = PaymentMilestone.Status.PAID
+        self.advance_pm.save()
+        self.mid_pm.status = PaymentMilestone.Status.PAID
+        self.mid_pm.save()
+        self.final_pm.status = PaymentMilestone.Status.PAID
+        self.final_pm.save()
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.other_deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_download_denied_for_invalid_cookie(self):
+        self.api_client.cookies.clear()
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_download_succeeds_when_all_payments_paid_and_deliverable_shared(self):
+        from .serializers import ClientPortalDeliverableSerializer
+        from rest_framework.test import APIRequestFactory
+
+        self.advance_pm.status = PaymentMilestone.Status.PAID
+        self.advance_pm.save()
+        self.mid_pm.status = PaymentMilestone.Status.PAID
+        self.mid_pm.save()
+        self.final_pm.status = PaymentMilestone.Status.PAID
+        self.final_pm.save()
+
+        request = APIRequestFactory().get("/")
+        ser = ClientPortalDeliverableSerializer(self.deliverable, context={"request": request})
+        self.assertTrue(ser.data["can_download"])
+        self.assertIsNotNone(ser.data["file_url"])
+        self.assertNotIn("/media/", ser.data["file_url"])
+
+        response = self.api_client.get(
+            f"/api/client-portal/{self.project.portal_token}/deliverables/{self.deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), self.deliverable_file_bytes)
+        self.assertEqual(response.headers["Cache-Control"], "private, no-store, max-age=0")
+        self.assertEqual(response.headers["Pragma"], "no-cache")
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        self.assertIn("attachment", response.headers["Content-Disposition"])
+        self.assertIn("brand_package", response.headers["Content-Disposition"])
+
+    def test_consultant_endpoint_returns_unlocked_file_regardless_of_payment(self):
+        self.api_client.force_authenticate(user=self.consultant)
+
+        self.final_pm.status = PaymentMilestone.Status.REQUESTED
+        self.final_pm.save()
+
+        response = self.api_client.get(
+            f"/api/projects/{self.project.id}/deliverables/{self.deliverable.id}/file/"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(b"".join(response.streaming_content), self.deliverable_file_bytes)
+
+
+class ClientPortalDiscoveryReportTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.hashers import make_password
+        from .models import (
+            Client,
+            ClientProfile,
+            DiscoveryCompetitor,
+            DiscoveryEmotion,
+            DiscoverySliderResponse,
+            DiscoveryVisualStyle,
+            Project,
+            ProjectDiscovery,
+        )
+
+        User = get_user_model()
+
+        self.consultant = User.objects.create_user(
+            email="consultant_disc@example.com",
+            name="Consultant Disc",
+            password="TestPassword123!",
+        )
+        self.client_obj = Client.objects.create(
+            name="Client Disc",
+            email="client_disc@example.com",
+        )
+        self.project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_obj,
+            company_name="Acme Discovery Co",
+            sector="Technology",
+            project_value=Decimal("10000.00"),
+            portal_password_hash=make_password("portalpass123"),
+        )
+        self.other_project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_obj,
+            company_name="Other Co",
+            sector="Retail",
+            project_value=Decimal("5000.00"),
+            portal_password_hash=make_password("portalpass123"),
+        )
+
+        self.discovery = ProjectDiscovery.objects.create(
+            project=self.project,
+            what_business_does="We build brand clarity software.",
+            target_customer="Modern design consultants and agency owners.",
+            why_choose_us="Unmatched clarity and speed.",
+            brand_feeling="Confident, elegant, and precise.",
+            audience_archetype="Premium Seeker",
+            submitted_at=timezone.now(),
+        )
+        DiscoveryEmotion.objects.create(discovery=self.discovery, emotion="Confident")
+        DiscoveryEmotion.objects.create(discovery=self.discovery, emotion="Elegant")
+        DiscoveryVisualStyle.objects.create(discovery=self.discovery, style="Clean & Minimal")
+        DiscoveryCompetitor.objects.create(
+            discovery=self.discovery,
+            name="CompA",
+            rating="High",
+            reason="Market leader",
+        )
+
+        self.api_client = APIClient()
+        self.api_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            self.project.portal_token
+        )
+
+    def test_client_portal_can_retrieve_submitted_discovery_report(self):
+        url = f"/api/client-portal/{self.project.portal_token}/discovery/"
+        response = self.api_client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["what_business_does"], "We build brand clarity software.")
+        self.assertEqual(response.data["target_customer"], "Modern design consultants and agency owners.")
+        self.assertTrue(response.data["is_submitted"])
+        self.assertIsNotNone(response.data["submitted_at"])
+
+        emotions = [item["emotion"] for item in response.data["emotions"]]
+        self.assertIn("Confident", emotions)
+        self.assertIn("Elegant", emotions)
+
+    def test_submitted_discovery_remains_available_after_brand_dna_generation(self):
+        self.api_client.force_authenticate(user=self.consultant)
+        gen_response = self.api_client.post(
+            f"/api/projects/{self.project.id}/brand-dna/generate/"
+        )
+        self.assertEqual(gen_response.status_code, 200)
+
+        self.api_client.logout()
+        self.api_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            self.project.portal_token
+        )
+        url = f"/api/client-portal/{self.project.portal_token}/discovery/"
+        disc_response = self.api_client.get(url)
+
+        self.assertEqual(disc_response.status_code, 200)
+        self.assertEqual(disc_response.data["what_business_does"], "We build brand clarity software.")
+        self.assertTrue(disc_response.data["is_submitted"])
+
+    def test_other_project_portal_token_cannot_access_discovery(self):
+        other_cookie_client = APIClient()
+        other_cookie_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            self.other_project.portal_token
+        )
+        url = f"/api/client-portal/{self.project.portal_token}/discovery/"
+        response = other_cookie_client.get(url)
+        self.assertEqual(response.status_code, 403)
 
     def test_draft_unsubmitted_discovery_marked_is_submitted_false(self):
         from django.contrib.auth.hashers import make_password
@@ -2079,5 +2274,167 @@ class ClientPortalDiscoveryReportTests(TestCase):
         self.assertIsNone(response.data["submitted_at"])
 
 
+class MoodboardStorageTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.hashers import make_password
+        from .models import Client, Project, Moodboard
 
+        User = get_user_model()
+        self.consultant = User.objects.create_user(
+            email="consultant_mb@example.com",
+            name="Consultant MB",
+            password="TestPassword123!",
+        )
+        self.other_consultant = User.objects.create_user(
+            email="other_mb@example.com",
+            name="Other Consultant",
+            password="TestPassword123!",
+        )
+        self.client_obj = Client.objects.create(
+            name="Client MB",
+            email="client_mb@example.com",
+        )
+        self.project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_obj,
+            company_name="Acme Moodboards",
+            sector="Design",
+            project_value=Decimal("8000.00"),
+            portal_password_hash=make_password("portalpass123"),
+        )
+        self.api_client = APIClient()
+        self.api_client.force_authenticate(user=self.consultant)
 
+    def _create_test_image(self, width=500, height=500, format="JPEG"):
+        from io import BytesIO
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        buffer = BytesIO()
+        img = Image.new("RGB", (width, height), color=(100, 150, 200))
+        img.save(buffer, format=format)
+        buffer.seek(0)
+        ext = "jpg" if format == "JPEG" else format.lower()
+        return SimpleUploadedFile(
+            name=f"test_image.{ext}",
+            content=buffer.getvalue(),
+            content_type=f"image/{ext if ext != 'jpg' else 'jpeg'}",
+        )
+
+    @override_settings(DEBUG=True)
+    def test_valid_moodboard_upload_succeeds(self):
+        test_img = self._create_test_image()
+        response = self.api_client.post(
+            f"/api/projects/{self.project.id}/moodboards/",
+            {"title": "Test Moodboard 1", "image": test_img},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("id", response.data)
+        self.assertEqual(response.data["title"], "Test Moodboard 1")
+        self.assertTrue(response.data["image_url"])
+
+    @override_settings(DEBUG=True)
+    def test_invalid_file_rejection_returns_400(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        invalid_file = SimpleUploadedFile(
+            name="script.txt",
+            content=b"not an image file content",
+            content_type="text/plain",
+        )
+        response = self.api_client.post(
+            f"/api/projects/{self.project.id}/moodboards/",
+            {"title": "Invalid File", "image": invalid_file},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("image", response.data)
+
+    def test_oversized_file_rejection_returns_400(self):
+        from .upload_validation import validate_upload_file
+        from rest_framework.exceptions import ValidationError
+
+        test_img = self._create_test_image()
+        test_img.size = 5 * 1024 * 1024
+        with self.assertRaises(ValidationError) as cm:
+            validate_upload_file(test_img, "moodboard_image")
+        self.assertIn("4 MB", str(cm.exception))
+
+    @override_settings(DEBUG=True)
+    def test_image_compression_in_memory(self):
+        from PIL import Image
+        from .models import Moodboard
+
+        large_img = self._create_test_image(width=2500, height=2500)
+        response = self.api_client.post(
+            f"/api/projects/{self.project.id}/moodboards/",
+            {"title": "Large Image", "image": large_img},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201)
+        moodboard = Moodboard.objects.get(id=response.data["id"])
+        with Image.open(moodboard.image.file) as opened_img:
+            self.assertLessEqual(opened_img.width, 1600)
+            self.assertLessEqual(opened_img.height, 1600)
+
+    def test_storage_save_failure_returns_503(self):
+        from unittest.mock import patch
+
+        test_img = self._create_test_image()
+        with patch("projects.serializers.MoodboardSerializer.save", side_effect=OSError("Vercel Blob failure")):
+            response = self.api_client.post(
+                f"/api/projects/{self.project.id}/moodboards/",
+                {"title": "Fail Storage", "image": test_img},
+                format="multipart",
+            )
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.data["detail"], "Storage service currently unavailable.")
+
+    def test_production_unconfigured_storage_raises_improperly_configured(self):
+        from unittest.mock import patch
+        from django.conf import settings
+        from django.core.exceptions import ImproperlyConfigured
+        from .storage import VercelBlobStorage
+
+        storage = VercelBlobStorage()
+        with patch.object(settings, "DEBUG", False), patch.dict("os.environ", {}, clear=True):
+            with self.assertRaises(ImproperlyConfigured):
+                _ = storage.token
+
+    def test_project_ownership_protection(self):
+        self.api_client.force_authenticate(user=self.other_consultant)
+        test_img = self._create_test_image()
+        response = self.api_client.post(
+            f"/api/projects/{self.project.id}/moodboards/",
+            {"title": "Unauthorized", "image": test_img},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_serializer_returns_durable_url(self):
+        from .models import Moodboard
+        from .serializers import MoodboardSerializer
+
+        mb = Moodboard.objects.create(
+            project=self.project,
+            title="Durable URL Test",
+            image="https://public.blob.vercel-storage.com/moodboards/1/test.jpg",
+        )
+        serializer = MoodboardSerializer(mb)
+        self.assertEqual(serializer.data["image_url"], "https://public.blob.vercel-storage.com/moodboards/1/test.jpg")
+
+    def test_delete_moodboard_deletes_stored_image_and_record(self):
+        from unittest.mock import patch
+        from .models import Moodboard
+
+        mb = Moodboard.objects.create(
+            project=self.project,
+            title="Delete Test",
+            image="moodboards/1/test_delete.jpg",
+        )
+        with patch("django.core.files.storage.default_storage.delete") as mock_delete:
+            response = self.api_client.delete(f"/api/projects/{self.project.id}/moodboards/{mb.id}/")
+            self.assertEqual(response.status_code, 204)
+            self.assertFalse(Moodboard.objects.filter(id=mb.id).exists())

@@ -50,7 +50,7 @@ DOCUMENT_MIME_TYPES = {
 
 UPLOAD_RULES = {
     "moodboard_image": {
-        "max_size": 5 * MB,
+        "max_size": 4 * MB,
         "extensions": IMAGE_EXTENSIONS,
         "mime_types": IMAGE_MIME_TYPES,
     },
@@ -85,6 +85,11 @@ def validate_upload_file(file_obj, rule_name, field_name=None):
     max_size = rule["max_size"]
 
     if file_obj.size > max_size:
+        if rule_name == "moodboard_image":
+            raise_upload_error(
+                "File too large. Maximum size for server upload is 4 MB (larger files require direct Blob client upload).",
+                field_name,
+            )
         raise_upload_error("File too large.", field_name)
 
     extension = Path(file_obj.name).suffix.lower()

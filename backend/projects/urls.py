@@ -18,6 +18,7 @@ from .views import (
     GeneratedAgreementPDFRegenerateView,
     GeneratedAgreementPDFView,
     GeneratedAgreementShareView,
+    MoodboardDetailView,
     MoodboardView,
     PaymentMilestoneActionView,
     PaymentMilestoneView,
@@ -89,6 +90,11 @@ urlpatterns = [
         "<int:project_id>/moodboards/",
         MoodboardView.as_view(),
         name="project-moodboards",
+    ),
+    path(
+        "<int:project_id>/moodboards/<int:moodboard_id>/",
+        MoodboardDetailView.as_view(),
+        name="project-moodboard-detail",
     ),
     path(
         "<int:project_id>/concepts/",
