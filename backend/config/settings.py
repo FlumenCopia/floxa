@@ -181,7 +181,7 @@ GEMINI_MODELS = config(
 GEMINI_TIMEOUT_SECONDS = config("GEMINI_TIMEOUT_SECONDS", default=20, cast=int)
 GEMINI_MAX_OUTPUT_TOKENS = config("GEMINI_MAX_OUTPUT_TOKENS", default=700, cast=int)
 GEMINI_MAX_INPUT_CHARACTERS = config("GEMINI_MAX_INPUT_CHARACTERS", default=12000, cast=int)
-
+   
 
 PRODUCTION_FRONTEND_ORIGINS = [
     "https://floxa-frontend-test-lyart.vercel.app",
