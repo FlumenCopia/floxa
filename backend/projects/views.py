@@ -4636,7 +4636,6 @@ class ConceptView(APIView):
                 logger.warning("Failed to cleanup newly uploaded file Blob %s: %s", file_name, exc)
 
     def post(self, request, project_id):
-        t_request_start = time.perf_counter()
         project = self.get_project(request, project_id)
 
         if project is None:
@@ -4650,12 +4649,9 @@ class ConceptView(APIView):
             context={"request": request},
         )
 
-        t_val_start = time.perf_counter()
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        t_val_end = time.perf_counter()
 
-        t_db_start = time.perf_counter()
         uploaded_image_name = None
         uploaded_file_name = None
         concept = None
@@ -4697,7 +4693,6 @@ class ConceptView(APIView):
                 {"detail": "Unable to save concept. Please try again."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        t_db_end = time.perf_counter()
 
         try:
             activity_exists = project.activities.filter(

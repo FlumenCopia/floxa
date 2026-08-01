@@ -1226,52 +1226,47 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
   const conceptImageInputRef = useRef(null);
-  const conceptFileInputRef = useRef(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
     image: null,
-    file: null,
   });
   const [editForm, setEditForm] = useState({
     title: "",
     description: "",
     image: null,
-    file: null,
   });
 
   const loadConcepts = useCallback(async () => {
     if (!projectId) {
+      setConcepts([]);
       return;
     }
 
     setLoading(true);
+    setError("");
 
     try {
       const data = await getConcepts(projectId);
-      setConcepts(Array.isArray(data) ? data : []);
+      setConcepts(Array.isArray(data) ? data : data?.results || []);
     } catch (loadError) {
       console.error("Failed to load concepts:", loadError);
-      setConcepts([]);
+      setError("Unable to load project concepts.");
     } finally {
       setLoading(false);
     }
   }, [projectId]);
 
   useEffect(() => {
-    const load = async () => {
-      await loadConcepts();
-    };
-
-    load();
+    loadConcepts();
   }, [loadConcepts]);
 
   async function handleUpload(event) {
     event.preventDefault();
     const uploadForm = event.currentTarget;
 
-    if (!projectId || !form.title.trim() || (!form.image && !form.file)) {
-      const message = "Please add a title and upload an image or file.";
+    if (!projectId || !form.title.trim() || !form.image) {
+      const message = "Please add a title and upload a preview image.";
       setError(message);
       showError(message);
       return;
@@ -1285,16 +1280,12 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
       formData.append("image", form.image);
     }
 
-    if (form.file) {
-      formData.append("file", form.file);
-    }
-
     setSaving(true);
     setError("");
 
     try {
       await uploadConcept(projectId, formData);
-      setForm({ title: "", description: "", image: null, file: null });
+      setForm({ title: "", description: "", image: null });
       uploadForm.reset();
       showSuccess("Concept uploaded.");
       await loadConcepts();
@@ -1314,14 +1305,6 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
 
     if (conceptImageInputRef.current) {
       conceptImageInputRef.current.value = "";
-    }
-  }
-
-  function handleClearConceptFile() {
-    setForm((current) => ({ ...current, file: null }));
-
-    if (conceptFileInputRef.current) {
-      conceptFileInputRef.current.value = "";
     }
   }
 
@@ -1471,7 +1454,7 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
         <div className="discovery-moodboard-head">
           <div>
             <h2 className="discovery-panel-title">Concepts</h2>
-            <p>Upload client-ready concept routes with a preview image, working file, and concise rationale.</p>
+            <p>Upload client-ready concept routes with a preview image and concise rationale.</p>
           </div>
           <span>{concepts.length} uploaded</span>
         </div>
@@ -1506,19 +1489,7 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
               />
               <span>Preview image</span>
               <strong>{form.image ? "Preview image selected" : "Choose preview image"}</strong>
-              <small>{form.image ? "This image will represent the concept card." : "PNG, JPG, or WebP recommended under 10 MB."}</small>
-            </label>
-            <label className={`discovery-moodboard-dropzone ${form.file ? "has-file" : ""}`}>
-              <input
-                ref={conceptFileInputRef}
-                className="discovery-moodboard-file-input"
-                type="file"
-                accept="application/pdf,image/*,.zip,.ai,.psd,.fig"
-                onChange={(event) => setForm((current) => ({ ...current, file: event.target.files?.[0] || null }))}
-              />
-              <span>Concept file</span>
-              <strong>{form.file ? "Concept file selected" : "Choose PDF or source file"}</strong>
-              <small>{form.file ? "The attached file will be available with this concept." : "PDF, image, ZIP, AI, PSD, or Figma export."}</small>
+              <small>{form.image ? "This image will represent the concept card." : "PNG, JPG, or WebP recommended."}</small>
             </label>
           </div>
           {form.image ? (
@@ -1529,18 +1500,6 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
                 <small>{form.image.type || "Image"} - {formatFileSize(form.image.size)}</small>
               </div>
               <button type="button" onClick={handleClearConceptImage}>
-                Remove
-              </button>
-            </div>
-          ) : null}
-          {form.file ? (
-            <div className="discovery-moodboard-selected-file">
-              <div>
-                <span>Selected file</span>
-                <strong>{form.file.name}</strong>
-                <small>{form.file.type || "File"} - {formatFileSize(form.file.size)}</small>
-              </div>
-              <button type="button" onClick={handleClearConceptFile}>
                 Remove
               </button>
             </div>

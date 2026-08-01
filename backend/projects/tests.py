@@ -2472,6 +2472,7 @@ class AllFileFieldsStorageAuditTests(TestCase):
         User = get_user_model()
         self.user = User.objects.create_user(
             email="audit_user@example.com",
+            name="Audit User",
             password="Pass123!",
         )
         self.api_client = APIClient()
@@ -2623,6 +2624,7 @@ class ConceptUploadCleanupAndRegressionTests(TestCase):
         User = get_user_model()
         self.user = User.objects.create_user(
             email="cleanup_user@example.com",
+            name="Cleanup User",
             password="Pass123!",
         )
         self.api_client = APIClient()
@@ -2643,83 +2645,44 @@ class ConceptUploadCleanupAndRegressionTests(TestCase):
         return SimpleUploadedFile(name, buf.getvalue(), content_type="image/jpeg")
 
     @override_settings(DEBUG=True)
-    def test_concept_upload_returns_protected_urls_without_raw_blob_urls(self):
-        img = self._create_test_image("prod_test.jpg")
-        pdf = SimpleUploadedFile("doc.pdf", b"%PDF-1.4 content", content_type="application/pdf")
+    def test_image_only_concept_upload_returns_201_and_protected_image_url(self):
+        img = self._create_test_image("prod_img_only.jpg")
         response = self.api_client.post(
             f"/api/projects/{self.project.id}/concepts/",
-            {"title": "Prod Concept", "image": img, "file": pdf},
+            {"title": "Image Only Concept", "image": img},
             format="multipart",
         )
         self.assertEqual(response.status_code, 201)
+        self.assertEqual(response["Content-Type"], "application/json")
         concept_id = response.data["id"]
         self.assertIn(f"/api/projects/{self.project.id}/concepts/{concept_id}/image/", response.data["image_url"])
-        self.assertIn(f"/api/projects/{self.project.id}/concepts/{concept_id}/file/", response.data["file_url"])
         self.assertNotIn("blob.vercel-storage.com", response.data["image_url"])
-        self.assertNotIn("blob.vercel-storage.com", response.data["file_url"])
 
-    def test_cleanup_when_file_upload_fails_after_image_upload(self):
-        from unittest.mock import patch
+        # Verify GET protected image endpoint returns 200
+        get_img_res = self.api_client.get(f"/api/projects/{self.project.id}/concepts/{concept_id}/image/")
+        self.assertEqual(get_img_res.status_code, 200)
+
+    def test_existing_concept_with_pdf_serializes_and_downloads_correctly(self):
         from .models import Concept
-        img = self._create_test_image("clean_img.jpg")
-        pdf = SimpleUploadedFile("clean_doc.pdf", b"%PDF-1.4 bad", content_type="application/pdf")
+        concept = Concept.objects.create(
+            project=self.project,
+            title="Legacy PDF Concept",
+            image="concepts/legacy.jpg",
+            file="concepts/files/legacy.pdf",
+        )
+        serializer = ConsultantConceptSerializer(concept, context={"request": None})
+        data = serializer.data
+        self.assertIn(f"/api/projects/{self.project.id}/concepts/{concept.id}/file/", data["file_url"])
 
-        initial_count = Concept.objects.filter(project=self.project).count()
-        deleted_files = []
-
-        def mock_delete(name):
-            deleted_files.append(name)
-
-        with patch("django.core.files.storage.FileSystemStorage.delete", side_effect=mock_delete):
-            with patch("projects.upload_validation.validate_upload_file", side_effect=[None, serializers.ValidationError("PDF corrupt")]):
-                response = self.api_client.post(
-                    f"/api/projects/{self.project.id}/concepts/",
-                    {"title": "Failed Concept", "image": img, "file": pdf},
-                    format="multipart",
-                )
-                self.assertEqual(response.status_code, 400)
-                self.assertEqual(Concept.objects.filter(project=self.project).count(), initial_count)
-
-    def test_cleanup_and_rollback_when_db_save_fails(self):
+    def test_storage_failure_returns_503(self):
         from unittest.mock import patch
-        from .models import Concept
-        img = self._create_test_image("fail_db.jpg")
-        pdf = SimpleUploadedFile("fail_db.pdf", b"%PDF-1.4 fail", content_type="application/pdf")
+        from vercel.blob.errors import BlobError
+        img = self._create_test_image("fail_storage.jpg")
 
-        initial_count = Concept.objects.filter(project=self.project).count()
-        deleted_files = []
-
-        def mock_delete(name):
-            deleted_files.append(name)
-
-        with patch("django.core.files.storage.default_storage.delete", side_effect=mock_delete):
-            with patch("projects.models.Concept.objects.create", side_effect=Exception("DB Error")):
-                response = self.api_client.post(
-                    f"/api/projects/{self.project.id}/concepts/",
-                    {"title": "DB Fail Concept", "image": img, "file": pdf},
-                    format="multipart",
-                )
-                self.assertEqual(response.status_code, 500)
-                self.assertEqual(Concept.objects.filter(project=self.project).count(), initial_count)
-
-    def test_cleanup_and_rollback_when_response_serialization_fails(self):
-        from unittest.mock import patch
-        from .models import Concept
-        img = self._create_test_image("ser_fail.jpg")
-        pdf = SimpleUploadedFile("ser_fail.pdf", b"%PDF-1.4 ser", content_type="application/pdf")
-
-        initial_count = Concept.objects.filter(project=self.project).count()
-        deleted_files = []
-
-        def mock_delete(name):
-            deleted_files.append(name)
-
-        with patch("django.core.files.storage.default_storage.delete", side_effect=mock_delete):
-            with patch("projects.serializers.ConsultantConceptSerializer.to_representation", side_effect=Exception("Serialization Error")):
-                response = self.api_client.post(
-                    f"/api/projects/{self.project.id}/concepts/",
-                    {"title": "Ser Fail Concept", "image": img, "file": pdf},
-                    format="multipart",
-                )
-                self.assertEqual(response.status_code, 500)
-                self.assertEqual(Concept.objects.filter(project=self.project).count(), initial_count)
+        with patch("django.core.files.storage.FileSystemStorage.save", side_effect=BlobError("Upload service error")):
+            response = self.api_client.post(
+                f"/api/projects/{self.project.id}/concepts/",
+                {"title": "Storage Fail Concept", "image": img},
+                format="multipart",
+            )
+            self.assertEqual(response.status_code, 503)

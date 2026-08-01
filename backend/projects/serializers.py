@@ -316,13 +316,15 @@ class ConsultantConceptSerializer(serializers.ModelSerializer):
         has_existing_media = self.instance and (self.instance.image or self.instance.file)
 
         validate_upload_file(attrs.get("image"), "concept_image", "image")
-        validate_upload_file(attrs.get("file"), "concept_file", "file")
+        if attrs.get("file"):
+            validate_upload_file(attrs.get("file"), "concept_file", "file")
+
         if attrs.get("image"):
             attrs["image"] = optimize_uploaded_image(attrs["image"], "image")
 
         if not attrs.get("image") and not attrs.get("file") and not has_existing_media:
             raise serializers.ValidationError(
-                {"detail": "Upload an image or file for this concept."}
+                {"image": ["Upload a preview image for this concept."]}
             )
 
         return attrs
