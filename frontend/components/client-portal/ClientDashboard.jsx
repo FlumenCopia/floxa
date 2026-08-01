@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clientPortalService } from "../../services/clientPortalService";
+import ProtectedAssetImage from "../common/ProtectedAssetImage";
+import { downloadProtectedAsset } from "@/src/lib/api";
 
 const phaseLabels = [
   "Profile",
@@ -1304,7 +1306,9 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               ) : null}
               {!moodboardsLoading && moodboards.map((item) => (
                 <article key={item.id} className={item.clientSelected || item.is_selected ? "selected" : ""}>
-                  <div
+                  <ProtectedAssetImage
+                    src={item.image_url}
+                    asBackground
                     className={`client-panel-image ${item.image_url ? "clickable" : ""}`.trim()}
                     role={item.image_url ? "button" : undefined}
                     tabIndex={item.image_url ? 0 : undefined}
@@ -1321,15 +1325,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         : undefined
                     }
                     onContextMenu={(event) => event.preventDefault()}
-                    style={
-                      item.image_url
-                        ? {
-                            backgroundImage: `url(${item.image_url})`,
-                            userSelect: "none",
-                            WebkitUserDrag: "none",
-                          }
-                        : { userSelect: "none", WebkitUserDrag: "none" }
-                    }
+                    style={{ userSelect: "none", WebkitUserDrag: "none" }}
+                    fallbackText="No image preview"
                   />
                   <h3>{item.name || item.title}</h3>
                   {item.description ? <p>{item.description}</p> : null}
@@ -1377,7 +1374,9 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               {!conceptsLoading && concepts.map((item) => (
                 <article key={item.id}>
                   {item.image_url ? (
-                    <section
+                    <ProtectedAssetImage
+                      src={item.image_url}
+                      asBackground
                       className="client-panel-image clickable"
                       role="button"
                       tabIndex={0}
@@ -1390,11 +1389,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         }
                       }}
                       onContextMenu={(event) => event.preventDefault()}
-                      style={{
-                        backgroundImage: `url(${item.image_url})`,
-                        userSelect: "none",
-                        WebkitUserDrag: "none",
-                      }}
+                      style={{ userSelect: "none", WebkitUserDrag: "none" }}
+                      fallbackText="No image preview"
                     />
                   ) : null}
                   <h3>{item.title}</h3>
@@ -1408,14 +1404,13 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                   ) : null}
                   {item.file_url ? (
                     <div>
-                      <a
-                        href={item.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
                         className="client-panel-action"
+                        onClick={() => downloadProtectedAsset(item.file_url, `concept-file-${item.id}`)}
                       >
                         View file
-                      </a>
+                      </button>
                     </div>
                   ) : null}
                   {item.status === "approved" ? (
@@ -1821,7 +1816,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               </button>
             </div>
             <div className="client-preview-body">
-              <img
+              <ProtectedAssetImage
                 src={activePreview.imageUrl}
                 alt={activePreview.title}
                 draggable={false}

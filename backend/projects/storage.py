@@ -27,7 +27,17 @@ class VercelBlobStorage(Storage):
 
     @property
     def use_local(self):
-        return getattr(settings, "DEBUG", False)
+        if getattr(settings, "DEBUG", False):
+            return True
+        if not (
+            os.environ.get("VERCEL")
+            or os.environ.get("BLOB_READ_WRITE_TOKEN")
+            or os.environ.get("VERCEL_BLOB_READ_WRITE_TOKEN")
+            or os.environ.get("VERCEL_OIDC_TOKEN")
+            or self._token
+        ):
+            return True
+        return False
 
     def _get_client(self):
         token_val = self._token or os.environ.get("BLOB_READ_WRITE_TOKEN") or os.environ.get("VERCEL_BLOB_READ_WRITE_TOKEN")

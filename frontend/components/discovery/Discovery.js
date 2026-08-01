@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Floxaheader from "../../commone/Floxaheader";
+import ProtectedAssetImage from "../common/ProtectedAssetImage";
+import { downloadProtectedAsset } from "../../src/lib/api";
 import { getStatusClass, getStatusLabel } from "../Allproject/ProjectSection";
 import { showError, showSuccess } from "../../src/lib/toast";
 import {
@@ -1183,22 +1185,27 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
           ) : null}
           {moodboards.map((item) => (
             <div className={`discovery-moodboard-list-card ${item.is_selected ? "selected" : ""}`} key={item.id}>
-              <div
+              <ProtectedAssetImage
+                src={item.image_url}
+                asBackground
                 className="discovery-moodboard-preview"
-                style={item.image_url ? { backgroundImage: `url(${item.image_url})` } : undefined}
+                fallbackText="No image"
               >
-                {!item.image_url ? <span>No image</span> : null}
                 {item.is_selected ? <strong>Selected</strong> : null}
-              </div>
+              </ProtectedAssetImage>
               <div className="discovery-moodboard-content">
                 <div>
                   <h3>{item.title}</h3>
                   <p>{item.description || "No description added."}</p>
                 </div>
                 {item.image_url ? (
-                  <a className="discovery-moodboard-link" href={item.image_url} target="_blank" rel="noreferrer">
+                  <button
+                    type="button"
+                    className="discovery-moodboard-link"
+                    onClick={() => downloadProtectedAsset(item.image_url, `moodboard-${item.id}.jpg`)}
+                  >
                     View image
-                  </a>
+                  </button>
                 ) : null}
               </div>
             </div>
@@ -1574,12 +1581,12 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
             <div className="discovery-concept-grid">
               {concepts.map((item) => (
                 <article className="discovery-concept-card" key={item.id}>
-                  <div
-                    className={`discovery-concept-preview ${item.image_url ? "" : "empty"}`.trim()}
-                    style={item.image_url ? { backgroundImage: `url(${item.image_url})` } : undefined}
-                  >
-                    {!item.image_url ? <span>No preview</span> : null}
-                  </div>
+                  <ProtectedAssetImage
+                    src={item.image_url}
+                    asBackground
+                    className="discovery-concept-preview"
+                    fallbackText="No preview"
+                  />
 
                   <div className="discovery-concept-body">
                     <div className="discovery-concept-heading">
@@ -1698,14 +1705,22 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
                         </>
                       )}
                       {item.image_url ? (
-                        <a href={item.image_url} target="_blank" rel="noreferrer">
+                        <button
+                          type="button"
+                          className="btn btn-secondary discovery-upload-btn"
+                          onClick={() => downloadProtectedAsset(item.image_url, `concept-image-${item.id}.jpg`)}
+                        >
                           View image
-                        </a>
+                        </button>
                       ) : null}
                       {item.file_url ? (
-                        <a href={item.file_url} target="_blank" rel="noreferrer">
+                        <button
+                          type="button"
+                          className="btn btn-secondary discovery-upload-btn"
+                          onClick={() => downloadProtectedAsset(item.file_url, `concept-file-${item.id}`)}
+                        >
                           View file
-                        </a>
+                        </button>
                       ) : null}
                     </div>
                   </div>
@@ -2081,9 +2096,13 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
                         {deletingId === item.id ? "Deleting..." : "Delete"}
                       </button>
                       {item.file_url ? (
-                        <a href={item.file_url} target="_blank" rel="noreferrer">
+                        <button
+                          type="button"
+                          className="btn btn-secondary discovery-upload-btn"
+                          onClick={() => downloadProtectedAsset(item.file_url, `deliverable-${item.id}`)}
+                        >
                           View file
-                        </a>
+                        </button>
                       ) : null}
                     </div>
                   </div>

@@ -238,3 +238,78 @@ export async function apiRequest(endpoint, options = {}) {
 
   return parseApiResponse(response);
 }
+
+export async function fetchProtectedAssetBlob(assetUrl, options = {}) {
+  if (!assetUrl) {
+    throw { detail: "No asset URL provided.", status: 400 };
+  }
+
+  let targetUrl = assetUrl;
+  if (!assetUrl.startsWith("http://") && !assetUrl.startsWith("https://")) {
+    const cleanPath = assetUrl.startsWith("/") ? assetUrl : `/${assetUrl}`;
+    const baseUrl = (API_BASE_URL || "").replace(/\/+$/, "");
+    if (cleanPath.startsWith("/api/") && baseUrl.endsWith("/api")) {
+      targetUrl = `${baseUrl.slice(0, -4)}${cleanPath}`;
+    } else {
+      targetUrl = `${baseUrl}${cleanPath}`;
+    }
+  }
+
+  const headers = await getRequestHeaders(options, { includeAuth: true });
+  delete headers["Content-Type"];
+
+  let response = await fetch(targetUrl, {
+    ...options,
+    credentials: "include",
+    headers,
+  });
+
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      const retryHeaders = await getRequestHeaders(options, { includeAuth: true });
+      delete retryHeaders["Content-Type"];
+      response = await fetch(targetUrl, {
+        ...options,
+        credentials: "include",
+        headers: retryHeaders,
+      });
+    }
+  }
+
+  if (!response.ok) {
+    let detail = "Failed to fetch asset.";
+    if (response.status === 401 || response.status === 403) {
+      detail = "Authentication or permission failure accessing asset.";
+    } else if (response.status === 404) {
+      detail = "Asset not found.";
+    } else if (response.status === 503) {
+      detail = "Storage service temporarily unavailable.";
+    }
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`[fetchProtectedAssetBlob] Asset fetch failed (${response.status}): ${detail}`);
+    }
+    throw { detail, status: response.status };
+  }
+
+  const blob = await response.blob();
+  const contentType = response.headers.get("content-type") || blob.type || "application/octet-stream";
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[fetchProtectedAssetBlob] Asset fetched successfully (${response.status}), Content-Type: ${contentType}, Size: ${blob.size} bytes`);
+  }
+
+  return { blob, contentType };
+}
+
+export async function downloadProtectedAsset(assetUrl, defaultFilename = "download") {
+  const { blob } = await fetchProtectedAssetBlob(assetUrl);
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = defaultFilename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+}
