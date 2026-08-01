@@ -2344,7 +2344,7 @@ class MoodboardStorageTests(TestCase):
         mock_result.pathname = f"moodboards/{self.project.id}/test_uuid.jpg"
         mock_result.url = f"https://hash.private.blob.vercel-storage.com/moodboards/{self.project.id}/test_uuid.jpg"
 
-        with patch.object(settings, "DEBUG", False), patch("vercel.blob.BlobClient.put", return_value=mock_result) as mock_put:
+        with patch.object(settings, "DEBUG", False), patch.dict("os.environ", {"VERCEL": "1"}), patch("vercel.blob.BlobClient.put", return_value=mock_result) as mock_put:
             response = self.api_client.post(
                 f"/api/projects/{self.project.id}/moodboards/",
                 {"title": "Private Upload Test", "image": test_img},
@@ -2500,7 +2500,7 @@ class AllFileFieldsStorageAuditTests(TestCase):
         concept = Concept.objects.create(
             project=self.project,
             title="Concept 1",
-            image=SimpleUploadedFile("c_img.jpg", b"fake_img_bytes", content_type="image/jpeg"),
+            image=self._create_test_image(),
             file=SimpleUploadedFile("c_doc.pdf", b"fake_pdf_bytes", content_type="application/pdf"),
             status=Concept.Status.SHARED,
         )

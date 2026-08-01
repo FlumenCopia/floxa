@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import mimetypes
+import os
 import threading
 import uuid
 from datetime import datetime
@@ -6502,11 +6503,16 @@ class ConsultantMoodboardImageView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        return FileResponse(
+        content_type, _ = mimetypes.guess_type(moodboard.image.name)
+        response = FileResponse(
             moodboard.image.open("rb"),
+            content_type=content_type or "image/jpeg",
             as_attachment=False,
             filename=moodboard.image.name.split("/")[-1],
         )
+        response["Cache-Control"] = "private, no-store, max-age=0"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
 
 class ConsultantConceptAssetView(APIView):

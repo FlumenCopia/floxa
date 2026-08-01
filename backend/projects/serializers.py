@@ -440,7 +440,10 @@ class ConsultantAgreementSerializer(serializers.ModelSerializer):
         return obj.file.name.split("/")[-1] if obj.file else ""
 
     def get_file_size(self, obj):
-        return obj.file.size if obj.file else 0
+        try:
+            return obj.file.size if obj.file else 0
+        except Exception:
+            return 0
 
     def validate(self, attrs):
         has_existing_file = self.instance and self.instance.file
