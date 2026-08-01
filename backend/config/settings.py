@@ -28,7 +28,7 @@ SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", cast=bool)
 
 raw_allowed_hosts = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
-vercel_urls = []
+vercel_urls = [".vercel.app", "floxa-1o19.vercel.app", "floxa-frontend-test-lyart.vercel.app"]
 for env_var in ["VERCEL_URL", "VERCEL_PROJECT_PRODUCTION_URL"]:
     val = config(env_var, default="")
     if val:
