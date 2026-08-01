@@ -6255,12 +6255,41 @@ textarea {
   }
 
   .topbar {
-    padding: 0 12px;
+    padding: 0 10px;
     min-height: 48px;
+    gap: 6px;
   }
 
   .topbar-title {
     font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-wrap {
+    max-width: 120px;
+  }
+
+  .search-wrap input {
+    font-size: 11px;
+  }
+
+  .notification-dropdown {
+    position: fixed;
+    top: 56px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-width: calc(100vw - 20px);
+    z-index: 99;
+  }
+
+  .project-table-container,
+  .discovery-table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .menu-btn,
