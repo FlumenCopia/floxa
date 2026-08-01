@@ -1,11 +1,13 @@
 from django.conf import settings
+from django.db import IntegrityError
+from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.middleware.csrf import get_token
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenBackendError, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import ConsultantLoginSerializer, ConsultantRegisterSerializer, ConsultantSerializer
@@ -150,21 +152,29 @@ class ConsultantMeView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
+
+
 class ConsultantLogoutView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
-        refresh_token = request.COOKIES.get(
-            settings.AUTH_REFRESH_COOKIE_NAME
-        ) or request.data.get("refresh")
+        refresh_token = None
+        if request.COOKIES:
+            refresh_token = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE_NAME)
 
-        if refresh_token:
-            try:
-                token = RefreshToken(refresh_token)
-                token.blacklist()
-            except Exception:
-                pass
+        if not refresh_token and hasattr(request, "data") and isinstance(request.data, dict):
+            refresh_token = request.data.get("refresh")
+
+        if refresh_token and isinstance(refresh_token, str):
+            refresh_token = refresh_token.strip()
+            if refresh_token:
+                try:
+                    token = RefreshToken(refresh_token)
+                    token.blacklist()
+                except (TokenError, InvalidToken, TokenBackendError, IntegrityError):
+                    pass
 
         response = Response(
             {"detail": "Logout successful."},
@@ -174,13 +184,11 @@ class ConsultantLogoutView(APIView):
             settings.AUTH_ACCESS_COOKIE_NAME,
             path=settings.AUTH_COOKIE_PATH,
             samesite=settings.AUTH_COOKIE_SAMESITE,
-            secure=settings.AUTH_COOKIE_SECURE,
         )
         response.delete_cookie(
             settings.AUTH_REFRESH_COOKIE_NAME,
             path=settings.AUTH_COOKIE_PATH,
             samesite=settings.AUTH_COOKIE_SAMESITE,
-            secure=settings.AUTH_COOKIE_SECURE,
         )
 
         return response

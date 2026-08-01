@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 
 User = get_user_model()
 
@@ -128,4 +130,110 @@ class CsrfAndProjectCreationTests(TestCase):
             format="json",
         )
         self.assertEqual(project_res.status_code, 403)
+
+
+class LogoutViewTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="logout_user@example.com",
+            name="Logout Consultant",
+            password="TestPassword123!",
+        )
+
+    def test_logout_with_valid_refresh_cookie(self):
+        client = APIClient(enforce_csrf_checks=True)
+        login_res = client.post(
+            reverse("login"),
+            {"email": "logout_user@example.com", "password": "TestPassword123!"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+
+        bootstrap_res = client.get(reverse("csrf"))
+        csrf_token = bootstrap_res.data["csrfToken"]
+
+        refresh_token_str = login_res.cookies[settings.AUTH_REFRESH_COOKIE_NAME].value
+
+        logout_res = client.post(
+            reverse("logout"),
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(logout_res.status_code, 200)
+        self.assertEqual(logout_res.data["detail"], "Logout successful.")
+
+        access_cookie = logout_res.cookies[settings.AUTH_ACCESS_COOKIE_NAME]
+        refresh_cookie = logout_res.cookies[settings.AUTH_REFRESH_COOKIE_NAME]
+        self.assertEqual(access_cookie.value, "")
+        self.assertEqual(refresh_cookie.value, "")
+
+        blacklisted = BlacklistedToken.objects.filter(token__token=refresh_token_str).exists()
+        self.assertTrue(blacklisted)
+
+    def test_logout_with_no_refresh_cookie(self):
+        client = APIClient(enforce_csrf_checks=True)
+        bootstrap_res = client.get(reverse("csrf"))
+        csrf_token = bootstrap_res.data["csrfToken"]
+
+        logout_res = client.post(
+            reverse("logout"),
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(logout_res.status_code, 200)
+        self.assertEqual(logout_res.data["detail"], "Logout successful.")
+
+        access_cookie = logout_res.cookies[settings.AUTH_ACCESS_COOKIE_NAME]
+        refresh_cookie = logout_res.cookies[settings.AUTH_REFRESH_COOKIE_NAME]
+        self.assertEqual(access_cookie.value, "")
+        self.assertEqual(refresh_cookie.value, "")
+
+    def test_logout_with_invalid_refresh_cookie(self):
+        client = APIClient(enforce_csrf_checks=True)
+        bootstrap_res = client.get(reverse("csrf"))
+        csrf_token = bootstrap_res.data["csrfToken"]
+
+        client.cookies[settings.AUTH_REFRESH_COOKIE_NAME] = "invalid_malformed_token_string"
+
+        logout_res = client.post(
+            reverse("logout"),
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(logout_res.status_code, 200)
+        self.assertEqual(logout_res.data["detail"], "Logout successful.")
+
+        access_cookie = logout_res.cookies[settings.AUTH_ACCESS_COOKIE_NAME]
+        refresh_cookie = logout_res.cookies[settings.AUTH_REFRESH_COOKIE_NAME]
+        self.assertEqual(access_cookie.value, "")
+        self.assertEqual(refresh_cookie.value, "")
+
+    def test_logout_with_already_blacklisted_refresh_token(self):
+        client = APIClient(enforce_csrf_checks=True)
+        login_res = client.post(
+            reverse("login"),
+            {"email": "logout_user@example.com", "password": "TestPassword123!"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+
+        bootstrap_res = client.get(reverse("csrf"))
+        csrf_token = bootstrap_res.data["csrfToken"]
+
+        refresh_token_str = login_res.cookies[settings.AUTH_REFRESH_COOKIE_NAME].value
+        token_obj = RefreshToken(refresh_token_str)
+        token_obj.blacklist()
+
+        logout_res = client.post(
+            reverse("logout"),
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+        self.assertEqual(logout_res.status_code, 200)
+        self.assertEqual(logout_res.data["detail"], "Logout successful.")
+
+        access_cookie = logout_res.cookies[settings.AUTH_ACCESS_COOKIE_NAME]
+        refresh_cookie = logout_res.cookies[settings.AUTH_REFRESH_COOKIE_NAME]
+        self.assertEqual(access_cookie.value, "")
+        self.assertEqual(refresh_cookie.value, "")
 
