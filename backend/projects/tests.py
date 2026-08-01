@@ -2470,10 +2470,9 @@ class AllFileFieldsStorageAuditTests(TestCase):
         from django.contrib.auth.hashers import make_password
         from .models import Project
         User = get_user_model()
-        self.user = User.objects.create(
+        self.user = User.objects.create_user(
             email="audit_user@example.com",
-            password=make_password("Pass123!"),
-            user_type="consultant",
+            password="Pass123!",
         )
         self.api_client = APIClient()
         self.api_client.force_authenticate(user=self.user)
@@ -2622,10 +2621,9 @@ class ConceptUploadCleanupAndRegressionTests(TestCase):
         from django.contrib.auth import get_user_model
         from django.contrib.auth.hashers import make_password
         User = get_user_model()
-        self.user = User.objects.create(
+        self.user = User.objects.create_user(
             email="cleanup_user@example.com",
-            password=make_password("Pass123!"),
-            user_type="consultant",
+            password="Pass123!",
         )
         self.api_client = APIClient()
         self.api_client.force_authenticate(user=self.user)
