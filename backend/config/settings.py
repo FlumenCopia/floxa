@@ -184,7 +184,7 @@ RAZORPAY_CURRENCY = config("RAZORPAY_CURRENCY", default="INR")
 GEMINI_API_KEY = config("GEMINI_API_KEY", default="")
 GEMINI_MODELS = config(
     "GEMINI_MODELS",
-    default="gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.5-pro",
+    default="gemini-3.1-flash-lite,gemini-flash-lite-latest",
     cast=Csv(),
 )
 GEMINI_TIMEOUT_SECONDS = config("GEMINI_TIMEOUT_SECONDS", default=20, cast=int)

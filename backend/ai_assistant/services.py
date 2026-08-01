@@ -1,3 +1,5 @@
+import logging
+import time
 from dataclasses import dataclass
 
 import httpx
@@ -5,6 +7,8 @@ import requests
 from django.conf import settings
 from google import genai
 from google.genai import errors, types
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiServiceError(Exception):
@@ -27,7 +31,7 @@ class GeminiAuthenticationError(GeminiServiceError):
 
 class GeminiRateLimitError(GeminiServiceError):
     status_code = 429
-    public_message = "Gemini API rate limit or quota was reached."
+    public_message = "AI usage limit reached. Please try again later."
 
 
 class GeminiProviderError(GeminiServiceError):
@@ -72,18 +76,41 @@ def _get_client():
     )
 
 
-def _extract_text(response):
+def _extract_text_and_meta(response):
     text = getattr(response, "text", None)
-
     if isinstance(text, str) and text.strip():
-        return text.strip()
+        return text.strip(), "STOP"
 
     output_text = getattr(response, "output_text", None)
-
     if isinstance(output_text, str) and output_text.strip():
-        return output_text.strip()
+        return output_text.strip(), "STOP"
 
-    return ""
+    candidates = getattr(response, "candidates", None) or []
+    finish_reason = None
+
+    for candidate in candidates:
+        if finish_reason is None:
+            finish_reason = getattr(candidate, "finish_reason", None)
+
+        content = getattr(candidate, "content", None)
+        parts = getattr(content, "parts", None) or []
+        extracted_parts = []
+
+        for part in parts:
+            part_text = getattr(part, "text", None)
+            if isinstance(part_text, str) and part_text.strip():
+                extracted_parts.append(part_text.strip())
+
+        if extracted_parts:
+            joined = " ".join(extracted_parts).strip()
+            if joined:
+                return joined, str(finish_reason or "STOP")
+
+    prompt_feedback = getattr(response, "prompt_feedback", None)
+    if prompt_feedback and finish_reason is None:
+        finish_reason = getattr(prompt_feedback, "block_reason", None)
+
+    return "", str(finish_reason or "UNKNOWN")
 
 
 def _get_error_status_code(error):
@@ -134,6 +161,9 @@ def _raise_final_error(failures):
     if failures and all(item.category == "authentication" for item in failures):
         raise GeminiAuthenticationError()
 
+    if failures and all(item.category == "rate_limit" for item in failures):
+        raise GeminiRateLimitError()
+
     raise GeminiAllModelsFailedError(failures)
 
 
@@ -156,6 +186,7 @@ def generate_response(prompt):
     failures = []
 
     for model in models:
+        t0 = time.perf_counter()
         try:
             response = client.models.generate_content(
                 model=model,
@@ -167,18 +198,51 @@ def generate_response(prompt):
                     responseMimeType="text/plain",
                 ),
             )
-            text = _extract_text(response)
+            t_duration_ms = round((time.perf_counter() - t0) * 1000, 2)
+            text, finish_reason = _extract_text_and_meta(response)
+            has_text = bool(text)
+
+            logger.info(
+                "[Gemini Model Execution] model=%s, exception_class=None, status_code=200, finish_reason=%s, has_text=%s, duration_ms=%.2f",
+                model,
+                finish_reason,
+                has_text,
+                t_duration_ms,
+            )
 
             if text:
                 return text
 
             failures.append(GeminiAttemptFailure(model=model, category="empty_response"))
-        except (httpx.TimeoutException, requests.Timeout):
+        except (httpx.TimeoutException, requests.Timeout) as error:
+            t_duration_ms = round((time.perf_counter() - t0) * 1000, 2)
+            logger.info(
+                "[Gemini Model Execution] model=%s, exception_class=%s, status_code=None, finish_reason=None, has_text=False, duration_ms=%.2f",
+                model,
+                error.__class__.__name__,
+                t_duration_ms,
+            )
             failures.append(GeminiAttemptFailure(model=model, category="temporary"))
-        except (httpx.HTTPError, requests.RequestException):
+        except (httpx.HTTPError, requests.RequestException) as error:
+            t_duration_ms = round((time.perf_counter() - t0) * 1000, 2)
+            logger.info(
+                "[Gemini Model Execution] model=%s, exception_class=%s, status_code=None, finish_reason=None, has_text=False, duration_ms=%.2f",
+                model,
+                error.__class__.__name__,
+                t_duration_ms,
+            )
             failures.append(GeminiAttemptFailure(model=model, category="network"))
-        except errors.ClientError as error:
+        except (errors.ClientError, errors.APIError) as error:
+            t_duration_ms = round((time.perf_counter() - t0) * 1000, 2)
             category = _classify_provider_error(error)
+            status_code = _get_error_status_code(error)
+            logger.info(
+                "[Gemini Model Execution] model=%s, exception_class=%s, status_code=%s, finish_reason=None, has_text=False, duration_ms=%.2f",
+                model,
+                error.__class__.__name__,
+                status_code,
+                t_duration_ms,
+            )
             failures.append(GeminiAttemptFailure(model=model, category=category))
 
             if category == "authentication":
@@ -186,13 +250,14 @@ def generate_response(prompt):
 
             if not _should_try_next_model(category):
                 break
-        except errors.APIError as error:
-            category = _classify_provider_error(error)
-            failures.append(GeminiAttemptFailure(model=model, category=category))
-
-            if not _should_try_next_model(category):
-                break
-        except Exception:
+        except Exception as error:
+            t_duration_ms = round((time.perf_counter() - t0) * 1000, 2)
+            logger.info(
+                "[Gemini Model Execution] model=%s, exception_class=%s, status_code=None, finish_reason=None, has_text=False, duration_ms=%.2f",
+                model,
+                error.__class__.__name__,
+                t_duration_ms,
+            )
             failures.append(GeminiAttemptFailure(model=model, category="provider"))
 
     _raise_final_error(failures)
