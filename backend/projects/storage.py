@@ -139,14 +139,20 @@ class VercelBlobStorage(Storage):
         if not name:
             return 0
         if self.use_local:
-            return self._local_storage.size(name)
+            try:
+                return self._local_storage.size(name)
+            except Exception:
+                return 0
 
         clean_name = name.lstrip("/")
         client = self._get_client()
         try:
             res = client.head(clean_name)
-            return getattr(res, "size", 0) or 0
-        except Exception:
+            return int(getattr(res, "size", 0) or 0)
+        except (BlobNotFoundError, BlobError):
+            return 0
+        except Exception as exc:
+            logger.warning("VercelBlobStorage.size failed for %s: %s", clean_name, exc.__class__.__name__)
             return 0
 
     def delete(self, name):
@@ -161,8 +167,6 @@ class VercelBlobStorage(Storage):
             client.delete(clean_name)
         except Exception as exc:
             logger.warning("VercelBlobStorage.delete failed for %s: %s", clean_name, exc.__class__.__name__)
-        finally:
-            client.close()
 
     def url(self, name):
         if not name:

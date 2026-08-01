@@ -4640,27 +4640,57 @@ class ConceptView(APIView):
         t_val_end = time.perf_counter()
 
         t_db_start = time.perf_counter()
-        concept = serializer.save(project=project)
+        try:
+            with transaction.atomic():
+                concept = serializer.save(project=project)
+        except (OSError, BlobError) as storage_exc:
+            logger.exception(
+                "Concept storage upload failed for project %s: %s",
+                project_id,
+                storage_exc.__class__.__name__,
+            )
+            return Response(
+                {"detail": "Image storage is temporarily unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except Exception as exc:
+            logger.exception(
+                "Unexpected error saving concept for project %s: %s",
+                project_id,
+                exc.__class__.__name__,
+            )
+            return Response(
+                {"detail": "Unable to save concept. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         t_db_end = time.perf_counter()
 
-        activity_exists = project.activities.filter(
-            action="concept_uploaded",
-            metadata__concept_id=concept.id,
-        ).exists()
-
-        if not activity_exists:
-            ProjectActivity.objects.create(
-                project=project,
-                consultant=project.consultant,
-                actor_type=ProjectActivity.ActorType.CONSULTANT,
+        try:
+            activity_exists = project.activities.filter(
                 action="concept_uploaded",
-                description="You uploaded 1 concept.",
-                metadata={
-                    "concept_id": concept.id,
-                    "concept_title": concept.title,
-                    "concept_count": 1,
-                },
+                metadata__concept_id=concept.id,
+            ).exists()
+
+            if not activity_exists:
+                ProjectActivity.objects.create(
+                    project=project,
+                    consultant=project.consultant,
+                    actor_type=ProjectActivity.ActorType.CONSULTANT,
+                    action="concept_uploaded",
+                    description="You uploaded 1 concept.",
+                    metadata={
+                        "concept_id": concept.id,
+                        "concept_title": concept.title,
+                        "concept_count": 1,
+                    },
+                )
+        except Exception as activity_exc:
+            logger.warning(
+                "Non-fatal error creating concept_uploaded activity for concept %s: %s",
+                concept.id,
+                activity_exc.__class__.__name__,
             )
+
         response_serializer = ConsultantConceptSerializer(
             concept,
             context={"request": request},
