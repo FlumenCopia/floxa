@@ -1067,12 +1067,12 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
     setSaving(true);
     setError("");
 
-    try {
-      await uploadMoodboard(projectId, formData);
+      const createdMoodboard = await uploadMoodboard(projectId, formData);
+      if (createdMoodboard && createdMoodboard.id) {
+        setMoodboards((current) => [createdMoodboard, ...current.filter((item) => item.id !== createdMoodboard.id)]);
+      }
       setForm({ title: "", description: "", image: null });
       uploadForm.reset();
-      await loadMoodboards();
-      await onProjectRefresh?.();
       showSuccess("Moodboard uploaded.");
     } catch (uploadError) {
       console.error("Failed to upload moodboard:", uploadError);

@@ -113,6 +113,9 @@ import time
 logger = logging.getLogger(__name__)
 
 
+SKIP_REOPTIMIZE_MAX_BYTES = int(1.5 * 1024 * 1024)
+
+
 def optimize_uploaded_image(file_obj, field_name=None):
     if not file_obj:
         return file_obj
@@ -155,6 +158,25 @@ def optimize_uploaded_image(file_obj, field_name=None):
     orig_w, orig_h = image.size
     decode_duration_ms = round((t_decode_end - t_decode_start) * 1000, 2)
 
+    if (
+        orig_w <= MAX_OPTIMIZED_IMAGE_EDGE
+        and orig_h <= MAX_OPTIMIZED_IMAGE_EDGE
+        and input_size <= SKIP_REOPTIMIZE_MAX_BYTES
+    ):
+        try:
+            file_obj.seek(0)
+        except (AttributeError, OSError):
+            pass
+
+        logger.info(
+            "[Image Optimization Skipped] input_bytes=%d, dim=%dx%d, decode_ms=%.2f",
+            input_size,
+            orig_w,
+            orig_h,
+            decode_duration_ms,
+        )
+        return file_obj
+
     t_compress_start = time.perf_counter()
 
     if orig_w > MAX_OPTIMIZED_IMAGE_EDGE or orig_h > MAX_OPTIMIZED_IMAGE_EDGE:
@@ -188,7 +210,7 @@ def optimize_uploaded_image(file_obj, field_name=None):
     elif output_format == "WEBP":
         save_kwargs = {
             "quality": OPTIMIZED_IMAGE_QUALITY,
-            "method": 4,
+            "method": 1,
         }
 
     try:
