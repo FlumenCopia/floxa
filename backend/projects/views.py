@@ -137,15 +137,20 @@ class ClientPortalAccessPermission(BasePermission):
         return is_verified_client_portal_access(request, portal_token)
 
 
-def send_client_portal_invite(project, raw_portal_password):
+def send_client_portal_invite(project, raw_portal_password=None):
     portal_link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/client/{project.portal_token}"
     subject = f"Your FLOXA portal is ready for {project.company_name}"
+    password_note = (
+        f"Temporary portal password: {raw_portal_password}\n"
+        if raw_portal_password
+        else "Use the portal password provided during your project onboarding.\n"
+    )
     message = (
         f"Hello {project.client.name},\n\n"
         f"Your project workspace is ready.\n\n"
         f"Project: {project.company_name}\n"
         f"Portal link: {portal_link}\n"
-        f"Temporary portal password: {raw_portal_password}\n\n"
+        f"{password_note}\n"
         "Please keep this password private and do not share it outside your project team.\n\n"
         "FLOXA"
     )
@@ -160,7 +165,7 @@ def send_client_portal_invite(project, raw_portal_password):
     return bool(sent_count)
 
 
-def send_client_portal_invite_safely(project, raw_portal_password):
+def send_client_portal_invite_safely(project, raw_portal_password=None):
     try:
         sent = send_client_portal_invite(project, raw_portal_password)
         logger.info(
@@ -1552,8 +1557,7 @@ class ProjectInviteRetryView(APIView):
             id=project_id,
             consultant=request.user,
         )
-        raw_password = getattr(project, "portal_password", None) or "FloxaClient2026!"
-        email_result = send_client_portal_invite_safely(project, raw_password)
+        email_result = send_client_portal_invite_safely(project, raw_portal_password=None)
 
         return Response(
             {
