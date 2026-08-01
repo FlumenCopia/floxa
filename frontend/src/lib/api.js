@@ -180,7 +180,8 @@ export async function apiRequest(endpoint, options = {}) {
   const isAuthRoute =
     endpoint.includes("/auth/login/") ||
     endpoint.includes("/auth/logout/") ||
-    endpoint.includes("/auth/token/refresh/");
+    endpoint.includes("/auth/token/refresh/") ||
+    endpoint.includes("/auth/register/");
 
   if (response.status === 401 && !isAuthRoute) {
     const refreshed = await refreshAccessToken();

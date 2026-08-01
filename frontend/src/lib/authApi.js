@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiRequest, parseApiResponse, registerRefreshFailureCallback } from "./api";
+import { apiRequest, registerRefreshFailureCallback } from "./api";
 
 let cachedConsultant = null;
 let consultantPromise = null;
@@ -28,29 +28,18 @@ function notifyConsultantChange(consultant) {
 }
 
 export async function registerConsultant(data) {
-  const response = await fetch(`${API_BASE_URL}/auth/register/`, {
+  return apiRequest("/auth/register/", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(data),
   });
-
-  return parseApiResponse(response);
 }
 
 export async function loginConsultant(data) {
   clearCurrentConsultantCache();
-  const response = await fetch(`${API_BASE_URL}/auth/login/`, {
+  return apiRequest("/auth/login/", {
     method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(data),
   });
-
-  return parseApiResponse(response);
 }
 
 export async function getCurrentConsultant() {

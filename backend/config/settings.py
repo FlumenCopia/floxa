@@ -183,27 +183,41 @@ GEMINI_MAX_OUTPUT_TOKENS = config("GEMINI_MAX_OUTPUT_TOKENS", default=700, cast=
 GEMINI_MAX_INPUT_CHARACTERS = config("GEMINI_MAX_INPUT_CHARACTERS", default=12000, cast=int)
 
 
+PRODUCTION_FRONTEND_ORIGINS = [
+    "https://floxa-frontend-test-lyart.vercel.app",
+]
+
 LOCAL_FRONTEND_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
 
-raw_cors_origins = config("CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://127.0.0.1:3000", cast=Csv())
-CORS_ALLOWED_ORIGINS = list(dict.fromkeys(raw_cors_origins + LOCAL_FRONTEND_ORIGINS))
+DEFAULT_FRONTEND_ORIGINS = LOCAL_FRONTEND_ORIGINS + PRODUCTION_FRONTEND_ORIGINS
+
+raw_cors_origins = config(
+    "CORS_ALLOWED_ORIGINS",
+    default=",".join(DEFAULT_FRONTEND_ORIGINS),
+    cast=Csv(),
+)
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(raw_cors_origins + DEFAULT_FRONTEND_ORIGINS))
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "x-client-portal-token",
 ]
 
-raw_csrf_origins = config("CSRF_TRUSTED_ORIGINS", default="http://localhost:3000,http://127.0.0.1:3000", cast=Csv())
-CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(raw_csrf_origins + LOCAL_FRONTEND_ORIGINS))
+raw_csrf_origins = config(
+    "CSRF_TRUSTED_ORIGINS",
+    default=",".join(DEFAULT_FRONTEND_ORIGINS),
+    cast=Csv(),
+)
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(raw_csrf_origins + DEFAULT_FRONTEND_ORIGINS))
 
 AUTH_ACCESS_COOKIE_NAME = "floxa_access"
 AUTH_REFRESH_COOKIE_NAME = "floxa_refresh"
 AUTH_COOKIE_HTTP_ONLY = True
-AUTH_COOKIE_SECURE = config("AUTH_COOKIE_SECURE", default=False, cast=bool)
-AUTH_COOKIE_SAMESITE = config("AUTH_COOKIE_SAMESITE", default="Lax")
+AUTH_COOKIE_SECURE = config("AUTH_COOKIE_SECURE", default=not DEBUG, cast=bool)
+AUTH_COOKIE_SAMESITE = config("AUTH_COOKIE_SAMESITE", default="Lax" if DEBUG else "None")
 AUTH_COOKIE_PATH = "/"
 
-CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=False, cast=bool)
-CSRF_COOKIE_SAMESITE = config("CSRF_COOKIE_SAMESITE", default="Lax")
+CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=not DEBUG, cast=bool)
+CSRF_COOKIE_SAMESITE = config("CSRF_COOKIE_SAMESITE", default="Lax" if DEBUG else "None")
