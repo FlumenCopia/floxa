@@ -1684,23 +1684,38 @@ class ProjectAnalyticsView(APIView):
             else 0
         )
         now = timezone.now()
-        revenue_last_6_months = []
+        revenue_aggregates = {}
+        month_labels = []
 
         for offset in range(5, -1, -1):
             month_start = self.get_month_start(now, offset)
             month_end = self.get_month_start(now, offset - 1) if offset else now
-            amount = PaymentMilestone.objects.filter(
-                project_id__in=project_ids,
-                status=PaymentMilestone.Status.PAID,
-                paid_at__gte=month_start,
-                paid_at__lt=month_end,
-            ).aggregate(total=Sum("amount"))["total"] or 0
-            revenue_last_6_months.append(
-                {
-                    "label": month_start.strftime("%b"),
-                    "amount": amount,
-                }
+            month_label = month_start.strftime("%b")
+            month_labels.append((offset, month_label))
+            revenue_aggregates[f"m_{offset}"] = Sum(
+                "amount",
+                filter=Q(
+                    status=PaymentMilestone.Status.PAID,
+                    paid_at__gte=month_start,
+                    paid_at__lt=month_end,
+                ),
             )
+
+        monthly_totals = (
+            PaymentMilestone.objects.filter(
+                project_id__in=project_ids,
+            ).aggregate(**revenue_aggregates)
+            if project_ids
+            else {}
+        )
+
+        revenue_last_6_months = [
+          {
+            "label": label,
+            "amount": monthly_totals.get(f"m_{offset}") or 0,
+          }
+          for offset, label in month_labels
+        ]
 
         return Response(
             {

@@ -94,17 +94,24 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DB_SSL_REQUIRE = config("DB_SSL_REQUIRE", default=False, cast=bool)
 
-db_config = {
-    'ENGINE': 'django.db.backends.postgresql',
-    'NAME': config("DB_NAME"),
-    'USER': config("DB_USER"),
-    'PASSWORD': config("DB_PASSWORD"),
-    'HOST': config("DB_HOST"),
-    'PORT': config("DB_PORT"),
-}
+DB_ENGINE_VAL = config("DB_ENGINE", default="django.db.backends.postgresql")
 
-if DB_SSL_REQUIRE:
-    db_config["OPTIONS"] = {"sslmode": "require"}
+if "sqlite3" in DB_ENGINE_VAL:
+    db_config = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': ':memory:',
+    }
+else:
+    db_config = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config("DB_NAME"),
+        'USER': config("DB_USER"),
+        'PASSWORD': config("DB_PASSWORD"),
+        'HOST': config("DB_HOST"),
+        'PORT': config("DB_PORT"),
+    }
+    if DB_SSL_REQUIRE:
+        db_config["OPTIONS"] = {"sslmode": "require"}
 
 DATABASES = {
     'default': db_config
