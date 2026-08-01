@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import mimetypes
 import threading
 import uuid
 from datetime import datetime
@@ -4618,6 +4619,7 @@ class ConceptView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, project_id):
+        t_request_start = time.perf_counter()
         project = self.get_project(request, project_id)
 
         if project is None:
@@ -4631,10 +4633,15 @@ class ConceptView(APIView):
             context={"request": request},
         )
 
+        t_val_start = time.perf_counter()
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        t_val_end = time.perf_counter()
 
+        t_db_start = time.perf_counter()
         concept = serializer.save(project=project)
+        t_db_end = time.perf_counter()
+
         activity_exists = project.activities.filter(
             action="concept_uploaded",
             metadata__concept_id=concept.id,
@@ -4656,6 +4663,15 @@ class ConceptView(APIView):
         response_serializer = ConsultantConceptSerializer(
             concept,
             context={"request": request},
+        )
+
+        t_total_end = time.perf_counter()
+        logger.info(
+            "[Concept Upload Timing] concept_id=%d, validation_opt_ms=%.2f, db_save_ms=%.2f, total_duration_ms=%.2f",
+            concept.id,
+            round((t_val_end - t_val_start) * 1000, 2),
+            round((t_db_end - t_db_start) * 1000, 2),
+            round((t_total_end - t_request_start) * 1000, 2),
         )
 
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)

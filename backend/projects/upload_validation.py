@@ -107,9 +107,17 @@ def validate_upload_file(file_obj, rule_name, field_name=None):
         raise_upload_error("Unsupported file type.", field_name)
 
 
+import logging
+import time
+
+logger = logging.getLogger(__name__)
+
+
 def optimize_uploaded_image(file_obj, field_name=None):
     if not file_obj:
         return file_obj
+
+    t_start = time.perf_counter()
 
     original_name = Path(file_obj.name).name
     extension = Path(original_name).suffix.lower()
@@ -129,26 +137,33 @@ def optimize_uploaded_image(file_obj, field_name=None):
         pass
 
     raw_bytes = file_obj.read()
+    input_size = len(raw_bytes)
 
+    t_decode_start = time.perf_counter()
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             with Image.open(BytesIO(raw_bytes)) as opened_image:
-                opened_image.verify()
-
-            with Image.open(BytesIO(raw_bytes)) as opened_image:
                 image = ImageOps.exif_transpose(opened_image)
                 image.load()
-                image = image.copy()
     except Image.DecompressionBombError:
         raise_upload_error("Image is too large to process safely.", field_name)
     except (Image.DecompressionBombWarning, UnidentifiedImageError, OSError, ValueError):
         raise_upload_error("Upload a valid image file.", field_name)
 
-    image.thumbnail(
-        (MAX_OPTIMIZED_IMAGE_EDGE, MAX_OPTIMIZED_IMAGE_EDGE),
-        Image.Resampling.LANCZOS,
-    )
+    t_decode_end = time.perf_counter()
+    orig_w, orig_h = image.size
+    decode_duration_ms = round((t_decode_end - t_decode_start) * 1000, 2)
+
+    t_compress_start = time.perf_counter()
+
+    if orig_w > MAX_OPTIMIZED_IMAGE_EDGE or orig_h > MAX_OPTIMIZED_IMAGE_EDGE:
+        image.thumbnail(
+            (MAX_OPTIMIZED_IMAGE_EDGE, MAX_OPTIMIZED_IMAGE_EDGE),
+            Image.Resampling.LANCZOS,
+        )
+
+    out_w, out_h = image.size
 
     output = BytesIO()
     save_kwargs = {}
@@ -166,15 +181,14 @@ def optimize_uploaded_image(file_obj, field_name=None):
 
         save_kwargs = {
             "quality": OPTIMIZED_IMAGE_QUALITY,
-            "optimize": True,
             "progressive": True,
         }
     elif output_format == "PNG":
-        save_kwargs = {"optimize": True}
+        save_kwargs = {}
     elif output_format == "WEBP":
         save_kwargs = {
             "quality": OPTIMIZED_IMAGE_QUALITY,
-            "method": 6,
+            "method": 4,
         }
 
     try:
@@ -182,7 +196,25 @@ def optimize_uploaded_image(file_obj, field_name=None):
     except OSError:
         raise_upload_error("Unable to process image file.", field_name)
 
-    optimized_file = ContentFile(output.getvalue(), name=original_name)
+    t_compress_end = time.perf_counter()
+    compress_duration_ms = round((t_compress_end - t_compress_start) * 1000, 2)
+    output_bytes = output.tell()
+
+    logger.info(
+        "[Image Optimization Timing] input_bytes=%d, output_bytes=%d, orig_dim=%dx%d, output_dim=%dx%d, decode_ms=%.2f, compress_ms=%.2f, total_opt_ms=%.2f",
+        input_size,
+        output_bytes,
+        orig_w,
+        orig_h,
+        out_w,
+        out_h,
+        decode_duration_ms,
+        compress_duration_ms,
+        round((t_compress_end - t_start) * 1000, 2),
+    )
+
+    output_data = output.getvalue()
+    optimized_file = ContentFile(output_data, name=original_name)
     optimized_file.content_type = IMAGE_MIME_TYPES_BY_FORMAT[output_format]
     return optimized_file
 

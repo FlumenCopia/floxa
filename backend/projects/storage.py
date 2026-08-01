@@ -13,6 +13,20 @@ from vercel.blob.errors import BlobError, BlobNotFoundError
 logger = logging.getLogger(__name__)
 
 
+import time
+
+_PROCESS_BLOB_CLIENT = None
+
+
+def get_shared_blob_client(token=None):
+    global _PROCESS_BLOB_CLIENT
+    if token:
+        return BlobClient(token=token)
+    if _PROCESS_BLOB_CLIENT is None:
+        _PROCESS_BLOB_CLIENT = BlobClient()
+    return _PROCESS_BLOB_CLIENT
+
+
 @deconstructible
 class VercelBlobStorage(Storage):
     """
@@ -41,9 +55,7 @@ class VercelBlobStorage(Storage):
 
     def _get_client(self):
         token_val = self._token or os.environ.get("BLOB_READ_WRITE_TOKEN") or os.environ.get("VERCEL_BLOB_READ_WRITE_TOKEN")
-        if token_val:
-            return BlobClient(token=token_val)
-        return BlobClient()
+        return get_shared_blob_client(token_val)
 
     def _save(self, name, content):
         if self.use_local:
@@ -61,6 +73,7 @@ class VercelBlobStorage(Storage):
         if not content_type:
             content_type = getattr(content, "content_type", None) or "application/octet-stream"
 
+        t_blob_start = time.perf_counter()
         client = self._get_client()
         try:
             blob = client.put(
@@ -70,12 +83,23 @@ class VercelBlobStorage(Storage):
                 add_random_suffix=False,
                 content_type=content_type,
             )
+            t_blob_end = time.perf_counter()
+            logger.info(
+                "[Vercel Blob Storage Put Timing] pathname_len=%d, upload_bytes=%d, duration_ms=%.2f",
+                len(clean_name),
+                len(raw_bytes),
+                round((t_blob_end - t_blob_start) * 1000, 2),
+            )
             return blob.pathname or clean_name
         except Exception as exc:
-            logger.exception("VercelBlobStorage._save failed for %s: %s", clean_name, exc.__class__.__name__)
+            t_blob_end = time.perf_counter()
+            logger.exception(
+                "VercelBlobStorage._save failed for %s after %.2f ms: %s",
+                clean_name,
+                round((t_blob_end - t_blob_start) * 1000, 2),
+                exc.__class__.__name__,
+            )
             raise OSError(f"Vercel Blob upload failed for {clean_name}") from exc
-        finally:
-            client.close()
 
     def _open(self, name, mode="rb"):
         if self.use_local:
@@ -94,8 +118,6 @@ class VercelBlobStorage(Storage):
         except Exception as exc:
             logger.exception("VercelBlobStorage._open failed for %s: %s", clean_name, exc.__class__.__name__)
             raise OSError(f"Unable to fetch private blob object for {clean_name}") from exc
-        finally:
-            client.close()
 
     def exists(self, name):
         if not name:
@@ -112,8 +134,20 @@ class VercelBlobStorage(Storage):
             return False
         except Exception:
             return False
-        finally:
-            client.close()
+
+    def size(self, name):
+        if not name:
+            return 0
+        if self.use_local:
+            return self._local_storage.size(name)
+
+        clean_name = name.lstrip("/")
+        client = self._get_client()
+        try:
+            res = client.head(clean_name)
+            return getattr(res, "size", 0) or 0
+        except Exception:
+            return 0
 
     def delete(self, name):
         if not name:
