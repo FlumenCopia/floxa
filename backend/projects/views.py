@@ -1552,11 +1552,17 @@ class ProjectInviteRetryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, project_id):
-        project = get_object_or_404(
-            Project.objects.select_related("client"),
-            id=project_id,
-            consultant=request.user,
-        )
+        try:
+            project = Project.objects.select_related("client").get(
+                id=project_id,
+                consultant=request.user,
+            )
+        except Project.DoesNotExist:
+            return Response(
+                {"detail": "Project not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         email_result = send_client_portal_invite_safely(project, raw_portal_password=None)
 
         return Response(
