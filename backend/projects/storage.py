@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage, Storage
 from django.utils.deconstruct import deconstructible
+from django.utils.text import get_valid_filename
 
 from vercel.blob import BlobClient
 from vercel.blob.errors import BlobError, BlobNotFoundError
@@ -32,7 +33,7 @@ class VercelBlobStorage(Storage):
     """
     Custom Django Storage backend for Vercel Blob Object Storage using the official Vercel Python SDK.
     Uses Private Blob store (access="private") with ambient OIDC authentication in production.
-    Uses FileSystemStorage ONLY when DEBUG=True in local development.
+    Uses FileSystemStorage ONLY when DEBUG=True in local development or when Vercel environment is absent.
     """
 
     def __init__(self, token=None):
@@ -58,16 +59,18 @@ class VercelBlobStorage(Storage):
         return get_shared_blob_client(token_val)
 
     def _save(self, name, content):
+        dir_name, file_name = os.path.split(name.lstrip("/"))
+        clean_file_name = get_valid_filename(file_name) or "file"
+        clean_name = os.path.join(dir_name, clean_file_name).replace("\\", "/").lstrip("/")
+
         if self.use_local:
-            return self._local_storage._save(name, content)
+            return self._local_storage._save(clean_name, content)
 
         try:
             content.seek(0)
         except (AttributeError, OSError):
             pass
         raw_bytes = content.read()
-
-        clean_name = name.lstrip("/")
 
         content_type, _ = mimetypes.guess_type(clean_name)
         if not content_type:

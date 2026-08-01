@@ -2454,7 +2454,7 @@ class MoodboardStorageTests(TestCase):
         mock_result = MagicMock()
         mock_result.pathname = f"moodboards/{self.project.id}/test_prod.jpg"
 
-        with patch.object(settings, "DEBUG", False), patch("vercel.blob.BlobClient.put", return_value=mock_result), patch("django.core.files.storage.FileSystemStorage._save") as mock_local_save:
+        with patch.object(settings, "DEBUG", False), patch.dict("os.environ", {"VERCEL": "1"}), patch("vercel.blob.BlobClient.put", return_value=mock_result), patch("django.core.files.storage.FileSystemStorage._save") as mock_local_save:
             response = self.api_client.post(
                 f"/api/projects/{self.project.id}/moodboards/",
                 {"title": "Prod Upload", "image": test_img},
@@ -2468,28 +2468,23 @@ class AllFileFieldsStorageAuditTests(TestCase):
     def setUp(self):
         from django.contrib.auth import get_user_model
         from django.contrib.auth.hashers import make_password
-        from .models import Client, Project, Concept, Deliverable, Agreement, ProjectAgreement
-
+        from .models import Project
         User = get_user_model()
-        self.consultant = User.objects.create_user(
-            email="audit_consultant@example.com",
-            name="Audit Consultant",
-            password="TestPassword123!",
+        self.user = User.objects.create(
+            email="audit_user@example.com",
+            password=make_password("Pass123!"),
+            user_type="consultant",
         )
-        self.client_obj = Client.objects.create(
-            name="Audit Client",
-            email="audit_client@example.com",
-        )
+        self.api_client = APIClient()
+        self.api_client.force_authenticate(user=self.user)
         self.project = Project.objects.create(
-            consultant=self.consultant,
-            client=self.client_obj,
+            consultant=self.user,
+            client_name="Audit Client",
+            client_email="audit_client@example.com",
             company_name="Audit Company",
             sector="Testing",
             project_value=Decimal("12000.00"),
-            portal_password_hash=make_password("portalpass123"),
         )
-        self.api_client = APIClient()
-        self.api_client.force_authenticate(user=self.consultant)
 
     @override_settings(DEBUG=True)
     def test_concept_serializers_and_protected_download_routes(self):
@@ -2528,6 +2523,14 @@ class AllFileFieldsStorageAuditTests(TestCase):
         res_cp_file = portal_client.get(f"/api/client-portal/{self.project.portal_token}/concepts/{concept.id}/file/")
         self.assertEqual(res_cp_file.status_code, 200)
 
+    def _create_test_image(self):
+        from PIL import Image
+        from io import BytesIO
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        buf = BytesIO()
+        Image.new("RGB", (20, 20), color="blue").save(buf, format="JPEG")
+        return SimpleUploadedFile("test_audit.jpg", buf.getvalue(), content_type="image/jpeg")
+
     @override_settings(DEBUG=True)
     def test_deliverable_serializers_and_protected_download_routes(self):
         from .models import Deliverable
@@ -2538,7 +2541,7 @@ class AllFileFieldsStorageAuditTests(TestCase):
             project=self.project,
             title="Deliverable 1",
             file=SimpleUploadedFile("deliv.zip", b"fake_zip_bytes", content_type="application/zip"),
-            status=Deliverable.Status.COMPLETED,
+            status=Deliverable.Status.DELIVERED,
         )
 
         c_serializer = ConsultantDeliverableSerializer(deliverable)
@@ -2579,11 +2582,6 @@ class AllFileFieldsStorageAuditTests(TestCase):
 
         pa = ProjectAgreement.objects.create(
             project=self.project,
-            client_name="Audit Client",
-            client_email="audit_client@example.com",
-            company_name="Audit Company",
-            sector="Testing",
-            project_value=Decimal("12000.00"),
             basic_pdf_file=SimpleUploadedFile("basic.pdf", b"pdf_bytes", content_type="application/pdf"),
         )
 
@@ -2592,3 +2590,28 @@ class AllFileFieldsStorageAuditTests(TestCase):
 
         payload_client = get_project_agreement_payload(pa, is_client_portal=True)
         self.assertIn(f"/api/client-portal/{self.project.portal_token}/agreement/pdf/?type=basic", payload_client["basic_pdf_url"])
+
+    @override_settings(DEBUG=True)
+    def test_concept_upload_with_spaces_and_special_characters_succeeds(self):
+        from .models import Concept
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        img = self._create_test_image()
+        img.name = "MOON HOLIDAYS LOGO FINAL.png"
+        pdf_file = SimpleUploadedFile(
+            "Rwen Construction & Interiors Private Limited.pdf",
+            b"%PDF-1.4 fake pdf content",
+            content_type="application/pdf",
+        )
+        response = self.api_client.post(
+            f"/api/projects/{self.project.id}/concepts/",
+            {
+                "title": "Concept With Spaces",
+                "description": "Test description",
+                "image": img,
+                "file": pdf_file,
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("MOON_HOLIDAYS_LOGO_FINAL", response.data["image"])
+        self.assertIn("Rwen_Construction", response.data["file"])
