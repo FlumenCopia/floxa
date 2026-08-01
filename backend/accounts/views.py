@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.middleware.csrf import get_token
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -16,7 +17,12 @@ class CsrfBootstrapView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        return Response({"detail": "CSRF cookie set."})
+        csrf_token = get_token(request)
+        return Response({
+            "detail": "CSRF cookie set.",
+            "csrfToken": csrf_token,
+            "csrf_token": csrf_token,
+        })
 
 
 class ConsultantRegisterView(APIView):

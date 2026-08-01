@@ -16,8 +16,10 @@ export function getCookie(name) {
   return decodeURIComponent(cookie.slice(prefix.length));
 }
 
+let cachedCsrfToken = null;
+
 export function getCsrfToken() {
-  return getCookie("csrftoken");
+  return cachedCsrfToken || getCookie("csrftoken") || "";
 }
 
 let pendingCsrfPromise = null;
@@ -28,12 +30,12 @@ export function registerRefreshFailureCallback(callback) {
   onRefreshFailure = callback;
 }
 
-export async function ensureCsrfCookie() {
-  if (getCsrfToken()) {
-    return;
+export async function ensureCsrfCookie(forceRefresh = false) {
+  if (!forceRefresh && getCsrfToken()) {
+    return getCsrfToken();
   }
 
-  if (pendingCsrfPromise) {
+  if (!forceRefresh && pendingCsrfPromise) {
     return pendingCsrfPromise;
   }
 
@@ -43,7 +45,12 @@ export async function ensureCsrfCookie() {
         method: "GET",
         credentials: "include",
       });
-      return await parseApiResponse(response);
+      const data = await parseApiResponse(response);
+      const token = data?.csrfToken || data?.csrf_token || getCookie("csrftoken") || "";
+      if (token) {
+        cachedCsrfToken = token;
+      }
+      return token;
     } finally {
       pendingCsrfPromise = null;
     }
@@ -79,8 +86,7 @@ async function getRequestHeaders(options = {}, { includeAuth = true } = {}) {
   }
 
   if (isUnsafeMethod(options.method)) {
-    await ensureCsrfCookie();
-    const csrfToken = getCsrfToken();
+    const csrfToken = await ensureCsrfCookie();
 
     if (csrfToken) {
       headers["X-CSRFToken"] = csrfToken;
@@ -182,6 +188,28 @@ export async function apiRequest(endpoint, options = {}) {
     endpoint.includes("/auth/logout/") ||
     endpoint.includes("/auth/token/refresh/") ||
     endpoint.includes("/auth/register/");
+
+  if (response.status === 403 && isUnsafeMethod(options.method || "GET") && !options._csrfRetried) {
+    const newCsrfToken = await ensureCsrfCookie(true);
+    const retryHeaders = await getRequestHeaders(options);
+
+    if (newCsrfToken) {
+      retryHeaders["X-CSRFToken"] = newCsrfToken;
+    }
+    if (isUnsafeMethod(options.method || "GET")) {
+      const match = endpoint.match(/^\/client-portal\/([a-f0-9-]+)/i);
+      if (match) {
+        retryHeaders["X-Client-Portal-Token"] = match[1];
+      }
+    }
+
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      _csrfRetried: true,
+      credentials: "include",
+      headers: retryHeaders,
+    });
+  }
 
   if (response.status === 401 && !isAuthRoute) {
     const refreshed = await refreshAccessToken();
