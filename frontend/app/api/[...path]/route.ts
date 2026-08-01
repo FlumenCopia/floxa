@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_BASE_URL = (
@@ -120,34 +122,45 @@ async function proxyRequest(
     }
 
     const method = request.method;
-    let body: ArrayBuffer | undefined = undefined;
+    let fetchBody: any = undefined;
+    let duplexOption: { duplex?: "half" } = {};
 
     if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-      try {
-        body = await request.arrayBuffer();
-      } catch {
-        body = undefined;
+      if (request.body) {
+        fetchBody = request.body;
+        duplexOption = { duplex: "half" };
       }
     }
 
-    const backendRes = await fetch(targetUrl, {
-      method,
-      headers: forwardHeaders,
-      body,
-      redirect: "manual",
-    });
+    let backendRes: Response;
+    try {
+      backendRes = await fetch(targetUrl, {
+        method,
+        headers: forwardHeaders,
+        body: fetchBody,
+        redirect: "manual",
+        ...duplexOption,
+      });
+    } catch (fetchErr: any) {
+      console.error("[Proxy Backend Connection Error]:", fetchErr);
+      return NextResponse.json(
+        { detail: "Backend service is temporarily unavailable." },
+        { status: 503 }
+      );
+    }
 
     const responseHeaders = new Headers();
+    const hasContentEncoding = Boolean(backendRes.headers.get("content-encoding"));
 
     backendRes.headers.forEach((value, key) => {
       const lowerKey = key.toLowerCase();
-      if (
-        lowerKey !== "set-cookie" &&
-        lowerKey !== "content-encoding" &&
-        lowerKey !== "content-length"
-      ) {
-        responseHeaders.set(key, value);
+      if (lowerKey === "set-cookie" || lowerKey === "content-encoding") {
+        return;
       }
+      if (lowerKey === "content-length" && hasContentEncoding) {
+        return;
+      }
+      responseHeaders.set(key, value);
     });
 
     const response = new NextResponse(backendRes.body, {
