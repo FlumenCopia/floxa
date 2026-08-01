@@ -1555,26 +1555,32 @@ class ProjectInviteRetryView(APIView):
 
     def post(self, request, project_id):
         try:
-            project = Project.objects.select_related("client").get(
-                id=project_id,
-                consultant=request.user,
-            )
-        except Project.DoesNotExist:
+            try:
+                project = Project.objects.select_related("client").get(
+                    id=project_id,
+                    consultant=request.user,
+                )
+            except Project.DoesNotExist:
+                return Response(
+                    {"detail": "Project not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            email_result = send_client_portal_invite_safely(project, raw_portal_password=None)
+
             return Response(
-                {"detail": "Project not found."},
-                status=status.HTTP_404_NOT_FOUND,
+                {
+                    "project_id": project.id,
+                    "email_sent": email_result["sent"],
+                    "status": email_result["status"],
+                },
+                status=status.HTTP_200_OK,
             )
-
-        email_result = send_client_portal_invite_safely(project, raw_portal_password=None)
-
-        return Response(
-            {
-                "project_id": project.id,
-                "email_sent": email_result["sent"],
-                "status": email_result["status"],
-            },
-            status=status.HTTP_200_OK,
-        )
+        except Exception as exc:
+            return Response(
+                {"detail": str(exc), "error_type": exc.__class__.__name__},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class ProjectAnalyticsView(APIView):
