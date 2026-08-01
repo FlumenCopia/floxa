@@ -226,8 +226,8 @@ AUTH_ACCESS_COOKIE_NAME = "floxa_access"
 AUTH_REFRESH_COOKIE_NAME = "floxa_refresh"
 AUTH_COOKIE_HTTP_ONLY = True
 AUTH_COOKIE_SECURE = config("AUTH_COOKIE_SECURE", default=not DEBUG, cast=bool)
-AUTH_COOKIE_SAMESITE = config("AUTH_COOKIE_SAMESITE", default="Lax" if DEBUG else "None")
+AUTH_COOKIE_SAMESITE = config("AUTH_COOKIE_SAMESITE", default="Lax")
 AUTH_COOKIE_PATH = "/"
 
 CSRF_COOKIE_SECURE = config("CSRF_COOKIE_SECURE", default=not DEBUG, cast=bool)
-CSRF_COOKIE_SAMESITE = config("CSRF_COOKIE_SAMESITE", default="Lax" if DEBUG else "None")
+CSRF_COOKIE_SAMESITE = config("CSRF_COOKIE_SAMESITE", default="Lax")

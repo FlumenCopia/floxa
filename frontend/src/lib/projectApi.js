@@ -1,6 +1,7 @@
 import {
   API_BASE_URL,
   apiRequest,
+  buildApiUrl,
   ensureCsrfCookie,
   getCsrfToken,
   parseApiResponse,
@@ -248,7 +249,7 @@ export async function markConsultantActivitiesRead() {
 }
 
 async function refreshCookieSession() {
-  const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
+  const response = await fetch(buildApiUrl("/auth/token/refresh/"), {
     method: "POST",
     credentials: "include",
     headers: {
@@ -260,7 +261,7 @@ async function refreshCookieSession() {
 }
 
 async function uploadProjectFormDataRequest(endpoint, formData, headers, method = "POST") {
-  return fetch(`${API_BASE_URL}${endpoint}`, {
+  return fetch(buildApiUrl(endpoint), {
     method,
     credentials: "include",
     headers,
@@ -302,7 +303,7 @@ export async function deleteConcept(projectId, conceptId) {
   const endpoint = `/projects/${projectId}/concepts/${conceptId}/`;
   const csrfToken = getCsrfToken();
   const headers = csrfToken ? { "X-CSRFToken": csrfToken } : {};
-  let response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  let response = await fetch(buildApiUrl(endpoint), {
     method: "DELETE",
     credentials: "include",
     headers,
@@ -312,7 +313,7 @@ export async function deleteConcept(projectId, conceptId) {
     const refreshed = await refreshCookieSession();
 
     if (refreshed) {
-      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      response = await fetch(buildApiUrl(endpoint), {
         method: "DELETE",
         credentials: "include",
         headers,
@@ -333,7 +334,7 @@ export async function deleteDeliverable(projectId, deliverableId) {
   const endpoint = `/projects/${projectId}/deliverables/${deliverableId}/`;
   const csrfToken = getCsrfToken();
   const headers = csrfToken ? { "X-CSRFToken": csrfToken } : {};
-  let response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  let response = await fetch(buildApiUrl(endpoint), {
     method: "DELETE",
     credentials: "include",
     headers,
@@ -343,7 +344,7 @@ export async function deleteDeliverable(projectId, deliverableId) {
     const refreshed = await refreshCookieSession();
 
     if (refreshed) {
-      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      response = await fetch(buildApiUrl(endpoint), {
         method: "DELETE",
         credentials: "include",
         headers,
@@ -364,7 +365,7 @@ export async function deleteAgreement(projectId) {
   const endpoint = `/projects/${projectId}/agreement/`;
   const csrfToken = getCsrfToken();
   const headers = csrfToken ? { "X-CSRFToken": csrfToken } : {};
-  let response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  let response = await fetch(buildApiUrl(endpoint), {
     method: "DELETE",
     credentials: "include",
     headers,
@@ -374,7 +375,7 @@ export async function deleteAgreement(projectId) {
     const refreshed = await refreshCookieSession();
 
     if (refreshed) {
-      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      response = await fetch(buildApiUrl(endpoint), {
         method: "DELETE",
         credentials: "include",
         headers,

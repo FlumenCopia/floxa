@@ -1,4 +1,26 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+export function getApiBaseUrl() {
+  if (typeof window !== "undefined") {
+    return "/api";
+  }
+  const configured =
+    process.env.BACKEND_API_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_API_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    "/api";
+  return configured.replace(/\/+$/, "");
+}
+
+export const API_BASE_URL = getApiBaseUrl();
+
+export function buildApiUrl(endpoint = "") {
+  const base = getApiBaseUrl();
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+  if (cleanEndpoint.startsWith("/api/") && base.endsWith("/api")) {
+    return `${base.slice(0, -4)}${cleanEndpoint}`;
+  }
+  return `${base}${cleanEndpoint}`;
+}
 
 export function getCookie(name) {
   if (typeof document === "undefined") {
@@ -41,7 +63,7 @@ export async function ensureCsrfCookie(forceRefresh = false) {
 
   pendingCsrfPromise = (async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/csrf/`, {
+      const response = await fetch(buildApiUrl("/auth/csrf/"), {
         method: "GET",
         credentials: "include",
       });
@@ -128,7 +150,7 @@ async function refreshAccessToken() {
 
   pendingRefreshPromise = (async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
+      const response = await fetch(buildApiUrl("/auth/token/refresh/"), {
         method: "POST",
         credentials: "include",
         headers: {
@@ -177,7 +199,7 @@ export async function apiRequest(endpoint, options = {}) {
     }
   }
 
-  let response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  let response = await fetch(buildApiUrl(endpoint), {
     ...options,
     credentials: "include",
     headers,
@@ -203,7 +225,7 @@ export async function apiRequest(endpoint, options = {}) {
       }
     }
 
-    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    response = await fetch(buildApiUrl(endpoint), {
       ...options,
       _csrfRetried: true,
       credentials: "include",
@@ -229,7 +251,7 @@ export async function apiRequest(endpoint, options = {}) {
       }
     }
 
-    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    response = await fetch(buildApiUrl(endpoint), {
       ...options,
       credentials: "include",
       headers: retryHeaders,
@@ -246,13 +268,7 @@ export async function fetchProtectedAssetBlob(assetUrl, options = {}) {
 
   let targetUrl = assetUrl;
   if (!assetUrl.startsWith("http://") && !assetUrl.startsWith("https://")) {
-    const cleanPath = assetUrl.startsWith("/") ? assetUrl : `/${assetUrl}`;
-    const baseUrl = (API_BASE_URL || "").replace(/\/+$/, "");
-    if (cleanPath.startsWith("/api/") && baseUrl.endsWith("/api")) {
-      targetUrl = `${baseUrl.slice(0, -4)}${cleanPath}`;
-    } else {
-      targetUrl = `${baseUrl}${cleanPath}`;
-    }
+    targetUrl = buildApiUrl(assetUrl);
   }
 
   const headers = await getRequestHeaders(options, { includeAuth: true });

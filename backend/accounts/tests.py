@@ -237,3 +237,94 @@ class LogoutViewTests(TestCase):
         self.assertEqual(access_cookie.value, "")
         self.assertEqual(refresh_cookie.value, "")
 
+
+class AuthenticationArchitectureRegressionTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="arch_user@example.com",
+            name="Architecture User",
+            password="SecurePassword123!",
+        )
+
+    def test_signup_followed_by_auth_me(self):
+        client = APIClient()
+        signup_payload = {
+            "name": "New User",
+            "email": "new_signup@example.com",
+            "password": "SecurePassword123!",
+        }
+        signup_res = client.post(reverse("register"), signup_payload, format="json")
+        self.assertEqual(signup_res.status_code, 201)
+        self.assertIn(settings.AUTH_ACCESS_COOKIE_NAME, signup_res.cookies)
+
+        me_res = client.get(reverse("me"))
+        self.assertEqual(me_res.status_code, 200)
+        self.assertEqual(me_res.data["email"], "new_signup@example.com")
+
+    def test_login_followed_by_auth_me(self):
+        client = APIClient()
+        login_res = client.post(
+            reverse("login"),
+            {"email": "arch_user@example.com", "password": "SecurePassword123!"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+        self.assertIn(settings.AUTH_ACCESS_COOKIE_NAME, login_res.cookies)
+
+        me_res = client.get(reverse("me"))
+        self.assertEqual(me_res.status_code, 200)
+        self.assertEqual(me_res.data["email"], "arch_user@example.com")
+
+    def test_expired_access_token_followed_by_refresh(self):
+        client = APIClient()
+        login_res = client.post(
+            reverse("login"),
+            {"email": "arch_user@example.com", "password": "SecurePassword123!"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+        refresh_token = login_res.cookies[settings.AUTH_REFRESH_COOKIE_NAME].value
+
+        client.cookies[settings.AUTH_ACCESS_COOKIE_NAME] = "expired_or_invalid_access_token"
+        client.cookies[settings.AUTH_REFRESH_COOKIE_NAME] = refresh_token
+
+        refresh_res = client.post(reverse("token_refresh"), format="json")
+        self.assertEqual(refresh_res.status_code, 200)
+        self.assertIn(settings.AUTH_ACCESS_COOKIE_NAME, refresh_res.cookies)
+
+        me_res = client.get(reverse("me"))
+        self.assertEqual(me_res.status_code, 200)
+
+    def test_logout_clears_cookies(self):
+        client = APIClient()
+        login_res = client.post(
+            reverse("login"),
+            {"email": "arch_user@example.com", "password": "SecurePassword123!"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+
+        logout_res = client.post(reverse("logout"), format="json")
+        self.assertEqual(logout_res.status_code, 200)
+        self.assertEqual(logout_res.cookies[settings.AUTH_ACCESS_COOKIE_NAME].value, "")
+        self.assertEqual(logout_res.cookies[settings.AUTH_REFRESH_COOKIE_NAME].value, "")
+
+    def test_incognito_same_origin_cookie_attributes(self):
+        client = APIClient()
+        login_res = client.post(
+            reverse("login"),
+            {"email": "arch_user@example.com", "password": "SecurePassword123!"},
+            format="json",
+        )
+        self.assertEqual(login_res.status_code, 200)
+        access_cookie = login_res.cookies[settings.AUTH_ACCESS_COOKIE_NAME]
+        refresh_cookie = login_res.cookies[settings.AUTH_REFRESH_COOKIE_NAME]
+
+        self.assertTrue(access_cookie["httponly"])
+        self.assertTrue(refresh_cookie["httponly"])
+        self.assertEqual(access_cookie["path"], "/")
+        self.assertEqual(refresh_cookie["path"], "/")
+        self.assertFalse(access_cookie["domain"])
+        self.assertFalse(refresh_cookie["domain"])
+
+

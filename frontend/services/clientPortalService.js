@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiRequest } from "../src/lib/api";
+import { API_BASE_URL, apiRequest, buildApiUrl } from "../src/lib/api";
 
 const STORAGE_PREFIX = "floxa_client_portal_mock_";
 
@@ -106,7 +106,7 @@ async function resolvePortalProject(linkToken) {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/client-portal/${linkToken}/`, {
+    const response = await fetch(buildApiUrl(`/client-portal/${linkToken}/`), {
       method: "GET",
       credentials: "include",
     });
@@ -220,11 +220,7 @@ function resolveAssetUrl(url) {
     return "";
   }
 
-  if (/^https?:\/\//i.test(url)) {
-    return url;
-  }
-
-  return `${API_BASE_URL}${url.startsWith("/") ? url : `/${url}`}`;
+  return buildApiUrl(url);
 }
 
 function mapBackendConcept(concept) {
