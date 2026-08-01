@@ -27,6 +27,7 @@ from projects.views import (
     ClientPortalConceptFeedbackView,
     ClientPortalConceptView,
     ClientPortalDeliverableView,
+    ClientPortalDiscoveryView,
     ClientPortalGeneratedAgreementAcceptView,
     ClientPortalGeneratedAgreementPDFView,
     ClientPortalGeneratedAgreementView,
@@ -62,6 +63,11 @@ urlpatterns = [
         "api/client-portal/<uuid:portal_token>/brand-dna/",
         ClientPortalBrandDNAView.as_view(),
         name="client-portal-brand-dna",
+    ),
+    path(
+        "api/client-portal/<uuid:portal_token>/discovery/",
+        ClientPortalDiscoveryView.as_view(),
+        name="client-portal-discovery",
     ),
     path(
         "api/client-portal/<uuid:portal_token>/verify-password/",

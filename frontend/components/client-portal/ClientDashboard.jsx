@@ -219,6 +219,9 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const [working, setWorking] = useState("");
   const [brandDNAReport, setBrandDNAReport] = useState(null);
   const [brandDNAReportLoading, setBrandDNAReportLoading] = useState(false);
+  const [discoveryReport, setDiscoveryReport] = useState(null);
+  const [discoveryReportLoading, setDiscoveryReportLoading] = useState(false);
+  const [discoveryReportError, setDiscoveryReportError] = useState("");
   const [moodboards, setMoodboards] = useState(project.moodboards || []);
   const [moodboardsLoading, setMoodboardsLoading] = useState(false);
   const [moodboardsError, setMoodboardsError] = useState("");
@@ -896,12 +899,21 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       return;
     }
 
+    setDiscoveryReportLoading(true);
+    setDiscoveryReportError("");
     setBrandDNAReportLoading(true);
 
     try {
-      const response = await clientPortalService.getBrandDNAReport();
-      setBrandDNAReport(response.success ? response.data : null);
+      const [discRes, dnaRes] = await Promise.all([
+        clientPortalService.getDiscoveryReport(),
+        clientPortalService.getBrandDNAReport(),
+      ]);
+
+      setDiscoveryReport(discRes.success ? discRes.data : null);
+      setDiscoveryReportError(discRes.success ? "" : discRes.error || "Unable to load discovery report.");
+      setBrandDNAReport(dnaRes.success ? dnaRes.data : null);
     } finally {
+      setDiscoveryReportLoading(false);
       setBrandDNAReportLoading(false);
     }
   }
@@ -930,8 +942,10 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     {
       symbol: "01",
       title: "Discovery Report",
-      sub: "View your Brand DNA",
-      active: pct >= 30,
+      sub: discoveryReport?.submitted_at || discoveryReport?.submittedAt
+        ? "View submitted report"
+        : "View brand discovery",
+      active: true,
       panel: "discovery",
     },
     {
@@ -1172,32 +1186,103 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
           {panel === "discovery" ? (
             <div className="client-brand-summary">
-              <span>Personality cluster</span>
-              {brandDNAReportLoading ? (
+              {discoveryReportLoading ? (
                 <>
                   <h3>Loading discovery report...</h3>
-                  <p>Your consultant&apos;s Brand DNA report is being fetched.</p>
+                  <p>Your submitted discovery report and brand answers are being loaded.</p>
                 </>
-              ) : brandDNAReport ? (
+              ) : discoveryReport || project.brandDNA ? (
                 <>
-                  <h3>{brandDNAReport.brand_personality_cluster || "Brand discovery complete"}</h3>
-                  <p>{brandDNAReport.positioning_summary}</p>
-                  <p>{brandDNAReport.business_summary}</p>
-                  <p>{brandDNAReport.target_audience_summary}</p>
-                  <p>{brandDNAReport.brand_feeling_summary}</p>
-                  <p>{brandDNAReport.visual_direction_summary}</p>
-                  <p>{brandDNAReport.competitor_summary}</p>
-                  {brandDNAReport.updated_at ? (
-                    <small>Updated {new Date(brandDNAReport.updated_at).toLocaleDateString()}</small>
+                  <div className="client-discovery-report-header">
+                    <span>Submitted Discovery Report</span>
+                    <h3>{discoveryReport?.what_business_does || project.brandDNA?.whatDo || "Brand Discovery Answers"}</h3>
+                    {discoveryReport?.submitted_at || discoveryReport?.submittedAt ? (
+                      <small className="client-badge-submitted">
+                        Submitted on {new Date(discoveryReport.submitted_at || discoveryReport.submittedAt).toLocaleDateString()}
+                      </small>
+                    ) : null}
+                  </div>
+
+                  <div className="client-discovery-details-grid">
+                    {discoveryReport?.target_customer || project.brandDNA?.targetCustomer ? (
+                      <div className="client-discovery-detail-item">
+                        <strong>Target Customer</strong>
+                        <p>{discoveryReport?.target_customer || project.brandDNA?.targetCustomer}</p>
+                      </div>
+                    ) : null}
+
+                    {discoveryReport?.why_choose_us || project.brandDNA?.whyChooseUs ? (
+                      <div className="client-discovery-detail-item">
+                        <strong>Why Choose Us</strong>
+                        <p>{discoveryReport?.why_choose_us || project.brandDNA?.whyChooseUs}</p>
+                      </div>
+                    ) : null}
+
+                    {discoveryReport?.brand_feeling || project.brandDNA?.brandFeeling ? (
+                      <div className="client-discovery-detail-item">
+                        <strong>Brand Feeling</strong>
+                        <p>{discoveryReport?.brand_feeling || project.brandDNA?.brandFeeling}</p>
+                      </div>
+                    ) : null}
+
+                    {discoveryReport?.audience_archetype || project.brandDNA?.audienceArchetype ? (
+                      <div className="client-discovery-detail-item">
+                        <strong>Audience Archetype</strong>
+                        <p>{discoveryReport?.audience_archetype || project.brandDNA?.audienceArchetype}</p>
+                      </div>
+                    ) : null}
+
+                    {(discoveryReport?.emotions?.length > 0 || project.brandDNA?.emotions?.length > 0) ? (
+                      <div className="client-discovery-detail-item">
+                        <strong>Emotions & Keywords</strong>
+                        <p>
+                          {(discoveryReport?.emotions?.map((e) => e.emotion || e) || project.brandDNA?.emotions || []).join(", ")}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {(discoveryReport?.visual_styles?.length > 0 || project.brandDNA?.visualStyles?.length > 0) ? (
+                      <div className="client-discovery-detail-item">
+                        <strong>Visual Styles</strong>
+                        <p>
+                          {(discoveryReport?.visual_styles?.map((s) => s.style || s) || project.brandDNA?.visualStyles || []).join(", ")}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    {discoveryReport?.competitors?.length > 0 ? (
+                      <div className="client-discovery-detail-item full-width">
+                        <strong>Competitor References</strong>
+                        <div className="client-competitor-list">
+                          {discoveryReport.competitors.map((comp, idx) => (
+                            <div key={comp.id || idx} className="client-competitor-card">
+                              <strong>{comp.name}</strong>
+                              {comp.rating ? <span>Rating: {comp.rating}</span> : null}
+                              {comp.reason ? <p>{comp.reason}</p> : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {brandDNAReport ? (
+                    <div className="client-brand-dna-section" style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+                      <span>Consultant Brand DNA</span>
+                      <h3>{brandDNAReport.brand_personality_cluster || "Brand DNA Analysis"}</h3>
+                      <p>{brandDNAReport.positioning_summary}</p>
+                      <p>{brandDNAReport.business_summary}</p>
+                      <p>{brandDNAReport.target_audience_summary}</p>
+                      <p>{brandDNAReport.brand_feeling_summary}</p>
+                      <p>{brandDNAReport.visual_direction_summary}</p>
+                      <p>{brandDNAReport.competitor_summary}</p>
+                    </div>
                   ) : null}
                 </>
               ) : (
                 <>
-                  <h3>{project.brandDNA?.personalityCluster || "Brand discovery complete"}</h3>
-                  <p>
-                    {project.brandDNA?.positioningStatement ||
-                      "Your consultant is preparing the next stage."}
-                  </p>
+                  <h3>No discovery report submitted yet</h3>
+                  <p>{discoveryReportError || "Complete your discovery questionnaire to view your brand report."}</p>
                 </>
               )}
             </div>

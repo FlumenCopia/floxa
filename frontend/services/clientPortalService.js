@@ -345,6 +345,34 @@ export const clientPortalService = {
     return response.success ? response.data : null;
   },
 
+  async getDiscoveryReport(portalToken = activeToken) {
+    if (!portalToken || portalToken === "test-token") {
+      return { success: true, data: null };
+    }
+
+    try {
+      const discovery = await apiRequest(`/client-portal/${portalToken}/discovery/`);
+      return {
+        success: true,
+        data: discovery ? {
+          ...discovery,
+          is_submitted: Boolean(discovery.submitted_at),
+          submittedAt: discovery.submitted_at,
+        } : null,
+      };
+    } catch (error) {
+      if (error?.detail === "Project discovery not found for this project.") {
+        return { success: true, data: null };
+      }
+
+      if (error?.detail) {
+        return { success: false, error: error.detail };
+      }
+
+      return { success: false, error: "Unable to load discovery report." };
+    }
+  },
+
   async getBrandDNAReport(portalToken = activeToken) {
     if (!portalToken || portalToken === "test-token") {
       return { success: true, data: null };

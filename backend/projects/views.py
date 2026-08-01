@@ -2323,6 +2323,47 @@ class ClientPortalBrandDNAView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class ClientPortalDiscoveryView(APIView):
+    authentication_classes = []
+    permission_classes = [ClientPortalAccessPermission]
+
+    def get(self, request, portal_token):
+        try:
+            project = Project.objects.get(
+                portal_token=portal_token,
+                is_archived=False,
+            )
+        except Project.DoesNotExist:
+            return Response(
+                {"detail": "Client portal link not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            discovery = (
+                ProjectDiscovery.objects.prefetch_related(
+                    "sliders",
+                    "emotions",
+                    "competitors",
+                    "visual_styles",
+                )
+                .select_related("project")
+                .get(project=project)
+            )
+        except ProjectDiscovery.DoesNotExist:
+            return Response(
+                {"detail": "Project discovery not found for this project."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = ProjectDiscoverySerializer(discovery)
+        data = serializer.data
+        data["is_submitted"] = bool(discovery.submitted_at)
+        data["is_complete"] = is_complete_discovery_snapshot(get_discovery_snapshot(discovery))
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
 class ClientPortalMoodboardView(APIView):
     authentication_classes = []
     permission_classes = [ClientPortalAccessPermission]
@@ -4104,24 +4145,48 @@ class ProjectDiscoveryView(APIView):
     def get_project(self, request, project_id):
         portal_token = request.headers.get("X-Client-Portal-Token", "").strip()
 
-        if not portal_token:
+        if portal_token:
+            try:
+                project = Project.objects.get(
+                    id=project_id,
+                    is_archived=False,
+                )
+            except Project.DoesNotExist:
+                return None
+
+            if (
+                str(project.portal_token) == portal_token
+                and is_verified_client_portal_access(request, portal_token)
+            ):
+                return project
+
+            return None
+
+        authenticated = self.get_authenticated_consultant(request)
+
+        if authenticated is None:
             return None
 
         try:
-            project = Project.objects.get(
+            return Project.objects.get(
                 id=project_id,
+                consultant=authenticated,
                 is_archived=False,
             )
         except Project.DoesNotExist:
             return None
 
-        if (
-            str(project.portal_token) != portal_token
-            or not is_verified_client_portal_access(request, portal_token)
-        ):
+    def get_authenticated_consultant(self, request):
+        try:
+            authenticated = CookieOrHeaderJWTAuthentication().authenticate(request)
+        except Exception:
             return None
 
-        return project
+        if authenticated is None:
+            return None
+
+        user, _ = authenticated
+        return user
 
     def get(self, request, project_id):
         project = self.get_project(request, project_id)

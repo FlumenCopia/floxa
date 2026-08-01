@@ -1942,4 +1942,142 @@ class ClientPortalPhase3DeliverableReleaseTests(TestCase):
         self.assertEqual(b"".join(response.streaming_content), self.deliverable_file_bytes)
 
 
+class ClientPortalDiscoveryReportTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.hashers import make_password
+        from .models import (
+            Client,
+            ClientProfile,
+            DiscoveryCompetitor,
+            DiscoveryEmotion,
+            DiscoverySliderResponse,
+            DiscoveryVisualStyle,
+            Project,
+            ProjectDiscovery,
+        )
+
+        User = get_user_model()
+
+        self.consultant = User.objects.create_user(
+            email="consultant_disc@example.com",
+            name="Consultant Disc",
+            password="TestPassword123!",
+        )
+        self.client_obj = Client.objects.create(
+            name="Client Disc",
+            email="client_disc@example.com",
+        )
+        self.project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_obj,
+            company_name="Acme Discovery Co",
+            sector="Technology",
+            project_value=Decimal("10000.00"),
+            portal_password_hash=make_password("portalpass123"),
+        )
+        self.other_project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_obj,
+            company_name="Other Co",
+            sector="Retail",
+            project_value=Decimal("5000.00"),
+            portal_password_hash=make_password("portalpass123"),
+        )
+
+        self.discovery = ProjectDiscovery.objects.create(
+            project=self.project,
+            what_business_does="We build brand clarity software.",
+            target_customer="Modern design consultants and agency owners.",
+            why_choose_us="Unmatched clarity and speed.",
+            brand_feeling="Confident, elegant, and precise.",
+            audience_archetype="Premium Seeker",
+            submitted_at=timezone.now(),
+        )
+        DiscoveryEmotion.objects.create(discovery=self.discovery, emotion="Confident")
+        DiscoveryEmotion.objects.create(discovery=self.discovery, emotion="Elegant")
+        DiscoveryVisualStyle.objects.create(discovery=self.discovery, style="Clean & Minimal")
+        DiscoveryCompetitor.objects.create(
+            discovery=self.discovery,
+            name="CompA",
+            rating="High",
+            reason="Market leader",
+        )
+
+        self.api_client = APIClient()
+        self.api_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            self.project.portal_token
+        )
+
+    def test_client_portal_can_retrieve_submitted_discovery_report(self):
+        url = f"/api/client-portal/{self.project.portal_token}/discovery/"
+        response = self.api_client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["what_business_does"], "We build brand clarity software.")
+        self.assertEqual(response.data["target_customer"], "Modern design consultants and agency owners.")
+        self.assertTrue(response.data["is_submitted"])
+        self.assertIsNotNone(response.data["submitted_at"])
+
+        emotions = [item["emotion"] for item in response.data["emotions"]]
+        self.assertIn("Confident", emotions)
+        self.assertIn("Elegant", emotions)
+
+    def test_submitted_discovery_remains_available_after_brand_dna_generation(self):
+        self.api_client.force_authenticate(user=self.consultant)
+        gen_response = self.api_client.post(
+            f"/api/projects/{self.project.id}/brand-dna/generate/"
+        )
+        self.assertEqual(gen_response.status_code, 200)
+
+        self.api_client.logout()
+        self.api_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            self.project.portal_token
+        )
+        url = f"/api/client-portal/{self.project.portal_token}/discovery/"
+        disc_response = self.api_client.get(url)
+
+        self.assertEqual(disc_response.status_code, 200)
+        self.assertEqual(disc_response.data["what_business_does"], "We build brand clarity software.")
+        self.assertTrue(disc_response.data["is_submitted"])
+
+    def test_other_project_portal_token_cannot_access_discovery(self):
+        other_cookie_client = APIClient()
+        other_cookie_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            self.other_project.portal_token
+        )
+        url = f"/api/client-portal/{self.project.portal_token}/discovery/"
+        response = other_cookie_client.get(url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_draft_unsubmitted_discovery_marked_is_submitted_false(self):
+        from django.contrib.auth.hashers import make_password
+        from .models import ProjectDiscovery
+
+        draft_project = Project.objects.create(
+            consultant=self.consultant,
+            client=self.client_obj,
+            company_name="Draft Co",
+            sector="Design",
+            project_value=Decimal("4000.00"),
+            portal_password_hash=make_password("portalpass123"),
+        )
+        draft_disc = ProjectDiscovery.objects.create(
+            project=draft_project,
+            what_business_does="In progress business...",
+            submitted_at=None,
+        )
+
+        draft_client = APIClient()
+        draft_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(
+            draft_project.portal_token
+        )
+        url = f"/api/client-portal/{draft_project.portal_token}/discovery/"
+        response = draft_client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["is_submitted"])
+        self.assertIsNone(response.data["submitted_at"])
+
+
+
 
