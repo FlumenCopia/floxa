@@ -1,6 +1,8 @@
 import json
+import logging
 import os
 from pathlib import Path
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -9,6 +11,8 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage, Storage
 from django.utils.deconstruct import deconstructible
+
+logger = logging.getLogger(__name__)
 
 
 @deconstructible
@@ -91,8 +95,25 @@ class VercelBlobStorage(Storage):
             with urllib.request.urlopen(req, timeout=15) as resp:
                 resp_data = json.loads(resp.read().decode("utf-8"))
                 return resp_data.get("url") or resp_data.get("pathname") or clean_name
+        except urllib.error.HTTPError as exc:
+            err_body = ""
+            try:
+                err_body = exc.read().decode("utf-8", errors="replace")
+            except Exception:
+                pass
+            logger.exception(
+                "VercelBlobStorage HTTPError %s: %s | Response Body: %s",
+                exc.code,
+                exc.reason,
+                err_body,
+            )
+            raise OSError(f"Vercel Blob HTTPError {exc.code}: {exc.reason} - {err_body}") from exc
         except Exception as exc:
-            raise OSError(f"Vercel Blob upload failed for {name}") from exc
+            logger.exception(
+                "VercelBlobStorage upload failed: exception_class=%s",
+                exc.__class__.__name__,
+            )
+            raise OSError(f"Vercel Blob upload failed for {name}: {exc}") from exc
 
     def _open(self, name, mode="rb"):
         if self.use_local:

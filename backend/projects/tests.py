@@ -2390,7 +2390,7 @@ class MoodboardStorageTests(TestCase):
                 format="multipart",
             )
             self.assertEqual(response.status_code, 503)
-            self.assertEqual(response.data["detail"], "Storage service currently unavailable.")
+            self.assertEqual(response.data["detail"], "Image storage is temporarily unavailable.")
 
     def test_production_unconfigured_storage_raises_improperly_configured(self):
         from unittest.mock import patch

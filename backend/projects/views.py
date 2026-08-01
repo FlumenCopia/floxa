@@ -4499,8 +4499,29 @@ class MoodboardView(APIView):
         try:
             moodboard = serializer.save(project=project)
         except Exception as exc:
+            import importlib.metadata
+            import os
+            from django.core.files.storage import default_storage
+
+            pkg_version = "not_installed"
+            for pkg in ("vercel", "vercel-blob", "vercel_blob"):
+                try:
+                    pkg_version = importlib.metadata.version(pkg)
+                    break
+                except Exception:
+                    pass
+
+            logger.exception(
+                "Moodboard Blob storage upload failed: exception_class=%s, storage_backend=%s, vercel_pkg_version=%s, has_blob_read_write_token=%s, has_vercel_oidc_token=%s, has_blob_store_id=%s, blob_access_mode=public",
+                exc.__class__.__name__,
+                default_storage.__class__.__name__,
+                pkg_version,
+                bool(os.environ.get("BLOB_READ_WRITE_TOKEN") or os.environ.get("VERCEL_BLOB_READ_WRITE_TOKEN")),
+                bool(os.environ.get("VERCEL_OIDC_TOKEN")),
+                bool(os.environ.get("BLOB_STORE_ID")),
+            )
             return Response(
-                {"detail": "Storage service currently unavailable."},
+                {"detail": "Image storage is temporarily unavailable."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
