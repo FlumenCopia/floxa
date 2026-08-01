@@ -1067,6 +1067,7 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
     setSaving(true);
     setError("");
 
+    try {
       const createdMoodboard = await uploadMoodboard(projectId, formData);
       if (createdMoodboard && createdMoodboard.id) {
         setMoodboards((current) => [createdMoodboard, ...current.filter((item) => item.id !== createdMoodboard.id)]);
