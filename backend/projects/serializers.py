@@ -196,10 +196,7 @@ class MoodboardSerializer(serializers.ModelSerializer):
         if not obj.image:
             return ""
 
-        request = self.context.get("request")
-        image_url = f"/api/projects/{obj.project.id}/moodboards/{obj.id}/image/"
-
-        return request.build_absolute_uri(image_url) if request else image_url
+        return f"/api/projects/{obj.project.id}/moodboards/{obj.id}/image/"
 
     def validate(self, attrs):
         validate_upload_file(attrs.get("image"), "moodboard_image", "image")
@@ -232,10 +229,7 @@ class ClientPortalMoodboardSerializer(serializers.ModelSerializer):
         if not obj.image:
             return ""
 
-        request = self.context.get("request")
-        image_url = f"/api/client-portal/{obj.project.portal_token}/moodboards/{obj.id}/image/"
-
-        return request.build_absolute_uri(image_url) if request else image_url
+        return f"/api/client-portal/{obj.project.portal_token}/moodboards/{obj.id}/image/"
 
 
 class ConsultantConceptSerializer(serializers.ModelSerializer):
@@ -275,23 +269,13 @@ class ConsultantConceptSerializer(serializers.ModelSerializer):
         if not obj.image:
             return ""
 
-        request = self.context.get("request")
-        image_url = f"/api/projects/{obj.project.id}/concepts/{obj.id}/image/"
-        try:
-            return request.build_absolute_uri(image_url) if request else image_url
-        except Exception:
-            return image_url
+        return f"/api/projects/{obj.project.id}/concepts/{obj.id}/image/"
 
     def get_file_url(self, obj):
         if not obj.file:
             return ""
 
-        request = self.context.get("request")
-        file_url = f"/api/projects/{obj.project.id}/concepts/{obj.id}/file/"
-        try:
-            return request.build_absolute_uri(file_url) if request else file_url
-        except Exception:
-            return file_url
+        return f"/api/projects/{obj.project.id}/concepts/{obj.id}/file/"
 
     def to_representation(self, instance):
         image_url = self.get_image_url(instance)
@@ -355,23 +339,13 @@ class ClientPortalConceptSerializer(serializers.ModelSerializer):
         if not obj.image:
             return ""
 
-        request = self.context.get("request")
-        image_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/image/"
-        try:
-            return request.build_absolute_uri(image_url) if request else image_url
-        except Exception:
-            return image_url
+        return f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/image/"
 
     def get_file_url(self, obj):
         if not obj.file:
             return ""
 
-        request = self.context.get("request")
-        file_url = f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/file/"
-        try:
-            return request.build_absolute_uri(file_url) if request else file_url
-        except Exception:
-            return file_url
+        return f"/api/client-portal/{obj.project.portal_token}/concepts/{obj.id}/file/"
 
     def to_representation(self, instance):
         image_url = self.get_image_url(instance)
@@ -426,10 +400,7 @@ class ConsultantDeliverableSerializer(serializers.ModelSerializer):
         if not obj.file:
             return ""
 
-        request = self.context.get("request")
-        file_url = f"/api/projects/{obj.project.id}/deliverables/{obj.id}/file/"
-
-        return request.build_absolute_uri(file_url) if request else file_url
+        return f"/api/projects/{obj.project.id}/deliverables/{obj.id}/file/"
 
     def get_file_name(self, obj):
         return obj.file.name.split("/")[-1] if obj.file else ""
@@ -482,10 +453,7 @@ class ConsultantAgreementSerializer(serializers.ModelSerializer):
         if not obj.file:
             return ""
 
-        request = self.context.get("request")
-        file_url = f"/api/projects/{obj.project.id}/agreement/{obj.id}/file/"
-
-        return request.build_absolute_uri(file_url) if request else file_url
+        return f"/api/projects/{obj.project.id}/agreement/{obj.id}/file/"
 
     def get_file_name(self, obj):
         return obj.file.name.split("/")[-1] if obj.file else ""
@@ -525,10 +493,7 @@ class ClientPortalAgreementSerializer(serializers.ModelSerializer):
         if not obj.file:
             return ""
 
-        request = self.context.get("request")
-        file_url = f"/api/client-portal/{obj.project.portal_token}/agreement/file/"
-
-        return request.build_absolute_uri(file_url) if request else file_url
+        return f"/api/client-portal/{obj.project.portal_token}/agreement/file/"
 
 
 class ClientPortalDeliverableSerializer(serializers.ModelSerializer):
@@ -570,10 +535,7 @@ class ClientPortalDeliverableSerializer(serializers.ModelSerializer):
         if not can_download:
             return None
 
-        request = self.context.get("request")
-        file_url = f"/api/client-portal/{obj.project.portal_token}/deliverables/{obj.id}/file/"
-
-        return request.build_absolute_uri(file_url) if request else file_url
+        return f"/api/client-portal/{obj.project.portal_token}/deliverables/{obj.id}/file/"
 
     def get_file_name(self, obj):
         return obj.file.name.split("/")[-1] if obj.file else ""

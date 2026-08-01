@@ -14,7 +14,18 @@ export const API_BASE_URL = getApiBaseUrl();
 
 export function buildApiUrl(endpoint = "") {
   const base = getApiBaseUrl();
-  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  let path = String(endpoint || "").trim();
+
+  if (/^https?:\/\//i.test(path)) {
+    try {
+      const urlObj = new URL(path);
+      path = urlObj.pathname + urlObj.search;
+    } catch {
+      path = path.replace(/^https?:\/\/[^\/]+/i, "");
+    }
+  }
+
+  const cleanEndpoint = path.startsWith("/") ? path : `/${path}`;
 
   if (cleanEndpoint.startsWith("/api/") && base.endsWith("/api")) {
     return `${base.slice(0, -4)}${cleanEndpoint}`;
@@ -266,10 +277,7 @@ export async function fetchProtectedAssetBlob(assetUrl, options = {}) {
     throw { detail: "No asset URL provided.", status: 400 };
   }
 
-  let targetUrl = assetUrl;
-  if (!assetUrl.startsWith("http://") && !assetUrl.startsWith("https://")) {
-    targetUrl = buildApiUrl(assetUrl);
-  }
+  const targetUrl = buildApiUrl(assetUrl);
 
   const headers = await getRequestHeaders(options, { includeAuth: true });
   delete headers["Content-Type"];
