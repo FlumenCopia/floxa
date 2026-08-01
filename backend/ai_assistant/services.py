@@ -55,11 +55,28 @@ class GeminiAllModelsFailedError(GeminiProviderError):
 
 
 def _get_configured_models():
-    return [
+    raw_models = [
         str(model).strip()
         for model in getattr(settings, "GEMINI_MODELS", [])
         if str(model).strip()
     ]
+    unusable = {
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro",
+        "gemini-pro-latest",
+        "gemini-2.0-flash",
+        "gemini-flash-latest",
+    }
+    verified_models = []
+    for model in raw_models:
+        if model not in unusable and model not in verified_models:
+            verified_models.append(model)
+
+    if not verified_models:
+        verified_models = ["gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
+
+    return verified_models
 
 
 def _get_client():
