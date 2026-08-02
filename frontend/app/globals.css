@@ -234,6 +234,19 @@ textarea {
   font-weight: 500;
 }
 
+.nav-item,
+.nav-item:visited,
+.nav-item:hover,
+.nav-item:focus,
+.nav-item:active,
+.mobile-tab-item,
+.mobile-tab-item:visited,
+.mobile-tab-item:hover,
+.mobile-tab-item:focus,
+.mobile-tab-item:active {
+  text-decoration: none;
+}
+
 .nav-item {
   display: flex;
   align-items: center;
@@ -247,21 +260,25 @@ textarea {
   text-align: left;
   position: relative;
   cursor: pointer;
+  text-decoration: none;
   transition: 0.18s ease;
 }
 
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.02);
   color: #eef8f2;
+  text-decoration: none;
 }
 
 .nav-item.active {
   color: #f0fbf5;
   background: rgba(77, 255, 160, 0.055);
+  text-decoration: none;
 }
 
 .nav-item:focus {
   outline: none;
+  text-decoration: none;
 }
 
 .nav-item:focus:not(:focus-visible) {
