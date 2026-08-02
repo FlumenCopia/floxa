@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
+
 import Floxaheader from "../../commone/Floxaheader";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset } from "../../src/lib/api";
@@ -3359,26 +3361,30 @@ export default function Discovery() {
                   <span className="project-ai-floating-label">Ask about this project…</span>
                 </button>
 
-                {isAssistantOpen ? (
-                  <div
-                    className="project-ai-modal-backdrop"
-                    role="presentation"
-                    onMouseDown={(event) => {
-                      if (event.target === event.currentTarget) {
-                        setIsAssistantOpen(false);
-                      }
-                    }}
-                  >
-                    <div
-                      className="project-ai-modal"
-                      role="dialog"
-                      aria-modal="true"
-                      aria-label="FLOXA Project Assistant"
-                    >
-                      <AIChatbotPanel project={project} onClose={() => setIsAssistantOpen(false)} />
-                    </div>
-                  </div>
-                ) : null}
+                {isAssistantOpen && typeof document !== "undefined"
+                  ? createPortal(
+                      <div
+                        className="project-ai-modal-backdrop"
+                        role="presentation"
+                        onMouseDown={(event) => {
+                          if (event.target === event.currentTarget) {
+                            setIsAssistantOpen(false);
+                          }
+                        }}
+                      >
+                        <div
+                          className="project-ai-modal"
+                          role="dialog"
+                          aria-modal="true"
+                          aria-label="FLOXA Project Assistant"
+                        >
+                          <AIChatbotPanel project={project} onClose={() => setIsAssistantOpen(false)} />
+                        </div>
+                      </div>,
+                      document.body
+                    )
+                  : null}
+
               </>
             ) : null}
           </div>

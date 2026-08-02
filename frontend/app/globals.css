@@ -7066,12 +7066,30 @@ textarea {
 }
 
 @media (max-width: 1024px) {
+  .project-ai-modal-backdrop {
+    padding: 16px;
+  }
 
   .project-ai-modal {
-    width: min(780px, 92vw);
-    height: min(760px, 88dvh);
+    width: min(760px, calc(100vw - 32px));
+    height: min(680px, calc(100dvh - 32px));
+    max-height: calc(100dvh - 32px);
+    border-radius: 20px;
+  }
+
+  .ai-chat-workspace-head {
+    padding: 14px 16px;
+  }
+
+  .ai-chat-scroll-area {
+    padding: 16px;
+  }
+
+  .ai-chat-composer {
+    padding: 12px 16px;
   }
 }
+
 
 @media (max-width: 640px) {
   .project-ai-modal-backdrop {
