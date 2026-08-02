@@ -693,16 +693,25 @@ class ProjectCreateSerializer(serializers.Serializer):
     company = serializers.CharField(max_length=255)
     sector = serializers.CharField(max_length=100)
     value = serializers.DecimalField(max_digits=12, decimal_places=2)
-    portal_password = serializers.CharField(write_only=True, required=False, allow_blank=True, default="")
+    portal_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        allow_blank=False,
+        error_messages={
+            "required": "Portal password is required and must contain at least 8 characters.",
+            "blank": "Portal password is required and must contain at least 8 characters.",
+        },
+    )
     advance = serializers.IntegerField(required=False, default=50, min_value=0, max_value=100)
     mid = serializers.IntegerField(required=False, default=25, min_value=0, max_value=100)
     final = serializers.IntegerField(required=False, default=25, min_value=0, max_value=100)
     revisions = serializers.CharField(max_length=50, required=False, allow_blank=True, default="3 revisions")
 
     def validate_portal_password(self, value):
-        if value and len(value.strip()) > 0 and len(value.strip()) < 6:
-            raise serializers.ValidationError("Portal password must be at least 6 characters.")
-        return value
+        val = (value or "").strip()
+        if not val or len(val) < 8:
+            raise serializers.ValidationError("Portal password is required and must contain at least 8 characters.")
+        return val
 
     def validate_value(self, value):
         if value <= 0:
@@ -730,8 +739,8 @@ class ProjectCreateSerializer(serializers.Serializer):
             sector=validated_data["sector"],
         )
 
-        custom_password = (validated_data.get("portal_password") or "").strip()
-        raw_portal_password = custom_password if custom_password else generate_secure_portal_password()
+        raw_portal_password = validated_data["portal_password"].strip()
+
 
         project = Project.objects.create(
             consultant=consultant,

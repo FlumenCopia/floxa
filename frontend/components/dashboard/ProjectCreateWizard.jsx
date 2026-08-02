@@ -87,7 +87,8 @@ function validateClientInfo(formData) {
     !nextFormData.email ||
     !nextFormData.company ||
     !nextFormData.sector ||
-    !nextFormData.value
+    !nextFormData.value ||
+    !nextFormData.portal_password
   ) {
     return "Please complete all project fields.";
   }
@@ -100,12 +101,13 @@ function validateClientInfo(formData) {
     return "Project value must be a positive amount.";
   }
 
-  if (nextFormData.portal_password && nextFormData.portal_password.length < 6) {
-    return "Portal password must be at least 6 characters.";
+  if (nextFormData.portal_password.length < 8) {
+    return "Portal password must be at least 8 characters.";
   }
 
   return "";
 }
+
 
 function validatePaymentInfo(formData, isPaymentValid) {
   const nextFormData = trimFormData(formData);
@@ -338,12 +340,14 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
                 <input className="form-input" type="text" value={formData.value} onChange={handleFieldChange("value")} />
               </div>
               <div className="form-group">
-                <label className="form-label">Portal password (optional)</label>
+                <label className="form-label">
+                  Portal password <span style={{ color: "#ef4444" }}>*</span>
+                </label>
                 <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                   <input
                     className="form-input"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Auto-generated if left blank"
+                    placeholder="Enter portal password (min. 8 characters)"
                     value={formData.portal_password}
                     onChange={handleFieldChange("portal_password")}
                     style={{ paddingRight: "60px" }}
@@ -366,6 +370,7 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
                   </button>
                 </div>
               </div>
+
             </div>
 
             {projectCreateError ? <div className="project-wizard-note">{projectCreateError}</div> : null}
@@ -443,8 +448,9 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
               </div>
               <div className="project-review-row">
                 <span>Portal Password</span>
-                <strong>{formData.portal_password ? (showPassword ? formData.portal_password : "••••••••") : "(Auto-generated)"}</strong>
+                <strong>{showPassword ? formData.portal_password : "••••••••"}</strong>
               </div>
+
             </div>
 
 

@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.core import mail
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -537,6 +538,7 @@ class ProjectCreationEmailDeliveryTests(TestCase):
             "company": "Acme Corp",
             "sector": "Branding",
             "value": "15000.00",
+            "portal_password": "ClientPassword123!",
             "advance": 50,
             "mid": 25,
             "final": 25,
@@ -554,6 +556,7 @@ class ProjectCreationEmailDeliveryTests(TestCase):
 
         project = Project.objects.get(company_name="Acme Corp")
         self.assertTrue(project.portal_password_hash.startswith("pbkdf2_"))
+        self.assertTrue(check_password("ClientPassword123!", project.portal_password_hash))
         self.assertFalse(hasattr(project, "_raw_portal_password"))
 
         self.assertEqual(len(mail.outbox), 1)
@@ -563,10 +566,12 @@ class ProjectCreationEmailDeliveryTests(TestCase):
         self.assertIn("Acme Client", email.body)
         self.assertIn("Acme Corp", email.body)
         self.assertIn(f"/client/{project.portal_token}", email.body)
+        self.assertIn("ClientPassword123!", email.body)
 
         self.assertEqual(len(email.alternatives), 1)
         html_content = email.alternatives[0][0]
         self.assertIn(f"/client/{project.portal_token}", html_content)
+        self.assertIn("ClientPassword123!", html_content)
 
     @patch("projects.views.send_client_portal_invite", side_effect=Exception("SMTP Connection Error"))
     def test_smtp_failure_does_not_prevent_project_creation_or_duplicate_projects(self, mock_send_mail):
@@ -623,13 +628,28 @@ class ProjectCreationEmailDeliveryTests(TestCase):
         self.assertEqual(success_resp.status_code, 200)
         self.assertTrue(success_resp.data.get("success"))
 
-    def test_project_creation_validates_min_password_length(self):
-        payload = dict(self.payload)
-        payload["portal_password"] = "12345"
+    def test_project_creation_requires_portal_password_with_min_length(self):
+        # Test missing portal_password
+        payload_missing = dict(self.payload)
+        payload_missing.pop("portal_password")
+        resp_missing = self.api_client.post(self.url, payload_missing, format="json")
+        self.assertEqual(resp_missing.status_code, 400)
+        self.assertIn("portal_password", resp_missing.data)
 
-        response = self.api_client.post(self.url, payload, format="json")
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("portal_password", response.data)
+        # Test empty portal_password
+        payload_empty = dict(self.payload)
+        payload_empty["portal_password"] = ""
+        resp_empty = self.api_client.post(self.url, payload_empty, format="json")
+        self.assertEqual(resp_empty.status_code, 400)
+        self.assertIn("portal_password", resp_empty.data)
+
+        # Test portal_password with fewer than 8 characters
+        payload_short = dict(self.payload)
+        payload_short["portal_password"] = "1234567"
+        resp_short = self.api_client.post(self.url, payload_short, format="json")
+        self.assertEqual(resp_short.status_code, 400)
+        self.assertIn("portal_password", resp_short.data)
+
 
 
     def test_retry_endpoint_requires_auth_and_ownership(self):
