@@ -699,6 +699,11 @@ class ProjectCreateSerializer(serializers.Serializer):
     final = serializers.IntegerField(required=False, default=25, min_value=0, max_value=100)
     revisions = serializers.CharField(max_length=50, required=False, allow_blank=True, default="3 revisions")
 
+    def validate_portal_password(self, value):
+        if value and len(value.strip()) > 0 and len(value.strip()) < 6:
+            raise serializers.ValidationError("Portal password must be at least 6 characters.")
+        return value
+
     def validate_value(self, value):
         if value <= 0:
             raise serializers.ValidationError("Project value must be a positive amount.")
@@ -725,7 +730,8 @@ class ProjectCreateSerializer(serializers.Serializer):
             sector=validated_data["sector"],
         )
 
-        raw_portal_password = generate_secure_portal_password()
+        custom_password = (validated_data.get("portal_password") or "").strip()
+        raw_portal_password = custom_password if custom_password else generate_secure_portal_password()
 
         project = Project.objects.create(
             consultant=consultant,
@@ -745,3 +751,4 @@ class ProjectCreateSerializer(serializers.Serializer):
 
         project._raw_portal_password = raw_portal_password
         return project
+

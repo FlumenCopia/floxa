@@ -18,11 +18,13 @@ const initialFormData = {
   company: "",
   sector: "",
   value: "",
+  portal_password: "",
   advance: "40",
   mid: "30",
   final: "30",
   revisions: "2",
 };
+
 
 function StepIndicator({ done, active, step }) {
   if (done) {
@@ -98,6 +100,10 @@ function validateClientInfo(formData) {
     return "Project value must be a positive amount.";
   }
 
+  if (nextFormData.portal_password && nextFormData.portal_password.length < 6) {
+    return "Portal password must be at least 6 characters.";
+  }
+
   return "";
 }
 
@@ -122,10 +128,12 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
   const [createdPortalLink, setCreatedPortalLink] = useState("");
   const [projectCreateSuccess, setProjectCreateSuccess] = useState("");
   const [formData, setFormData] = useState(initialFormData);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [createdProjectId, setCreatedProjectId] = useState(null);
   const [isEmailFailed, setIsEmailFailed] = useState(false);
   const [isRetryingEmail, setIsRetryingEmail] = useState(false);
+
 
   const paymentTotal = useMemo(() => {
     return Number(formData.advance || 0) + Number(formData.mid || 0) + Number(formData.final || 0);
@@ -156,6 +164,7 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
     setCreatedProjectId(null);
     setIsEmailFailed(false);
     setIsRetryingEmail(false);
+    setShowPassword(false);
     onClose?.();
   };
 
@@ -210,11 +219,13 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
         company: nextFormData.company,
         sector: nextFormData.sector,
         value: nextFormData.value,
+        portal_password: nextFormData.portal_password,
         advance: nextFormData.advance,
         mid: nextFormData.mid,
         final: nextFormData.final,
         revisions: nextFormData.revisions,
       });
+
 
       const projectObj = createdProject.project || createdProject;
       const portalToken = projectObj.portal_token || projectObj.portalToken;
@@ -326,6 +337,35 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
                 <label className="form-label">Project value (Rs)</label>
                 <input className="form-input" type="text" value={formData.value} onChange={handleFieldChange("value")} />
               </div>
+              <div className="form-group">
+                <label className="form-label">Portal password (optional)</label>
+                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                  <input
+                    className="form-input"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Auto-generated if left blank"
+                    value={formData.portal_password}
+                    onChange={handleFieldChange("portal_password")}
+                    style={{ paddingRight: "60px" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    style={{
+                      position: "absolute",
+                      right: "10px",
+                      background: "transparent",
+                      border: "none",
+                      color: "#8cb0a1",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      fontWeight: "500",
+                    }}
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {projectCreateError ? <div className="project-wizard-note">{projectCreateError}</div> : null}
@@ -401,7 +441,12 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
                 <span>Value</span>
                 <strong>Rs{formData.value}</strong>
               </div>
+              <div className="project-review-row">
+                <span>Portal Password</span>
+                <strong>{formData.portal_password ? (showPassword ? formData.portal_password : "••••••••") : "(Auto-generated)"}</strong>
+              </div>
             </div>
+
 
             {projectCreateError ? <div className="project-wizard-note">{projectCreateError}</div> : null}
             {projectCreateSuccess ? <div className="project-wizard-note">{projectCreateSuccess}</div> : null}

@@ -153,11 +153,13 @@ def mask_email(email):
 
 
 def send_client_portal_invite(project, raw_portal_password=None):
-    portal_link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/client/{project.portal_token}"
+    base_url = getattr(settings, "CLIENT_PORTAL_BASE_URL", None) or getattr(settings, "FRONTEND_BASE_URL", "")
+    portal_link = f"{base_url.rstrip('/')}/client/{project.portal_token}"
     project_name = project.title or project.company_name
     subject = f"You have been invited to FLOXA – {project_name}"
 
     client_name = project.client.name or "Client"
+    client_email = project.client.email
     consultant_name = (
         getattr(project.consultant, "name", None)
         or getattr(project.consultant, "company", None)
@@ -175,8 +177,9 @@ def send_client_portal_invite(project, raw_portal_password=None):
         f"Hello {client_name},\n\n"
         f"{consultant_name} has invited you to collaborate on {project_name} on FLOXA.\n\n"
         f"Your Client Portal details:\n"
-        f"Portal link: {portal_link}\n"
-        f"Portal password: {pwd_text}\n\n"
+        f"Portal URL: {portal_link}\n"
+        f"Login Email: {client_email}\n"
+        f"Temporary Password: {pwd_text}\n\n"
         "Please keep this password private and do not share it outside your authorized project team.\n\n"
         f"If you have questions or require support, reply to this email or contact {sender}.\n\n"
         "Best regards,\n"
@@ -185,6 +188,7 @@ def send_client_portal_invite(project, raw_portal_password=None):
 
     escaped_project_name = escape(project_name)
     escaped_client_name = escape(client_name)
+    escaped_client_email = escape(client_email)
     escaped_consultant_name = escape(consultant_name)
     escaped_portal_link = escape(portal_link)
     escaped_password = escape(pwd_text)
@@ -223,17 +227,20 @@ def send_client_portal_invite(project, raw_portal_password=None):
       <a href="{escaped_portal_link}" class="btn" target="_blank" rel="noopener noreferrer">Access Client Portal</a>
     </div>
     <div class="text">
-      Portal Link: <br>
+      Portal URL: <br>
       <a href="{escaped_portal_link}" style="color: #38bdf8; word-break: break-all;">{escaped_portal_link}</a>
     </div>
+    <div class="text" style="margin-top: 12px;">
+      Login Email: <strong>{escaped_client_email}</strong>
+    </div>
     <div class="text" style="margin-top: 20px;">
-      Client Portal Password:
+      Temporary Password:
     </div>
     <div class="credentials-box">
       {escaped_password}
     </div>
     <div class="text" style="font-size: 13px; color: #fbbf24;">
-      &bull; Please keep this password private and do not share it outside your project team.
+      &bull; Please keep these credentials private and do not share them outside your project team.
     </div>
     <div class="note">
       If you have questions, reply to this email or contact support at {escaped_sender}.
@@ -1622,13 +1629,14 @@ class ProjectListCreateView(APIView):
         )
 
         if serializer.is_valid():
-            project = serializer.save()
-            raw_portal_password = getattr(project, "_raw_portal_password", None)
-            if hasattr(project, "_raw_portal_password"):
-                delattr(project, "_raw_portal_password")
+            with transaction.atomic():
+                project = serializer.save()
+                raw_portal_password = getattr(project, "_raw_portal_password", None)
+                if hasattr(project, "_raw_portal_password"):
+                    delattr(project, "_raw_portal_password")
 
-            response_serializer = ProjectSerializer(project)
-            project_data = response_serializer.data
+                response_serializer = ProjectSerializer(project)
+                project_data = response_serializer.data
 
             email_result = send_client_portal_invite_safely(project, raw_portal_password)
 
@@ -1651,6 +1659,8 @@ class ProjectListCreateView(APIView):
             )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 class ProjectInviteRetryView(APIView):

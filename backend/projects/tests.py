@@ -585,6 +585,53 @@ class ProjectCreationEmailDeliveryTests(TestCase):
         created_project = Project.objects.get(company_name="Acme Corp")
         self.assertEqual(created_project.client.email, "acme-client@example.com")
 
+    def test_project_creation_with_custom_portal_password(self):
+        payload = dict(self.payload)
+        payload["portal_password"] = "CustomPass123!"
+
+        response = self.api_client.post(self.url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.data["invite_email_sent"])
+        self.assertNotIn("portal_password", response.data)
+        self.assertNotIn("portal_password_hash", response.data)
+
+        project = Project.objects.get(company_name="Acme Corp")
+        self.assertTrue(check_password("CustomPass123!", project.portal_password_hash))
+        self.assertFalse(hasattr(project, "_raw_portal_password"))
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertIn("Portal URL:", email.body)
+        self.assertIn("Login Email: acme-client@example.com", email.body)
+        self.assertIn("Temporary Password: CustomPass123!", email.body)
+
+        html_content = email.alternatives[0][0]
+        self.assertIn("Login Email: <strong>acme-client@example.com</strong>", html_content)
+        self.assertIn("CustomPass123!", html_content)
+
+        # Test portal login with custom password
+        verify_url = reverse("client-portal-verify-password", kwargs={"portal_token": project.portal_token})
+        client_api = APIClient()
+
+        # Failed login with wrong password
+        fail_resp = client_api.post(verify_url, {"password": "WrongPassword!"}, format="json")
+        self.assertEqual(fail_resp.status_code, 400)
+
+        # Successful login with correct password
+        success_resp = client_api.post(verify_url, {"password": "CustomPass123!"}, format="json")
+        self.assertEqual(success_resp.status_code, 200)
+        self.assertTrue(success_resp.data.get("success"))
+
+    def test_project_creation_validates_min_password_length(self):
+        payload = dict(self.payload)
+        payload["portal_password"] = "12345"
+
+        response = self.api_client.post(self.url, payload, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("portal_password", response.data)
+
+
     def test_retry_endpoint_requires_auth_and_ownership(self):
         project = Project.objects.create(
             consultant=self.consultant,
