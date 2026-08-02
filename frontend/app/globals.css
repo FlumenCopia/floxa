@@ -7063,8 +7063,10 @@ textarea {
   .ai-chat-composer-hint {
     display: none;
   }
+}
 
 @media (max-width: 1024px) {
+
   .project-ai-modal {
     width: min(780px, 92vw);
     height: min(760px, 88dvh);
