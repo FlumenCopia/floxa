@@ -187,6 +187,7 @@ EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=10, cast=int)
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@floxa.local")
 FRONTEND_BASE_URL = config("FRONTEND_BASE_URL", default="https://floxa-frontend-test-lyart.vercel.app")
 CLIENT_PORTAL_BASE_URL = config("CLIENT_PORTAL_BASE_URL", default=config("FRONTEND_BASE_URL", default="https://floxa-frontend-test-lyart.vercel.app"))
+GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
 
 if EMAIL_USE_TLS and EMAIL_USE_SSL:
     raise ImproperlyConfigured("EMAIL_USE_TLS and EMAIL_USE_SSL cannot both be True.")

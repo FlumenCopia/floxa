@@ -10,7 +10,10 @@ import { showError, showSuccess } from "../../src/lib/toast";
 
 
 
+import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
+
 export default function RegisterPage() {
+
 
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -124,8 +127,12 @@ export default function RegisterPage() {
           <button className="btn btn-primary btn-full btn-lg" type="submit" disabled={isLoading}>
             {isLoading ? "Creating account..." : "Create account"}
           </button>
-        
         </form>
+
+        <div className="login-divider">or</div>
+
+        <GoogleSignInButton label="Continue with Google" />
+
         <div className="auth-switch">
           <span>Already have an account?</span>
           <Link href="/login" className="signup-link">

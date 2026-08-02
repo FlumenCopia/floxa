@@ -1,5 +1,7 @@
+from unittest.mock import patch
 from django.conf import settings
 from django.contrib.auth import get_user_model
+
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -396,6 +398,82 @@ class AuthenticationArchitectureRegressionTests(TestCase):
             HTTP_REFERER="https://floxa-frontend-test-lyart.vercel.app/activity",
         )
         self.assertEqual(activities_res.status_code, 200)
+
+
+class GoogleAuthenticationTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.url = reverse("google_auth")
+
+    @patch("google.oauth2.id_token.verify_oauth2_token")
+    def test_new_google_user_creation_and_login(self, mock_verify):
+        mock_verify.return_value = {
+            "iss": "https://accounts.google.com",
+            "email": "new_google_user@example.com",
+            "email_verified": True,
+            "name": "New Google User",
+        }
+
+        response = self.client.post(self.url, {"credential": "mock_valid_token"}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        self.assertEqual(response.data["consultant"]["email"], "new_google_user@example.com")
+        self.assertEqual(response.data["consultant"]["name"], "New Google User")
+
+        # Verify consultant in DB
+        consultant = User.objects.get(email="new_google_user@example.com")
+        self.assertEqual(consultant.name, "New Google User")
+        self.assertFalse(consultant.has_usable_password())
+        self.assertTrue(consultant.is_active)
+
+        # Verify auth cookies set
+        self.assertIn(settings.AUTH_ACCESS_COOKIE_NAME, response.cookies)
+        self.assertIn(settings.AUTH_REFRESH_COOKIE_NAME, response.cookies)
+
+    @patch("google.oauth2.id_token.verify_oauth2_token")
+    def test_existing_google_user_login_preserves_password(self, mock_verify):
+        existing_user = User.objects.create_user(
+            email="existing_user@example.com",
+            name="Existing User",
+            password="MySecretPassword123!",
+        )
+
+        mock_verify.return_value = {
+            "iss": "accounts.google.com",
+            "email": "existing_user@example.com",
+            "email_verified": True,
+            "name": "Google Name Ignored",
+        }
+
+        response = self.client.post(self.url, {"credential": "mock_valid_token"}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(User.objects.filter(email="existing_user@example.com").count(), 1)
+
+        # Verify password preserved
+        existing_user.refresh_from_db()
+        self.assertTrue(existing_user.check_password("MySecretPassword123!"))
+        self.assertTrue(existing_user.has_usable_password())
+
+    @patch("google.oauth2.id_token.verify_oauth2_token")
+    def test_unverified_email_rejected(self, mock_verify):
+        mock_verify.return_value = {
+            "iss": "https://accounts.google.com",
+            "email": "unverified@example.com",
+            "email_verified": False,
+            "name": "Unverified User",
+        }
+
+        response = self.client.post(self.url, {"credential": "mock_token"}, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("detail", response.data)
+
+    def test_missing_credential_rejected(self):
+        response = self.client.post(self.url, {}, format="json")
+        self.assertEqual(response.status_code, 400)
+
 
 
 

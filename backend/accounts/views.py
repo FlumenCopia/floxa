@@ -10,7 +10,12 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenBackendError, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import ConsultantLoginSerializer, ConsultantRegisterSerializer, ConsultantSerializer
+from .serializers import (
+    ConsultantLoginSerializer,
+    ConsultantRegisterSerializer,
+    ConsultantSerializer,
+    GoogleAuthSerializer,
+)
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -88,6 +93,45 @@ class ConsultantLoginView(APIView):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+class ConsultantGoogleAuthView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = GoogleAuthSerializer(data=request.data)
+
+        if serializer.is_valid():
+            response = Response(
+                serializer.validated_data,
+                status=status.HTTP_200_OK,
+            )
+
+            response.set_cookie(
+                settings.AUTH_ACCESS_COOKIE_NAME,
+                serializer.validated_data["access"],
+                httponly=settings.AUTH_COOKIE_HTTP_ONLY,
+                secure=settings.AUTH_COOKIE_SECURE,
+                samesite=settings.AUTH_COOKIE_SAMESITE,
+                path=settings.AUTH_COOKIE_PATH,
+            )
+            response.set_cookie(
+                settings.AUTH_REFRESH_COOKIE_NAME,
+                serializer.validated_data["refresh"],
+                httponly=settings.AUTH_COOKIE_HTTP_ONLY,
+                secure=settings.AUTH_COOKIE_SECURE,
+                samesite=settings.AUTH_COOKIE_SAMESITE,
+                path=settings.AUTH_COOKIE_PATH,
+            )
+
+            return response
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
 
 
 class ConsultantTokenRefreshView(APIView):

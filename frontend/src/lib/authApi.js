@@ -44,6 +44,15 @@ export async function loginConsultant(data) {
   });
 }
 
+export async function googleAuthConsultant(credential) {
+  clearCurrentConsultantCache();
+  return apiRequest("/auth/google/", {
+    method: "POST",
+    body: JSON.stringify({ credential }),
+  });
+}
+
+
 export async function getCurrentConsultant(forceRefresh = false) {
   if (!forceRefresh && cachedConsultant) {
     return cachedConsultant;
