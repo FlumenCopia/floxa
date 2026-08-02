@@ -2771,14 +2771,24 @@ function AIChatbotPanel({ project, onClose }) {
               onClick={clearConversation}
               disabled={messages.length === 0 && !draft}
             >
-              Clear conversation
+              Clear
             </button>
             {onClose ? (
-              <button className="project-ai-chat-close-btn" type="button" onClick={onClose} aria-label="Close assistant">
-                Close
+              <button
+                className="project-ai-chat-close-btn"
+                type="button"
+                onClick={onClose}
+                aria-label="Close assistant"
+                title="Close assistant"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             ) : null}
           </div>
+
         </div>
 
         <div className="ai-chat-scroll-area project-ai-chat-scroll">
@@ -2869,9 +2879,14 @@ function AIChatbotPanel({ project, onClose }) {
               rows={1}
               maxLength={700}
             />
-            <button type="button" onClick={() => submitMessage()} disabled={!canSend}>
-              Send
+            <button type="button" onClick={() => submitMessage()} disabled={!canSend} aria-label="Send message">
+              <span className="send-btn-label">Send</span>
+              <svg className="send-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
             </button>
+
           </div>
           <div className="ai-chat-composer-hint">Enter to send - Shift+Enter for a new line</div>
         </div>
