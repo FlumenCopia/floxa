@@ -1,7 +1,20 @@
+import secrets
+import string
 import uuid
 from pathlib import Path
 from django.contrib.auth.hashers import make_password
 from rest_framework import serializers
+
+def generate_secure_portal_password(length=14):
+    allowed = "23456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ"
+    while True:
+        password = "".join(secrets.choice(allowed) for _ in range(length))
+        if (
+            any(c.islower() for c in password)
+            and any(c.isupper() for c in password)
+            and any(c.isdigit() for c in password)
+        ):
+            return password
 from .models import (
     Agreement,
     BrandDNA,
@@ -680,7 +693,7 @@ class ProjectCreateSerializer(serializers.Serializer):
     company = serializers.CharField(max_length=255)
     sector = serializers.CharField(max_length=100)
     value = serializers.DecimalField(max_digits=12, decimal_places=2)
-    portal_password = serializers.CharField(write_only=True, min_length=8)
+    portal_password = serializers.CharField(write_only=True, required=False, allow_blank=True, default="")
     advance = serializers.IntegerField(required=False, default=50, min_value=0, max_value=100)
     mid = serializers.IntegerField(required=False, default=25, min_value=0, max_value=100)
     final = serializers.IntegerField(required=False, default=25, min_value=0, max_value=100)
@@ -712,6 +725,8 @@ class ProjectCreateSerializer(serializers.Serializer):
             sector=validated_data["sector"],
         )
 
+        raw_portal_password = generate_secure_portal_password()
+
         project = Project.objects.create(
             consultant=consultant,
             client=client,
@@ -719,7 +734,7 @@ class ProjectCreateSerializer(serializers.Serializer):
             company_name=validated_data["company"],
             sector=validated_data["sector"],
             project_value=validated_data["value"],
-            portal_password_hash=make_password(validated_data["portal_password"]),
+            portal_password_hash=make_password(raw_portal_password),
             advance_percentage=validated_data["advance"],
             mid_percentage=validated_data["mid"],
             final_percentage=validated_data["final"],
@@ -728,4 +743,5 @@ class ProjectCreateSerializer(serializers.Serializer):
             progress=5,
         )
 
+        project._raw_portal_password = raw_portal_password
         return project

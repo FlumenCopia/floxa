@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createProject } from "../../src/lib/projectApi";
+import { createProject, retryProjectInvite } from "../../src/lib/projectApi";
 import { showError, showSuccess } from "../../src/lib/toast";
 
 const paymentFields = ["advance", "mid", "final"];
@@ -18,7 +18,6 @@ const initialFormData = {
   company: "",
   sector: "",
   value: "",
-  portalPassword: "",
   advance: "40",
   mid: "30",
   final: "30",
@@ -86,8 +85,7 @@ function validateClientInfo(formData) {
     !nextFormData.email ||
     !nextFormData.company ||
     !nextFormData.sector ||
-    !nextFormData.value ||
-    !nextFormData.portalPassword
+    !nextFormData.value
   ) {
     return "Please complete all project fields.";
   }
@@ -98,10 +96,6 @@ function validateClientInfo(formData) {
 
   if (!/^\d+(\.\d{1,2})?$/.test(nextFormData.value) || Number(nextFormData.value) <= 0) {
     return "Project value must be a positive amount.";
-  }
-
-  if (nextFormData.portalPassword.length < 8) {
-    return "Portal password must be at least 8 characters.";
   }
 
   return "";
@@ -129,6 +123,10 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
   const [projectCreateSuccess, setProjectCreateSuccess] = useState("");
   const [formData, setFormData] = useState(initialFormData);
 
+  const [createdProjectId, setCreatedProjectId] = useState(null);
+  const [isEmailFailed, setIsEmailFailed] = useState(false);
+  const [isRetryingEmail, setIsRetryingEmail] = useState(false);
+
   const paymentTotal = useMemo(() => {
     return Number(formData.advance || 0) + Number(formData.mid || 0) + Number(formData.final || 0);
   }, [formData.advance, formData.final, formData.mid]);
@@ -155,6 +153,9 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
     setProjectCreateError("");
     setProjectCreateSuccess("");
     setCreatedPortalLink("");
+    setCreatedProjectId(null);
+    setIsEmailFailed(false);
+    setIsRetryingEmail(false);
     onClose?.();
   };
 
@@ -209,14 +210,14 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
         company: nextFormData.company,
         sector: nextFormData.sector,
         value: nextFormData.value,
-        portal_password: nextFormData.portalPassword,
         advance: nextFormData.advance,
         mid: nextFormData.mid,
         final: nextFormData.final,
         revisions: nextFormData.revisions,
       });
 
-      const portalToken = createdProject.portal_token || createdProject.portalToken;
+      const projectObj = createdProject.project || createdProject;
+      const portalToken = projectObj.portal_token || projectObj.portalToken;
 
       if (!portalToken) {
         throw new Error("Project was created, but no client portal token was returned.");
@@ -228,9 +229,22 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
 
       onProjectCreated?.(createdProject);
       setCreatedPortalLink(portalLink);
-      setProjectCreateSuccess("Client portal link copied.");
-      showSuccess("Client portal link copied.");
-      handleCloseWizard();
+
+      const emailSent = createdProject.invite_email_sent !== false && createdProject.invite_email_status !== "failed";
+
+      if (emailSent) {
+        const msg = `Project created and invitation email sent to ${nextFormData.email}.`;
+        setProjectCreateSuccess(msg);
+        showSuccess(msg);
+        setIsEmailFailed(false);
+        handleCloseWizard();
+      } else {
+        const failMsg = createdProject.invite_email_detail || "Project created, but the invitation email could not be sent.";
+        setProjectCreateError(failMsg);
+        showError(failMsg);
+        setCreatedProjectId(projectObj.id);
+        setIsEmailFailed(true);
+      }
     } catch (error) {
       console.error("Failed to create project:", error);
       const message = getCreateProjectError(error);
@@ -238,6 +252,33 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
       showError(message);
     } finally {
       setIsCreatingProject(false);
+    }
+  };
+
+  const handleRetryInvite = async () => {
+    if (!createdProjectId || isRetryingEmail) return;
+    setIsRetryingEmail(true);
+    setProjectCreateError("");
+    setProjectCreateSuccess("");
+
+    try {
+      const res = await retryProjectInvite(createdProjectId);
+      if (res.invite_email_sent) {
+        const msg = `Invitation email sent to ${formData.email}.`;
+        setProjectCreateSuccess(msg);
+        showSuccess(msg);
+        setIsEmailFailed(false);
+      } else {
+        const failMsg = res.detail || "The invitation email could not be sent. Please try again.";
+        setProjectCreateError(failMsg);
+        showError(failMsg);
+      }
+    } catch (error) {
+      const failMsg = error?.detail || error?.message || "The invitation email could not be sent. Please try again.";
+      setProjectCreateError(failMsg);
+      showError(failMsg);
+    } finally {
+      setIsRetryingEmail(false);
     }
   };
 
@@ -284,16 +325,6 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
               <div className="form-group">
                 <label className="form-label">Project value (Rs)</label>
                 <input className="form-input" type="text" value={formData.value} onChange={handleFieldChange("value")} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Portal Password</label>
-                <input
-                  autoComplete="new-password"
-                  className="form-input"
-                  type="password"
-                  value={formData.portalPassword}
-                  onChange={handleFieldChange("portalPassword")}
-                />
               </div>
             </div>
 
@@ -377,12 +408,30 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
             {createdPortalLink ? <div className="project-wizard-note">Client portal link: {createdPortalLink}</div> : null}
 
             <div className="project-wizard-actions">
-              <button className="project-text-btn" type="button" onClick={() => setWizardStep(2)}>
-                {"<- Back"}
-              </button>
-              <button className="btn btn-primary project-wizard-btn" type="button" onClick={handleCreateProject} disabled={isCreatingProject}>
-                {isCreatingProject ? "Creating..." : "Create & send link"}
-              </button>
+              {!isEmailFailed ? (
+                <>
+                  <button className="project-text-btn" type="button" onClick={() => setWizardStep(2)}>
+                    {"<- Back"}
+                  </button>
+                  <button className="btn btn-primary project-wizard-btn" type="button" onClick={handleCreateProject} disabled={isCreatingProject}>
+                    {isCreatingProject ? "Creating..." : "Create & send link"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="project-text-btn" type="button" onClick={handleCloseWizard}>
+                    Close
+                  </button>
+                  <button
+                    className="btn btn-secondary project-wizard-btn"
+                    type="button"
+                    onClick={handleRetryInvite}
+                    disabled={isRetryingEmail}
+                  >
+                    {isRetryingEmail ? "Sending..." : "Retry invitation"}
+                  </button>
+                </>
+              )}
             </div>
           </>
         ) : null}

@@ -201,6 +201,12 @@ export async function retrySignedAgreementEmail(projectId) {
   });
 }
 
+export async function retryProjectInvite(projectId) {
+  return apiRequest(`/projects/${projectId}/invite/retry/`, {
+    method: "POST",
+  });
+}
+
 export async function getGeneratedAgreement(projectId) {
   return apiRequest(`/projects/${projectId}/generated-agreement/`);
 }

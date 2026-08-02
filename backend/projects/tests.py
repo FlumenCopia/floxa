@@ -5,6 +5,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.conf import settings
+from django.core import mail
 from django.db import IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -536,37 +537,128 @@ class ProjectCreationEmailDeliveryTests(TestCase):
             "company": "Acme Corp",
             "sector": "Branding",
             "value": "15000.00",
-            "portal_password": "SecurePassword123!",
             "advance": 50,
             "mid": 25,
             "final": 25,
             "revisions": "3 revisions",
         }
 
-    @patch("projects.views.send_mail")
-    def test_project_creation_sends_email_synchronously_to_client_email(self, mock_send_mail):
+    def test_project_creation_generates_password_hash_and_sends_email(self):
         response = self.api_client.post(self.url, self.payload, format="json")
 
         self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.data["invite_email_sent"])
+        self.assertEqual(response.data["invite_email_status"], "sent")
         self.assertNotIn("portal_password", response.data)
-        mock_send_mail.assert_called_once()
+        self.assertNotIn("portal_password", response.data.get("project", {}))
 
-        args, kwargs = mock_send_mail.call_args
-        self.assertEqual(args[3], ["acme-client@example.com"])
-        self.assertIn("Your FLOXA portal is ready for Acme Corp", args[0])
-        self.assertIn("SecurePassword123!", args[1])
+        project = Project.objects.get(company_name="Acme Corp")
+        self.assertTrue(project.portal_password_hash.startswith("pbkdf2_"))
+        self.assertFalse(hasattr(project, "_raw_portal_password"))
 
-    @patch("projects.views.send_mail", side_effect=Exception("SMTP Connection Error"))
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, ["acme-client@example.com"])
+        self.assertIn("You have been invited to FLOXA – Acme Corp", email.subject)
+        self.assertIn("Acme Client", email.body)
+        self.assertIn("Acme Corp", email.body)
+        self.assertIn(f"/client/{project.portal_token}", email.body)
+
+        self.assertEqual(len(email.alternatives), 1)
+        html_content = email.alternatives[0][0]
+        self.assertIn(f"/client/{project.portal_token}", html_content)
+
+    @patch("projects.views.send_client_portal_invite", side_effect=Exception("SMTP Connection Error"))
     def test_smtp_failure_does_not_prevent_project_creation_or_duplicate_projects(self, mock_send_mail):
         initial_count = Project.objects.count()
 
         response = self.api_client.post(self.url, self.payload, format="json")
 
         self.assertEqual(response.status_code, 201)
+        self.assertFalse(response.data["invite_email_sent"])
+        self.assertEqual(response.data["invite_email_status"], "failed")
+        self.assertEqual(
+            response.data["invite_email_detail"],
+            "Project created, but the invitation email could not be sent.",
+        )
         self.assertEqual(Project.objects.count(), initial_count + 1)
-        created_project = Project.objects.get(id=response.data["id"])
-        self.assertEqual(created_project.company_name, "Acme Corp")
+        created_project = Project.objects.get(company_name="Acme Corp")
         self.assertEqual(created_project.client.email, "acme-client@example.com")
+
+    def test_retry_endpoint_requires_auth_and_ownership(self):
+        project = Project.objects.create(
+            consultant=self.consultant,
+            client=Client.objects.create(name="Client 1", email="c1@example.com", company_name="C1", sector="Tech"),
+            title="C1",
+            company_name="C1",
+            sector="Tech",
+            project_value=10000,
+            portal_password_hash="oldhash",
+        )
+        retry_url = reverse("project-invite-retry", kwargs={"project_id": project.id})
+
+        unauth_client = APIClient()
+        unauth_resp = unauth_client.post(retry_url)
+        self.assertEqual(unauth_resp.status_code, 401)
+
+        other_user = Consultant.objects.create_user(email="other@example.com", name="Other User", password="password123")
+        self.api_client.force_authenticate(user=other_user)
+        other_resp = self.api_client.post(retry_url)
+        self.assertEqual(other_resp.status_code, 404)
+
+    def test_retry_creates_new_password_invalidates_old_and_sends_email(self):
+        project = Project.objects.create(
+            consultant=self.consultant,
+            client=Client.objects.create(name="Retry Client", email="retry@example.com", company_name="Retry Co", sector="Tech"),
+            title="Retry Co",
+            company_name="Retry Co",
+            sector="Tech",
+            project_value=10000,
+            portal_password_hash="oldhash123",
+        )
+        retry_url = reverse("project-invite-retry", kwargs={"project_id": project.id})
+
+        mail.outbox = []
+        response = self.api_client.post(retry_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["invite_email_sent"])
+        self.assertEqual(response.data["invite_email_status"], "sent")
+        self.assertNotIn("portal_password", response.data)
+
+        project.refresh_from_db()
+        self.assertNotEqual(project.portal_password_hash, "oldhash123")
+        self.assertTrue(project.portal_password_hash.startswith("pbkdf2_"))
+
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, ["retry@example.com"])
+        self.assertIn("Retry Co", email.subject)
+
+    @patch("projects.views.send_client_portal_invite", side_effect=Exception("SMTP Down"))
+    def test_retry_smtp_failure_returns_controlled_503(self, mock_send_mail):
+        project = Project.objects.create(
+            consultant=self.consultant,
+            client=Client.objects.create(name="Fail Client", email="fail@example.com", company_name="Fail Co", sector="Tech"),
+            title="Fail Co",
+            company_name="Fail Co",
+            sector="Tech",
+            project_value=10000,
+            portal_password_hash="oldhash456",
+        )
+        initial_project_count = Project.objects.count()
+        retry_url = reverse("project-invite-retry", kwargs={"project_id": project.id})
+
+        response = self.api_client.post(retry_url)
+
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(response.data["invite_email_sent"])
+        self.assertEqual(response.data["invite_email_status"], "failed")
+        self.assertEqual(
+            response.data["detail"],
+            "The invitation email could not be sent. Please try again.",
+        )
+        self.assertEqual(Project.objects.count(), initial_project_count)
 
 
     def test_moodboard_prompt_preserves_brand_dna_when_context_is_large(self):

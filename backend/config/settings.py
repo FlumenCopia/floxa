@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from corsheaders.defaults import default_headers
 from decouple import Csv, config
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -174,15 +175,31 @@ STORAGES = {
 
 AUTH_USER_MODEL = "accounts.Consultant"
 
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = config("EMAIL_HOST", default="")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 _raw_email_pass = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_HOST_PASSWORD = _raw_email_pass.replace(" ", "").strip()
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
 EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=10, cast=int)
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@floxa.local")
 FRONTEND_BASE_URL = config("FRONTEND_BASE_URL", default="https://floxa-frontend-test-lyart.vercel.app")
+
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ImproperlyConfigured("EMAIL_USE_TLS and EMAIL_USE_SSL cannot both be True.")
+
+if not DEBUG and EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend":
+    missing_smtp = []
+    if not EMAIL_HOST:
+        missing_smtp.append("EMAIL_HOST")
+    if not EMAIL_HOST_USER:
+        missing_smtp.append("EMAIL_HOST_USER")
+    if not EMAIL_HOST_PASSWORD:
+        missing_smtp.append("EMAIL_HOST_PASSWORD")
+    if missing_smtp:
+        raise ImproperlyConfigured(f"Missing required SMTP configuration for production: {', '.join(missing_smtp)}")
 
 RAZORPAY_KEY_ID = config("RAZORPAY_KEY_ID", default="")
 RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET", default="")

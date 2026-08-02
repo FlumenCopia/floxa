@@ -13,9 +13,9 @@ from vercel.blob.errors import BlobError, BlobNotFoundError
 
 from django.http import FileResponse, Http404
 from django.conf import settings
-from django.core.files.base import ContentFile
-from django.core.mail import EmailMessage, send_mail
-from django.contrib.auth.hashers import check_password
+from django.core.mail import EmailMessage, EmailMultiAlternatives, send_mail
+from django.contrib.auth.hashers import check_password, make_password
+from django.utils.html import escape
 from django.core import signing
 from django.db import IntegrityError, transaction
 from django.db.models import Avg, Count, Q, Sum
@@ -81,6 +81,7 @@ from .serializers import (
     ProjectCreateSerializer,
     ProjectDiscoverySerializer,
     ProjectSerializer,
+    generate_secure_portal_password,
 )
 from .progress import calculate_project_progress, calculate_project_workflow_status
 from .razorpay_service import (
@@ -139,40 +140,127 @@ class ClientPortalAccessPermission(BasePermission):
         return is_verified_client_portal_access(request, portal_token)
 
 
+def mask_email(email):
+    if not email or "@" not in str(email):
+        return "***"
+    email_str = str(email)
+    local, domain = email_str.rsplit("@", 1)
+    if len(local) <= 2:
+        masked_local = local[0] + "*"
+    else:
+        masked_local = local[0] + "*" * (len(local) - 2) + local[-1]
+    return f"{masked_local}@{domain}"
+
+
 def send_client_portal_invite(project, raw_portal_password=None):
     portal_link = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/client/{project.portal_token}"
-    subject = f"Your FLOXA portal is ready for {project.company_name}"
-    password_note = (
-        f"Temporary portal password: {raw_portal_password}\n"
-        if raw_portal_password
-        else "Use the portal password provided during your project onboarding.\n"
+    project_name = project.title or project.company_name
+    subject = f"You have been invited to FLOXA – {project_name}"
+
+    client_name = project.client.name or "Client"
+    consultant_name = (
+        getattr(project.consultant, "name", None)
+        or getattr(project.consultant, "company", None)
+        or getattr(project.consultant, "email", "Consultant")
     )
-    message = (
-        f"Hello {project.client.name},\n\n"
-        f"Your project workspace is ready.\n\n"
-        f"Project: {project.company_name}\n"
-        f"Portal link: {portal_link}\n"
-        f"{password_note}\n"
-        "Please keep this password private and do not share it outside your project team.\n\n"
-        "FLOXA"
+    sender = settings.DEFAULT_FROM_EMAIL
+
+    pwd_text = (
+        raw_portal_password
+        if raw_portal_password
+        else "Use the portal password provided during your project onboarding."
     )
 
-    sent_count = send_mail(
-        subject,
-        message,
-        settings.DEFAULT_FROM_EMAIL,
-        [project.client.email],
-        fail_silently=False,
+    plain_message = (
+        f"Hello {client_name},\n\n"
+        f"{consultant_name} has invited you to collaborate on {project_name} on FLOXA.\n\n"
+        f"Your Client Portal details:\n"
+        f"Portal link: {portal_link}\n"
+        f"Portal password: {pwd_text}\n\n"
+        "Please keep this password private and do not share it outside your authorized project team.\n\n"
+        f"If you have questions or require support, reply to this email or contact {sender}.\n\n"
+        "Best regards,\n"
+        "FLOXA Team"
     )
+
+    escaped_project_name = escape(project_name)
+    escaped_client_name = escape(client_name)
+    escaped_consultant_name = escape(consultant_name)
+    escaped_portal_link = escape(portal_link)
+    escaped_password = escape(pwd_text)
+    escaped_sender = escape(sender)
+
+    html_message = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 40px 20px; }}
+    .container {{ max-width: 580px; margin: 0 auto; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 32px; }}
+    .header {{ margin-bottom: 24px; text-align: center; }}
+    .logo {{ font-size: 24px; font-weight: 700; color: #38bdf8; letter-spacing: 1px; }}
+    .title {{ font-size: 20px; font-weight: 600; color: #f8fafc; margin-top: 12px; margin-bottom: 8px; }}
+    .text {{ font-size: 15px; line-height: 1.6; color: #cbd5e1; margin-bottom: 16px; }}
+    .credentials-box {{ background-color: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin: 20px 0; font-family: monospace; font-size: 16px; color: #38bdf8; letter-spacing: 1px; }}
+    .btn-container {{ text-align: center; margin: 28px 0; }}
+    .btn {{ display: inline-block; background-color: #0284c7; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; }}
+    .note {{ font-size: 13px; color: #94a3b8; margin-top: 24px; border-top: 1px solid #334155; padding-top: 16px; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">FLOXA</div>
+      <div class="title">You have been invited to FLOXA &ndash; {escaped_project_name}</div>
+    </div>
+    <div class="text">
+      Hello <strong>{escaped_client_name}</strong>,
+    </div>
+    <div class="text">
+      <strong>{escaped_consultant_name}</strong> has invited you to access your project portal for <strong>{escaped_project_name}</strong>.
+    </div>
+    <div class="btn-container">
+      <a href="{escaped_portal_link}" class="btn" target="_blank" rel="noopener noreferrer">Access Client Portal</a>
+    </div>
+    <div class="text">
+      Portal Link: <br>
+      <a href="{escaped_portal_link}" style="color: #38bdf8; word-break: break-all;">{escaped_portal_link}</a>
+    </div>
+    <div class="text" style="margin-top: 20px;">
+      Client Portal Password:
+    </div>
+    <div class="credentials-box">
+      {escaped_password}
+    </div>
+    <div class="text" style="font-size: 13px; color: #fbbf24;">
+      &bull; Please keep this password private and do not share it outside your project team.
+    </div>
+    <div class="note">
+      If you have questions, reply to this email or contact support at {escaped_sender}.
+    </div>
+  </div>
+</body>
+</html>"""
+
+    email_msg = EmailMultiAlternatives(
+        subject=subject,
+        body=plain_message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[project.client.email],
+    )
+    email_msg.attach_alternative(html_message, "text/html")
+    sent_count = email_msg.send(fail_silently=False)
     return bool(sent_count)
 
 
 def send_client_portal_invite_safely(project, raw_portal_password=None):
+    masked_recipient = mask_email(getattr(getattr(project, "client", None), "email", ""))
     try:
         sent = send_client_portal_invite(project, raw_portal_password)
         logger.info(
-            "[Client Portal Invite] project_id=%s, exception_class=None, status_code=200, provider_accepted=%s",
+            "[Client Portal Invite] project_id=%s, recipient=%s, exception_class=None, status_code=200, provider_accepted=%s",
             project.id,
+            masked_recipient,
             sent,
         )
         return {
@@ -182,8 +270,9 @@ def send_client_portal_invite_safely(project, raw_portal_password=None):
     except Exception as exc:
         status_code = getattr(exc, "smtp_code", getattr(exc, "code", None))
         logger.exception(
-            "[Client Portal Invite Failed] project_id=%s, exception_class=%s, status_code=%s, provider_accepted=False",
+            "[Client Portal Invite Failed] project_id=%s, recipient=%s, exception_class=%s, status_code=%s, provider_accepted=False",
             project.id,
+            masked_recipient,
             exc.__class__.__name__,
             status_code,
         )
@@ -1533,14 +1622,28 @@ class ProjectListCreateView(APIView):
         )
 
         if serializer.is_valid():
-            raw_portal_password = serializer.validated_data["portal_password"]
             project = serializer.save()
+            raw_portal_password = getattr(project, "_raw_portal_password", None)
+            if hasattr(project, "_raw_portal_password"):
+                delattr(project, "_raw_portal_password")
+
             response_serializer = ProjectSerializer(project)
-            response_data = response_serializer.data
+            project_data = response_serializer.data
 
             email_result = send_client_portal_invite_safely(project, raw_portal_password)
-            response_data["invite_email_sent"] = email_result["sent"]
-            response_data["invite_email_status"] = email_result["status"]
+
+            response_data = {
+                "project": project_data,
+                "invite_email_sent": email_result["sent"],
+                "invite_email_status": email_result["status"],
+            }
+
+            for key, val in project_data.items():
+                if key not in response_data:
+                    response_data[key] = val
+
+            if not email_result["sent"]:
+                response_data["invite_email_detail"] = "Project created, but the invitation email could not be sent."
 
             return Response(
                 response_data,
@@ -1556,7 +1659,7 @@ class ProjectInviteRetryView(APIView):
     def post(self, request, project_id):
         try:
             try:
-                project = Project.objects.select_related("client").get(
+                project = Project.objects.select_related("client", "consultant").get(
                     id=project_id,
                     consultant=request.user,
                 )
@@ -1566,20 +1669,42 @@ class ProjectInviteRetryView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            email_result = send_client_portal_invite_safely(project, raw_portal_password=None)
+            new_portal_password = generate_secure_portal_password()
+            project.portal_password_hash = make_password(new_portal_password)
+            project.save(update_fields=["portal_password_hash"])
 
+            email_result = send_client_portal_invite_safely(project, new_portal_password)
+
+            if email_result["sent"]:
+                return Response(
+                    {
+                        "invite_email_sent": True,
+                        "invite_email_status": "sent",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return Response(
+                    {
+                        "invite_email_sent": False,
+                        "invite_email_status": "failed",
+                        "detail": "The invitation email could not be sent. Please try again.",
+                    },
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+        except Exception as exc:
+            logger.exception(
+                "[ProjectInviteRetryView Exception] project_id=%s, exception_class=%s",
+                project_id,
+                exc.__class__.__name__,
+            )
             return Response(
                 {
-                    "project_id": project.id,
-                    "email_sent": email_result["sent"],
-                    "status": email_result["status"],
+                    "invite_email_sent": False,
+                    "invite_email_status": "failed",
+                    "detail": "The invitation email could not be sent. Please try again.",
                 },
-                status=status.HTTP_200_OK,
-            )
-        except Exception as exc:
-            return Response(
-                {"detail": str(exc), "error_type": exc.__class__.__name__},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
 
