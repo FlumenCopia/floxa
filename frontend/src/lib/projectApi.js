@@ -6,6 +6,8 @@ import {
   getCsrfToken,
   parseApiResponse,
 } from "./api.js";
+import { compressImageBeforeUpload } from "./imageCompressor.js";
+
 
 const statusLabels = {
   created: "Created",
@@ -469,20 +471,42 @@ export async function markPaymentMilestonePaid(projectId, milestoneId) {
   });
 }
 
+async function processFormDataFiles(formData) {
+  if (!formData || !(formData instanceof FormData)) {
+    return formData;
+  }
+
+  const processedFormData = new FormData();
+
+  for (const [key, value] of formData.entries()) {
+    if (value instanceof File) {
+      const compressedFile = await compressImageBeforeUpload(value);
+      processedFormData.append(key, compressedFile);
+    } else {
+      processedFormData.append(key, value);
+    }
+  }
+
+  return processedFormData;
+}
+
 async function uploadProjectFormData(endpoint, formData, method = "POST") {
   await ensureCsrfCookie();
 
+  const compressedFormData = await processFormDataFiles(formData);
+
   const csrfToken = getCsrfToken();
   const headers = csrfToken ? { "X-CSRFToken": csrfToken } : {};
-  let response = await uploadProjectFormDataRequest(endpoint, formData, headers, method);
+  let response = await uploadProjectFormDataRequest(endpoint, compressedFormData, headers, method);
 
   if (response.status === 401) {
     const refreshed = await refreshCookieSession();
 
     if (refreshed) {
-      response = await uploadProjectFormDataRequest(endpoint, formData, headers, method);
+      response = await uploadProjectFormDataRequest(endpoint, compressedFormData, headers, method);
     }
   }
 
   return parseApiResponse(response);
 }
+

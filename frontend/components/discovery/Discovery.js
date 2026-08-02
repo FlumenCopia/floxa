@@ -40,6 +40,8 @@ import {
   uploadDeliverable,
   uploadMoodboard,
 } from "../../src/lib/projectApi";
+import { compressImageBeforeUpload } from "../../src/lib/imageCompressor";
+
 
 const discoveryTabs = [
   "Overview",
@@ -1016,6 +1018,7 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
   const [moodboards, setMoodboards] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [statusText, setStatusText] = useState("");
   const [error, setError] = useState("");
   const imageInputRef = useRef(null);
   const [form, setForm] = useState({
@@ -1024,31 +1027,6 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
     image: null,
   });
 
-  const loadMoodboards = useCallback(async () => {
-    if (!projectId) {
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const data = await getMoodboards(projectId);
-      setMoodboards(Array.isArray(data) ? data : []);
-    } catch (loadError) {
-      console.error("Failed to load moodboards:", loadError);
-      setMoodboards([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    const load = async () => {
-      await loadMoodboards();
-    };
-
-    load();
-  }, [loadMoodboards]);
 
   async function handleUpload(event) {
     event.preventDefault();
@@ -1067,6 +1045,7 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
     formData.append("image", form.image);
 
     setSaving(true);
+    setStatusText("Preparing image...");
     setError("");
 
     try {
@@ -1090,8 +1069,10 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
       showError(message);
     } finally {
       setSaving(false);
+      setStatusText("");
     }
   }
+
 
   function handleClearMoodboardImage() {
     setForm((current) => ({ ...current, image: null }));
@@ -1167,7 +1148,7 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
           ) : null}
           <div className="discovery-moodboard-actions">
             <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
-              {saving ? "Uploading..." : "+ Upload moodboard"}
+              {saving ? (statusText || "Uploading...") : "+ Upload moodboard"}
             </button>
           </div>
         </form>
