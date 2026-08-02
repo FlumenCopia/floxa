@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentConsultant, logoutConsultant, subscribeToConsultantChange, clearCurrentConsultantCache } from "../src/lib/authApi";
@@ -59,113 +60,127 @@ function getNotificationProjectId(notification) {
   return notification?.project_id || notification?.metadata?.project_id || notification?.metadata?.project?.id;
 }
 
-function getRelativeTime(value) {
-  if (!value) {
-    return "";
+function formatRelativeTimeString(value, unit) {
+  return `${value} ${unit}${value === 1 ? "" : "s"} ago`;
+}
+
+function getRelativeTime(timestamp) {
+  if (!timestamp) {
+    return "Recently";
   }
 
-  const date = new Date(value);
+  const createdTime = new Date(timestamp).getTime();
 
-  if (Number.isNaN(date.getTime())) {
-    return "";
+  if (Number.isNaN(createdTime)) {
+    return "Recently";
   }
 
-  const diffMs = Date.now() - date.getTime();
-  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+  const elapsedMs = Date.now() - createdTime;
 
-  if (diffMinutes < 1) {
+  if (elapsedMs < 60000) {
     return "Just now";
   }
 
-  if (diffMinutes < 60) {
-    return `${diffMinutes} min ago`;
+  const minutes = Math.floor(elapsedMs / 60000);
+
+  if (minutes < 60) {
+    return formatRelativeTimeString(minutes, "min");
   }
 
-  const diffHours = Math.floor(diffMinutes / 60);
+  const hours = Math.floor(minutes / 60);
 
-  if (diffHours < 24) {
-    return `${diffHours} hr ago`;
+  if (hours < 24) {
+    return formatRelativeTimeString(hours, "hour");
   }
 
-  if (diffHours < 48) {
-    return "Yesterday";
+  const days = Math.floor(hours / 24);
+
+  if (days < 30) {
+    return formatRelativeTimeString(days, "day");
   }
 
-  return date.toLocaleDateString([], {
-    month: "short",
-    day: "numeric",
-  });
+  const months = Math.floor(days / 30);
+
+  if (months < 12) {
+    return formatRelativeTimeString(months, "month");
+  }
+
+  const years = Math.floor(months / 12);
+  return formatRelativeTimeString(years, "year");
 }
 
 function Icon({ type }) {
-  const commonProps = {
-    className: "nav-icon",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "1.6",
-    viewBox: "0 0 24 24",
-  };
-
   switch (type) {
+    case "grid":
+      return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+        </svg>
+      );
     case "mail":
       return (
-        <svg {...commonProps}>
-          <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-          <path d="M3 7l9 6 9-6" />
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
         </svg>
       );
     case "search":
       return (
-        <svg {...commonProps}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.35-4.35" />
         </svg>
       );
     case "star":
       return (
-        <svg {...commonProps}>
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
         </svg>
       );
     case "chart":
       return (
-        <svg {...commonProps}>
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-        </svg>
-      );
-    case "settings":
-      return (
-        <svg {...commonProps}>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
         </svg>
       );
     case "portal":
       return (
-        <svg {...commonProps}>
-          <path d="M14 3h7v7" />
-          <path d="M10 14 21 3" />
-          <path d="M21 14v4a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3h4" />
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          <polyline points="15 3 21 3 21 9" />
+          <line x1="10" y1="14" x2="21" y2="3" />
+        </svg>
+      );
+    case "settings":
+      return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       );
     case "bell":
       return (
-        <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
       );
     case "logout":
       return (
-        <svg {...commonProps}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-          <path d="M16 17l5-5-5-5" />
-          <path d="M21 12H9" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
         </svg>
       );
     default:
       return (
-        <svg {...commonProps}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
           <rect x="3" y="3" width="7" height="7" rx="1" />
           <rect x="14" y="3" width="7" height="7" rx="1" />
           <rect x="3" y="14" width="7" height="7" rx="1" />
@@ -176,6 +191,20 @@ function Icon({ type }) {
 }
 
 function NavItem({ item, onClick }) {
+  if (item.route) {
+    return (
+      <Link
+        href={item.route}
+        className={`nav-item ${item.active ? "active" : ""}`.trim()}
+        onClick={onClick}
+      >
+        <Icon type={item.icon} />
+        {item.label}
+        {item.badge ? <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span> : null}
+      </Link>
+    );
+  }
+
   return (
     <button className={`nav-item ${item.active ? "active" : ""}`.trim()} type="button" onClick={onClick}>
       <Icon type={item.icon} />
@@ -186,6 +215,19 @@ function NavItem({ item, onClick }) {
 }
 
 function MobileTabItem({ item, onClick }) {
+  if (item.route) {
+    return (
+      <Link
+        href={item.route}
+        className={`mobile-tab-item ${item.active ? "active" : ""}`.trim()}
+        onClick={onClick}
+      >
+        <Icon type={item.icon} />
+        <span>{item.label}</span>
+      </Link>
+    );
+  }
+
   return (
     <button className={`mobile-tab-item ${item.active ? "active" : ""}`.trim()} type="button" onClick={onClick}>
       <Icon type={item.icon} />
@@ -410,10 +452,8 @@ export default function Floxaheader({
   const closeSidebar = () => setIsSidebarOpen(false);
   const handleNavigation = (route) => {
     closeSidebar();
-    if (route && route !== pathname) {
-      router.push(route);
-    }
   };
+
 
   const handleProjectSearch = (event) => {
     event.preventDefault();
