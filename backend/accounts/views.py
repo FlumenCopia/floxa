@@ -8,6 +8,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenBackendError, TokenError
+from rest_framework_simplejwt.settings import api_settings as jwt_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import (
@@ -19,11 +20,11 @@ from .serializers import (
 
 
 def access_cookie_max_age():
-    return int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
+    return int(jwt_settings.ACCESS_TOKEN_LIFETIME.total_seconds())
 
 
 def refresh_cookie_max_age():
-    return int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+    return int(jwt_settings.REFRESH_TOKEN_LIFETIME.total_seconds())
 
 
 def set_auth_cookies(response, access, refresh=None):

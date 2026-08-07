@@ -19,7 +19,6 @@ export default function Login() {
 
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -47,13 +46,8 @@ export default function Login() {
           return;
         }
 
-        if (isMounted) {
-          setIsCheckingSession(false);
-        }
       } catch {
-        if (isMounted) {
-          setIsCheckingSession(false);
-        }
+        // Keep the login form visible if the background session check fails.
       }
     }
 
@@ -106,17 +100,6 @@ export default function Login() {
       setIsLoading(false);
     }
   };
-
-  if (isCheckingSession) {
-    return (
-      <div id="login-screen">
-        <div className="login-card">
-          <div className="login-logo">FLOXA</div>
-          <div className="login-tagline">Checking session...</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div id="login-screen">
