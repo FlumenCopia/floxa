@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { loginConsultant } from "../src/lib/authApi";
+import { getCurrentConsultant, loginConsultant } from "../src/lib/authApi";
 import { showError, showSuccess } from "../src/lib/toast";
 
 import GoogleSignInButton from "../components/auth/GoogleSignInButton";
@@ -19,6 +19,27 @@ export default function Login() {
 
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getCurrentConsultant(true)
+      .then(() => {
+        if (isMounted) {
+          router.replace("/");
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsCheckingSession(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -62,6 +83,17 @@ export default function Login() {
       setIsLoading(false);
     }
   };
+
+  if (isCheckingSession) {
+    return (
+      <div id="login-screen">
+        <div className="login-card">
+          <div className="login-logo">FLOXA</div>
+          <div className="login-tagline">Checking session...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="login-screen">

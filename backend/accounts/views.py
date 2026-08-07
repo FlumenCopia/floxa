@@ -18,6 +18,36 @@ from .serializers import (
 )
 
 
+def access_cookie_max_age():
+    return int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
+
+
+def refresh_cookie_max_age():
+    return int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+
+
+def set_auth_cookies(response, access, refresh=None):
+    response.set_cookie(
+        settings.AUTH_ACCESS_COOKIE_NAME,
+        access,
+        max_age=access_cookie_max_age(),
+        httponly=settings.AUTH_COOKIE_HTTP_ONLY,
+        secure=settings.AUTH_COOKIE_SECURE,
+        samesite=settings.AUTH_COOKIE_SAMESITE,
+        path=settings.AUTH_COOKIE_PATH,
+    )
+    if refresh is not None:
+        response.set_cookie(
+            settings.AUTH_REFRESH_COOKIE_NAME,
+            refresh,
+            max_age=refresh_cookie_max_age(),
+            httponly=settings.AUTH_COOKIE_HTTP_ONLY,
+            secure=settings.AUTH_COOKIE_SECURE,
+            samesite=settings.AUTH_COOKIE_SAMESITE,
+            path=settings.AUTH_COOKIE_PATH,
+        )
+
+
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class CsrfBootstrapView(APIView):
     authentication_classes = []
@@ -70,21 +100,10 @@ class ConsultantLoginView(APIView):
                 status=status.HTTP_200_OK
             )
 
-            response.set_cookie(
-                settings.AUTH_ACCESS_COOKIE_NAME,
+            set_auth_cookies(
+                response,
                 serializer.validated_data["access"],
-                httponly=settings.AUTH_COOKIE_HTTP_ONLY,
-                secure=settings.AUTH_COOKIE_SECURE,
-                samesite=settings.AUTH_COOKIE_SAMESITE,
-                path=settings.AUTH_COOKIE_PATH,
-            )
-            response.set_cookie(
-                settings.AUTH_REFRESH_COOKIE_NAME,
                 serializer.validated_data["refresh"],
-                httponly=settings.AUTH_COOKIE_HTTP_ONLY,
-                secure=settings.AUTH_COOKIE_SECURE,
-                samesite=settings.AUTH_COOKIE_SAMESITE,
-                path=settings.AUTH_COOKIE_PATH,
             )
 
             return response
@@ -108,21 +127,10 @@ class ConsultantGoogleAuthView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-            response.set_cookie(
-                settings.AUTH_ACCESS_COOKIE_NAME,
+            set_auth_cookies(
+                response,
                 serializer.validated_data["access"],
-                httponly=settings.AUTH_COOKIE_HTTP_ONLY,
-                secure=settings.AUTH_COOKIE_SECURE,
-                samesite=settings.AUTH_COOKIE_SAMESITE,
-                path=settings.AUTH_COOKIE_PATH,
-            )
-            response.set_cookie(
-                settings.AUTH_REFRESH_COOKIE_NAME,
                 serializer.validated_data["refresh"],
-                httponly=settings.AUTH_COOKIE_HTTP_ONLY,
-                secure=settings.AUTH_COOKIE_SECURE,
-                samesite=settings.AUTH_COOKIE_SAMESITE,
-                path=settings.AUTH_COOKIE_PATH,
             )
 
             return response
@@ -162,14 +170,7 @@ class ConsultantTokenRefreshView(APIView):
             {"detail": "Token refreshed successfully."},
             status=status.HTTP_200_OK,
         )
-        response.set_cookie(
-            settings.AUTH_ACCESS_COOKIE_NAME,
-            access_token,
-            httponly=settings.AUTH_COOKIE_HTTP_ONLY,
-            secure=settings.AUTH_COOKIE_SECURE,
-            samesite=settings.AUTH_COOKIE_SAMESITE,
-            path=settings.AUTH_COOKIE_PATH,
-        )
+        set_auth_cookies(response, access_token)
 
         return response
 
