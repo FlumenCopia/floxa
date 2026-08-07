@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getCurrentConsultant, loginConsultant } from "../src/lib/authApi";
+import { loginConsultant } from "../src/lib/authApi";
 import { showError, showSuccess } from "../src/lib/toast";
 
 import GoogleSignInButton from "../components/auth/GoogleSignInButton";
@@ -24,17 +24,40 @@ export default function Login() {
   useEffect(() => {
     let isMounted = true;
 
-    getCurrentConsultant(true)
-      .then(() => {
-        if (isMounted) {
-          router.replace("/");
+    async function checkExistingSession() {
+      try {
+        let response = await fetch("/api/auth/me/", { credentials: "include" });
+
+        if (response.status === 401) {
+          const refreshed = await fetch("/api/auth/token/refresh/", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          });
+
+          if (refreshed.ok) {
+            response = await fetch("/api/auth/me/", { credentials: "include" });
+          }
         }
-      })
-      .catch(() => {
+
+        if (response.ok) {
+          if (isMounted) {
+            router.replace("/");
+          }
+          return;
+        }
+
         if (isMounted) {
           setIsCheckingSession(false);
         }
-      });
+      } catch {
+        if (isMounted) {
+          setIsCheckingSession(false);
+        }
+      }
+    }
+
+    checkExistingSession();
 
     return () => {
       isMounted = false;
