@@ -573,6 +573,13 @@ class ProjectCreationEmailDeliveryTests(TestCase):
         self.assertIn(f"/client/{project.portal_token}", html_content)
         self.assertIn("ClientPassword123!", html_content)
 
+    @override_settings(DEFAULT_FROM_EMAIL="", EMAIL_HOST_USER="tech@flumenx.com")
+    def test_invite_email_uses_effective_from_email_fallback(self):
+        response = self.api_client.post(self.url, self.payload, format="json")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].from_email, "tech@flumenx.com")
+
     @patch("projects.views.send_client_portal_invite", side_effect=Exception("SMTP Connection Error"))
     def test_smtp_failure_does_not_prevent_project_creation_or_duplicate_projects(self, mock_send_mail):
         initial_count = Project.objects.count()

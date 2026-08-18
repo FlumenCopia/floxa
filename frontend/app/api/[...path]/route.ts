@@ -10,6 +10,7 @@ const BACKEND_BASE_URL = (
 ).replace(/\/+$/, "");
 
 const ALLOWED_ORIGINS = [
+  "https://floxa.flumenx.in",
   "https://floxa-frontend-test-lyart.vercel.app",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
@@ -50,7 +51,7 @@ function getValidatedOriginAndReferer(request: NextRequest) {
     if (ALLOWED_ORIGINS.includes(requestOrigin)) {
       validOrigin = requestOrigin;
     } else {
-      validOrigin = "https://floxa-frontend-test-lyart.vercel.app";
+      validOrigin = "https://floxa.flumenx.in";
     }
   }
 

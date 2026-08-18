@@ -152,6 +152,10 @@ def mask_email(email):
     return f"{masked_local}@{domain}"
 
 
+def get_effective_from_email():
+    return getattr(settings, "DEFAULT_FROM_EMAIL", None) or getattr(settings, "EMAIL_HOST_USER", "no-reply@floxa.local")
+
+
 def send_client_portal_invite(project, raw_portal_password=None):
     base_url = getattr(settings, "CLIENT_PORTAL_BASE_URL", None) or getattr(settings, "FRONTEND_BASE_URL", "")
     portal_link = f"{base_url.rstrip('/')}/client/{project.portal_token}"
@@ -165,7 +169,7 @@ def send_client_portal_invite(project, raw_portal_password=None):
         or getattr(project.consultant, "company", None)
         or getattr(project.consultant, "email", "Consultant")
     )
-    sender = settings.DEFAULT_FROM_EMAIL
+    sender = get_effective_from_email()
 
     pwd_text = (
         raw_portal_password
@@ -252,7 +256,7 @@ def send_client_portal_invite(project, raw_portal_password=None):
     email_msg = EmailMultiAlternatives(
         subject=subject,
         body=plain_message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
+        from_email=get_effective_from_email(),
         to=[project.client.email],
     )
     email_msg.attach_alternative(html_message, "text/html")
@@ -318,7 +322,7 @@ def send_project_agreement_share_email(project, agreement):
     send_mail(
         subject,
         message,
-        settings.DEFAULT_FROM_EMAIL,
+        get_effective_from_email(),
         [client_email],
         fail_silently=False,
     )
@@ -344,7 +348,7 @@ def send_project_agreement_signature_request_email(project, agreement):
     send_mail(
         subject,
         message,
-        settings.DEFAULT_FROM_EMAIL,
+        get_effective_from_email(),
         [client_email],
         fail_silently=False,
     )
@@ -1459,7 +1463,7 @@ def send_signed_project_agreement_email(agreement):
     email = EmailMessage(
         subject,
         message,
-        settings.DEFAULT_FROM_EMAIL,
+        get_effective_from_email(),
         [client_email, project.consultant.email],
     )
 

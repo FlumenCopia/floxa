@@ -180,13 +180,13 @@ EMAIL_HOST = config("EMAIL_HOST", default="")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 _raw_email_pass = config("EMAIL_HOST_PASSWORD", default="")
-EMAIL_HOST_PASSWORD = _raw_email_pass.replace(" ", "").strip()
+EMAIL_HOST_PASSWORD = _raw_email_pass.strip()
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
 EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=10, cast=int)
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@floxa.local")
-FRONTEND_BASE_URL = config("FRONTEND_BASE_URL", default="https://floxa-frontend-test-lyart.vercel.app")
-CLIENT_PORTAL_BASE_URL = config("CLIENT_PORTAL_BASE_URL", default=config("FRONTEND_BASE_URL", default="https://floxa-frontend-test-lyart.vercel.app"))
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "no-reply@floxa.local")
+FRONTEND_BASE_URL = config("FRONTEND_BASE_URL", default="https://floxa.flumenx.in")
+CLIENT_PORTAL_BASE_URL = config("CLIENT_PORTAL_BASE_URL", default=config("FRONTEND_BASE_URL", default="https://floxa.flumenx.in"))
 GOOGLE_CLIENT_ID = config("GOOGLE_CLIENT_ID", default="")
 
 if EMAIL_USE_TLS and EMAIL_USE_SSL:
@@ -220,6 +220,7 @@ GEMINI_MAX_INPUT_CHARACTERS = config("GEMINI_MAX_INPUT_CHARACTERS", default=1200
    
 
 PRODUCTION_FRONTEND_ORIGINS = [
+    "https://floxa.flumenx.in",
     "https://floxa-frontend-test-lyart.vercel.app",
 ]
 
