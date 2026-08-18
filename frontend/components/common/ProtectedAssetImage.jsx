@@ -29,17 +29,18 @@ export default function ProtectedAssetImage({
 
   useEffect(() => {
     if (!src) {
-      setObjectUrl(null);
-      setLoading(false);
-      setError(null);
-      return;
+      return undefined;
     }
 
     let isMounted = true;
     let createdUrl = null;
 
-    setLoading(true);
-    setError(null);
+    Promise.resolve().then(() => {
+      if (isMounted) {
+        setLoading(true);
+        setError(null);
+      }
+    });
 
     fetchProtectedAssetBlob(src)
       .then(({ blob }) => {
@@ -62,6 +63,9 @@ export default function ProtectedAssetImage({
       if (createdUrl) {
         URL.revokeObjectURL(createdUrl);
       }
+      setObjectUrl(null);
+      setLoading(false);
+      setError(null);
     };
   }, [src]);
 
@@ -138,6 +142,7 @@ export default function ProtectedAssetImage({
   }
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={objectUrl}
       alt={alt}

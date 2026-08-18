@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiRequest, buildApiUrl } from "../src/lib/api";
+import { apiRequest, buildApiUrl } from "../src/lib/api";
 
 const STORAGE_PREFIX = "floxa_client_portal_mock_";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { googleAuthConsultant } from "../../src/lib/authApi";
 import { showError, showSuccess } from "../../src/lib/toast";
@@ -9,17 +9,14 @@ export default function GoogleSignInButton({ label = "Continue with Google" }) {
   const router = useRouter();
   const hiddenBtnRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [scriptLoaded, setScriptLoaded] = useState(
+    () => typeof window !== "undefined" && Boolean(window.google?.accounts?.id)
+  );
 
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    if (window.google?.accounts?.id) {
-      setScriptLoaded(true);
-      return;
-    }
+    if (typeof window === "undefined" || window.google?.accounts?.id) return;
 
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
@@ -32,35 +29,38 @@ export default function GoogleSignInButton({ label = "Continue with Google" }) {
     document.head.appendChild(script);
   }, []);
 
-  const handleCredentialResponse = async (response) => {
-    if (!response?.credential) {
-      showError("Google authentication failed. Please try again.");
-      return;
-    }
+  const handleCredentialResponse = useCallback(
+    async (response) => {
+      if (!response?.credential) {
+        showError("Google authentication failed. Please try again.");
+        return;
+      }
 
-    setIsLoading(true);
+      setIsLoading(true);
 
-    try {
-      const data = await googleAuthConsultant(response.credential);
-      const username =
-        data?.consultant?.name ||
-        data?.consultant?.full_name ||
-        data?.consultant?.email ||
-        "there";
+      try {
+        const data = await googleAuthConsultant(response.credential);
+        const username =
+          data?.consultant?.name ||
+          data?.consultant?.full_name ||
+          data?.consultant?.email ||
+          "there";
 
-      showSuccess(`Welcome, ${username}!`);
-      router.push("/");
-    } catch (error) {
-      console.error("Google login error:", error);
-      const message =
-        error?.detail ||
-        error?.message ||
-        "Google authentication failed. Please try again.";
-      showError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        showSuccess(`Welcome, ${username}!`);
+        router.push("/");
+      } catch (error) {
+        console.error("Google login error:", error);
+        const message =
+          error?.detail ||
+          error?.message ||
+          "Google authentication failed. Please try again.";
+        showError(message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [router]
+  );
 
   useEffect(() => {
     if (!scriptLoaded || !clientId || typeof window === "undefined") return;
@@ -86,7 +86,7 @@ export default function GoogleSignInButton({ label = "Continue with Google" }) {
     } catch (err) {
       console.error("Failed to initialize Google Sign-In:", err);
     }
-  }, [scriptLoaded, clientId]);
+  }, [scriptLoaded, clientId, handleCredentialResponse]);
 
   const handleClick = () => {
     if (isLoading) return;

@@ -84,14 +84,14 @@ class UploadPerformanceAndSafetyTests(TestCase):
         image_file = self.create_test_image(800, 800, format="JPEG")
 
         with patch("django.core.files.storage.default_storage._save", return_value="moodboards/test.jpg") as mock_save, \
-             patch("django.core.files.storage.default_storage.exists", return_value=True):
+             patch("django.core.files.storage.default_storage.exists", return_value=False):
 
             moodboard = Moodboard.objects.create(
                 project=self.project,
                 title="Test Moodboard",
                 image=image_file,
             )
-            ProjectActivity.create(
+            ProjectActivity.objects.create(
                 project=self.project,
                 consultant=self.consultant,
                 actor_type=ProjectActivity.ActorType.CONSULTANT,

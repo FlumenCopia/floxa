@@ -27,10 +27,16 @@ export function buildApiUrl(endpoint = "") {
 
   const cleanEndpoint = path.startsWith("/") ? path : `/${path}`;
 
-  if (cleanEndpoint.startsWith("/api/") && base.endsWith("/api")) {
-    return `${base.slice(0, -4)}${cleanEndpoint}`;
+  let finalUrl =
+    cleanEndpoint.startsWith("/api/") && base.endsWith("/api")
+      ? `${base.slice(0, -4)}${cleanEndpoint}`
+      : `${base}${cleanEndpoint}`;
+
+  if (base === "/api" && finalUrl.endsWith("/") && !finalUrl.includes("?")) {
+    finalUrl = finalUrl.slice(0, -1);
   }
-  return `${base}${cleanEndpoint}`;
+
+  return finalUrl;
 }
 
 export function getCookie(name) {

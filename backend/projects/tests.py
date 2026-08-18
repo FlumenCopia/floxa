@@ -474,7 +474,7 @@ class ProjectAssistantChatEndpointTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 429)
-        self.assertEqual(response.data["detail"], "Gemini API rate limit or quota was reached.")
+        self.assertEqual(response.data["detail"], "AI usage limit reached. Please try again later.")
 
     @patch("projects.views.generate_response")
     @patch("projects.views.build_project_context")
@@ -2627,7 +2627,7 @@ class AllFileFieldsStorageAuditTests(TestCase):
     def setUp(self):
         from django.contrib.auth import get_user_model
         from django.contrib.auth.hashers import make_password
-        from .models import Project
+        from .models import Client, Project
         User = get_user_model()
         self.user = User.objects.create_user(
             email="audit_user@example.com",
@@ -2636,10 +2636,16 @@ class AllFileFieldsStorageAuditTests(TestCase):
         )
         self.api_client = APIClient()
         self.api_client.force_authenticate(user=self.user)
+        self.client_record = Client.objects.create(
+            name="Audit Client",
+            email="audit_client@example.com",
+            company_name="Audit Company",
+            sector="Testing",
+        )
         self.project = Project.objects.create(
             consultant=self.user,
-            client_name="Audit Client",
-            client_email="audit_client@example.com",
+            client=self.client_record,
+            title="Audit Project",
             company_name="Audit Company",
             sector="Testing",
             project_value=Decimal("12000.00"),
@@ -2675,7 +2681,7 @@ class AllFileFieldsStorageAuditTests(TestCase):
         self.assertEqual(res_file.status_code, 200)
 
         portal_client = APIClient()
-        portal_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(self.project.portal_token)
+        portal_client.cookies[PORTAL_ACCESS_COOKIE_NAME] = sign_portal_access_token(str(self.project.portal_token))
         res_cp_img = portal_client.get(f"/api/client-portal/{self.project.portal_token}/concepts/{concept.id}/image/")
         self.assertEqual(res_cp_img.status_code, 200)
 
@@ -2692,7 +2698,7 @@ class AllFileFieldsStorageAuditTests(TestCase):
 
     @override_settings(DEBUG=True)
     def test_deliverable_serializers_and_protected_download_routes(self):
-        from .models import Deliverable
+        from .models import Deliverable, PaymentMilestone
         from .serializers import ConsultantDeliverableSerializer, ClientPortalDeliverableSerializer
         from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -2700,7 +2706,15 @@ class AllFileFieldsStorageAuditTests(TestCase):
             project=self.project,
             title="Deliverable 1",
             file=SimpleUploadedFile("deliv.zip", b"fake_zip_bytes", content_type="application/zip"),
-            status=Deliverable.Status.DELIVERED,
+            status=Deliverable.Status.SHARED,
+        )
+
+        PaymentMilestone.objects.create(
+            project=self.project,
+            type=PaymentMilestone.Type.FINAL,
+            percentage=100,
+            amount=Decimal("12000.00"),
+            status=PaymentMilestone.Status.PAID,
         )
 
         c_serializer = ConsultantDeliverableSerializer(deliverable)
@@ -2772,14 +2786,15 @@ class AllFileFieldsStorageAuditTests(TestCase):
             format="multipart",
         )
         self.assertEqual(response.status_code, 201)
-        self.assertIn("MOON_HOLIDAYS_LOGO_FINAL", response.data["image"])
-        self.assertIn("Rwen_Construction", response.data["file"])
+        concept = Concept.objects.get(id=response.data["id"])
+        self.assertIn("MOON_HOLIDAYS_LOGO_FINAL", concept.image.name)
+        self.assertIn("Rwen_Construction", concept.file.name)
 
 
 class ConceptUploadCleanupAndRegressionTests(TestCase):
     def setUp(self):
         from django.contrib.auth import get_user_model
-        from django.contrib.auth.hashers import make_password
+        from .models import Client, Project
         User = get_user_model()
         self.user = User.objects.create_user(
             email="cleanup_user@example.com",
@@ -2788,17 +2803,25 @@ class ConceptUploadCleanupAndRegressionTests(TestCase):
         )
         self.api_client = APIClient()
         self.api_client.force_authenticate(user=self.user)
+        self.client_record = Client.objects.create(
+            name="Cleanup Client",
+            email="cleanup@example.com",
+            company_name="Cleanup Co",
+            sector="Testing",
+        )
         self.project = Project.objects.create(
             consultant=self.user,
-            client_name="Cleanup Client",
-            client_email="cleanup@example.com",
+            client=self.client_record,
+            title="Cleanup Project",
             company_name="Cleanup Co",
             sector="Testing",
             project_value=Decimal("15000.00"),
         )
 
     def _create_test_image(self, name="test_clean.jpg"):
+        from io import BytesIO
         from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
         buf = BytesIO()
         Image.new("RGB", (20, 20), color="red").save(buf, format="JPEG")
         return SimpleUploadedFile(name, buf.getvalue(), content_type="image/jpeg")
@@ -2823,6 +2846,7 @@ class ConceptUploadCleanupAndRegressionTests(TestCase):
 
     def test_existing_concept_with_pdf_serializes_and_downloads_correctly(self):
         from .models import Concept
+        from .serializers import ConsultantConceptSerializer
         concept = Concept.objects.create(
             project=self.project,
             title="Legacy PDF Concept",
@@ -2835,10 +2859,10 @@ class ConceptUploadCleanupAndRegressionTests(TestCase):
 
     def test_storage_failure_returns_503(self):
         from unittest.mock import patch
-        from vercel.blob.errors import BlobError
+        from .serializers import ConsultantConceptSerializer
         img = self._create_test_image("fail_storage.jpg")
 
-        with patch("django.core.files.storage.FileSystemStorage.save", side_effect=BlobError("Upload service error")):
+        with patch.object(ConsultantConceptSerializer, "save", side_effect=OSError("Upload service error")):
             response = self.api_client.post(
                 f"/api/projects/{self.project.id}/concepts/",
                 {"title": "Storage Fail Concept", "image": img},

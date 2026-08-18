@@ -21,7 +21,6 @@ import {
   getConcepts,
   getDeliverables,
   getDiscoverySummary,
-  getMoodboards,
   getPaymentMilestones,
   getProject,
   getProjectActivities,
@@ -40,7 +39,6 @@ import {
   uploadDeliverable,
   uploadMoodboard,
 } from "../../src/lib/projectApi";
-import { compressImageBeforeUpload } from "../../src/lib/imageCompressor";
 
 
 const discoveryTabs = [
@@ -1014,9 +1012,8 @@ function DiscoveryAnswersPanel({ summary, loading }) {
   );
 }
 
-function MoodboardsPanel({ projectId, onProjectRefresh }) {
+function MoodboardsPanel({ projectId }) {
   const [moodboards, setMoodboards] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [error, setError] = useState("");
@@ -1248,8 +1245,25 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
   }, [projectId]);
 
   useEffect(() => {
-    loadConcepts();
-  }, [loadConcepts]);
+    let isMounted = true;
+    if (projectId) {
+      getConcepts(projectId)
+        .then((data) => {
+          if (isMounted) {
+            setConcepts(Array.isArray(data) ? data : data?.results || []);
+          }
+        })
+        .catch((loadError) => {
+          if (isMounted) {
+            console.error("Failed to load concepts:", loadError);
+            setError("Unable to load project concepts.");
+          }
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId]);
 
   async function handleUpload(event) {
     event.preventDefault();
@@ -3184,20 +3198,23 @@ export default function Discovery() {
     );
   }, [projectActivities]);
 
+  const projectId = project?.id;
   const handleMarkTabActivitiesRead = useCallback(async (tab) => {
-    if (!project?.id) {
+    if (!projectId) {
       return;
     }
 
     const actions = getTabActivityActions(tab);
-    const unreadTabActivities = getUnreadActivitiesForTab(tab);
+    const unreadTabActivities = projectActivities.filter(
+      (activity) => !activity.is_read && actions.includes(activity.action)
+    );
 
     if (!actions.length || !unreadTabActivities.length) {
       return;
     }
 
     try {
-      await markProjectActivitiesRead(project.id, actions);
+      await markProjectActivitiesRead(projectId, actions);
       const readAt = new Date().toISOString();
       const readIds = unreadTabActivities.map((activity) => activity.id);
       const readIdSet = new Set(readIds);
@@ -3228,10 +3245,12 @@ export default function Discovery() {
     } catch (error) {
       console.error("Failed to mark tab activities as read:", error);
     }
-  }, [getUnreadActivitiesForTab, project?.id]);
+  }, [projectId, projectActivities]);
 
   useEffect(() => {
-    handleMarkTabActivitiesRead(activeTab);
+    Promise.resolve().then(() => {
+      handleMarkTabActivitiesRead(activeTab);
+    });
   }, [activeTab, handleMarkTabActivitiesRead]);
 
   useEffect(() => {

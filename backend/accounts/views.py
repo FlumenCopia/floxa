@@ -72,10 +72,14 @@ class ConsultantRegisterView(APIView):
 
         if serializer.is_valid():
             consultant = serializer.save()
+            refresh = RefreshToken.for_user(consultant)
+            access = str(refresh.access_token)
 
-            return Response(
+            response = Response(
                 {
                     "message": "Consultant registered successfully",
+                    "access": access,
+                    "refresh": str(refresh),
                     "consultant": {
                         "id": consultant.id,
                         "name": consultant.name,
@@ -84,6 +88,8 @@ class ConsultantRegisterView(APIView):
                 },
                 status=status.HTTP_201_CREATED
             )
+            set_auth_cookies(response, access, str(refresh))
+            return response
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

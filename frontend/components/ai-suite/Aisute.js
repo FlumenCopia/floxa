@@ -180,7 +180,7 @@ function buildMoodboardDirections({ project, discovery, brandDNA }) {
   const directions = [
     {
       name: "Direction 1: Signal Clarity",
-      theme: `A precise, trustworthy system that makes ${companyName} feel easy to understand and credible in ${sector}.`,
+      theme: `A precise, trustworthy system that makes ${companyName} feel easy to understand and credible in ${sector}, designed to ${brandFeeling}.`,
       palette: `${palette[0]} / ${palette[1]} / ${palette[3]} with small high-contrast accent usage.`,
       typography: "Structured sans-serif headings, open humanist body text, generous line spacing.",
       photography: "Clean product/service moments, confident client-facing scenes, minimal background noise.",
