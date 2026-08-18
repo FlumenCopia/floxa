@@ -32,10 +32,7 @@ export function buildApiUrl(endpoint = "") {
       ? `${base.slice(0, -4)}${cleanEndpoint}`
       : `${base}${cleanEndpoint}`;
 
-  if (base === "/api" && finalUrl.endsWith("/") && !finalUrl.includes("?")) {
-    finalUrl = finalUrl.slice(0, -1);
-  }
-
+  // Preserve trailing slashes as required by Django URL routing
   return finalUrl;
 }
 
