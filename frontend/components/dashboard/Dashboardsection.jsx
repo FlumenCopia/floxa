@@ -218,7 +218,7 @@ export default function Dashboardsection() {
         style={{ cursor: "pointer" }}
       >
         <td>
-                            <div className="font-6 dash-client-name">{project.company_name || project.client_name}</div>
+                            <div className="font-6 dash-client-name">{project.client_name || project.company_name}</div>
                             <div className="dash-client-sector">{project.sector}</div>
                           </td>
                           <td>

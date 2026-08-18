@@ -283,7 +283,7 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                           style={{ cursor: "pointer" }}
                         >
                           <td>
-                            <div className="project-client-name">{row.company_name || row.client_name}</div>
+                            <div className="project-client-name">{row.client_name || row.company_name}</div>
                             <div className="project-client-email">{row.client_email}</div>
                           </td>
                           <td>{row.sector}</td>
