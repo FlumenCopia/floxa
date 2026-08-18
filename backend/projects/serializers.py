@@ -201,6 +201,7 @@ class MoodboardSerializer(serializers.ModelSerializer):
             "image",
             "image_url",
             "is_selected",
+            "is_shared",
             "created_at",
         ]
         read_only_fields = ["id", "image_url", "is_selected", "created_at"]
@@ -235,6 +236,7 @@ class ClientPortalMoodboardSerializer(serializers.ModelSerializer):
             "description",
             "image_url",
             "is_selected",
+            "is_shared",
             "created_at",
         ]
 

@@ -1356,46 +1356,57 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                   <p>{moodboardsError || "Your consultant is preparing visual directions."}</p>
                 </article>
               ) : null}
-              {!moodboardsLoading && moodboards.map((item) => (
-                <article key={item.id} className={item.clientSelected || item.is_selected ? "selected" : ""}>
-                  <ProtectedAssetImage
-                    src={item.image_url}
-                    asBackground
-                    className={`client-panel-image ${item.image_url ? "clickable" : ""}`.trim()}
-                    role={item.image_url ? "button" : undefined}
-                    tabIndex={item.image_url ? 0 : undefined}
-                    aria-label={item.image_url ? `Enlarge preview for ${item.name || item.title || "moodboard"}` : undefined}
-                    onClick={item.image_url ? (event) => openPreview(item, "moodboard", event) : undefined}
-                    onKeyDown={
-                      item.image_url
-                        ? (event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              openPreview(item, "moodboard", event);
-                            }
+              {!moodboardsLoading &&
+                (() => {
+                  const hasSelectedMoodboard = moodboards.some((m) => m.clientSelected || m.is_selected);
+
+                  return moodboards.map((item) => {
+                    const isThisSelected = item.clientSelected || item.is_selected;
+
+                    return (
+                      <article key={item.id} className={isThisSelected ? "selected" : ""}>
+                        <ProtectedAssetImage
+                          src={item.image_url}
+                          asBackground
+                          className={`client-panel-image ${item.image_url ? "clickable" : ""}`.trim()}
+                          role={item.image_url ? "button" : undefined}
+                          tabIndex={item.image_url ? 0 : undefined}
+                          aria-label={item.image_url ? `Enlarge preview for ${item.name || item.title || "moodboard"}` : undefined}
+                          onClick={item.image_url ? (event) => openPreview(item, "moodboard", event) : undefined}
+                          onKeyDown={
+                            item.image_url
+                              ? (event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    openPreview(item, "moodboard", event);
+                                  }
+                                }
+                              : undefined
                           }
-                        : undefined
-                    }
-                    onContextMenu={(event) => event.preventDefault()}
-                    style={{ userSelect: "none", WebkitUserDrag: "none" }}
-                    fallbackText="No image preview"
-                  />
-                  <h3>{item.name || item.title}</h3>
-                  {item.description ? <p>{item.description}</p> : null}
-                  <button
-                    type="button"
-                    disabled={item.clientSelected || item.is_selected || working === item.id}
-                    onClick={() => selectMoodboard(item.id)}
-                    className="client-panel-action"
-                  >
-                    {item.clientSelected || item.is_selected
-                      ? "Selected"
-                      : working === item.id
-                        ? "Saving..."
-                        : "Select direction"}
-                  </button>
-                </article>
-              ))}
+                          onContextMenu={(event) => event.preventDefault()}
+                          style={{ userSelect: "none", WebkitUserDrag: "none" }}
+                          fallbackText="No image preview"
+                        />
+                        <h3>{item.name || item.title}</h3>
+                        {item.description ? <p>{item.description}</p> : null}
+                        <button
+                          type="button"
+                          disabled={hasSelectedMoodboard || isThisSelected || working === item.id}
+                          onClick={() => selectMoodboard(item.id)}
+                          className="client-panel-action"
+                        >
+                          {isThisSelected
+                            ? "Selected & Locked"
+                            : hasSelectedMoodboard
+                              ? "Locked"
+                              : working === item.id
+                                ? "Saving..."
+                                : "Select direction"}
+                        </button>
+                      </article>
+                    );
+                  });
+                })()}
             </div>
           ) : null}
 

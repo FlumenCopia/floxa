@@ -207,6 +207,7 @@ class Moodboard(models.Model):
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to="moodboards/")
     is_selected = models.BooleanField(default=False)
+    is_shared = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
