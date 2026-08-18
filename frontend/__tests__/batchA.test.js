@@ -5,12 +5,12 @@ import { test, describe, beforeEach } from "node:test";
 let fetchCallCount = 0;
 let fetchUrls = [];
 
-global.fetch = async (url, options = {}) => {
+global.fetch = async (url) => {
   fetchCallCount++;
   const urlStr = String(url);
   fetchUrls.push(urlStr);
 
-  if (urlStr.includes("/auth/me/")) {
+  if (urlStr.includes("/auth/me")) {
     return {
       ok: true,
       status: 200,
@@ -19,7 +19,7 @@ global.fetch = async (url, options = {}) => {
     };
   }
 
-  if (urlStr.includes("/projects/activities/")) {
+  if (urlStr.includes("/projects/activities")) {
     return {
       ok: true,
       status: 200,
@@ -28,7 +28,7 @@ global.fetch = async (url, options = {}) => {
     };
   }
 
-  if (urlStr.includes("/auth/logout/")) {
+  if (urlStr.includes("/auth/logout")) {
     return {
       ok: true,
       status: 200,
@@ -86,8 +86,6 @@ describe("Batch A Production Module Unit Tests", () => {
   test("3. logoutConsultant clears session cache and activities cache in production", async () => {
     await authApi.getCurrentConsultant();
     await projectApi.getConsultantActivities();
-    const initialCallCount = fetchCallCount;
-
     await authApi.logoutConsultant();
     fetchCallCount = 0;
 
@@ -105,7 +103,7 @@ describe("Batch A Production Module Unit Tests", () => {
 
     assert.strictEqual(a1.length, 1);
     assert.strictEqual(a2.length, 1);
-    const actCalls = fetchUrls.filter((u) => u.includes("/projects/activities/"));
+    const actCalls = fetchUrls.filter((u) => u.includes("/projects/activities"));
     assert.strictEqual(actCalls.length, 1, "Production projectApi issued exactly 1 activities request");
   });
 

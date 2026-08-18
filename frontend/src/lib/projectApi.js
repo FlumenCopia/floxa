@@ -1,5 +1,4 @@
 import {
-  API_BASE_URL,
   apiRequest,
   buildApiUrl,
   ensureCsrfCookie,

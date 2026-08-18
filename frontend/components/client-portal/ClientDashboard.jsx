@@ -220,7 +220,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const [panel, setPanel] = useState(null);
   const [working, setWorking] = useState("");
   const [brandDNAReport, setBrandDNAReport] = useState(null);
-  const [brandDNAReportLoading, setBrandDNAReportLoading] = useState(false);
   const [discoveryReport, setDiscoveryReport] = useState(null);
   const [discoveryReportLoading, setDiscoveryReportLoading] = useState(false);
   const [discoveryReportError, setDiscoveryReportError] = useState("");
@@ -958,7 +957,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
     setDiscoveryReportLoading(true);
     setDiscoveryReportError("");
-    setBrandDNAReportLoading(true);
 
     try {
       const [discRes, dnaRes] = await Promise.all([
@@ -971,7 +969,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setBrandDNAReport(dnaRes.success ? dnaRes.data : null);
     } finally {
       setDiscoveryReportLoading(false);
-      setBrandDNAReportLoading(false);
     }
   }
 

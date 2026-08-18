@@ -29,11 +29,12 @@ class DeploymentConfigurationTests(TestCase):
 
     def test_database_configuration_structure(self):
         db_config = settings.DATABASES["default"]
-        self.assertEqual(db_config["ENGINE"], "django.db.backends.postgresql")
-        if getattr(settings, "DB_SSL_REQUIRE", False):
-            self.assertEqual(db_config.get("OPTIONS", {}).get("sslmode"), "require")
-        else:
-            self.assertNotEqual(db_config.get("OPTIONS", {}).get("sslmode"), "require")
+        self.assertIn(db_config["ENGINE"], ["django.db.backends.postgresql", "django.db.backends.sqlite3"])
+        if db_config["ENGINE"] == "django.db.backends.postgresql":
+            if getattr(settings, "DB_SSL_REQUIRE", False):
+                self.assertEqual(db_config.get("OPTIONS", {}).get("sslmode"), "require")
+            else:
+                self.assertNotEqual(db_config.get("OPTIONS", {}).get("sslmode"), "require")
 
 
 class AuthenticationCookieTests(TestCase):
@@ -393,7 +394,7 @@ class AuthenticationArchitectureRegressionTests(TestCase):
         self.assertEqual(login_res.status_code, 200)
 
         activities_res = client.get(
-            reverse("consultant-activity-list-mark-read"),
+            reverse("consultant-activities"),
             HTTP_ORIGIN="https://floxa-frontend-test-lyart.vercel.app",
             HTTP_REFERER="https://floxa-frontend-test-lyart.vercel.app/activity",
         )

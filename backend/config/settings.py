@@ -97,22 +97,48 @@ DB_SSL_REQUIRE = config("DB_SSL_REQUIRE", default=False, cast=bool)
 
 DB_ENGINE_VAL = config("DB_ENGINE", default="django.db.backends.postgresql")
 
-if "sqlite3" in DB_ENGINE_VAL:
+if "sqlite" in DB_ENGINE_VAL.lower():
     db_config = {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 else:
+    db_host = config("DB_HOST", default="localhost")
+    db_options = {}
+    if DB_SSL_REQUIRE:
+        db_options["sslmode"] = "require"
+
+    if "neon.tech" in db_host:
+        import socket
+        try:
+            socket.gethostbyname(db_host)
+        except socket.gaierror:
+            import json
+            import urllib.request
+            try:
+                endpoint_id = db_host.split(".")[0]
+                url = f"https://dns.google/resolve?name={db_host}&type=A"
+                req = urllib.request.Request(url, headers={"User-Agent": "Floxa/1.0"})
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    data = json.loads(response.read().decode())
+                    answers = data.get("Answer", [])
+                    ip_answers = [a["data"] for a in answers if a.get("type") == 1]
+                    if ip_answers:
+                        db_host = ip_answers[0]
+                        db_options["options"] = f"endpoint={endpoint_id}"
+            except Exception:
+                pass
+
     db_config = {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': DB_ENGINE_VAL,
         'NAME': config("DB_NAME"),
         'USER': config("DB_USER"),
         'PASSWORD': config("DB_PASSWORD"),
-        'HOST': config("DB_HOST"),
+        'HOST': db_host,
         'PORT': config("DB_PORT"),
     }
-    if DB_SSL_REQUIRE:
-        db_config["OPTIONS"] = {"sslmode": "require"}
+    if db_options and "postgresql" in DB_ENGINE_VAL:
+        db_config["OPTIONS"] = db_options
 
 DATABASES = {
     'default': db_config
@@ -161,6 +187,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

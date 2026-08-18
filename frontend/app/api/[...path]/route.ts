@@ -123,13 +123,17 @@ async function proxyRequest(
     }
 
     const method = request.method;
-    let fetchBody: any = undefined;
-    let duplexOption: { duplex?: "half" } = {};
+    let fetchBody: BodyInit | undefined = undefined;
 
     if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-      if (request.body) {
-        fetchBody = request.body;
-        duplexOption = { duplex: "half" };
+      try {
+        const arrayBuffer = await request.arrayBuffer();
+        if (arrayBuffer && arrayBuffer.byteLength > 0) {
+          fetchBody = Buffer.from(arrayBuffer);
+          forwardHeaders.set("content-length", String(arrayBuffer.byteLength));
+        }
+      } catch {
+        fetchBody = undefined;
       }
     }
 
@@ -140,9 +144,8 @@ async function proxyRequest(
         headers: forwardHeaders,
         body: fetchBody,
         redirect: "manual",
-        ...duplexOption,
       });
-    } catch (fetchErr: any) {
+    } catch (fetchErr: unknown) {
       console.error("[Proxy Backend Connection Error]:", fetchErr);
       return NextResponse.json(
         { detail: "Backend service is temporarily unavailable." },
@@ -184,7 +187,7 @@ async function proxyRequest(
     }
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Next.js API Proxy Error]:", error);
     return NextResponse.json(
       { detail: "Backend API proxy connection failed." },

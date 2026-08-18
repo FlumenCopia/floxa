@@ -4216,7 +4216,7 @@ class ClientPortalActivityView(APIView):
 
         activities = project.activities.filter(
             visible_to_client=True,
-        ).order_by("-created_at")
+        ).order_by("-created_at")[:50]
         serializer = ClientPortalActivitySerializer(activities, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)

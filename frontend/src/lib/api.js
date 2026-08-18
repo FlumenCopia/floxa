@@ -27,10 +27,13 @@ export function buildApiUrl(endpoint = "") {
 
   const cleanEndpoint = path.startsWith("/") ? path : `/${path}`;
 
-  if (cleanEndpoint.startsWith("/api/") && base.endsWith("/api")) {
-    return `${base.slice(0, -4)}${cleanEndpoint}`;
-  }
-  return `${base}${cleanEndpoint}`;
+  let finalUrl =
+    cleanEndpoint.startsWith("/api/") && base.endsWith("/api")
+      ? `${base.slice(0, -4)}${cleanEndpoint}`
+      : `${base}${cleanEndpoint}`;
+
+  // Preserve trailing slashes as required by Django URL routing
+  return finalUrl;
 }
 
 export function getCookie(name) {

@@ -289,17 +289,19 @@ export default function Floxaheader({
     const readIdSet = new Set(readActivityIds);
     const readAt = new Date().toISOString();
 
-    setHeaderNotifications((currentNotifications) =>
-      currentNotifications.map((notification) =>
-        readIdSet.has(notification.id)
-          ? {
-              ...notification,
-              is_read: true,
-              read_at: notification.read_at || readAt,
-            }
-          : notification
-      )
-    );
+    Promise.resolve().then(() => {
+      setHeaderNotifications((currentNotifications) =>
+        currentNotifications.map((notification) =>
+          readIdSet.has(notification.id)
+            ? {
+                ...notification,
+                is_read: true,
+                read_at: notification.read_at || readAt,
+              }
+            : notification
+        )
+      );
+    });
   }, [readActivityIds]);
 
   const markHeaderNotificationsRead = useCallback(() => {
@@ -450,7 +452,7 @@ export default function Floxaheader({
   }, [isSidebarOpen]);
 
   const closeSidebar = () => setIsSidebarOpen(false);
-  const handleNavigation = (route) => {
+  const handleNavigation = () => {
     closeSidebar();
   };
 
