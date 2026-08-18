@@ -21,6 +21,7 @@ import {
   getConcepts,
   getDeliverables,
   getDiscoverySummary,
+  getMoodboards,
   getPaymentMilestones,
   getProject,
   getProjectActivities,
@@ -1014,6 +1015,7 @@ function DiscoveryAnswersPanel({ summary, loading }) {
 
 function MoodboardsPanel({ projectId }) {
   const [moodboards, setMoodboards] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [error, setError] = useState("");
@@ -1023,6 +1025,36 @@ function MoodboardsPanel({ projectId }) {
     description: "",
     image: null,
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadMoodboards() {
+      if (!projectId) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await getMoodboards(projectId);
+        if (isMounted) {
+          setMoodboards(Array.isArray(data) ? data : data.results || []);
+        }
+      } catch (err) {
+        console.error("Failed to load moodboards:", err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadMoodboards();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId]);
 
 
   async function handleUpload(event) {
