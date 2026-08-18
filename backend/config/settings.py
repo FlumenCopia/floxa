@@ -130,14 +130,14 @@ else:
                 pass
 
     db_config = {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': DB_ENGINE_VAL,
         'NAME': config("DB_NAME"),
         'USER': config("DB_USER"),
         'PASSWORD': config("DB_PASSWORD"),
         'HOST': db_host,
         'PORT': config("DB_PORT"),
     }
-    if db_options:
+    if db_options and "postgresql" in DB_ENGINE_VAL:
         db_config["OPTIONS"] = db_options
 
 DATABASES = {
