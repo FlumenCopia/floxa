@@ -189,9 +189,9 @@
     inset 0 1px 1px rgba(255, 255, 255, 0.18),
     inset 0 -1px 1px rgba(0, 0, 0, 0.4);
   transition:
-    width 0.75s cubic-bezier(0.16, 1, 0.3, 1),
-    min-height 0.75s cubic-bezier(0.16, 1, 0.3, 1),
-    padding 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+    width 1.15s cubic-bezier(0.16, 1, 0.3, 1),
+    min-height 1.15s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 1.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .client-welcome-glass.is-login-mode {
@@ -243,32 +243,32 @@
   pointer-events: auto;
   visibility: visible;
   transition:
-    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.95s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1.15s cubic-bezier(0.16, 1, 0.3, 1),
     visibility 0s 0s;
 }
 
 .client-welcome-copy.slide-out-left {
   opacity: 0;
-  transform: translateX(-120px);
+  transform: translateX(-140px);
   pointer-events: none;
   visibility: hidden;
   transition:
-    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
-    visibility 0s 0.75s;
+    opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1.15s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s 1.15s;
 }
 
 /* 2nd Section: Login 2-Column View Transitions */
 .client-access-stage-wrap.slide-out-right {
   opacity: 0;
-  transform: translateX(120px);
+  transform: translateX(140px);
   pointer-events: none;
   visibility: hidden;
   transition:
-    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
-    visibility 0s 0.75s;
+    opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1.15s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s 1.15s;
 }
 
 .client-access-stage-wrap.slide-in-view {
@@ -277,24 +277,24 @@
   pointer-events: auto;
   visibility: visible;
   transition:
-    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.05s,
-    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.95s cubic-bezier(0.16, 1, 0.3, 1) 0.05s,
+    transform 1.15s cubic-bezier(0.16, 1, 0.3, 1),
     visibility 0s 0s;
 }
 
 /* Smooth Slide-in for Sub-components */
 .client-access-stage-wrap.slide-in-view .client-pill-form {
-  animation: client-right-slide-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: client-right-slide-in 1.15s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .client-access-stage-wrap.slide-in-view .client-access-intro {
-  animation: client-left-slide-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: client-left-slide-in 1.15s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes client-right-slide-in {
   from {
     opacity: 0;
-    transform: translateX(60px);
+    transform: translateX(70px);
   }
   to {
     opacity: 1;
@@ -305,7 +305,7 @@
 @keyframes client-left-slide-in {
   from {
     opacity: 0;
-    transform: translateX(-40px);
+    transform: translateX(-50px);
   }
   to {
     opacity: 1;
