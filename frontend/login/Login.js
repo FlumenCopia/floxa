@@ -50,6 +50,13 @@ export default function Login() {
 
     checkExistingSession();
 
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("mode") === "login") {
+        setStage("login");
+      }
+    }
+
     return () => {
       isMounted = false;
     };

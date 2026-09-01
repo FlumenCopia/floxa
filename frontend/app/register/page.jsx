@@ -9,7 +9,7 @@ import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [stage, setStage] = useState("splash");
+  const [stage, setStage] = useState("register");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -59,7 +59,7 @@ export default function RegisterPage() {
       setSuccessMessage("Registration successful. Redirecting to login...");
       showSuccess("Registration successful. Redirecting to login.");
       setTimeout(() => {
-        router.push("/login");
+        router.push("/login?mode=login");
       }, 1000);
     } catch (error) {
       console.error(error);
@@ -122,7 +122,7 @@ export default function RegisterPage() {
               <button
                 type="button"
                 className="login-begin-btn"
-                onClick={() => setStage("splash")}
+                onClick={() => router.push("/login?mode=login")}
               >
                 <span>Go Back</span>
                 <span className="login-btn-arrow" aria-hidden="true">
@@ -226,7 +226,7 @@ export default function RegisterPage() {
 
               <div className="login-auth-switch">
                 <span>Already have an account?</span>
-                <Link href="/login" className="signup-link">
+                <Link href="/login?mode=login" className="signup-link">
                   Sign in
                 </Link>
               </div>
