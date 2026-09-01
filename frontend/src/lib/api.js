@@ -121,6 +121,11 @@ async function getRequestHeaders(options = {}, { includeAuth = true } = {}) {
     delete headers.authorization;
   }
 
+  if (typeof FormData !== "undefined" && options.body instanceof FormData) {
+    delete headers["Content-Type"];
+    delete headers["content-type"];
+  }
+
   if (isUnsafeMethod(options.method)) {
     const csrfToken = await ensureCsrfCookie();
 

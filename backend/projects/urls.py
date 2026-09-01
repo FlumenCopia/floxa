@@ -9,9 +9,11 @@ from .views import (
     ConceptDetailView,
     ConceptShareView,
     ConceptView,
+    DeliverableAutoGenerateView,
     DeliverableDetailView,
     DeliverableFileView,
     DeliverableShareView,
+    DeliverableSummaryView,
     DeliverableView,
     DiscoverySummaryView,
     GeneratedAgreementView,
@@ -121,6 +123,16 @@ urlpatterns = [
         "<int:project_id>/deliverables/",
         DeliverableView.as_view(),
         name="project-deliverables",
+    ),
+    path(
+        "<int:project_id>/deliverables/auto-generate/",
+        DeliverableAutoGenerateView.as_view(),
+        name="project-deliverables-auto-generate",
+    ),
+    path(
+        "<int:project_id>/deliverables/summary/",
+        DeliverableSummaryView.as_view(),
+        name="project-deliverables-summary",
     ),
     path(
         "<int:project_id>/agreement/",

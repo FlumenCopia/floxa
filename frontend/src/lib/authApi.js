@@ -76,9 +76,10 @@ export async function getCurrentConsultant(forceRefresh = false) {
 }
 
 export async function updateCurrentConsultant(data) {
+  const isFormData = typeof FormData !== "undefined" && data instanceof FormData;
   const updated = await apiRequest("/auth/me/", {
     method: "PATCH",
-    body: JSON.stringify(data),
+    body: isFormData ? data : JSON.stringify(data),
   });
   cachedConsultant = updated;
   notifyConsultantChange(updated);

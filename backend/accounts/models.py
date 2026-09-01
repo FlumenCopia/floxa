@@ -36,6 +36,7 @@ class Consultant(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     company = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=20, blank=True)
+    avatar = models.ImageField(upload_to="consultant_avatars/", null=True, blank=True)
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

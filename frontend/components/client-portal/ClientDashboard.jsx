@@ -381,6 +381,27 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
     loadInitialClientActivities();
 
+    async function checkInitialBrandDNA() {
+      try {
+        const [dnaRes, discRes] = await Promise.all([
+          clientPortalService.getBrandDNAReport(),
+          clientPortalService.getDiscoveryReport(),
+        ]);
+        if (isActive) {
+          if (dnaRes.success && dnaRes.data) {
+            setBrandDNAReport(dnaRes.data);
+          }
+          if (discRes.success && discRes.data) {
+            setDiscoveryReport(discRes.data);
+          }
+        }
+      } catch {
+        // Brand DNA / discovery pending
+      }
+    }
+
+    checkInitialBrandDNA();
+
     return () => {
       isActive = false;
     };
@@ -996,9 +1017,9 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     {
       symbol: "01",
       title: "Discovery Report",
-      sub: discoveryReport?.submitted_at || discoveryReport?.submittedAt
-        ? "View submitted report"
-        : "View brand discovery",
+      sub: brandDNAReport
+        ? "Brand DNA ready"
+        : "Under review by consultant",
       active: true,
       panel: "discovery",
     },
@@ -1245,101 +1266,154 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               {discoveryReportLoading ? (
                 <>
                   <h3>Loading discovery report...</h3>
-                  <p>Your submitted discovery report and brand answers are being loaded.</p>
+                  <p>Your brand report and strategy are being fetched.</p>
                 </>
-              ) : discoveryReport || project.brandDNA ? (
+              ) : brandDNAReport ? (
                 <>
                   <div className="client-discovery-report-header">
-                    <span>Submitted Discovery Report</span>
-                    <h3>{discoveryReport?.what_business_does || project.brandDNA?.whatDo || "Brand Discovery Answers"}</h3>
+                    <span>Brand DNA & Strategy</span>
+                    <h3>{brandDNAReport.brand_personality_cluster || "Brand DNA Analysis"}</h3>
+                    {discoveryReport?.submitted_at || discoveryReport?.submittedAt ? (
+                      <small className="client-badge-submitted">
+                        Discovery submitted on {new Date(discoveryReport.submitted_at || discoveryReport.submittedAt).toLocaleDateString()}
+                      </small>
+                    ) : null}
+                  </div>
+
+                  <div className="client-discovery-details-grid" style={{ marginBottom: "2rem" }}>
+                    {brandDNAReport.positioning_summary ? (
+                      <div className="client-discovery-detail-item full-width">
+                        <strong>Positioning Strategy</strong>
+                        <p>{brandDNAReport.positioning_summary}</p>
+                      </div>
+                    ) : null}
+
+                    {brandDNAReport.business_summary ? (
+                      <div className="client-discovery-detail-item">
+                        <strong>Business & Mission Summary</strong>
+                        <p>{brandDNAReport.business_summary}</p>
+                      </div>
+                    ) : null}
+
+                    {brandDNAReport.target_audience_summary ? (
+                      <div className="client-discovery-detail-item">
+                        <strong>Target Audience Summary</strong>
+                        <p>{brandDNAReport.target_audience_summary}</p>
+                      </div>
+                    ) : null}
+
+                    {brandDNAReport.brand_feeling_summary ? (
+                      <div className="client-discovery-detail-item">
+                        <strong>Brand Feeling Summary</strong>
+                        <p>{brandDNAReport.brand_feeling_summary}</p>
+                      </div>
+                    ) : null}
+
+                    {brandDNAReport.visual_direction_summary ? (
+                      <div className="client-discovery-detail-item">
+                        <strong>Visual Direction Summary</strong>
+                        <p>{brandDNAReport.visual_direction_summary}</p>
+                      </div>
+                    ) : null}
+
+                    {brandDNAReport.competitor_summary ? (
+                      <div className="client-discovery-detail-item full-width">
+                        <strong>Competitor Analysis</strong>
+                        <p>{brandDNAReport.competitor_summary}</p>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {discoveryReport ? (
+                    <div style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+                      <div className="client-discovery-report-header" style={{ marginBottom: "1rem" }}>
+                        <span>Submitted Discovery Answers</span>
+                        <h4>{discoveryReport?.what_business_does || "Client Discovery Questionnaire"}</h4>
+                      </div>
+
+                      <div className="client-discovery-details-grid">
+                        {discoveryReport?.target_customer ? (
+                          <div className="client-discovery-detail-item">
+                            <strong>Target Customer</strong>
+                            <p>{discoveryReport.target_customer}</p>
+                          </div>
+                        ) : null}
+
+                        {discoveryReport?.why_choose_us ? (
+                          <div className="client-discovery-detail-item">
+                            <strong>Why Choose Us</strong>
+                            <p>{discoveryReport.why_choose_us}</p>
+                          </div>
+                        ) : null}
+
+                        {discoveryReport?.brand_feeling ? (
+                          <div className="client-discovery-detail-item">
+                            <strong>Brand Feeling</strong>
+                            <p>{discoveryReport.brand_feeling}</p>
+                          </div>
+                        ) : null}
+
+                        {discoveryReport?.audience_archetype ? (
+                          <div className="client-discovery-detail-item">
+                            <strong>Audience Archetype</strong>
+                            <p>{discoveryReport.audience_archetype}</p>
+                          </div>
+                        ) : null}
+
+                        {discoveryReport?.emotions?.length > 0 ? (
+                          <div className="client-discovery-detail-item">
+                            <strong>Emotions & Keywords</strong>
+                            <p>
+                              {discoveryReport.emotions.map((e) => e.emotion || e).join(", ")}
+                            </p>
+                          </div>
+                        ) : null}
+
+                        {discoveryReport?.visual_styles?.length > 0 ? (
+                          <div className="client-discovery-detail-item">
+                            <strong>Visual Styles</strong>
+                            <p>
+                              {discoveryReport.visual_styles.map((s) => s.style || s).join(", ")}
+                            </p>
+                          </div>
+                        ) : null}
+
+                        {discoveryReport?.competitors?.length > 0 ? (
+                          <div className="client-discovery-detail-item full-width">
+                            <strong>Competitor References</strong>
+                            <div className="client-competitor-list">
+                              {discoveryReport.competitors.map((comp, idx) => (
+                                <div key={comp.id || idx} className="client-competitor-card">
+                                  <strong>{comp.name}</strong>
+                                  {comp.rating ? <span>Rating: {comp.rating}</span> : null}
+                                  {comp.reason ? <p>{comp.reason}</p> : null}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <div style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
+                  <div className="client-discovery-report-header" style={{ marginBottom: "1.5rem" }}>
+                    <span>Discovery Status</span>
+                    <h3>Under Consultant Review</h3>
                     {discoveryReport?.submitted_at || discoveryReport?.submittedAt ? (
                       <small className="client-badge-submitted">
                         Submitted on {new Date(discoveryReport.submitted_at || discoveryReport.submittedAt).toLocaleDateString()}
                       </small>
                     ) : null}
                   </div>
-
-                  <div className="client-discovery-details-grid">
-                    {discoveryReport?.target_customer || project.brandDNA?.targetCustomer ? (
-                      <div className="client-discovery-detail-item">
-                        <strong>Target Customer</strong>
-                        <p>{discoveryReport?.target_customer || project.brandDNA?.targetCustomer}</p>
-                      </div>
-                    ) : null}
-
-                    {discoveryReport?.why_choose_us || project.brandDNA?.whyChooseUs ? (
-                      <div className="client-discovery-detail-item">
-                        <strong>Why Choose Us</strong>
-                        <p>{discoveryReport?.why_choose_us || project.brandDNA?.whyChooseUs}</p>
-                      </div>
-                    ) : null}
-
-                    {discoveryReport?.brand_feeling || project.brandDNA?.brandFeeling ? (
-                      <div className="client-discovery-detail-item">
-                        <strong>Brand Feeling</strong>
-                        <p>{discoveryReport?.brand_feeling || project.brandDNA?.brandFeeling}</p>
-                      </div>
-                    ) : null}
-
-                    {discoveryReport?.audience_archetype || project.brandDNA?.audienceArchetype ? (
-                      <div className="client-discovery-detail-item">
-                        <strong>Audience Archetype</strong>
-                        <p>{discoveryReport?.audience_archetype || project.brandDNA?.audienceArchetype}</p>
-                      </div>
-                    ) : null}
-
-                    {(discoveryReport?.emotions?.length > 0 || project.brandDNA?.emotions?.length > 0) ? (
-                      <div className="client-discovery-detail-item">
-                        <strong>Emotions & Keywords</strong>
-                        <p>
-                          {(discoveryReport?.emotions?.map((e) => e.emotion || e) || project.brandDNA?.emotions || []).join(", ")}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {(discoveryReport?.visual_styles?.length > 0 || project.brandDNA?.visualStyles?.length > 0) ? (
-                      <div className="client-discovery-detail-item">
-                        <strong>Visual Styles</strong>
-                        <p>
-                          {(discoveryReport?.visual_styles?.map((s) => s.style || s) || project.brandDNA?.visualStyles || []).join(", ")}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {discoveryReport?.competitors?.length > 0 ? (
-                      <div className="client-discovery-detail-item full-width">
-                        <strong>Competitor References</strong>
-                        <div className="client-competitor-list">
-                          {discoveryReport.competitors.map((comp, idx) => (
-                            <div key={comp.id || idx} className="client-competitor-card">
-                              <strong>{comp.name}</strong>
-                              {comp.rating ? <span>Rating: {comp.rating}</span> : null}
-                              {comp.reason ? <p>{comp.reason}</p> : null}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
+                  <p style={{ color: "#94a3b8", fontSize: "1.05rem", lineHeight: "1.6", maxWidth: "560px", margin: "0 auto 1.5rem" }}>
+                    Your discovery answers have been successfully submitted. Your consultant is currently reviewing your inputs and generating your synthesized <strong>Brand DNA</strong> and strategy report.
+                  </p>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(56, 189, 248, 0.1)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "8px", padding: "10px 18px", color: "#38bdf8", fontSize: "0.9rem" }}>
+                    <span>⏳</span> Brand DNA report will be available here once generated by your consultant.
                   </div>
-
-                  {brandDNAReport ? (
-                    <div className="client-brand-dna-section" style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-                      <span>Consultant Brand DNA</span>
-                      <h3>{brandDNAReport.brand_personality_cluster || "Brand DNA Analysis"}</h3>
-                      <p>{brandDNAReport.positioning_summary}</p>
-                      <p>{brandDNAReport.business_summary}</p>
-                      <p>{brandDNAReport.target_audience_summary}</p>
-                      <p>{brandDNAReport.brand_feeling_summary}</p>
-                      <p>{brandDNAReport.visual_direction_summary}</p>
-                      <p>{brandDNAReport.competitor_summary}</p>
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <h3>No discovery report submitted yet</h3>
-                  <p>{discoveryReportError || "Complete your discovery questionnaire to view your brand report."}</p>
-                </>
+                </div>
               )}
             </div>
           ) : null}
@@ -1546,10 +1620,75 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                   <p>Your consultant&apos;s shared files are being fetched.</p>
                 </article>
               ) : null}
+
+              {/* Showcase Selected Moodboards */}
+              {moodboards.filter((m) => m.clientSelected || m.is_selected).length > 0 ? (
+                <article>
+                  <h3>Selected Moodboard Direction</h3>
+                  <div className="client-panel-grid" style={{ marginTop: "1rem" }}>
+                    {moodboards.filter((m) => m.clientSelected || m.is_selected).map((item) => (
+                      <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        {item.image_url ? (
+                          <ProtectedAssetImage
+                            src={item.image_url}
+                            asBackground
+                            className="client-panel-image"
+                            fallbackText="No image"
+                          />
+                        ) : null}
+                        <strong style={{ display: "block", marginTop: "8px", color: "#f8fafc" }}>{item.title}</strong>
+                        <small style={{ color: "#94a3b8" }}>{item.description || "Client-selected visual direction."}</small>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ) : null}
+
+              {/* Showcase Approved Concepts */}
+              {concepts.filter((c) => c.status === "approved").length > 0 ? (
+                <article>
+                  <h3>Approved Brand Concepts</h3>
+                  <div className="client-panel-grid" style={{ marginTop: "1rem" }}>
+                    {concepts.filter((c) => c.status === "approved").map((item) => (
+                      <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        {item.image_url ? (
+                          <ProtectedAssetImage
+                            src={item.image_url}
+                            asBackground
+                            className="client-panel-image"
+                            fallbackText="No image"
+                          />
+                        ) : null}
+                        <strong style={{ display: "block", marginTop: "8px", color: "#f8fafc" }}>{item.title} (v{item.version || 1})</strong>
+                        <small style={{ color: "#38bdf8" }}>Approved Identity</small>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ) : null}
+
+              {/* Payment Settlement Status */}
+              {payments.length > 0 ? (
+                <article>
+                  <h3>Payment Settlement Status</h3>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "10px" }}>
+                    {payments.map((p) => (
+                      <div key={p.id} style={{ background: "rgba(255,255,255,0.03)", padding: "8px 14px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.08)", fontSize: "0.9rem" }}>
+                        <span style={{ color: "#94a3b8", textTransform: "capitalize" }}>{p.type || "Milestone"}: </span>
+                        <strong style={{ color: "#f8fafc" }}>Rs {Number(p.amount || 0).toLocaleString()} </strong>
+                        <span style={{ color: p.status === "paid" ? "#4ade80" : "#fbbf24", marginLeft: "4px" }}>
+                          ({p.status === "paid" ? "Paid" : "Pending"})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              ) : null}
+
               {!deliverablesLoading && deliverables.length === 0 ? (
                 <article>
                   <h3>Deliverables are being prepared.</h3>
-                  <p>{deliverablesError || "Your consultant will share final files here."}</p>
+                  <p>{deliverablesError || "Your consultant will share final deliverable files here."}</p>
                 </article>
               ) : null}
               {!deliverablesLoading && deliverablesError && deliverables.length > 0 ? (
@@ -1585,7 +1724,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       disabled
                       className="client-panel-action secondary"
                     >
-                      Locked
+                      Locked (Final Payment Required)
                     </button>
                   )}
                 </article>

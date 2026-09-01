@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { showInfo } from "../../src/lib/toast";
 
 export default function Branding() {
   const [primaryColor, setPrimaryColor] = useState("#4DFFA0");
   const [heading, setHeading] = useState("Your Studio");
+
+  const handleBrandingAction = () => {
+    showInfo("Custom white-label branding will be available in an upcoming release.");
+  };
 
   const previewOrbStyle = {
     background: `radial-gradient(circle at 35% 35%, ${primaryColor}, #1c8050, #0a1912)`,
@@ -18,7 +23,7 @@ export default function Branding() {
 
         <div className="form-group mb-3">
           <label className="form-label">Studio logo</label>
-          <button className="btn btn-secondary btn-full settings-upload-btn" type="button">
+          <button className="btn btn-secondary btn-full settings-upload-btn" type="button" onClick={handleBrandingAction}>
             Upload logo
           </button>
         </div>
@@ -64,7 +69,7 @@ export default function Branding() {
           <div className="form-hint">floxa.io/your-studio</div>
         </div>
 
-        <button className="btn btn-primary settings-save-btn" type="button">
+        <button className="btn btn-primary settings-save-btn" type="button" onClick={handleBrandingAction}>
           Save branding
         </button>
       </div>

@@ -4,6 +4,7 @@ from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -184,17 +185,18 @@ class ConsultantTokenRefreshView(APIView):
 
 class ConsultantMeView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get(self, request):
-        serializer = ConsultantSerializer(request.user)
-
-        return Response(serializer.data)    
+        serializer = ConsultantSerializer(request.user, context={"request": request})
+        return Response(serializer.data)
 
     def patch(self, request):
         serializer = ConsultantSerializer(
             request.user,
             data=request.data,
             partial=True,
+            context={"request": request},
         )
 
         if serializer.is_valid():
