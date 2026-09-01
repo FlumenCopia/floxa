@@ -1119,7 +1119,9 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     <div className="client-dashboard-screen">
       <header className="client-dashboard-header">
         <div>
-          <div className="client-dashboard-wordmark">FLOXA</div>
+          <div className="client-dashboard-wordmark">
+            <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-dashboard-logo-img" />
+          </div>
           <p>Welcome back, {project.brandDNA?.clientName ?? "Client"}.</p>
         </div>
         <div className="client-dashboard-actions">

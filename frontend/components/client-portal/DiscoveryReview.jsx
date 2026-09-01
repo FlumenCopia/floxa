@@ -159,7 +159,9 @@ export function DiscoveryReview({
     <div className="client-discovery-screen client-review-screen">
       <div className="client-discovery-content client-review-content">
         <div className="client-discovery-topbar">
-          <div className="client-small-logo">FLOXA</div>
+          <div className="client-small-logo">
+            <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-small-logo-img" />
+          </div>
           <div>
             Review & Confirm <span>Before Submit</span>
           </div>

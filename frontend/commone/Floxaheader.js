@@ -583,7 +583,9 @@ export default function Floxaheader({
 
       <nav className={`sidebar ${isSidebarOpen ? "open" : ""}`.trim()}>
         <div className="logo-area">
-          <div className="logo">FLOXA</div>
+          <div className="logo">
+            <img src="/image/FLOXA_log.png" alt="FLOXA" className="logo-img" />
+          </div>
           <div className="logo-tag">Brand Discovery Platform</div>
         </div>
 

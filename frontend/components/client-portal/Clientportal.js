@@ -125,7 +125,9 @@ function StepDots({ active, total = 9 }) {
 function PortalHeader({ onClose }) {
   return (
     <header className="cp-header">
-      <div className="cp-logo">FLOXA</div>
+      <div className="cp-logo">
+        <img src="/image/FLOXA_log.png" alt="FLOXA" className="cp-logo-img" />
+      </div>
       <button className="cp-close" onClick={onClose} type="button">
         X Close
       </button>

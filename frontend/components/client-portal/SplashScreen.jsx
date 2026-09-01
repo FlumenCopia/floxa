@@ -1,47 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export function SplashScreen({ project, branding, onNext }) {
-  return (
-    <section className="client-welcome-stage">
-      <div className="client-welcome-glass client-design-enter">
-        <div className="client-welcome-copy">
-          <div className="client-wordmark">FLOXA</div>
-          <p className="client-welcome-subtitle">{branding.heading}</p>
-          <div className="client-project-label">{project?.name || "Private Project"}</div>
-
-          {project?.meetingSummary ? (
-            <p className="client-meeting-summary">{project.meetingSummary}</p>
-          ) : null}
-
-          <button
-            type="button"
-            className="client-gradient-button"
-            onClick={() => onNext("login")}
-          >
-            <span>Let&apos;s Begin</span>
-            <span className="client-button-arrow" aria-hidden="true">
-              -&gt;
-            </span>
-          </button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function LoginScreen({
+export function WelcomeStage({
   project,
   branding,
   resumeScreen,
   requiresPassword = false,
   onNext,
   onVerifyPassword,
+  initialMode = "splash",
 }) {
+  const [mode, setMode] = useState(initialMode);
+  const [emailOrName, setEmailOrName] = useState(project?.clientEmail || project?.name || "");
   const [password, setPassword] = useState("");
   const [accessError, setAccessError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+
+  useEffect(() => {
+    if (initialMode) {
+      setMode(initialMode);
+    }
+  }, [initialMode]);
+
+  useEffect(() => {
+    if (project?.clientEmail || project?.name) {
+      setEmailOrName((prev) => prev || project?.clientEmail || project?.name || "");
+    }
+  }, [project]);
+
+  const handleBeginClick = () => {
+    setMode("login");
+    if (onNext) {
+      onNext("login");
+    }
+  };
+
+  const handleBackClick = () => {
+    setMode("splash");
+    setAccessError("");
+    if (onNext) {
+      onNext("splash");
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -53,17 +54,14 @@ export function LoginScreen({
     }
 
     const nextPassword = password.trim();
-
     if (!nextPassword) {
       setAccessError("Enter your portal password.");
       return;
     }
 
     setIsVerifying(true);
-
     try {
       const response = await onVerifyPassword(nextPassword);
-
       if (!response?.success) {
         setAccessError(response?.error || "Incorrect portal password.");
       }
@@ -74,72 +72,138 @@ export function LoginScreen({
     }
   };
 
+  const isLogin = mode === "login";
+
   return (
     <section className="client-welcome-stage">
-      <div className="client-welcome-glass client-access-glass client-design-enter">
-        <div className="client-access-intro">
-          <div className="client-wordmark client-wordmark-left">FLOXA</div>
-          <p className="client-welcome-subtitle">{branding.heading}</p>
-          <p className="client-access-description">
-            Your private project space is ready. Continue to complete your
-            profile and brand discovery.
-          </p>
-
-          <button
-            type="button"
-            className="client-back-button"
-            onClick={() => onNext("splash")}
+      <div className={`client-welcome-glass ${isLogin ? "is-login-mode" : ""}`}>
+        <div className="client-stage-track">
+          {/* 1st Section: Splash Center View */}
+          <div
+            className={`client-stage-view client-welcome-copy ${
+              isLogin ? "slide-out-left" : "slide-in-center"
+            }`}
           >
-            <span aria-hidden="true">&lt;-</span> Go Back
-          </button>
-        </div>
-
-        <form className="client-access-form" onSubmit={handleSubmit}>
-          <div className="client-access-card-head">
-            <span className="client-access-label">Project Workspace</span>
-            <h1>{project?.name || "Private Project"}</h1>
-            <p>{project?.clientEmail || "Private portal link"}</p>
-          </div>
-
-          <div className="client-access-stage">
-            <div>
-              <span className="client-access-label">Current Stage</span>
-              <strong>Profile Setup</strong>
+            <div className="client-wordmark">
+              <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-wordmark-img" />
             </div>
-            <span className="client-stage-dot" aria-hidden="true" />
+            <p className="client-welcome-subtitle">
+              {branding?.heading || "Discover Your Brand Clarity."}
+            </p>
+
+            <button
+              type="button"
+              className="client-gradient-button"
+              onClick={handleBeginClick}
+            >
+              <span>Let&apos;s Begin</span>
+              <span className="client-button-arrow" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </span>
+            </button>
           </div>
 
-          <div className="client-access-badges" aria-label="Workspace security">
-            <span>Secure Workspace</span>
-            <span>Private Project Link</span>
-          </div>
-
-          {requiresPassword ? (
-            <label className="client-access-password">
-              <span className="client-access-label">Portal Password</span>
-              <input
-                autoComplete="current-password"
-                onChange={(event) => {
-                  setPassword(event.target.value);
-                  setAccessError("");
-                }}
-                type="password"
-                value={password}
-              />
-            </label>
-          ) : null}
-
-          {accessError ? <div className="client-access-error">{accessError}</div> : null}
-
-          <button
-            type="submit"
-            className="client-access-submit"
-            disabled={isVerifying}
+          {/* 2nd Section: Login 2-Column View */}
+          <div
+            className={`client-stage-view client-access-stage-wrap ${
+              isLogin ? "slide-in-view" : "slide-out-right"
+            }`}
           >
-            {isVerifying ? "Verifying..." : "Start Project"} <span aria-hidden="true">-&gt;</span>
-          </button>
-        </form>
+            {/* Left Column */}
+            <div className="client-access-intro">
+              <div className="client-wordmark client-wordmark-left">
+                <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-wordmark-img" />
+              </div>
+              <p className="client-welcome-subtitle">
+                {branding?.heading || "Discover Your Brand Clarity."}
+              </p>
+
+              <button
+                type="button"
+                className="client-gradient-button client-back-pill-button"
+                onClick={handleBackClick}
+              >
+                <span>Go Back</span>
+                <span className="client-button-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7" />
+                  </svg>
+                </span>
+              </button>
+            </div>
+
+            {/* Right Column (Form) */}
+            <form className="client-pill-form" onSubmit={handleSubmit}>
+              {/* Input 1: Email or Project Identifier */}
+              <div className="client-pill-input-wrap">
+                <span className="client-pill-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  className="client-pill-input"
+                  placeholder="Workspace / Email"
+                  value={emailOrName}
+                  onChange={(e) => setEmailOrName(e.target.value)}
+                  autoComplete="username"
+                />
+              </div>
+
+              {/* Input 2: Password */}
+              <div className="client-pill-input-wrap">
+                <span className="client-pill-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                </span>
+                <input
+                  type="password"
+                  className="client-pill-input"
+                  placeholder={requiresPassword ? "Portal Password" : "Password (optional)"}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setAccessError("");
+                  }}
+                  autoComplete="current-password"
+                />
+              </div>
+
+              {accessError ? (
+                <div className="client-access-error-msg">{accessError}</div>
+              ) : null}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                className="client-pill-submit-button"
+                disabled={isVerifying}
+              >
+                <span>{isVerifying ? "Verifying..." : "Get Started"}</span>
+                <span className="client-button-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </span>
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </section>
   );
+}
+
+export function SplashScreen(props) {
+  return <WelcomeStage {...props} initialMode="splash" />;
+}
+
+export function LoginScreen(props) {
+  return <WelcomeStage {...props} initialMode="login" />;
 }

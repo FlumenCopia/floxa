@@ -7,7 +7,7 @@ import "./ClientPortal.css";
 import { DiscoveryFlow } from "./DiscoveryFlow";
 import { DiscoveryReview } from "./DiscoveryReview";
 import { ProfileScreen } from "./ProfileScreen";
-import { LoginScreen, SplashScreen } from "./SplashScreen";
+import { LoginScreen, SplashScreen, WelcomeStage } from "./SplashScreen";
 
 function getResumeScreen(status) {
   const normalizedStatus = String(status || "").toLowerCase();
@@ -223,7 +223,9 @@ export function ClientPortal({ token }) {
   if (loading) {
     return (
       <main className="client-portal-shell client-loading-shell">
-        <div>FLOXA</div>
+        <div className="client-loading-logo-wrap">
+          <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-loading-logo-img" />
+        </div>
       </main>
     );
   }
@@ -260,8 +262,12 @@ export function ClientPortal({ token }) {
 
   return (
     <main className="client-portal-shell">
-      {screen === "splash" ? <SplashScreen {...screenProps} /> : null}
-      {screen === "login" ? <LoginScreen {...screenProps} /> : null}
+      {screen === "splash" || screen === "login" ? (
+        <WelcomeStage
+          {...screenProps}
+          initialMode={screen === "login" ? "login" : "splash"}
+        />
+      ) : null}
       {screen === "profile" ? <ProfileScreen {...screenProps} /> : null}
       {screen === "discovery" ? <DiscoveryFlow {...screenProps} /> : null}
       {screen === "review" ? <DiscoveryReview {...screenProps} /> : null}

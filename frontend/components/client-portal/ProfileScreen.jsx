@@ -147,7 +147,9 @@ export function ProfileScreen({
   return (
     <div className="client-profile-screen">
       <div className="client-profile-form-panel">
-        <div className="client-small-logo">FLOXA</div>
+        <div className="client-small-logo">
+          <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-small-logo-img" />
+        </div>
 
         <h1>
           Let&apos;s Know More
