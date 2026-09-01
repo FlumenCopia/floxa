@@ -7,7 +7,9 @@ export function SplashScreen({ project, branding, onNext }) {
     <section className="client-welcome-stage">
       <div className="client-welcome-glass client-design-enter">
         <div className="client-welcome-copy">
-          <div className="client-wordmark">FLOXA</div>
+          <div className="client-wordmark">
+            <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-wordmark-img" />
+          </div>
           <p className="client-welcome-subtitle">{branding.heading}</p>
           <div className="client-project-label">{project?.name || "Private Project"}</div>
 
@@ -78,7 +80,9 @@ export function LoginScreen({
     <section className="client-welcome-stage">
       <div className="client-welcome-glass client-access-glass client-design-enter">
         <div className="client-access-intro">
-          <div className="client-wordmark client-wordmark-left">FLOXA</div>
+          <div className="client-wordmark client-wordmark-left">
+            <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-wordmark-img" />
+          </div>
           <p className="client-welcome-subtitle">{branding.heading}</p>
           <p className="client-access-description">
             Your private project space is ready. Continue to complete your

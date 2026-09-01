@@ -223,7 +223,9 @@ export function ClientPortal({ token }) {
   if (loading) {
     return (
       <main className="client-portal-shell client-loading-shell">
-        <div>FLOXA</div>
+        <div className="client-loading-logo-wrap">
+          <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-loading-logo-img" />
+        </div>
       </main>
     );
   }

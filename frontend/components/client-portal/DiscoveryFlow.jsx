@@ -295,7 +295,9 @@ export function DiscoveryFlow({
     <div className="client-discovery-screen">
       <div className="client-discovery-content">
         <div className="client-discovery-topbar">
-          <div className="client-small-logo">FLOXA</div>
+          <div className="client-small-logo">
+            <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-small-logo-img" />
+          </div>
           <div>
             Phase 2 of 9 <span>{pct}%</span>
           </div>

@@ -104,7 +104,9 @@ export default function Login() {
   return (
     <div id="login-screen">
       <div className="login-card">
-        <div className="login-logo">FLOXA</div>
+        <div className="login-logo">
+          <img src="/image/FLOXA_log.png" alt="FLOXA" className="login-logo-img" />
+        </div>
         <div className="login-tagline">Clarity Before Creation</div>
 
         <form onSubmit={handleSubmit}>

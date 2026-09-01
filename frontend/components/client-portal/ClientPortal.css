@@ -130,11 +130,17 @@
   padding: 28px;
 }
 
-.client-loading-shell div {
-  color: var(--floxa-neon);
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+.client-loading-logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.client-loading-logo-img {
+  height: 38px;
+  max-width: 180px;
+  width: auto;
+  object-fit: contain;
   animation: floxa-breathe 2s ease-in-out infinite;
 }
 
@@ -208,16 +214,29 @@
 }
 
 .client-wordmark {
-  margin-bottom: 10px;
-  font-size: clamp(60px, 10vw, 118px);
-  font-weight: 700;
-  line-height: 0.95;
-  text-shadow: 0 12px 36px rgba(0, 0, 0, 0.38);
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .client-wordmark-left {
-  font-size: clamp(54px, 7vw, 84px);
+  justify-content: flex-start;
   text-align: left;
+}
+
+.client-wordmark-img {
+  max-width: min(280px, 80vw);
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+  display: inline-block;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45));
+}
+
+.client-wordmark-left .client-wordmark-img {
+  max-width: min(240px, 75vw);
+  height: 46px;
 }
 
 .client-welcome-subtitle {
@@ -454,8 +473,16 @@
 
 .client-small-logo {
   margin-bottom: 28px;
-  font-size: 22px;
-  opacity: 0.9;
+  display: flex;
+  align-items: center;
+}
+
+.client-small-logo-img {
+  height: 22px;
+  max-width: 120px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .client-profile-form-panel h1 {
@@ -1165,8 +1192,16 @@
 }
 
 .client-dashboard-wordmark {
-  font-size: 34px;
-  font-weight: 800;
+  display: flex;
+  align-items: center;
+}
+
+.client-dashboard-logo-img {
+  height: 28px;
+  max-width: 140px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .client-dashboard-header p {
