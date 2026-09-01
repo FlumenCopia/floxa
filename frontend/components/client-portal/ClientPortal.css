@@ -61,44 +61,7 @@
   font: inherit;
 }
 
-.client-portal-shell::before {
-  content: "";
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  width: 170vmax;
-  height: 170vmax;
-  margin-top: -85vmax;
-  margin-left: -85vmax;
-  z-index: -2;
-  background: url("/client-design/banner1.png") center ;
-  opacity: 1;
-  filter: brightness(1.35) contrast(1.12) saturate(1.35);
-  animation: client-background-spin 90s linear infinite;
-  will-change: transform;
-  pointer-events: none;
-}
-
-.client-portal-shell::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(circle at 50% 35%, rgba(77, 255, 160, 0.12), transparent 55%),
-    radial-gradient(circle at 50% 50%, rgba(0, 15, 8, 0.12), rgba(0, 7, 4, 0.55)),
-    linear-gradient(180deg, rgba(0, 10, 6, 0.08) 0%, rgba(0, 7, 4, 0.48) 100%);
-  pointer-events: none;
-}
-
-@keyframes client-background-spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
+/* (Background inherited from global floxa-ambient-bg rule in globals.css) */
 
 @keyframes client-design-enter {
   from {
