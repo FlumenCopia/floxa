@@ -30,6 +30,7 @@ export default function Account() {
   });
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [message, setMessage] = useState("");
 
   // Camera capture states
@@ -37,9 +38,11 @@ export default function Account() {
   const [cameraError, setCameraError] = useState("");
   const [capturedImage, setCapturedImage] = useState(null);
   const [capturedBlob, setCapturedBlob] = useState(null);
+  const fileInputRef = useRef(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const canvasRef = useRef(null);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -76,6 +79,21 @@ export default function Account() {
     };
   }, []);
 
+  // Close menu on click outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuOpen]);
+
   // Stop camera tracks on unmount
   useEffect(() => {
     return () => {
@@ -110,6 +128,7 @@ export default function Account() {
     payload.append("avatar", file);
 
     setUploadingAvatar(true);
+    setMenuOpen(false);
     try {
       const updated = await updateCurrentConsultant(payload);
       setAvatarUrl(updated?.avatar_url || updated?.avatar || "");
@@ -128,6 +147,7 @@ export default function Account() {
     payload.append("avatar", "");
 
     setUploadingAvatar(true);
+    setMenuOpen(false);
     try {
       const updated = await updateCurrentConsultant(payload);
       setAvatarUrl("");
@@ -142,6 +162,7 @@ export default function Account() {
 
   // Camera Handlers
   const startCamera = async () => {
+    setMenuOpen(false);
     setCameraOpen(true);
     setCameraError("");
     setCapturedImage(null);
@@ -304,62 +325,111 @@ export default function Account() {
 
   return (
     <>
-      {/* Profile Picture Card */}
-      <div className="card settings-card mb-3">
+      {/* Sleek Profile Picture Card with Circular Avatar & Plus Icon Badge */}
+      <div className="card settings-card mb-3" ref={menuRef}>
         <div className="font-6 settings-card-title">Profile Picture</div>
-        <div style={{ display: "flex", alignItems: "center", gap: "24px", marginTop: "12px", flexWrap: "wrap" }}>
-          <div
-            style={{
-              width: "80px",
-              height: "80px",
-              borderRadius: "50%",
-              overflow: "hidden",
-              background: "linear-gradient(135deg, #174332, #50f39b)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "24px",
-              fontWeight: "700",
-              color: "#02231c",
-              border: "2px solid rgba(16, 185, 129, 0.4)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-              flexShrink: 0,
-            }}
-          >
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={formData.name || "Consultant"}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : (
-              getInitials(formData.name)
-            )}
+        <div style={{ display: "flex", alignItems: "center", gap: "24px", marginTop: "16px", flexWrap: "wrap" }}>
+          
+          {/* Avatar Container with Interactive Plus Badge */}
+          <div style={{ position: "relative", width: "92px", height: "92px", flexShrink: 0 }}>
+            <div
+              onClick={() => setMenuOpen((open) => !open)}
+              style={{
+                width: "92px",
+                height: "92px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                background: "linear-gradient(135deg, #174332, #50f39b)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "26px",
+                fontWeight: "700",
+                color: "#02231c",
+                border: "3px solid #10b981",
+                boxShadow: "0 6px 20px rgba(16, 185, 129, 0.25)",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              title="Click to change photo"
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={formData.name || "Consultant"}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                getInitials(formData.name)
+              )}
+            </div>
+
+            {/* Small Plus (+) Action Badge */}
+            <button
+              type="button"
+              onClick={() => setMenuOpen((open) => !open)}
+              disabled={uploadingAvatar}
+              aria-label="Change photo options"
+              style={{
+                position: "absolute",
+                bottom: "0",
+                right: "0",
+                width: "30px",
+                height: "30px",
+                borderRadius: "50%",
+                background: "#10b981",
+                color: "#02231c",
+                border: "2.5px solid #02231c",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "18px",
+                fontWeight: "900",
+                cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.6)",
+                transition: "transform 0.15s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.15)")}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+            >
+              {uploadingAvatar ? "…" : "+"}
+            </button>
+
+            {/* Hidden File Input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              onChange={handleAvatarSelect}
+              style={{ display: "none" }}
+            />
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {/* Quick Actions & Menu */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-              <label
+              <button
+                type="button"
                 className="btn btn-primary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
                 style={{
                   margin: 0,
-                  cursor: uploadingAvatar ? "not-allowed" : "pointer",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: "6px",
+                  gap: "7px",
                   fontSize: "0.85rem",
                   padding: "8px 16px",
+                  borderRadius: "8px",
                 }}
               >
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/webp"
-                  onChange={handleAvatarSelect}
-                  disabled={uploadingAvatar}
-                  style={{ display: "none" }}
-                />
-                📷 Upload Picture
-              </label>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                {uploadingAvatar ? "Uploading..." : "Upload Photo"}
+              </button>
 
               <button
                 type="button"
@@ -374,10 +444,15 @@ export default function Account() {
                   padding: "8px 16px",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: "6px",
+                  gap: "7px",
+                  borderRadius: "8px",
                 }}
               >
-                📸 Take Photo
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                Take Photo
               </button>
 
               {avatarUrl ? (
@@ -391,15 +466,18 @@ export default function Account() {
                     color: "#f87171",
                     border: "1px solid rgba(239, 68, 68, 0.25)",
                     fontSize: "0.85rem",
-                    padding: "8px 16px",
+                    padding: "8px 14px",
+                    borderRadius: "8px",
                   }}
+                  title="Remove custom photo"
                 >
-                  Remove Picture
+                  Remove
                 </button>
               ) : null}
             </div>
-            <div className="form-hint" style={{ marginTop: "2px" }}>
-              Recommended: Square JPG, PNG or WebP, max 5MB. Appears in your sidebar and portal.
+
+            <div className="form-hint" style={{ fontSize: "0.8rem", color: "#618272" }}>
+              Click the <strong>+</strong> badge on your avatar or choose an option above.
             </div>
           </div>
         </div>
@@ -474,12 +552,12 @@ export default function Account() {
             ) : (
               <div
                 style={{
-                  width: "320px",
-                  height: "320px",
+                  width: "300px",
+                  height: "300px",
                   borderRadius: "50%",
                   overflow: "hidden",
                   border: "3px solid #10b981",
-                  boxShadow: "0 0 20px rgba(16, 185, 129, 0.3)",
+                  boxShadow: "0 0 25px rgba(16, 185, 129, 0.35)",
                   position: "relative",
                   background: "#000",
                   display: "flex",
