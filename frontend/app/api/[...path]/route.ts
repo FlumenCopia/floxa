@@ -9,11 +9,17 @@ const BACKEND_BASE_URL = (
   "https://floxa-1o19.vercel.app/api"
 ).replace(/\/+$/, "");
 
+const ADDITIONAL_ALLOWED_ORIGINS = (process.env.ADDITIONAL_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
 const ALLOWED_ORIGINS = [
   "https://floxa.flumenx.in",
   "https://floxa-frontend-test-lyart.vercel.app",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  ...ADDITIONAL_ALLOWED_ORIGINS,
 ];
 
 function getValidatedOriginAndReferer(request: NextRequest) {

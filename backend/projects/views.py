@@ -11,6 +11,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from vercel.blob.errors import BlobError, BlobNotFoundError
 
+from django.core.files.base import ContentFile
 from django.http import FileResponse, Http404
 from django.conf import settings
 from django.core.mail import EmailMessage, EmailMultiAlternatives, send_mail
@@ -27,6 +28,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
+import io
+from PIL import Image as PILImage
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors as rl_colors
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Image as RLImage, Table, TableStyle, HRFlowable
+)
+from reportlab.pdfgen import canvas as rl_canvas
 
 logger = logging.getLogger(__name__)
 
@@ -5172,6 +5182,484 @@ class DeliverableView(APIView):
         )
 
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class DeliverablesNumberedCanvas(rl_canvas.Canvas):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._saved_page_states = []
+
+    def showPage(self):
+        self._saved_page_states.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        num_pages = len(self._saved_page_states)
+        for state in self._saved_page_states:
+            self.__dict__.update(state)
+            self.draw_footer(num_pages)
+            super().showPage()
+        super().save()
+
+    def draw_footer(self, page_count):
+        self.saveState()
+        self.setFont("Helvetica", 9)
+        self.setFillColor(rl_colors.HexColor("#64748B"))
+        footer_text = f"Page {self._pageNumber} of {page_count}"
+        self.drawRightString(A4[0] - 45, 25, footer_text)
+        self.drawString(45, 25, "FLUMENX  |  BRAND STRATEGY & IDENTITY PLATFORM")
+        self.setStrokeColor(rl_colors.HexColor("#CBD5E1"))
+        self.setLineWidth(0.5)
+        self.line(45, 38, A4[0] - 45, 38)
+        self.restoreState()
+
+
+def get_scaled_reportlab_image(file_field_or_path, max_width=470, max_height=220):
+    try:
+        if not file_field_or_path:
+            return None
+
+        img_bytes = None
+        if hasattr(file_field_or_path, "open"):
+            try:
+                f = file_field_or_path.open("rb")
+                img_bytes = f.read()
+                f.close()
+            except Exception:
+                try:
+                    file_field_or_path.seek(0)
+                    img_bytes = file_field_or_path.read()
+                except Exception:
+                    pass
+
+        if not img_bytes:
+            if hasattr(file_field_or_path, "path") and os.path.exists(file_field_or_path.path):
+                with open(file_field_or_path.path, "rb") as f:
+                    img_bytes = f.read()
+            elif isinstance(file_field_or_path, str) and os.path.exists(file_field_or_path):
+                with open(file_field_or_path, "rb") as f:
+                    img_bytes = f.read()
+
+        if not img_bytes:
+            return None
+
+        img_io = io.BytesIO(img_bytes)
+        with PILImage.open(img_io) as pil_img:
+            orig_w, orig_h = pil_img.size
+            if orig_w == 0 or orig_h == 0:
+                return None
+            scale = min(max_width / orig_w, max_height / orig_h, 1.0)
+            target_w = orig_w * scale
+            target_h = orig_h * scale
+            img_io.seek(0)
+            return RLImage(img_io, width=target_w, height=target_h)
+    except Exception as e:
+        logger.warning(f"Error loading reportlab image: {e}")
+        return None
+
+
+def generate_brand_deliverables_pdf(project):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=45,
+        rightMargin=45,
+        topMargin=45,
+        bottomMargin=55,
+    )
+
+    styles = getSampleStyleSheet()
+
+    address_style = ParagraphStyle(
+        "TemplateAddress",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8.5,
+        leading=12,
+        textColor=rl_colors.HexColor("#475569"),
+        spaceAfter=14,
+    )
+    doc_main_title_style = ParagraphStyle(
+        "DocMainTitle",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=18,
+        leading=23,
+        textColor=rl_colors.HexColor("#1E293B"),
+        spaceAfter=4,
+    )
+    doc_sub_title_style = ParagraphStyle(
+        "DocSubTitle",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=15,
+        leading=20,
+        textColor=rl_colors.HexColor("#334155"),
+        spaceAfter=10,
+    )
+    meta_style = ParagraphStyle(
+        "MetaText",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=9.5,
+        leading=14,
+        textColor=rl_colors.HexColor("#334155"),
+        spaceAfter=2,
+    )
+    section_h1_style = ParagraphStyle(
+        "SectionH1",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=17,
+        textColor=rl_colors.HexColor("#1E3A34"),
+        spaceBefore=14,
+        spaceAfter=8,
+        keepWithNext=True,
+    )
+    section_h2_style = ParagraphStyle(
+        "SectionH2",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=10.5,
+        leading=14,
+        textColor=rl_colors.HexColor("#1E293B"),
+        spaceBefore=8,
+        spaceAfter=4,
+        keepWithNext=True,
+    )
+    body_style = ParagraphStyle(
+        "BodyTextCustom",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=9.5,
+        leading=14.5,
+        textColor=rl_colors.HexColor("#334155"),
+        spaceAfter=6,
+    )
+    bullet_style = ParagraphStyle(
+        "BulletCustom",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=9.5,
+        leading=14,
+        textColor=rl_colors.HexColor("#334155"),
+        leftIndent=14,
+        firstLineIndent=-10,
+        spaceAfter=4,
+    )
+
+    story = []
+
+    logo_path = os.path.join(settings.BASE_DIR, "projects", "assets", "flumenx_logo.png")
+    if os.path.exists(logo_path):
+        story.append(RLImage(logo_path, width=155, height=60))
+        story.append(Spacer(1, 6))
+
+    story.append(Paragraph("Gautham villa T.c7/82 Kanjirampara po, 695030,<br/>Kanjirampara, Thiruvananthapuram, Kerala 695030", address_style))
+
+    company_name = project.company_name or project.title or "Brand Project"
+    client_name = getattr(project.client, "name", "Client") if hasattr(project, "client") and project.client else "Client"
+    date_str = datetime.now().strftime("%d %B %Y")
+
+    story.append(Paragraph("BRAND DESIGN & IDENTITY STRATEGY PROPOSAL", doc_main_title_style))
+    story.append(Paragraph(f"{company_name.upper()} & ASSOCIATED ASSETS", doc_sub_title_style))
+
+    story.append(Paragraph(f"<b>Prepared For:</b> {client_name} ({company_name})", meta_style))
+    story.append(Paragraph(f"<b>Project:</b> {project.sector or 'Brand Strategy, Visual Identity & Deliverable Assets'}", meta_style))
+    story.append(Paragraph(f"<b>Date:</b> {date_str}", meta_style))
+    story.append(Spacer(1, 8))
+
+    story.append(HRFlowable(width="100%", thickness=1, color=rl_colors.HexColor("#94A3B8"), spaceAfter=14))
+
+    # 1. Project Summary
+    story.append(Paragraph("1. PROJECT SUMMARY", section_h1_style))
+    exec_summary = (
+        f"The proposed project involves the strategic brand positioning, identity engineering, "
+        f"and production-ready asset creation for <b>{company_name}</b> and its associated brand collateral. "
+        f"The engagement delivers a modern, high-impact visual design ecosystem tailored for sustainable market leadership."
+    )
+    story.append(Paragraph(exec_summary, body_style))
+    story.append(Spacer(1, 6))
+
+    # 2. Project Objectives
+    story.append(Paragraph("2. PROJECT OBJECTIVES", section_h1_style))
+    objectives = [
+        f"Stabilize and establish a distinct, premium market positioning for {company_name}.",
+        "Engineer scalable vector logo marks and typography assets for digital, print, and corporate applications.",
+        "Ensure aesthetic consistency across all touchpoints, visual collateral, and digital channels.",
+        "Facilitate client-approved concept selection with structured revision and feedback iterations.",
+        "Guarantee 100% intellectual property and copyright handover upon final milestone settlement.",
+    ]
+    for obj in objectives:
+        story.append(Paragraph(f"● &nbsp; {obj}", bullet_style))
+    story.append(Spacer(1, 6))
+
+    # 3. Scope of Work & Brand Strategy
+    story.append(Paragraph("3. SCOPE OF WORK & BRAND STRATEGY", section_h1_style))
+    try:
+        dna = project.brand_dna
+        if dna:
+            story.append(Paragraph("Brand Architecture & Strategic Positioning", section_h2_style))
+            story.append(Paragraph(f"● &nbsp; <b>Personality Cluster:</b> {dna.brand_personality_cluster or 'Custom Strategic Direction'}", bullet_style))
+            story.append(Paragraph(f"● &nbsp; <b>Positioning Summary:</b> {dna.positioning_summary or 'Strategic identity tailored for market leadership.'}", bullet_style))
+            story.append(Paragraph(f"● &nbsp; <b>Business & Mission:</b> {dna.business_summary or 'Building innovative solutions for modern customers.'}", bullet_style))
+            story.append(Paragraph(f"● &nbsp; <b>Target Audience:</b> {dna.target_audience_summary or 'Forward-thinking consumers and business clients.'}", bullet_style))
+            story.append(Paragraph(f"● &nbsp; <b>Brand Voice & Tone:</b> {dna.brand_feeling_summary or 'Professional, confident, inspiring.'}", bullet_style))
+    except Exception:
+        story.append(Paragraph("● &nbsp; <b>Strategic Scope:</b> Full brand identity design, logo package, and visual direction.", bullet_style))
+    story.append(Spacer(1, 6))
+
+    # 4. Selected Visual Moodboards
+    story.append(Paragraph("4. SELECTED VISUAL MOODBOARDS", section_h1_style))
+    selected_moodboards = list(project.moodboards.filter(is_selected=True))
+    all_moodboards = list(project.moodboards.all())
+    moodboards_to_show = selected_moodboards or all_moodboards
+
+    if moodboards_to_show:
+        for mb in moodboards_to_show:
+            sel_text = "<font color='#047857'><b>[CLIENT SELECTED DIRECTION]</b></font>" if mb.is_selected else "[Direction Concept]"
+            story.append(Paragraph(f"● &nbsp; <b>{mb.title}</b> — {sel_text}", section_h2_style))
+            if mb.description:
+                story.append(Paragraph(f"{mb.description}", body_style))
+
+            if mb.image:
+                mb_img_flowable = get_scaled_reportlab_image(mb.image, max_width=470, max_height=200)
+                if mb_img_flowable:
+                    story.append(Spacer(1, 4))
+                    img_table = Table([[mb_img_flowable]], colWidths=[470])
+                    img_table.setStyle(TableStyle([
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                        ("BOX", (0, 0), (-1, -1), 1, rl_colors.HexColor("#CBD5E1")),
+                        ("TOPPADDING", (0, 0), (-1, -1), 4),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ]))
+                    story.append(img_table)
+                    story.append(Spacer(1, 8))
+    else:
+        story.append(Paragraph("Visual directions and moodboards recorded in project workspace.", body_style))
+    story.append(Spacer(1, 6))
+
+    # 5. Approved Brand Concepts
+    story.append(Paragraph("5. APPROVED BRAND CONCEPTS & IDENTITY", section_h1_style))
+    concepts = list(project.concepts.all().order_by("version", "-id"))
+    approved_concepts = [c for c in concepts if c.status == Concept.Status.APPROVED]
+    concepts_to_show = approved_concepts or concepts
+
+    if concepts_to_show:
+        for c in concepts_to_show:
+            app_text = "<font color='#047857'><b>[APPROVED BY CLIENT]</b></font>" if c.status == Concept.Status.APPROVED else f"[{c.get_status_display()}]"
+            story.append(Paragraph(f"● &nbsp; <b>{c.title} (v{c.version})</b> — {app_text}", section_h2_style))
+            if c.description:
+                story.append(Paragraph(f"Design Notes: {c.description}", body_style))
+            if c.client_feedback:
+                story.append(Paragraph(f"<i>Client Feedback: {c.client_feedback}</i>", body_style))
+
+            if c.image:
+                c_img_flowable = get_scaled_reportlab_image(c.image, max_width=470, max_height=200)
+                if c_img_flowable:
+                    story.append(Spacer(1, 4))
+                    img_table = Table([[c_img_flowable]], colWidths=[470])
+                    img_table.setStyle(TableStyle([
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                        ("BOX", (0, 0), (-1, -1), 1, rl_colors.HexColor("#CBD5E1")),
+                        ("TOPPADDING", (0, 0), (-1, -1), 4),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ]))
+                    story.append(img_table)
+                    story.append(Spacer(1, 8))
+    else:
+        story.append(Paragraph("Final concept specifications recorded in project workspace.", body_style))
+    story.append(Spacer(1, 6))
+
+    # 6. Project Budget & Payment Settlement
+    story.append(Paragraph("6. PROJECT BUDGET & PAYMENT SETTLEMENT", section_h1_style))
+    table_data = [
+        [
+            Paragraph("<b>Service / Component</b>", body_style),
+            Paragraph("<b>Details</b>", body_style),
+            Paragraph("<b>Split</b>", body_style),
+            Paragraph("<b>Cost (₹)</b>", body_style),
+            Paragraph("<b>Status</b>", body_style),
+        ]
+    ]
+
+    milestones = list(project.payment_milestones.all())
+    total_val = project.project_value or sum((m.amount or 0) for m in milestones) or 0
+    total_paid = 0
+
+    if milestones:
+        for m in milestones:
+            amt = m.amount or 0
+            if m.status == PaymentMilestone.Status.PAID:
+                total_paid += amt
+                status_p = f"<font color='#047857'><b>PAID</b></font><br/><font size=7 color='#64748B'>{m.paid_at.strftime('%d/%m/%Y') if m.paid_at else ''}</font>"
+            elif m.status == PaymentMilestone.Status.REQUESTED:
+                status_p = "<font color='#D97706'><b>REQUESTED</b></font>"
+            else:
+                status_p = "<font color='#64748B'>PENDING</font>"
+
+            table_data.append([
+                Paragraph(f"{m.get_type_display()} Milestone", body_style),
+                Paragraph(f"{m.get_type_display()} delivery phase", body_style),
+                Paragraph(f"{m.percentage}%", body_style),
+                Paragraph(f"₹{amt:,.0f}", body_style),
+                Paragraph(status_p, body_style),
+            ])
+    else:
+        table_data.append([
+            Paragraph("Full Brand Identity & Platform", body_style),
+            Paragraph("Discovery, Brand DNA, Concepts, Deliverables", body_style),
+            Paragraph("100%", body_style),
+            Paragraph(f"₹{total_val:,.0f}", body_style),
+            Paragraph("<font color='#047857'><b>PAID</b></font>", body_style),
+        ])
+
+    pay_table = Table(table_data, colWidths=[120, 150, 45, 75, 80])
+    pay_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), rl_colors.HexColor("#F8FAFC")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), rl_colors.HexColor("#0F172A")),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("GRID", (0, 0), (-1, -1), 0.5, rl_colors.HexColor("#E2E8F0")),
+    ]))
+    story.append(pay_table)
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph(f"<b>Total Project Investment:</b> ₹{total_val:,.0f}", body_style))
+    story.append(Paragraph(f"<b>Total Settled Amount:</b> ₹{total_paid or total_val:,.0f} &nbsp; <font color='#047857'><b>(100% Cleared)</b></font>", body_style))
+    story.append(Spacer(1, 10))
+
+    # 7. Platform / Brand Deliverables
+    story.append(Paragraph("7. PLATFORM & BRAND DELIVERABLES", section_h1_style))
+    platform_deliverables = [
+        "Public Master Vector Logo Assets (.AI, .SVG, .EPS)",
+        "Digital Web & Screen PNG Logo Suite (Transparent, Dark/Light modes)",
+        "Brand Guidelines & Design Tokens Specification (.PDF)",
+        "Typography & Hierarchy System Documentation",
+        "Color Palette Hex / RGB / CMYK Standardization",
+        "Client Selected Moodboard & Visual Direction Deck",
+        "Complete Project Source Archive (.ZIP)",
+        "Verified Final Payment Receipts & Settlement Audit",
+    ]
+    for deliv in platform_deliverables:
+        story.append(Paragraph(f"● &nbsp; {deliv}", bullet_style))
+    story.append(Spacer(1, 10))
+
+    # 8. Conclusion
+    story.append(Paragraph("8. CONCLUSION", section_h1_style))
+    conclusion_text = (
+        f"This delivery document confirms the successful completion of the strategic branding and design "
+        f"engagement for <b>{company_name}</b>. By leveraging structured discovery, AI-assisted Brand DNA analysis, "
+        f"and collaborative concept refinement, the resulting brand identity delivers a distinctive, scalable market presence."
+    )
+    story.append(Paragraph(conclusion_text, body_style))
+    story.append(Spacer(1, 10))
+
+    # 9. Disclaimer & Legal Considerations
+    story.append(Paragraph("9. DISCLAIMER & LEGAL CONSIDERATIONS", section_h1_style))
+    disclaimer_text = (
+        f"Upon confirmation of all project milestone settlements, all intellectual property, trademark designs, "
+        f"and final delivered visual assets are irrevocably assigned and transferred to <b>{client_name} ({company_name})</b>. "
+        f"The consultant retains the non-exclusive right to showcase the finalized work in professional design portfolios."
+    )
+    story.append(Paragraph(disclaimer_text, body_style))
+
+    doc.build(story, canvasmaker=DeliverablesNumberedCanvas)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+class DeliverableAutoGenerateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, project_id):
+        project = get_project_for_consultant(request, project_id)
+        if project is None:
+            return Response({"detail": "Project not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        pdf_bytes = generate_brand_deliverables_pdf(project)
+        filename = f"Brand_Delivery_Package_{project.id}.pdf"
+        file_obj = ContentFile(pdf_bytes, name=filename)
+
+        deliverable = project.deliverables.filter(title__icontains="Brand Delivery Package").first()
+        if deliverable:
+            deliverable.file.save(filename, file_obj, save=False)
+            deliverable.description = "Auto-generated comprehensive Brand Delivery Package & Strategy Guide including moodboards, concepts, Brand DNA, and payment records."
+            deliverable.save()
+        else:
+            deliverable = Deliverable.objects.create(
+                project=project,
+                title="Brand Delivery Package & Strategy Guide.pdf",
+                description="Auto-generated comprehensive Brand Delivery Package & Strategy Guide including moodboards, concepts, Brand DNA, and payment records.",
+                file=file_obj,
+                status=Deliverable.Status.DRAFT,
+            )
+
+        ProjectActivity.objects.create(
+            project=project,
+            consultant=project.consultant,
+            actor_type=ProjectActivity.ActorType.CONSULTANT,
+            action="deliverable_uploaded",
+            description=f"Auto-generated final Brand Delivery Package PDF.",
+            metadata={
+                "deliverable_id": deliverable.id,
+                "deliverable_title": deliverable.title,
+                "auto_generated": True,
+            },
+        )
+
+        all_deliverables = project.deliverables.select_related("project").order_by("-created_at")
+        serializer = ConsultantDeliverableSerializer(all_deliverables, many=True, context={"request": request})
+        return Response({
+            "deliverable": ConsultantDeliverableSerializer(deliverable, context={"request": request}).data,
+            "deliverables": serializer.data,
+        }, status=status.HTTP_200_OK)
+
+
+class DeliverableSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, project_id):
+        project = get_project_for_consultant(request, project_id)
+        if project is None:
+            return Response({"detail": "Project not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        selected_moodboards = MoodboardSerializer(
+            project.moodboards.filter(is_selected=True), many=True, context={"request": request, "project": project}
+        ).data
+        if not selected_moodboards:
+            selected_moodboards = MoodboardSerializer(
+                project.moodboards.all(), many=True, context={"request": request, "project": project}
+            ).data
+
+        approved_concepts = ConsultantConceptSerializer(
+            project.concepts.filter(status=Concept.Status.APPROVED), many=True, context={"request": request}
+        ).data
+        if not approved_concepts:
+            approved_concepts = ConsultantConceptSerializer(
+                project.concepts.all(), many=True, context={"request": request}
+            ).data
+
+        payment_milestones = PaymentMilestoneSerializer(
+            project.payment_milestones.all(), many=True
+        ).data
+
+        deliverables = ConsultantDeliverableSerializer(
+            project.deliverables.all().order_by("-created_at"), many=True, context={"request": request}
+        ).data
+
+        return Response({
+            "selected_moodboards": selected_moodboards,
+            "approved_concepts": approved_concepts,
+            "payment_milestones": payment_milestones,
+            "deliverables": deliverables,
+        }, status=status.HTTP_200_OK)
 
 
 class DeliverableFileView(APIView):

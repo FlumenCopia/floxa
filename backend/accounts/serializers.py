@@ -1,3 +1,4 @@
+import re
 from rest_framework import serializers
 from .models import Consultant
 from django.contrib.auth import authenticate
@@ -6,16 +7,35 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 class ConsultantRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
+    name = serializers.CharField(max_length=150)
+    company = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
     class Meta:
         model = Consultant
-        fields = ["id", "name", "email", "password"]
+        fields = ["id", "name", "email", "password", "company", "phone"]
+
+    def validate_email(self, value):
+        normalized = (value or "").strip().lower()
+        if not normalized:
+            raise serializers.ValidationError("Email is required.")
+        if Consultant.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError("A consultant with this email already exists.")
+        return normalized
+
+    def validate_name(self, value):
+        trimmed = (value or "").strip()
+        if not trimmed:
+            raise serializers.ValidationError("Name is required.")
+        return trimmed
 
     def create(self, validated_data):
         return Consultant.objects.create_user(
             email=validated_data["email"],
             name=validated_data["name"],
-            password=validated_data["password"]
+            password=validated_data["password"],
+            company=validated_data.get("company", ""),
+            phone=validated_data.get("phone", ""),
         )
 
 
@@ -24,7 +44,7 @@ class ConsultantLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        email = data.get("email")
+        email = (data.get("email") or "").strip().lower()
         password = data.get("password")
 
         consultant = authenticate(
@@ -33,10 +53,10 @@ class ConsultantLoginSerializer(serializers.Serializer):
         )
 
         if consultant is None:
-            raise serializers.ValidationError("Invalid email or password")
+            raise serializers.ValidationError({"detail": "Invalid email or password."})
 
         if not consultant.is_active:
-            raise serializers.ValidationError("Consultant account is inactive")
+            raise serializers.ValidationError({"detail": "Consultant account is inactive."})
 
         refresh = RefreshToken.for_user(consultant)
 
@@ -47,15 +67,34 @@ class ConsultantLoginSerializer(serializers.Serializer):
                 "id": consultant.id,
                 "name": consultant.name,
                 "email": consultant.email,
+                "company": consultant.company,
+                "phone": consultant.phone,
             }
         }
 
 
 class ConsultantSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(max_length=150, required=False)
+    company = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+
     class Meta:
         model = Consultant
         fields = ["id", "name", "email", "company", "phone"]
         read_only_fields = ["id", "email"]
+
+    def validate_name(self, value):
+        trimmed = (value or "").strip()
+        if not trimmed:
+            raise serializers.ValidationError("Name cannot be empty.")
+        return trimmed
+
+    def validate_phone(self, value):
+        trimmed = (value or "").strip()
+        if trimmed:
+            if not re.match(r"^[\d\+\-\s\(\)]{7,20}$", trimmed):
+                raise serializers.ValidationError("Please provide a valid phone number.")
+        return trimmed
 
 
 class GoogleAuthSerializer(serializers.Serializer):

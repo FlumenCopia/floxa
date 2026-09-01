@@ -106,6 +106,16 @@ def validate_upload_file(file_obj, rule_name, field_name=None):
     ):
         raise_upload_error("Unsupported file type.", field_name)
 
+    if extension == ".pdf":
+        try:
+            file_obj.seek(0)
+            header_bytes = file_obj.read(4)
+            file_obj.seek(0)
+            if header_bytes != b"%PDF":
+                raise_upload_error("File content is not a valid PDF document.", field_name)
+        except (AttributeError, OSError):
+            pass
+
 
 import logging
 import time

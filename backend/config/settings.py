@@ -140,9 +140,19 @@ else:
     if db_options and "postgresql" in DB_ENGINE_VAL:
         db_config["OPTIONS"] = db_options
 
-DATABASES = {
-    'default': db_config
-}
+import sys
+
+if "test" in sys.argv:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
+else:
+    DATABASES = {
+        'default': db_config
+    }
 
 
 REST_FRAMEWORK = {
@@ -207,7 +217,7 @@ EMAIL_HOST = config("EMAIL_HOST", default="")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 _raw_email_pass = config("EMAIL_HOST_PASSWORD", default="")
-EMAIL_HOST_PASSWORD = _raw_email_pass.strip()
+EMAIL_HOST_PASSWORD = "".join(_raw_email_pass.split())
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
 EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=10, cast=int)

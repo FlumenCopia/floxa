@@ -115,6 +115,10 @@ export default function Account() {
     }
   };
 
+  const handleDeleteAccount = () => {
+    showError("Please contact support to request permanent account deletion.");
+  };
+
   return (
     <>
       <div className="card settings-card mb-3">
@@ -141,7 +145,7 @@ export default function Account() {
               value={formData.email}
               readOnly
             />
-            <div className="form-hint">Change via Firebase</div>
+            <div className="form-hint">Email address cannot be changed</div>
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="account-company">
@@ -177,7 +181,7 @@ export default function Account() {
         <div className="text-sm text-muted mb-3">
           Permanently delete your account and all associated data. This action cannot be undone.
         </div>
-        <button className="btn btn-danger" type="button">
+        <button className="btn btn-danger" type="button" onClick={handleDeleteAccount}>
           Delete account
         </button>
       </div>

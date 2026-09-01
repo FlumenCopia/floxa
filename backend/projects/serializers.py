@@ -58,14 +58,22 @@ class ClientProfileSerializer(serializers.ModelSerializer):
 
     def validate_phone(self, value):
         phone = str(value or "").strip()
-
-        if not phone.isdigit() or len(phone) != 10:
+        if phone and (not phone.isdigit() or len(phone) != 10):
             raise serializers.ValidationError("Phone number must be exactly 10 digits.")
-
         return phone
+
+    def validate_year_started(self, value):
+        if value is not None:
+            import datetime
+            current_year = datetime.date.today().year
+            if value < 1800 or value > current_year + 1:
+                raise serializers.ValidationError(f"Year started must be between 1800 and {current_year + 1}.")
+        return value
 
 
 class DiscoverySliderResponseSerializer(serializers.ModelSerializer):
+    value = serializers.IntegerField(min_value=0, max_value=100)
+
     class Meta:
         model = DiscoverySliderResponse
         fields = [
@@ -79,6 +87,8 @@ class DiscoverySliderResponseSerializer(serializers.ModelSerializer):
 
 
 class DiscoveryEmotionSerializer(serializers.ModelSerializer):
+    emotion = serializers.CharField(max_length=100)
+
     class Meta:
         model = DiscoveryEmotion
         fields = [
@@ -89,6 +99,10 @@ class DiscoveryEmotionSerializer(serializers.ModelSerializer):
 
 
 class DiscoveryCompetitorSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(max_length=150)
+    rating = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    reason = serializers.CharField(required=False, allow_blank=True)
+
     class Meta:
         model = DiscoveryCompetitor
         fields = [
@@ -679,6 +693,16 @@ class ProjectSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+        read_only_fields = [
+            "id",
+            "portal_token",
+            "workflow_status",
+            "progress",
+            "client_signed_off",
+            "signed_off_at",
+            "created_at",
+            "updated_at",
+        ]
 
     def get_progress(self, obj):
         return calculate_project_progress(obj)
@@ -692,7 +716,7 @@ class ProjectCreateSerializer(serializers.Serializer):
     email = serializers.EmailField()
     company = serializers.CharField(max_length=255)
     sector = serializers.CharField(max_length=100)
-    value = serializers.DecimalField(max_digits=12, decimal_places=2)
+    value = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=1)
     portal_password = serializers.CharField(
         write_only=True,
         required=True,
@@ -707,6 +731,24 @@ class ProjectCreateSerializer(serializers.Serializer):
     final = serializers.IntegerField(required=False, default=25, min_value=0, max_value=100)
     revisions = serializers.CharField(max_length=50, required=False, allow_blank=True, default="3 revisions")
 
+    def validate_client(self, value):
+        trimmed = (value or "").strip()
+        if not trimmed:
+            raise serializers.ValidationError("Client name is required.")
+        return trimmed
+
+    def validate_company(self, value):
+        trimmed = (value or "").strip()
+        if not trimmed:
+            raise serializers.ValidationError("Company name is required.")
+        return trimmed
+
+    def validate_sector(self, value):
+        trimmed = (value or "").strip()
+        if not trimmed:
+            raise serializers.ValidationError("Sector is required.")
+        return trimmed
+
     def validate_portal_password(self, value):
         val = (value or "").strip()
         if not val or len(val) < 8:
@@ -716,7 +758,6 @@ class ProjectCreateSerializer(serializers.Serializer):
     def validate_value(self, value):
         if value <= 0:
             raise serializers.ValidationError("Project value must be a positive amount.")
-
         return value
 
     def validate(self, attrs):
