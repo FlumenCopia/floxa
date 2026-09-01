@@ -1070,6 +1070,7 @@ function MoodboardsPanel({ projectId }) {
           }
         });
     }
+
     return () => {
       isMounted = false;
     };

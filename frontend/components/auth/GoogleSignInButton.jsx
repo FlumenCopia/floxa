@@ -13,7 +13,9 @@ export default function GoogleSignInButton({ label = "Continue with Google" }) {
     () => typeof window !== "undefined" && Boolean(window.google?.accounts?.id)
   );
 
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+  const clientId =
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+    "651024427645-q6otcoe5o0u84ac6355g2romi6gd2g11.apps.googleusercontent.com";
 
   useEffect(() => {
     if (typeof window === "undefined" || window.google?.accounts?.id) return;

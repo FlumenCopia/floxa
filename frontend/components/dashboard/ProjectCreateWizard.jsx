@@ -41,13 +41,13 @@ function StepIndicator({ done, active, step }) {
 }
 
 async function copyClientPortalLink(link) {
-  if (navigator.clipboard?.writeText) {
-    try {
+  try {
+    if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(link);
       return;
-    } catch (err) {
-      console.warn("Clipboard copy skipped (document not focused):", err);
     }
+  } catch (err) {
+    console.warn("Clipboard writeText skipped (document not focused):", err);
   }
 
   try {
@@ -58,11 +58,10 @@ async function copyClientPortalLink(link) {
     textarea.style.opacity = "0";
     document.body.appendChild(textarea);
     textarea.select();
-
     document.execCommand("copy");
     document.body.removeChild(textarea);
-  } catch (err) {
-    console.warn("Fallback clipboard copy failed:", err);
+  } catch (fallbackErr) {
+    console.warn("Fallback clipboard copy skipped:", fallbackErr);
   }
 }
 
