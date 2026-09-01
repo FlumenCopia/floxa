@@ -613,7 +613,17 @@ export default function Floxaheader({
 
         <div className="sidebar-footer">
           <div className="user-chip">
-            <div className="avatar">AK</div>
+            <div className="avatar" style={{ overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {consultant?.avatar_url || consultant?.avatar ? (
+                <img
+                  src={consultant.avatar_url || consultant.avatar}
+                  alt={consultant?.name || "Consultant"}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                consultant?.name ? consultant.name.slice(0, 2).toUpperCase() : "AK"
+              )}
+            </div>
             <div>
               <div className="user-name">{consultant?.name || "Consultant"}</div>
               <div className="user-plan">Plan unavailable</div>

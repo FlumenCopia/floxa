@@ -28,6 +28,8 @@ export default function Account() {
     company: "",
     phone: "",
   });
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -47,6 +49,7 @@ export default function Account() {
           company: consultant?.company || "",
           phone: consultant?.phone || "",
         });
+        setAvatarUrl(consultant?.avatar_url || consultant?.avatar || "");
       } catch (error) {
         console.error("Failed to load account profile:", error);
         if (isMounted) {
@@ -69,6 +72,63 @@ export default function Account() {
       ...currentData,
       [field]: value,
     }));
+  };
+
+  const handleAvatarSelect = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showError("Please select a valid image file (JPG, PNG, WEBP).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showError("Profile image must be smaller than 5MB.");
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append("avatar", file);
+
+    setUploadingAvatar(true);
+    try {
+      const updated = await updateCurrentConsultant(payload);
+      setAvatarUrl(updated?.avatar_url || updated?.avatar || "");
+      showSuccess("Profile picture updated.");
+    } catch (err) {
+      console.error("Failed to upload avatar:", err);
+      showError(getAccountErrorMessage(err, "Failed to upload profile picture."));
+    } finally {
+      setUploadingAvatar(false);
+      event.target.value = "";
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    const payload = new FormData();
+    payload.append("avatar", "");
+
+    setUploadingAvatar(true);
+    try {
+      const updated = await updateCurrentConsultant(payload);
+      setAvatarUrl("");
+      showSuccess("Profile picture removed.");
+    } catch (err) {
+      console.error("Failed to remove avatar:", err);
+      showError(getAccountErrorMessage(err, "Failed to remove profile picture."));
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const getInitials = (name) => {
+    if (!name) return "C";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
   };
 
   const handleSave = async () => {
@@ -121,6 +181,88 @@ export default function Account() {
 
   return (
     <>
+      {/* Profile Picture Card */}
+      <div className="card settings-card mb-3">
+        <div className="font-6 settings-card-title">Profile Picture</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "24px", marginTop: "12px", flexWrap: "wrap" }}>
+          <div
+            style={{
+              width: "80px",
+              height: "80px",
+              borderRadius: "50%",
+              overflow: "hidden",
+              background: "linear-gradient(135deg, #174332, #50f39b)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "24px",
+              fontWeight: "700",
+              color: "#02231c",
+              border: "2px solid rgba(16, 185, 129, 0.4)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+              flexShrink: 0,
+            }}
+          >
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={formData.name || "Consultant"}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              getInitials(formData.name)
+            )}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+              <label
+                className="btn btn-primary"
+                style={{
+                  margin: 0,
+                  cursor: uploadingAvatar ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "0.85rem",
+                  padding: "8px 16px",
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  onChange={handleAvatarSelect}
+                  disabled={uploadingAvatar}
+                  style={{ display: "none" }}
+                />
+                {uploadingAvatar ? "Uploading..." : "Upload New Picture"}
+              </label>
+
+              {avatarUrl ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleAvatarRemove}
+                  disabled={uploadingAvatar}
+                  style={{
+                    background: "rgba(239, 68, 68, 0.08)",
+                    color: "#f87171",
+                    border: "1px solid rgba(239, 68, 68, 0.25)",
+                    fontSize: "0.85rem",
+                    padding: "8px 16px",
+                  }}
+                >
+                  Remove Picture
+                </button>
+              ) : null}
+            </div>
+            <div className="form-hint" style={{ marginTop: "2px" }}>
+              Recommended: Square JPG, PNG or WebP, max 5MB. Appears in your sidebar and portal.
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="card settings-card mb-3">
         <div className="font-6 settings-card-title">Account details</div>
         <div className="settings-form-grid">

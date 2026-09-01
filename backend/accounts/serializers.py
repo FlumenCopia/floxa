@@ -77,11 +77,24 @@ class ConsultantSerializer(serializers.ModelSerializer):
     name = serializers.CharField(max_length=150, required=False)
     company = serializers.CharField(max_length=255, required=False, allow_blank=True)
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    avatar = serializers.ImageField(required=False, allow_null=True)
+    avatar_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Consultant
-        fields = ["id", "name", "email", "company", "phone"]
-        read_only_fields = ["id", "email"]
+        fields = ["id", "name", "email", "company", "phone", "avatar", "avatar_url"]
+        read_only_fields = ["id", "email", "avatar_url"]
+
+    def get_avatar_url(self, obj):
+        if obj.avatar:
+            try:
+                request = self.context.get("request")
+                if request:
+                    return request.build_absolute_uri(obj.avatar.url)
+                return obj.avatar.url
+            except Exception:
+                return None
+        return None
 
     def validate_name(self, value):
         trimmed = (value or "").strip()
