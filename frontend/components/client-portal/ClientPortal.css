@@ -71,7 +71,7 @@
   margin-top: -85vmax;
   margin-left: -85vmax;
   z-index: -2;
-  background: url("/client-design/banner1.png") center / cover no-repeat;
+  background: url("/client-design/banner1.png") center ;
   opacity: 1;
   filter: brightness(1.35) contrast(1.12) saturate(1.35);
   animation: client-background-spin 90s linear infinite;
