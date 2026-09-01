@@ -68,73 +68,216 @@ textarea {
   color: var(--foreground);
 }
 
+@keyframes login-background-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 #login-screen {
-  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: clamp(24px, 4vw, 40px);
+  background: #000704;
+  overflow: hidden;
+  font-family: var(--font-jost), "Jost", Arial, sans-serif;
+}
+
+#login-screen::before {
+  content: "";
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 170vmax;
+  height: 170vmax;
+  margin-top: -85vmax;
+  margin-left: -85vmax;
+  z-index: -2;
+  background: url("/client-design/banner1.png") center / contain no-repeat;
+  opacity: 0.88;
+  animation: login-background-spin 90s linear infinite;
+  will-change: transform;
+  pointer-events: none;
+}
+
+#login-screen::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background:
-    radial-gradient(circle at top left, rgba(77, 255, 160, 0.12), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(77, 255, 160, 0.08), transparent 24%),
-    var(--bg);
+    radial-gradient(circle at 50% 50%, rgba(0, 10, 6, 0.25), rgba(0, 5, 3, 0.82)),
+    linear-gradient(180deg, rgba(0, 7, 4, 0.3) 0%, rgba(0, 7, 4, 0.85) 100%);
+  pointer-events: none;
 }
 
 .login-card {
-  width: min(100%, 380px);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 28px 24px 22px;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  position: relative;
+  width: min(100%, 430px);
+  background: rgba(0, 10, 6, 0.45);
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 38px;
+  padding: clamp(32px, 5vw, 44px) clamp(24px, 4.5vw, 36px);
+  box-shadow:
+    0 32px 80px rgba(0, 0, 0, 0.55),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.login-card::before,
+.login-card::after {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  pointer-events: none;
+}
+
+.login-card::before {
+  top: 0;
+}
+
+.login-card::after {
+  bottom: 0;
+  opacity: 0.5;
 }
 
 .login-logo {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .login-logo-img {
-  height: 32px;
-  max-width: 180px;
+  height: 38px;
+  max-width: 190px;
   width: auto;
   object-fit: contain;
   display: block;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5));
 }
 
 .login-tagline {
-  margin-top: 6px;
+  margin-top: 4px;
+  margin-bottom: 22px;
   text-align: center;
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  color: var(--dim);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.login-card .form-group {
+  margin-bottom: 14px;
+}
+
+.login-card .form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 6px;
+  padding-left: 4px;
+}
+
+.login-card .form-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.login-card .form-input:focus {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--neon);
+  box-shadow: 0 0 0 3px rgba(77, 255, 160, 0.18);
+}
+
+.login-card .form-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.login-card .error-message {
+  color: #ff6b6b;
+  font-size: 12px;
+  font-weight: 500;
+  margin: 6px 0 10px;
+  padding-left: 6px;
+}
+
+.login-card .btn-primary {
+  width: 100%;
+  height: 46px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: linear-gradient(135deg, rgba(28, 56, 46, 0.95), rgba(14, 32, 25, 0.95));
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  transition: all 0.22s ease;
+  margin-top: 10px;
+}
+
+.login-card .btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.4);
+  filter: brightness(1.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.login-card .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .login-divider {
-  margin: 14px 0;
+  margin: 16px 0;
   text-align: center;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  color: var(--dim);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .login-footer {
-  margin-top: 14px;
+  margin-top: 16px;
   text-align: center;
-  font-size: 10px;
-  color: var(--dim);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.45;
 }
 
 .auth-switch {
   margin-top: 16px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  background: rgba(77, 255, 160, 0.035);
-  color: var(--muted);
+  padding: 11px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(255, 255, 255, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -144,13 +287,14 @@ textarea {
 
 .signup-link {
   color: var(--neon);
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
   transition: color 0.18s ease, opacity 0.18s ease;
 }
 
 .signup-link:hover {
-  color: var(--foreground);
+  color: #ffffff;
+  text-decoration: underline;
 }
 
 .floxa-toast {
@@ -167,21 +311,25 @@ textarea {
 
 .google-btn {
   width: 100%;
-  height: 42px;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--border2);
-  background: transparent;
-  color: var(--foreground);
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.9);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: 0.18s ease;
+  transition: all 0.22s ease;
 }
 
 .google-btn:hover {
-  background: var(--neon-dim);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
 }
 
 .shell {
