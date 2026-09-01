@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getCurrentConsultant, updateCurrentConsultant } from "../../src/lib/authApi";
 import { showError, showSuccess } from "../../src/lib/toast";
 
@@ -31,6 +31,15 @@ export default function Account() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [message, setMessage] = useState("");
+
+  // Camera capture states
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const [capturedImage, setCapturedImage] = useState(null);
+  const [capturedBlob, setCapturedBlob] = useState(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -64,6 +73,15 @@ export default function Account() {
 
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  // Stop camera tracks on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
     };
   }, []);
 
@@ -117,6 +135,111 @@ export default function Account() {
     } catch (err) {
       console.error("Failed to remove avatar:", err);
       showError(getAccountErrorMessage(err, "Failed to remove profile picture."));
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  // Camera Handlers
+  const startCamera = async () => {
+    setCameraOpen(true);
+    setCameraError("");
+    setCapturedImage(null);
+    setCapturedBlob(null);
+
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Camera is not supported on this browser or device.");
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 640 } },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      console.error("Camera access error:", err);
+      setCameraError(
+        err.name === "NotAllowedError" || err.name === "PermissionDeniedError"
+          ? "Camera permission was denied. Please allow camera access in your browser settings."
+          : err.message || "Unable to access camera."
+      );
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraOpen(false);
+    setCapturedImage(null);
+    setCapturedBlob(null);
+    setCameraError("");
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    const size = Math.min(video.videoWidth || 480, video.videoHeight || 480);
+    const startX = ((video.videoWidth || 480) - size) / 2;
+    const startY = ((video.videoHeight || 480) - size) / 2;
+
+    canvas.width = 480;
+    canvas.height = 480;
+    const ctx = canvas.getContext("2d");
+
+    // Mirror image for natural selfie feel
+    ctx.translate(480, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, startX, startY, size, size, 0, 0, 480, 480);
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const previewUrl = URL.createObjectURL(blob);
+        setCapturedBlob(blob);
+        setCapturedImage(previewUrl);
+      }
+    }, "image/jpeg", 0.92);
+  };
+
+  const retakePhoto = () => {
+    if (capturedImage) {
+      URL.revokeObjectURL(capturedImage);
+    }
+    setCapturedImage(null);
+    setCapturedBlob(null);
+  };
+
+  const saveCapturedPhoto = async () => {
+    if (!capturedBlob) return;
+
+    const file = new File([capturedBlob], `camera-avatar-${Date.now()}.jpg`, {
+      type: "image/jpeg",
+    });
+
+    const payload = new FormData();
+    payload.append("avatar", file);
+
+    setUploadingAvatar(true);
+    try {
+      const updated = await updateCurrentConsultant(payload);
+      setAvatarUrl(updated?.avatar_url || updated?.avatar || "");
+      showSuccess("Profile photo updated from camera.");
+      stopCamera();
+    } catch (err) {
+      console.error("Failed to upload camera avatar:", err);
+      showError(getAccountErrorMessage(err, "Failed to save camera photo."));
     } finally {
       setUploadingAvatar(false);
     }
@@ -235,8 +358,27 @@ export default function Account() {
                   disabled={uploadingAvatar}
                   style={{ display: "none" }}
                 />
-                {uploadingAvatar ? "Uploading..." : "Upload New Picture"}
+                📷 Upload Picture
               </label>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={startCamera}
+                disabled={uploadingAvatar}
+                style={{
+                  background: "rgba(16, 185, 129, 0.12)",
+                  color: "#34d399",
+                  border: "1px solid rgba(16, 185, 129, 0.3)",
+                  fontSize: "0.85rem",
+                  padding: "8px 16px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                📸 Take Photo
+              </button>
 
               {avatarUrl ? (
                 <button
@@ -262,6 +404,181 @@ export default function Account() {
           </div>
         </div>
       </div>
+
+      {/* Camera Capture Modal */}
+      {cameraOpen ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.8)",
+            backdropFilter: "blur(6px)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+          onClick={stopCamera}
+        >
+          <div
+            style={{
+              background: "#02231c",
+              border: "1px solid rgba(16, 185, 129, 0.35)",
+              borderRadius: "16px",
+              width: "100%",
+              maxWidth: "480px",
+              padding: "24px",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "16px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ fontSize: "1.15rem", fontWeight: "700", color: "#f8fafc", margin: 0 }}>
+                Take Profile Photo
+              </h3>
+              <button
+                type="button"
+                onClick={stopCamera}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "#94a3b8",
+                  fontSize: "1.2rem",
+                  cursor: "pointer",
+                  padding: "4px 8px",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {cameraError ? (
+              <div
+                style={{
+                  color: "#ef4444",
+                  background: "rgba(239, 68, 68, 0.1)",
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  fontSize: "0.88rem",
+                  width: "100%",
+                  textAlign: "center",
+                }}
+              >
+                {cameraError}
+              </div>
+            ) : (
+              <div
+                style={{
+                  width: "320px",
+                  height: "320px",
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  border: "3px solid #10b981",
+                  boxShadow: "0 0 20px rgba(16, 185, 129, 0.3)",
+                  position: "relative",
+                  background: "#000",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {capturedImage ? (
+                  <img
+                    src={capturedImage}
+                    alt="Captured preview"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      transform: "scaleX(-1)", // mirror view
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Hidden Canvas for capture processing */}
+            <canvas ref={canvasRef} style={{ display: "none" }} />
+
+            {!cameraError ? (
+              <div style={{ display: "flex", gap: "10px", marginTop: "8px", width: "100%", justifyContent: "center" }}>
+                {capturedImage ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={retakePhoto}
+                      style={{
+                        background: "rgba(255, 255, 255, 0.08)",
+                        color: "#ffffff",
+                        border: "1px solid rgba(255, 255, 255, 0.2)",
+                        padding: "9px 20px",
+                        borderRadius: "8px",
+                        fontSize: "0.9rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      🔄 Retake
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={saveCapturedPhoto}
+                      disabled={uploadingAvatar}
+                      style={{
+                        background: "#10b981",
+                        color: "#02231c",
+                        fontWeight: "700",
+                        border: "none",
+                        padding: "9px 22px",
+                        borderRadius: "8px",
+                        fontSize: "0.9rem",
+                        cursor: uploadingAvatar ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {uploadingAvatar ? "Saving..." : "✓ Use This Photo"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={capturePhoto}
+                    style={{
+                      background: "#10b981",
+                      color: "#02231c",
+                      fontWeight: "700",
+                      border: "none",
+                      padding: "10px 28px",
+                      borderRadius: "8px",
+                      fontSize: "0.95rem",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    📸 Snap Photo
+                  </button>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="card settings-card mb-3">
         <div className="font-6 settings-card-title">Account details</div>
