@@ -325,33 +325,40 @@ export default function Account() {
 
   return (
     <>
-      {/* Sleek Profile Picture Card with Circular Avatar & Plus Icon Badge */}
-      <div className="card settings-card mb-3" ref={menuRef}>
-        <div className="font-6 settings-card-title">Profile Picture</div>
-        <div style={{ display: "flex", alignItems: "center", gap: "24px", marginTop: "16px", flexWrap: "wrap" }}>
+      {/* Reference Styled Profile Picture Card */}
+      <div
+        className="card settings-card mb-3"
+        ref={menuRef}
+        style={{
+          background: "rgba(2, 35, 28, 0.75)",
+          border: "1px solid rgba(16, 185, 129, 0.2)",
+          borderRadius: "16px",
+          padding: "24px 28px",
+          position: "relative",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "24px", flexWrap: "wrap" }}>
           
-          {/* Avatar Container with Interactive Plus Badge */}
-          <div style={{ position: "relative", width: "92px", height: "92px", flexShrink: 0 }}>
+          {/* Circular Avatar with Overlapping Camera Button */}
+          <div style={{ position: "relative", width: "90px", height: "90px", flexShrink: 0 }}>
             <div
               onClick={() => setMenuOpen((open) => !open)}
               style={{
-                width: "92px",
-                height: "92px",
+                width: "90px",
+                height: "90px",
                 borderRadius: "50%",
                 overflow: "hidden",
-                background: "linear-gradient(135deg, #174332, #50f39b)",
+                background: "#085744",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "26px",
+                fontSize: "28px",
                 fontWeight: "700",
-                color: "#02231c",
-                border: "3px solid #10b981",
-                boxShadow: "0 6px 20px rgba(16, 185, 129, 0.25)",
+                color: "#ffffff",
                 cursor: "pointer",
-                transition: "all 0.2s ease",
+                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.4)",
               }}
-              title="Click to change photo"
+              title="Click to update photo"
             >
               {avatarUrl ? (
                 <img
@@ -364,7 +371,7 @@ export default function Account() {
               )}
             </div>
 
-            {/* Small Plus (+) Action Badge */}
+            {/* Overlapping Camera Action Badge */}
             <button
               type="button"
               onClick={() => setMenuOpen((open) => !open)}
@@ -372,27 +379,28 @@ export default function Account() {
               aria-label="Change photo options"
               style={{
                 position: "absolute",
-                bottom: "0",
-                right: "0",
-                width: "30px",
-                height: "30px",
+                bottom: "-2px",
+                right: "-2px",
+                width: "34px",
+                height: "34px",
                 borderRadius: "50%",
-                background: "#10b981",
-                color: "#02231c",
-                border: "2.5px solid #02231c",
+                background: "#085744",
+                color: "#ffffff",
+                border: "2.5px solid #ffffff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "18px",
-                fontWeight: "900",
                 cursor: "pointer",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.6)",
+                boxShadow: "0 3px 10px rgba(0, 0, 0, 0.5)",
                 transition: "transform 0.15s ease",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.15)")}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.12)")}
               onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
-              {uploadingAvatar ? "…" : "+"}
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
             </button>
 
             {/* Hidden File Input */}
@@ -403,81 +411,160 @@ export default function Account() {
               onChange={handleAvatarSelect}
               style={{ display: "none" }}
             />
-          </div>
 
-          {/* Quick Actions & Menu */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingAvatar}
+            {/* Floating Dropdown Menu */}
+            {menuOpen ? (
+              <div
                 style={{
-                  margin: 0,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "7px",
-                  fontSize: "0.85rem",
-                  padding: "8px 16px",
-                  borderRadius: "8px",
+                  position: "absolute",
+                  top: "100px",
+                  left: "0",
+                  zIndex: 100,
+                  background: "#02231c",
+                  border: "1px solid rgba(16, 185, 129, 0.35)",
+                  borderRadius: "12px",
+                  padding: "8px",
+                  minWidth: "190px",
+                  boxShadow: "0 15px 35px rgba(0, 0, 0, 0.6)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "4px",
                 }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                {uploadingAvatar ? "Uploading..." : "Upload Photo"}
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={startCamera}
-                disabled={uploadingAvatar}
-                style={{
-                  background: "rgba(16, 185, 129, 0.12)",
-                  color: "#34d399",
-                  border: "1px solid rgba(16, 185, 129, 0.3)",
-                  fontSize: "0.85rem",
-                  padding: "8px 16px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "7px",
-                  borderRadius: "8px",
-                }}
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-                Take Photo
-              </button>
-
-              {avatarUrl ? (
                 <button
                   type="button"
-                  className="btn btn-secondary"
-                  onClick={handleAvatarRemove}
-                  disabled={uploadingAvatar}
-                  style={{
-                    background: "rgba(239, 68, 68, 0.08)",
-                    color: "#f87171",
-                    border: "1px solid rgba(239, 68, 68, 0.25)",
-                    fontSize: "0.85rem",
-                    padding: "8px 14px",
-                    borderRadius: "8px",
+                  onClick={() => {
+                    setMenuOpen(false);
+                    fileInputRef.current?.click();
                   }}
-                  title="Remove custom photo"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#f8fafc",
+                    padding: "9px 12px",
+                    borderRadius: "6px",
+                    fontSize: "0.85rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    width: "100%",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  Remove
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  Upload Photo
                 </button>
-              ) : null}
+
+                <button
+                  type="button"
+                  onClick={startCamera}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#f8fafc",
+                    padding: "9px 12px",
+                    borderRadius: "6px",
+                    fontSize: "0.85rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    width: "100%",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  Take Photo
+                </button>
+
+                {avatarUrl ? (
+                  <button
+                    type="button"
+                    onClick={handleAvatarRemove}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "#f87171",
+                      padding: "9px 12px",
+                      borderRadius: "6px",
+                      fontSize: "0.85rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      width: "100%",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(239, 68, 68, 0.12)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.2">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Remove Photo
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          {/* User Details & Clickable Photo Trigger matching reference */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1, minWidth: "220px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+              <h2 style={{ fontSize: "1.45rem", fontWeight: "800", color: "#f8fafc", margin: 0, letterSpacing: "-0.01em" }}>
+                {formData.email || formData.name || "Consultant"}
+              </h2>
+              <span
+                style={{
+                  background: "rgba(16, 185, 129, 0.15)",
+                  color: "#34d399",
+                  border: "1px solid rgba(16, 185, 129, 0.3)",
+                  borderRadius: "20px",
+                  padding: "2px 10px",
+                  fontSize: "0.75rem",
+                  fontWeight: "700",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Admin
+              </span>
             </div>
 
-            <div className="form-hint" style={{ fontSize: "0.8rem", color: "#618272" }}>
-              Click the <strong>+</strong> badge on your avatar or choose an option above.
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.95rem", color: "#94a3b8" }}>
+              <span>CONSULTANT</span>
+              <span>•</span>
+              <span>{formData.company || "General"}</span>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  color: "#34d399",
+                  fontWeight: "700",
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  fontSize: "0.95rem",
+                }}
+              >
+                Photo
+              </button>
             </div>
           </div>
         </div>
