@@ -189,9 +189,9 @@
     inset 0 1px 1px rgba(255, 255, 255, 0.18),
     inset 0 -1px 1px rgba(0, 0, 0, 0.4);
   transition:
-    width 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-    min-height 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-    padding 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    width 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    min-height 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 0.75s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .client-welcome-glass.is-login-mode {
@@ -220,28 +220,97 @@
   opacity: 0.5;
 }
 
-/* Smooth Fade / Slide Transitions */
-.client-fade-in {
+/* Stage Track for Overlapping Transitions without Layout Jumps */
+.client-stage-track {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  width: 100%;
+  align-items: center;
+  justify-items: center;
+}
+
+.client-stage-view {
+  grid-area: 1 / 1 / 2 / 2;
+  width: 100%;
+  will-change: transform, opacity;
+}
+
+/* 1st Section: Splash Center View Transitions */
+.client-welcome-copy.slide-in-center {
   opacity: 1;
-  transform: translateX(0) scale(1);
-  transition:
-    opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateX(0);
   pointer-events: auto;
-}
-
-.client-fade-out {
-  opacity: 0;
-  transform: translateX(-40px) scale(0.96);
+  visibility: visible;
   transition:
-    opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  pointer-events: none;
-  position: absolute;
+    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s 0s;
 }
 
-.client-access-stage-wrap.client-fade-out {
-  transform: translateX(40px) scale(0.96);
+.client-welcome-copy.slide-out-left {
+  opacity: 0;
+  transform: translateX(-120px);
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s 0.75s;
+}
+
+/* 2nd Section: Login 2-Column View Transitions */
+.client-access-stage-wrap.slide-out-right {
+  opacity: 0;
+  transform: translateX(120px);
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s 0.75s;
+}
+
+.client-access-stage-wrap.slide-in-view {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+  visibility: visible;
+  transition:
+    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.05s,
+    transform 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s 0s;
+}
+
+/* Smooth Slide-in for Sub-components */
+.client-access-stage-wrap.slide-in-view .client-pill-form {
+  animation: client-right-slide-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.client-access-stage-wrap.slide-in-view .client-access-intro {
+  animation: client-left-slide-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes client-right-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(60px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes client-left-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* Splash View */
