@@ -713,10 +713,10 @@ textarea {
   overflow: hidden;
   position: relative;
   background:
-    radial-gradient(circle at 85% 15%, rgba(77, 255, 160, 0.09), transparent 45%),
-    radial-gradient(circle at 15% 85%, rgba(28, 90, 56, 0.16), transparent 50%),
-    radial-gradient(circle at 50% 50%, rgba(7, 28, 18, 0.5), rgba(2, 10, 6, 0.95)),
-    linear-gradient(180deg, #04140c 0%, #020906 100%);
+    radial-gradient(circle at 85% 15%, rgba(77, 255, 160, 0.16), transparent 50%),
+    radial-gradient(circle at 15% 85%, rgba(40, 125, 80, 0.22), transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(8, 32, 20, 0.25), rgba(2, 10, 6, 0.65)),
+    linear-gradient(180deg, #05180f 0%, #020b07 100%);
 }
 
 .shell::before {
@@ -730,8 +730,8 @@ textarea {
   margin-left: -80vmax;
   z-index: 0;
   background: url("/client-design/banner1.png") center;
-  opacity: 0.22;
-  filter: brightness(1.35) contrast(1.12) saturate(1.4);
+  opacity: 0.52;
+  filter: brightness(1.48) contrast(1.15) saturate(1.45);
   animation: login-background-spin 120s linear infinite;
   pointer-events: none;
   will-change: transform;
@@ -740,10 +740,10 @@ textarea {
 .sidebar {
   width: var(--sidebar);
   flex-shrink: 0;
-  background: rgba(3, 18, 11, 0.42);
-  backdrop-filter: blur(28px) saturate(160%) brightness(1.08);
-  -webkit-backdrop-filter: blur(28px) saturate(160%) brightness(1.08);
-  border-right: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(2, 14, 9, 0.32);
+  backdrop-filter: blur(28px) saturate(160%) brightness(1.1);
+  -webkit-backdrop-filter: blur(28px) saturate(160%) brightness(1.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -751,8 +751,8 @@ textarea {
   transition: transform 0.25s ease, width 0.25s ease;
   z-index: 40;
   box-shadow:
-    4px 0 32px rgba(0, 0, 0, 0.5),
-    inset -1px 0 1px rgba(77, 255, 160, 0.12);
+    4px 0 32px rgba(0, 0, 0, 0.4),
+    inset -1px 0 1px rgba(77, 255, 160, 0.14);
 }
 
 .sidebar-overlay {
