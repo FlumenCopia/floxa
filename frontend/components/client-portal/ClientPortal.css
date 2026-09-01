@@ -172,20 +172,20 @@
 
 .client-welcome-glass {
   position: relative;
-  width: min(920px, 90vw);
-  min-height: 480px;
+  width: min(1060px, 92vw);
+  min-height: 560px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(48px, 6vw, 76px) clamp(36px, 5vw, 64px);
+  padding: clamp(64px, 7vw, 96px) clamp(44px, 6vw, 84px);
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 44px;
+  border-radius: 48px;
   background: rgba(0, 10, 6, 0.45);
   backdrop-filter: blur(28px) saturate(140%);
   -webkit-backdrop-filter: blur(28px) saturate(140%);
   box-shadow:
-    0 32px 80px rgba(0, 0, 0, 0.6),
+    0 36px 90px rgba(0, 0, 0, 0.65),
     inset 0 1px 1px rgba(255, 255, 255, 0.22),
     inset 0 -1px 1px rgba(0, 0, 0, 0.4);
   transition:
@@ -195,9 +195,9 @@
 }
 
 .client-welcome-glass.is-login-mode {
-  width: min(1100px, 94vw);
-  min-height: 520px;
-  padding: clamp(44px, 5vw, 64px) clamp(40px, 5vw, 76px);
+  width: min(1200px, 95vw);
+  min-height: 580px;
+  padding: clamp(52px, 5.5vw, 76px) clamp(48px, 6vw, 88px);
 }
 
 .client-welcome-glass::before,
@@ -331,7 +331,7 @@
 }
 
 .client-wordmark {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -343,25 +343,25 @@
 }
 
 .client-wordmark-img {
-  max-width: min(440px, 85vw);
-  height: clamp(68px, 8.5vw, 92px);
+  max-width: min(560px, 88vw);
+  height: clamp(84px, 11vw, 120px);
   width: auto;
   object-fit: contain;
   display: inline-block;
-  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.6));
+  filter: drop-shadow(0 14px 36px rgba(0, 0, 0, 0.65));
 }
 
 .client-wordmark-left .client-wordmark-img {
-  max-width: min(340px, 80vw);
-  height: clamp(56px, 7vw, 76px);
+  max-width: min(420px, 82vw);
+  height: clamp(68px, 8.5vw, 94px);
 }
 
 .client-welcome-subtitle {
-  margin: 10px 0 32px;
+  margin: 14px 0 42px;
   color: rgba(255, 255, 255, 0.9);
-  font-size: clamp(16px, 2vw, 22px);
+  font-size: clamp(18px, 2.4vw, 26px);
   font-weight: 300;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 
 /* Button & Pill Styles */
@@ -372,22 +372,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  min-height: 50px;
-  padding: 12px 32px;
+  gap: 14px;
+  min-height: 54px;
+  padding: 14px 38px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
   color: #ffffff;
   background: linear-gradient(135deg, rgba(28, 56, 46, 0.9), rgba(12, 28, 22, 0.95));
   cursor: pointer;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   transition:
     transform 0.22s ease,
     border-color 0.22s ease,
     background 0.22s ease,
     filter 0.22s ease;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
 
 .client-gradient-button:hover,
@@ -397,7 +397,7 @@
   transform: translateY(-2px);
   border-color: rgba(255, 255, 255, 0.4);
   filter: brightness(1.15);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
 }
 
 .client-back-pill-button {
@@ -406,8 +406,8 @@
 
 .client-button-arrow {
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   place-items: center;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -450,8 +450,8 @@
   width: 100%;
   background: #ffffff;
   border-radius: 999px;
-  height: 48px;
-  padding: 0 16px 0 14px;
+  height: 52px;
+  padding: 0 20px 0 18px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -466,7 +466,7 @@
   align-items: center;
   justify-content: center;
   color: #6b7280;
-  margin-right: 8px;
+  margin-right: 10px;
   flex-shrink: 0;
 }
 
@@ -476,7 +476,7 @@
   outline: none;
   background: transparent;
   color: #111827;
-  font-size: 14px;
+  font-size: 15px;
   font-family: inherit;
   font-weight: 500;
 }
@@ -496,12 +496,12 @@
 
 .client-pill-submit-button {
   width: 100%;
-  height: 48px;
+  height: 52px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.24);
   background: linear-gradient(135deg, rgba(28, 56, 46, 0.95), rgba(14, 32, 25, 0.95));
   color: #ffffff;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   display: flex;
   align-items: center;
