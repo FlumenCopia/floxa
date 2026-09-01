@@ -352,7 +352,7 @@ export default function Floxaheader({
 
     async function validateSession() {
       try {
-        const currentConsultant = await getCurrentConsultant();
+        const currentConsultant = await getCurrentConsultant(true);
         cachedConsultant = currentConsultant;
         hasValidatedSession = true;
 
