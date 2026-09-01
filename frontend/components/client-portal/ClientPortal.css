@@ -2279,13 +2279,28 @@
 
 @media (max-width: 900px) {
   .client-welcome-stage {
-    padding: 16px;
+    padding: 20px 14px;
   }
 
   .client-welcome-glass {
-    min-height: calc(100dvh - 32px);
-    padding: 42px 24px;
-    border-radius: 28px;
+    width: 100%;
+    max-width: 580px;
+    min-height: auto;
+    padding: 44px 28px 36px;
+    border-radius: 36px;
+  }
+
+  .client-welcome-glass.is-login-mode {
+    width: 100%;
+    max-width: 580px;
+    min-height: auto;
+    padding: 40px 24px 32px;
+  }
+
+  .client-access-stage-wrap {
+    grid-template-columns: 1fr;
+    gap: 22px;
+    text-align: center;
   }
 
   .client-access-glass,
@@ -2297,7 +2312,17 @@
 
   .client-wordmark-left,
   .client-access-intro {
+    align-items: center;
     text-align: center;
+  }
+
+  .client-wordmark-left {
+    justify-content: center;
+  }
+
+  .client-access-intro .client-welcome-subtitle {
+    text-align: center;
+    margin-bottom: 16px;
   }
 
   .client-access-description {
@@ -2383,6 +2408,82 @@
 }
 
 @media (max-width: 620px) {
+  .client-welcome-stage {
+    padding: 14px 10px;
+    min-height: 100dvh;
+  }
+
+  .client-welcome-glass {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    padding: 34px 18px 26px !important;
+    border-radius: 28px !important;
+  }
+
+  .client-welcome-glass.is-login-mode {
+    padding: 30px 16px 24px !important;
+  }
+
+  .client-wordmark-img {
+    height: clamp(52px, 14vw, 76px);
+    max-width: 84vw;
+  }
+
+  .client-wordmark-left .client-wordmark-img {
+    height: clamp(42px, 11vw, 56px);
+    max-width: 74vw;
+  }
+
+  .client-welcome-subtitle {
+    font-size: 14px;
+    margin: 8px 0 24px;
+    line-height: 1.4;
+  }
+
+  .client-access-intro .client-welcome-subtitle {
+    font-size: 13px;
+    margin: 6px 0 14px;
+  }
+
+  .client-gradient-button {
+    min-height: 48px;
+    padding: 11px 26px;
+    font-size: 14px;
+    gap: 10px;
+  }
+
+  .client-button-arrow {
+    width: 22px;
+    height: 22px;
+  }
+
+  .client-pill-form {
+    gap: 11px;
+  }
+
+  .client-pill-input-wrap {
+    height: 46px;
+    padding: 0 16px 0 14px;
+  }
+
+  .client-pill-input {
+    font-size: 14px;
+  }
+
+  .client-pill-submit-button {
+    height: 46px;
+    font-size: 14px;
+  }
+
+  .client-welcome-copy.slide-out-left {
+    transform: translateX(-50px);
+  }
+
+  .client-access-stage-wrap.slide-out-right {
+    transform: translateX(50px);
+  }
+
   .client-wordmark {
     font-size: clamp(48px, 18vw, 72px);
   }
