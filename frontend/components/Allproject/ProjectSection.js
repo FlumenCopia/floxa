@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getProjects } from "../../src/lib/projectApi";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
@@ -87,7 +87,7 @@ export function getStatusColorByLabel(label) {
   return colors[getStatusClassByLabel(label)] || colors["badge-muted"];
 }
 
-const PROJECT_PAGE_SIZE = 10;
+const PROJECT_PAGE_SIZE = 12;
 
 export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen = () => {} }) {
   const router = useRouter();
@@ -96,61 +96,49 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
 
   const [projects, setProjects] = useState([]);
   const [projectCount, setProjectCount] = useState(0);
-  const [pagination, setPagination] = useState({ next: null, previous: null });
+  const [hasMore, setHasMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStatus, setSelectedStatus] = useState("All statuses");
   const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [isLoadingInitial, setIsLoadingInitial] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [projectError, setProjectError] = useState("");
+
   const requestIdRef = useRef(0);
-  const previousSearchRef = useRef(projectSearch);
+  const loadMoreSentinelRef = useRef(null);
 
+  // Load Initial Page (Page 1) on Search or Status Filter Change
   useEffect(() => {
-    if (previousSearchRef.current !== projectSearch) {
-      previousSearchRef.current = projectSearch;
+    let isMounted = true;
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
 
-      if (currentPage !== 1) {
-        requestIdRef.current += 1;
-        Promise.resolve().then(() => setCurrentPage(1));
-        return;
-      }
-    }
+    setIsLoadingInitial(true);
+    setIsLoadingMore(false);
+    setProjectError("");
+    setCurrentPage(1);
 
-    async function loadProjects() {
-      const requestId = requestIdRef.current + 1;
-      requestIdRef.current = requestId;
-      setIsLoadingProjects(true);
-      setProjectError("");
-
+    async function loadFirstPage() {
       try {
         const data = await getProjects({
           search: projectSearch,
           status: statusByLabel[selectedStatus] || "",
-          page: currentPage,
+          page: 1,
           pageSize: PROJECT_PAGE_SIZE,
         });
 
-        if (requestId !== requestIdRef.current) {
+        if (!isMounted || requestId !== requestIdRef.current) {
           return;
         }
 
-        const nextProjects = Array.isArray(data.results) ? data.results : [];
-        const nextCount = Number(data.count || 0);
-        const nextTotalPages = Math.max(1, Math.ceil(nextCount / PROJECT_PAGE_SIZE));
+        const initialProjects = Array.isArray(data.results) ? data.results : [];
+        const total = Number(data.count || 0);
 
-        if (currentPage > nextTotalPages) {
-          setCurrentPage(nextTotalPages);
-          return;
-        }
-
-        setProjects(nextProjects);
-        setProjectCount(nextCount);
-        setPagination({
-          next: data.next || null,
-          previous: data.previous || null,
-        });
+        setProjects(initialProjects);
+        setProjectCount(total);
+        setHasMore(Boolean(data.has_more ?? data.next ?? (initialProjects.length < total)));
       } catch (error) {
-        if (requestId !== requestIdRef.current) {
+        if (!isMounted || requestId !== requestIdRef.current) {
           return;
         }
 
@@ -158,20 +146,85 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
         setProjectError(error?.detail || "Projects could not be loaded.");
         setProjects([]);
         setProjectCount(0);
-        setPagination({ next: null, previous: null });
+        setHasMore(false);
       } finally {
-        if (requestId === requestIdRef.current) {
-          setIsLoadingProjects(false);
+        if (isMounted && requestId === requestIdRef.current) {
+          setIsLoadingInitial(false);
         }
       }
     }
 
-    loadProjects();
-  }, [projectSearch, selectedStatus, currentPage]);
+    loadFirstPage();
 
-  const totalPages = Math.max(1, Math.ceil(projectCount / PROJECT_PAGE_SIZE));
-  const showingStart = projectCount === 0 ? 0 : (currentPage - 1) * PROJECT_PAGE_SIZE + 1;
-  const showingEnd = projectCount === 0 ? 0 : Math.min(projectCount, showingStart + projects.length - 1);
+    return () => {
+      isMounted = false;
+    };
+  }, [projectSearch, selectedStatus]);
+
+  // Load Next Page for Infinite Scrolling
+  const loadNextPage = useCallback(async () => {
+    if (isLoadingInitial || isLoadingMore || !hasMore) {
+      return;
+    }
+
+    const nextPage = currentPage + 1;
+    const requestId = requestIdRef.current;
+    setIsLoadingMore(true);
+
+    try {
+      const data = await getProjects({
+        search: projectSearch,
+        status: statusByLabel[selectedStatus] || "",
+        page: nextPage,
+        pageSize: PROJECT_PAGE_SIZE,
+      });
+
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
+      const newProjects = Array.isArray(data.results) ? data.results : [];
+      const total = Number(data.count || 0);
+
+      setProjects((prev) => {
+        // Prevent duplicate keys by id
+        const existingIds = new Set(prev.map((p) => p.id));
+        const filteredNew = newProjects.filter((p) => !existingIds.has(p.id));
+        return [...prev, ...filteredNew];
+      });
+
+      setProjectCount(total);
+      setCurrentPage(nextPage);
+      setHasMore(Boolean(data.has_more ?? data.next ?? (projects.length + newProjects.length < total)));
+    } catch (error) {
+      console.error("Failed to load more projects:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [currentPage, hasMore, isLoadingInitial, isLoadingMore, projectSearch, projects.length, selectedStatus]);
+
+  // IntersectionObserver for Infinite Scroll Sentinel
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingInitial && !isLoadingMore) {
+          loadNextPage();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, isLoadingInitial, isLoadingMore, loadNextPage]);
 
   const handleOpenWizard = () => {
     setIsStatusOpen(false);
@@ -181,7 +234,6 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
 
   const handleStatusSelect = (status) => {
     setSelectedStatus(status);
-    setCurrentPage(1);
     setIsStatusOpen(false);
   };
 
@@ -193,6 +245,7 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
             onClose={() => setIsWizardOpen(false)}
             onProjectCreated={(createdProject) => {
               setProjects((current) => [createdProject, ...current]);
+              setProjectCount((count) => count + 1);
               setSelectedStatus("All statuses");
             }}
           />
@@ -267,15 +320,15 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                     </tr>
                   </thead>
                   <tbody>
-                    {isLoadingProjects ? (
+                    {isLoadingInitial ? (
                       <tr>
-                        <td className="project-empty-state" colSpan="6">
+                        <td className="project-empty-state" colSpan="6" style={{ padding: "40px 0" }}>
                           Loading projects...
                         </td>
                       </tr>
                     ) : null}
 
-                    {!isLoadingProjects &&
+                    {!isLoadingInitial &&
                       projects.map((row) => (
                         <tr
                           key={row.id}
@@ -303,9 +356,10 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                           <td>{new Date(row.created_at).toLocaleDateString()}</td>
                         </tr>
                       ))}
-                    {!isLoadingProjects && projects.length === 0 ? (
+
+                    {!isLoadingInitial && projects.length === 0 ? (
                       <tr>
-                        <td className="project-empty-state" colSpan="6">
+                        <td className="project-empty-state" colSpan="6" style={{ padding: "40px 0" }}>
                           {projectSearch || selectedStatus !== "All statuses"
                             ? "No projects found for this search or status."
                             : "No projects found."}
@@ -315,31 +369,59 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                   </tbody>
                 </table>
               </div>
-              <div className="project-pagination">
-                <div className="project-pagination-summary">
-                  Showing {showingStart}-{showingEnd} of {projectCount} projects
-                </div>
-                <div className="project-pagination-controls">
-                  <button
-                    className="btn btn-secondary project-pagination-btn"
-                    type="button"
-                    disabled={!pagination.previous || isLoadingProjects}
-                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                  >
-                    Previous
-                  </button>
-                  <span className="project-pagination-page">
-                    Page {currentPage} of {totalPages}
+
+              {/* Infinite Scrolling Sentinel & Status Bar */}
+              <div
+                ref={loadMoreSentinelRef}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "16px 20px",
+                  borderTop: "1px solid rgba(16, 185, 129, 0.15)",
+                  fontSize: "0.85rem",
+                  color: "#94a3b8",
+                  minHeight: "50px",
+                }}
+              >
+                {isLoadingMore ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#34d399" }}>
+                    <div
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        border: "2px solid rgba(52, 211, 153, 0.2)",
+                        borderTopColor: "#34d399",
+                        borderRadius: "50%",
+                        animation: "spin 0.8s linear infinite",
+                      }}
+                    />
+                    <span>Loading more projects...</span>
+                  </div>
+                ) : null}
+
+                {!isLoadingInitial && !isLoadingMore && projects.length > 0 && !hasMore ? (
+                  <span style={{ color: "#618272", fontSize: "0.8rem" }}>
+                    ✓ Showing all {projects.length} {projects.length === 1 ? "project" : "projects"}
                   </span>
+                ) : null}
+
+                {!isLoadingInitial && !isLoadingMore && hasMore ? (
                   <button
-                    className="btn btn-secondary project-pagination-btn"
                     type="button"
-                    disabled={!pagination.next || isLoadingProjects}
-                    onClick={() => setCurrentPage((page) => page + 1)}
+                    onClick={loadNextPage}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "#34d399",
+                      fontSize: "0.82rem",
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                    }}
                   >
-                    Next
+                    Scroll down or click to load more
                   </button>
-                </div>
+                ) : null}
               </div>
             </div>
           </>

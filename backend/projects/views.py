@@ -1561,9 +1561,45 @@ def get_generated_agreement_payload(snapshot, pdf_url=""):
 
 
 class ProjectPagination(PageNumberPagination):
-    page_size = 10
+    page_size = 12
     page_size_query_param = "page_size"
     max_page_size = 50
+
+    def paginate_queryset(self, queryset, request, view=None):
+        try:
+            return super().paginate_queryset(queryset, request, view=view)
+        except Exception:
+            self.page = None
+            self.request = request
+            self.count = len(queryset) if isinstance(queryset, list) else queryset.count()
+            return []
+
+    def get_next_link(self):
+        if not getattr(self, "page", None):
+            return None
+        return super().get_next_link()
+
+    def get_previous_link(self):
+        if not getattr(self, "page", None):
+            return None
+        return super().get_previous_link()
+
+    def get_paginated_response(self, data):
+        total_count = self.page.paginator.count if getattr(self, "page", None) else getattr(self, "count", 0)
+        has_next = self.get_next_link() is not None
+        has_prev = self.get_previous_link() is not None
+        current_page = self.page.number if getattr(self, "page", None) else 1
+        total_pages = self.page.paginator.num_pages if getattr(self, "page", None) else 1
+
+        return Response({
+            "count": total_count,
+            "next": self.get_next_link(),
+            "previous": self.get_previous_link(),
+            "has_more": has_next,
+            "page": current_page,
+            "total_pages": total_pages,
+            "results": data,
+        })
 
 
 PROJECT_WORKFLOW_STATUS_FILTERS = {
