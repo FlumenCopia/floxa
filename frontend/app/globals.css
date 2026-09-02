@@ -1493,6 +1493,59 @@ textarea {
     inset 0 1px 1px rgba(255, 255, 255, 0.35);
 }
 
+.settings-card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.54) !important;
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 20px !important;
+  padding: 24px 28px;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.28),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4) !important;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.settings-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(77, 255, 160, 0.95) 0%,
+    rgba(0, 210, 255, 0.9) 25%,
+    rgba(157, 78, 221, 0.85) 50%,
+    rgba(255, 0, 127, 0.85) 75%,
+    rgba(255, 183, 3, 0.9) 100%
+  );
+  box-shadow: 0 0 14px rgba(77, 255, 160, 0.5), 0 0 20px rgba(0, 210, 255, 0.35);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.settings-card:hover {
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  box-shadow:
+    0 26px 58px rgba(0, 0, 0, 0.55),
+    0 0 24px rgba(77, 255, 160, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.35) !important;
+}
+
+.settings-danger-card {
+  border-color: rgba(255, 107, 107, 0.3) !important;
+}
+
+.settings-danger-card::after {
+  background: linear-gradient(90deg, #ff6b6b, #ff007f, #ffb703);
+  box-shadow: 0 0 14px rgba(255, 107, 107, 0.6);
+}
+
 .dashboard-card {
   position: relative;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.56);

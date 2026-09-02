@@ -329,13 +329,6 @@ export default function Account() {
       <div
         className="card settings-card mb-3"
         ref={menuRef}
-        style={{
-          background: "rgba(2, 35, 28, 0.75)",
-          border: "1px solid rgba(16, 185, 129, 0.2)",
-          borderRadius: "16px",
-          padding: "24px 28px",
-          position: "relative",
-        }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "24px", flexWrap: "wrap" }}>
           
