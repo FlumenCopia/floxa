@@ -1,13 +1,12 @@
-
 :root {
   --background: #020806;
   --foreground: #e8f5ef;
   --bg: #020806;
-  --surface: #0a1912;
-  --card: #0f2218;
-  --card2: #152c1e;
-  --border: rgba(77, 255, 160, 0.1);
-  --border2: rgba(77, 255, 160, 0.22);
+  --surface: rgba(10, 24, 18, 0.7);
+  --card: rgba(10, 22, 32, 0.52);
+  --card2: rgba(16, 32, 46, 0.62);
+  --border: rgba(255, 255, 255, 0.16);
+  --border2: rgba(77, 255, 160, 0.28);
   --neon: #4dffa0;
   --neon-dim: rgba(77, 255, 160, 0.08);
   --neon-mid: rgba(77, 255, 160, 0.18);
@@ -16,8 +15,8 @@
   --danger: #ff6b6b;
   --amber: #f0b429;
   --cobalt: #4a9eff;
-  --r: 1px;
-  --r-sm: 1px;
+  --r: 16px;
+  --r-sm: 12px;
   --r-full: 999px;
   --sidebar: 268px;
   --topbar: 60px;
@@ -72,6 +71,7 @@ textarea {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -130,6 +130,7 @@ textarea {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -154,16 +155,16 @@ textarea {
   justify-content: center;
   padding: clamp(64px, 7vw, 96px) clamp(44px, 6vw, 84px);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 48px;
-  background: rgba(0, 14, 8, 0.32);
-  backdrop-filter: blur(20px) saturate(160%) brightness(1.08);
-  -webkit-backdrop-filter: blur(20px) saturate(160%) brightness(1.08);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.52);
+  backdrop-filter: blur(24px) saturate(160%) brightness(1.08);
+  -webkit-backdrop-filter: blur(24px) saturate(160%) brightness(1.08);
   box-shadow:
-    0 32px 80px rgba(0, 0, 0, 0.5),
+    0 36px 90px rgba(0, 0, 0, 0.55),
     0 0 80px rgba(77, 255, 160, 0.05),
-    inset 0 1px 1px rgba(255, 255, 255, 0.25),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+    inset 0 1px 1px rgba(255, 255, 255, 0.3),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
   transition:
     width 1.15s cubic-bezier(0.16, 1, 0.3, 1),
     min-height 1.15s cubic-bezier(0.16, 1, 0.3, 1),
@@ -176,24 +177,33 @@ textarea {
   padding: clamp(52px, 5.5vw, 76px) clamp(48px, 6vw, 88px);
 }
 
-.login-card::before,
-.login-card::after {
+.login-card::before {
   content: "";
   position: absolute;
+  top: 0;
   left: 6%;
   right: 6%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   pointer-events: none;
 }
 
-.login-card::before {
-  top: 0;
-}
-
 .login-card::after {
+  content: "";
+  position: absolute;
   bottom: 0;
-  opacity: 0.5;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+      rgba(77, 255, 160, 0.95) 0%,
+      rgba(0, 210, 255, 0.9) 25%,
+      rgba(157, 78, 221, 0.85) 50%,
+      rgba(255, 0, 127, 0.85) 75%,
+      rgba(255, 183, 3, 0.9) 100%);
+  box-shadow: 0 0 16px rgba(77, 255, 160, 0.5), 0 0 24px rgba(0, 210, 255, 0.35);
+  opacity: 0.85;
+  pointer-events: none;
 }
 
 /* Stage Track for Overlapping Transitions without Layout Jumps */
@@ -287,6 +297,7 @@ textarea {
     opacity: 0;
     transform: translateX(70px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -298,6 +309,7 @@ textarea {
     opacity: 0;
     transform: translateX(-50px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -661,6 +673,7 @@ textarea {
       opacity: 0;
       transform: translateX(35px);
     }
+
     to {
       opacity: 1;
       transform: translateX(0);
@@ -672,6 +685,7 @@ textarea {
       opacity: 0;
       transform: translateX(-25px);
     }
+
     to {
       opacity: 1;
       transform: translateX(0);
@@ -1354,36 +1368,50 @@ textarea {
   position: relative;
   overflow: hidden;
   min-height: 132px;
-  background: linear-gradient(180deg, rgba(12, 40, 26, 0.8), rgba(8, 26, 17, 0.9));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(77, 255, 160, 0.18);
-  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.52);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
   padding: 18px 20px 17px;
   box-shadow:
-    0 12px 32px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+    0 20px 48px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.28),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .kpi-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(77, 255, 160, 0.35);
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(255, 255, 255, 0.3);
   box-shadow:
-    0 16px 40px rgba(0, 0, 0, 0.45),
-    0 0 24px rgba(77, 255, 160, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    0 28px 60px rgba(0, 0, 0, 0.55),
+    0 0 30px rgba(77, 255, 160, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 
 .kpi-card::after {
   content: "";
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #4dffa0, rgba(77, 255, 160, 0.05));
-  box-shadow: 0 0 8px rgba(77, 255, 160, 0.4);
+  height: 3px;
+  background: linear-gradient(90deg,
+      rgba(77, 255, 160, 0.95) 0%,
+      rgba(0, 210, 255, 0.9) 25%,
+      rgba(157, 78, 221, 0.85) 50%,
+      rgba(255, 0, 127, 0.85) 75%,
+      rgba(255, 183, 3, 0.9) 100%);
+  box-shadow: 0 0 14px rgba(77, 255, 160, 0.5), 0 0 20px rgba(0, 210, 255, 0.35);
+  opacity: 0.85;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+  pointer-events: none;
+}
+
+.kpi-card:hover::after {
+  opacity: 1;
+  filter: brightness(1.25);
 }
 
 .kpi-card-header {
@@ -1443,23 +1471,59 @@ textarea {
 }
 
 .card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.52);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
   padding: 18px;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.28),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4);
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.52),
+    inset 0 1px 1px rgba(255, 255, 255, 0.35);
 }
 
 .dashboard-card {
-  background: linear-gradient(180deg, rgba(11, 38, 24, 0.82), rgba(7, 26, 16, 0.9));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(77, 255, 160, 0.16);
-  border-radius: 18px;
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.56);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
   padding: 0;
   overflow: hidden;
   box-shadow:
-    0 16px 40px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 20px 50px rgba(0, 0, 0, 0.48),
+    inset 0 1px 1px rgba(255, 255, 255, 0.28);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dashboard-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+      rgba(77, 255, 160, 0.9) 0%,
+      rgba(0, 210, 255, 0.85) 25%,
+      rgba(157, 78, 221, 0.8) 50%,
+      rgba(255, 0, 127, 0.8) 75%,
+      rgba(255, 183, 3, 0.85) 100%);
+  box-shadow: 0 0 12px rgba(77, 255, 160, 0.4);
+  opacity: 0.8;
+  pointer-events: none;
 }
 
 .dashboard-card-header {
@@ -1492,10 +1556,17 @@ textarea {
 }
 
 .card2 {
-  background: var(--card2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(16, 32, 46, 0.62);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
   padding: 13px;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.22);
 }
 
 .row-sb {
@@ -2896,7 +2967,7 @@ textarea {
   background: rgba(77, 255, 160, 0.12);
 }
 
-.discovery-form-block + .discovery-form-block {
+.discovery-form-block+.discovery-form-block {
   margin-top: 18px;
 }
 
@@ -2968,7 +3039,7 @@ textarea {
   line-height: 1.55;
 }
 
-.discovery-moodboard-head > span {
+.discovery-moodboard-head>span {
   flex: 0 0 auto;
   min-height: 28px;
   display: inline-flex;
@@ -3014,7 +3085,7 @@ textarea {
 }
 
 .discovery-moodboard-fields span,
-.discovery-moodboard-dropzone > span {
+.discovery-moodboard-dropzone>span {
   color: #8eb0a0;
   font-size: 12px;
 }
@@ -3716,7 +3787,7 @@ textarea {
   padding: 14px 16px;
 }
 
-.discovery-activity-group + .discovery-activity-group {
+.discovery-activity-group+.discovery-activity-group {
   margin-top: 22px;
 }
 
@@ -4534,6 +4605,7 @@ textarea {
 }
 
 @keyframes ai-chat-dot {
+
   0%,
   80%,
   100% {
@@ -5645,7 +5717,7 @@ textarea {
   gap: 18px;
 }
 
-.cp-card-top > span,
+.cp-card-top>span,
 .cp-frame {
   color: #5f8d78;
   font-size: 12px;
@@ -6104,6 +6176,7 @@ textarea {
 }
 
 @media (max-width: 480px) {
+
   .cp-choice-grid,
   .cp-logo-grid,
   .cp-audience-grid {
@@ -6158,6 +6231,7 @@ textarea {
 }
 
 @media (max-width: 1023px) {
+
   .kpi-grid,
   .dashboard-grid {
     grid-template-columns: 1fr 1fr;
@@ -6589,7 +6663,7 @@ textarea {
     flex-direction: column;
   }
 
-  .discovery-moodboard-head > span,
+  .discovery-moodboard-head>span,
   .discovery-moodboard-link {
     align-self: flex-start;
   }
@@ -7760,6 +7834,7 @@ textarea {
       opacity: 0;
       transform: translateY(100%);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -7824,6 +7899,7 @@ textarea {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .project-ai-modal,
   .ai-chat-dots i {
     animation: none;
@@ -7835,5 +7911,3 @@ textarea {
     transition: none;
   }
 }
-
-

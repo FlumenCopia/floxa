@@ -144,16 +144,16 @@
   justify-content: center;
   padding: clamp(64px, 7vw, 96px) clamp(44px, 6vw, 84px);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 48px;
-  background: rgba(0, 14, 8, 0.32);
-  backdrop-filter: blur(20px) saturate(160%) brightness(1.08);
-  -webkit-backdrop-filter: blur(20px) saturate(160%) brightness(1.08);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.52);
+  backdrop-filter: blur(24px) saturate(160%) brightness(1.08);
+  -webkit-backdrop-filter: blur(24px) saturate(160%) brightness(1.08);
   box-shadow:
-    0 32px 80px rgba(0, 0, 0, 0.5),
+    0 36px 90px rgba(0, 0, 0, 0.55),
     0 0 80px rgba(77, 255, 160, 0.05),
-    inset 0 1px 1px rgba(255, 255, 255, 0.25),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+    inset 0 1px 1px rgba(255, 255, 255, 0.3),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
   transition:
     width 1.15s cubic-bezier(0.16, 1, 0.3, 1),
     min-height 1.15s cubic-bezier(0.16, 1, 0.3, 1),
@@ -166,24 +166,35 @@
   padding: clamp(52px, 5.5vw, 76px) clamp(48px, 6vw, 88px);
 }
 
-.client-welcome-glass::before,
-.client-welcome-glass::after {
+.client-welcome-glass::before {
   content: "";
   position: absolute;
+  top: 0;
   left: 6%;
   right: 6%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   pointer-events: none;
 }
 
-.client-welcome-glass::before {
-  top: 0;
-}
-
 .client-welcome-glass::after {
+  content: "";
+  position: absolute;
   bottom: 0;
-  opacity: 0.5;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(77, 255, 160, 0.95) 0%,
+    rgba(0, 210, 255, 0.9) 25%,
+    rgba(157, 78, 221, 0.85) 50%,
+    rgba(255, 0, 127, 0.85) 75%,
+    rgba(255, 183, 3, 0.9) 100%
+  );
+  box-shadow: 0 0 16px rgba(77, 255, 160, 0.5), 0 0 24px rgba(0, 210, 255, 0.35);
+  opacity: 0.85;
+  pointer-events: none;
 }
 
 /* Stage Track for Overlapping Transitions without Layout Jumps */
@@ -1786,32 +1797,74 @@
 .client-journey-card {
   min-height: 175px;
   position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 22px;
   color: rgba(190, 221, 209, 0.34);
-  background: rgba(13, 24, 19, 0.36);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.48);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4);
   text-align: left;
   cursor: not-allowed;
   transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s ease,
+    background 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.client-journey-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(77, 255, 160, 0.95) 0%,
+    rgba(0, 210, 255, 0.9) 25%,
+    rgba(157, 78, 221, 0.85) 50%,
+    rgba(255, 0, 127, 0.85) 75%,
+    rgba(255, 183, 3, 0.9) 100%
+  );
+  box-shadow: 0 0 14px rgba(77, 255, 160, 0.5), 0 0 20px rgba(0, 210, 255, 0.35);
+  opacity: 0.4;
+  transition: opacity 0.3s ease, filter 0.3s ease;
+  pointer-events: none;
 }
 
 .client-journey-card.available {
-  color: rgba(241, 250, 247, 0.9);
-  border-color: rgba(255, 255, 255, 0.13);
+  color: rgba(241, 250, 247, 0.95);
+  border-color: rgba(255, 255, 255, 0.18);
   cursor: pointer;
 }
 
+.client-journey-card.available::after {
+  opacity: 0.85;
+}
+
 .client-journey-card.available:hover {
-  transform: translateY(-4px);
-  border-color: rgba(196, 239, 223, 0.32);
-  background: rgba(24, 42, 36, 0.52);
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(255, 255, 255, 0.32);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 40%), rgba(14, 28, 42, 0.62);
+  box-shadow:
+    0 28px 60px rgba(0, 0, 0, 0.55),
+    0 0 30px rgba(77, 255, 160, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.client-journey-card.available:hover::after {
+  opacity: 1;
+  filter: brightness(1.25);
 }
 
 .client-card-number,
