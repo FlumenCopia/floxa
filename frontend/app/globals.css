@@ -4105,11 +4105,9 @@ textarea {
 }
 
 .ai-suite-live-pill {
-  min-height: 28px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(77, 255, 160, 0.1);
-  border: 1px solid rgba(77, 255, 160, 0.16);
+  min-height: auto;
+  padding: 0;
+  background: transparent;
   color: #4dffa0;
   font-size: 11px;
   font-weight: 600;
@@ -4121,7 +4119,7 @@ textarea {
 }
 
 .ai-suite-live-pill.paused {
-  background: rgba(129, 160, 149, 0.12);
+  background: transparent;
   color: #9abcae;
 }
 
