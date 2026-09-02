@@ -177,33 +177,24 @@ textarea {
   padding: clamp(52px, 5.5vw, 76px) clamp(48px, 6vw, 88px);
 }
 
-.login-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 6%;
-  right: 6%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-  pointer-events: none;
-}
-
+.login-card::before,
 .login-card::after {
   content: "";
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg,
-      rgba(77, 255, 160, 0.95) 0%,
-      rgba(0, 210, 255, 0.9) 25%,
-      rgba(157, 78, 221, 0.85) 50%,
-      rgba(255, 0, 127, 0.85) 75%,
-      rgba(255, 183, 3, 0.9) 100%);
-  box-shadow: 0 0 16px rgba(77, 255, 160, 0.5), 0 0 24px rgba(0, 210, 255, 0.35);
-  opacity: 0.85;
+  left: 6%;
+  right: 6%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   pointer-events: none;
+}
+
+.login-card::before {
+  top: 0;
+}
+
+.login-card::after {
+  bottom: 0;
+  opacity: 0.5;
 }
 
 /* Stage Track for Overlapping Transitions without Layout Jumps */
@@ -1390,29 +1381,7 @@ textarea {
     inset 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 
-.kpi-card::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg,
-      rgba(77, 255, 160, 0.95) 0%,
-      rgba(0, 210, 255, 0.9) 25%,
-      rgba(157, 78, 221, 0.85) 50%,
-      rgba(255, 0, 127, 0.85) 75%,
-      rgba(255, 183, 3, 0.9) 100%);
-  box-shadow: 0 0 14px rgba(77, 255, 160, 0.5), 0 0 20px rgba(0, 210, 255, 0.35);
-  opacity: 0.85;
-  transition: opacity 0.3s ease, filter 0.3s ease;
-  pointer-events: none;
-}
 
-.kpi-card:hover::after {
-  opacity: 1;
-  filter: brightness(1.25);
-}
 
 .kpi-card-header {
   display: flex;
@@ -1509,26 +1478,6 @@ textarea {
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.settings-card::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    rgba(77, 255, 160, 0.95) 0%,
-    rgba(0, 210, 255, 0.9) 25%,
-    rgba(157, 78, 221, 0.85) 50%,
-    rgba(255, 0, 127, 0.85) 75%,
-    rgba(255, 183, 3, 0.9) 100%
-  );
-  box-shadow: 0 0 14px rgba(77, 255, 160, 0.5), 0 0 20px rgba(0, 210, 255, 0.35);
-  opacity: 0.85;
-  pointer-events: none;
-}
-
 .settings-card:hover {
   border-color: rgba(255, 255, 255, 0.28) !important;
   box-shadow:
@@ -1539,11 +1488,6 @@ textarea {
 
 .settings-danger-card {
   border-color: rgba(255, 107, 107, 0.3) !important;
-}
-
-.settings-danger-card::after {
-  background: linear-gradient(90deg, #ff6b6b, #ff007f, #ffb703);
-  box-shadow: 0 0 14px rgba(255, 107, 107, 0.6);
 }
 
 .dashboard-card {
@@ -1559,24 +1503,6 @@ textarea {
     0 20px 50px rgba(0, 0, 0, 0.48),
     inset 0 1px 1px rgba(255, 255, 255, 0.28);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.dashboard-card::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg,
-      rgba(77, 255, 160, 0.9) 0%,
-      rgba(0, 210, 255, 0.85) 25%,
-      rgba(157, 78, 221, 0.8) 50%,
-      rgba(255, 0, 127, 0.8) 75%,
-      rgba(255, 183, 3, 0.85) 100%);
-  box-shadow: 0 0 12px rgba(77, 255, 160, 0.4);
-  opacity: 0.8;
-  pointer-events: none;
 }
 
 .dashboard-card-header {
@@ -2176,26 +2102,6 @@ textarea {
     inset 0 -1px 2px rgba(0, 0, 0, 0.4);
 }
 
-.project-table-card::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    rgba(77, 255, 160, 0.9) 0%,
-    rgba(0, 210, 255, 0.85) 25%,
-    rgba(157, 78, 221, 0.8) 50%,
-    rgba(255, 0, 127, 0.8) 75%,
-    rgba(255, 183, 3, 0.85) 100%
-  );
-  box-shadow: 0 0 12px rgba(77, 255, 160, 0.4);
-  opacity: 0.8;
-  pointer-events: none;
-}
-
 .project-table-wrap {
   overflow-x: auto;
 }
@@ -2318,26 +2224,6 @@ textarea {
     0 20px 48px rgba(0, 0, 0, 0.45),
     inset 0 1px 1px rgba(255, 255, 255, 0.28),
     inset 0 -1px 2px rgba(0, 0, 0, 0.4);
-}
-
-.discovery-card::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    rgba(77, 255, 160, 0.9) 0%,
-    rgba(0, 210, 255, 0.85) 25%,
-    rgba(157, 78, 221, 0.8) 50%,
-    rgba(255, 0, 127, 0.8) 75%,
-    rgba(255, 183, 3, 0.85) 100%
-  );
-  box-shadow: 0 0 12px rgba(77, 255, 160, 0.4);
-  opacity: 0.8;
-  pointer-events: none;
 }
 
 .discovery-summary {
@@ -4110,25 +3996,7 @@ textarea {
   transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.ai-suite-card::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    rgba(77, 255, 160, 0.9) 0%,
-    rgba(0, 210, 255, 0.85) 25%,
-    rgba(157, 78, 221, 0.8) 50%,
-    rgba(255, 0, 127, 0.8) 75%,
-    rgba(255, 183, 3, 0.85) 100%
-  );
-  box-shadow: 0 0 12px rgba(77, 255, 160, 0.4);
-  opacity: 0.8;
-  pointer-events: none;
-}
+
 
 .ai-suite-live-card {
   display: flex;
@@ -5046,25 +4914,7 @@ textarea {
   transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.analytics-card::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    rgba(77, 255, 160, 0.9) 0%,
-    rgba(0, 210, 255, 0.85) 25%,
-    rgba(157, 78, 221, 0.8) 50%,
-    rgba(255, 0, 127, 0.8) 75%,
-    rgba(255, 183, 3, 0.85) 100%
-  );
-  box-shadow: 0 0 12px rgba(77, 255, 160, 0.4);
-  opacity: 0.8;
-  pointer-events: none;
-}
+
 
 .analytics-card-head {
   display: flex;
@@ -5743,27 +5593,7 @@ textarea {
     inset 0 -1px 1px rgba(0, 0, 0, 0.4);
 }
 
-.cp-entry-card::after,
-.cp-card::after,
-.cp-result-card::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    rgba(77, 255, 160, 0.95) 0%,
-    rgba(0, 210, 255, 0.9) 25%,
-    rgba(157, 78, 221, 0.85) 50%,
-    rgba(255, 0, 127, 0.85) 75%,
-    rgba(255, 183, 3, 0.9) 100%
-  );
-  box-shadow: 0 0 16px rgba(77, 255, 160, 0.5), 0 0 24px rgba(0, 210, 255, 0.35);
-  opacity: 0.85;
-  pointer-events: none;
-}
+
 
 .cp-entry-card {
   padding: 40px;
