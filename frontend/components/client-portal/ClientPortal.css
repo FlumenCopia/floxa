@@ -1895,11 +1895,39 @@
 }
 
 .client-dashboard-panel {
+  position: relative;
+  overflow: hidden;
   margin-top: 14px;
   padding: clamp(24px, 4vw, 42px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 26px;
-  background: rgba(8, 18, 13, 0.58);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.52);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.28),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.client-dashboard-panel::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(77, 255, 160, 0.95) 0%,
+    rgba(0, 210, 255, 0.9) 25%,
+    rgba(157, 78, 221, 0.85) 50%,
+    rgba(255, 0, 127, 0.85) 75%,
+    rgba(255, 183, 3, 0.9) 100%
+  );
+  box-shadow: 0 0 16px rgba(77, 255, 160, 0.5), 0 0 24px rgba(0, 210, 255, 0.35);
+  opacity: 0.85;
+  pointer-events: none;
 }
 
 .client-panel-heading {
@@ -1948,11 +1976,40 @@
 
 .client-panel-grid article,
 .client-panel-stack article {
+  position: relative;
+  overflow: hidden;
   min-width: 0;
   padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.04);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(12, 24, 36, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.client-panel-grid article::after,
+.client-panel-stack article::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(77, 255, 160, 0.9) 0%,
+    rgba(0, 210, 255, 0.85) 25%,
+    rgba(157, 78, 221, 0.8) 50%,
+    rgba(255, 0, 127, 0.8) 75%,
+    rgba(255, 183, 3, 0.85) 100%
+  );
+  box-shadow: 0 0 10px rgba(77, 255, 160, 0.4);
+  opacity: 0.75;
+  pointer-events: none;
 }
 
 .client-panel-grid article.selected {
