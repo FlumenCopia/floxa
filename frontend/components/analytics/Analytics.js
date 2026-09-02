@@ -291,7 +291,7 @@ export default function Analytics() {
       labels: statusLabels,
       legend: {
         show: true,
-        position: "bottom",
+        position: "right",
         horizontalAlign: "center",
         floating: false,
         fontSize: "12px",
@@ -308,8 +308,8 @@ export default function Analytics() {
           offsetX: -3,
         },
         itemMargin: {
-          horizontal: 10,
-          vertical: 6,
+          horizontal: 0,
+          vertical: 8,
         },
         onItemClick: {
           toggleDataSeries: true,
@@ -585,10 +585,10 @@ export default function Analytics() {
                 <h2>Projects by status</h2>
                   <span>{selectedStatus ? `${selectedStatus.value}% share` : "0% share"}</span>
                 </div>
-                <div className="analytics-status-layout" style={{ display: "block", width: "100%" }}>
-                  <div className="analytics-donut-wrap analytics-status-apex" style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                <div className="analytics-status-layout">
+                  <div className="analytics-donut-wrap analytics-status-apex" style={{ gridColumn: "1 / -1", width: "100%" }}>
                     <ReactApexChart
-                      height={270}
+                      height={220}
                       options={statusChartOptions}
                       series={statusSeries}
                       type="donut"
