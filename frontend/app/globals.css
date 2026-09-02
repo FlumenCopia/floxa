@@ -3832,34 +3832,62 @@ textarea {
 }
 
 .discovery-toggle {
-  width: 44px;
-  height: 24px;
-  border: none;
+  width: 48px;
+  height: 26px;
   border-radius: 999px;
-  background: rgba(77, 255, 160, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%), rgba(12, 28, 20, 0.65);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
   position: relative;
   cursor: pointer;
-  transition: 0.18s ease;
+  outline: none;
+  padding: 0;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.25),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .discovery-toggle span {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  background: #d8efe3;
-  transition: 0.18s ease;
+  background: linear-gradient(145deg, #ffffff 0%, #d2e8db 100%);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease, box-shadow 0.3s ease;
+  pointer-events: none;
+}
+
+.discovery-toggle:hover {
+  border-color: rgba(77, 255, 160, 0.45);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.35),
+    0 0 12px rgba(77, 255, 160, 0.25);
 }
 
 .discovery-toggle.active {
-  background: #4dffa0;
+  background: linear-gradient(135deg, rgba(77, 255, 160, 0.45) 0%, rgba(16, 185, 100, 0.35) 100%), rgba(10, 36, 24, 0.8);
+  border-color: rgba(77, 255, 160, 0.6);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.4),
+    0 0 16px rgba(77, 255, 160, 0.35);
 }
 
 .discovery-toggle.active span {
-  left: 23px;
-  background: #041008;
+  transform: translateX(22px);
+  background: linear-gradient(145deg, #50ffaa 0%, #20ce75 100%);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 12px rgba(77, 255, 160, 0.7),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9);
 }
 
 .discovery-detail-card,
