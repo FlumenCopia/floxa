@@ -1639,32 +1639,29 @@ textarea {
   border-radius: var(--r-full);
   font-size: 10px;
   font-weight: 500;
+  border: none;
 }
 
 .badge::before {
-  content: "";
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: currentColor;
+  display: none;
 }
 
 .badge-green {
-  background: rgba(77, 255, 160, 0.12);
+  background: rgba(77, 255, 160, 0.14);
   color: var(--neon);
-  border: 1px solid rgba(77, 255, 160, 0.2);
+  border: none;
 }
 
 .badge-amber {
-  background: rgba(240, 180, 41, 0.12);
+  background: rgba(240, 180, 41, 0.14);
   color: var(--amber);
-  border: 1px solid rgba(240, 180, 41, 0.2);
+  border: none;
 }
 
 .badge-blue {
-  background: rgba(74, 158, 255, 0.12);
+  background: rgba(74, 158, 255, 0.14);
   color: var(--cobalt);
-  border: 1px solid rgba(74, 158, 255, 0.2);
+  border: none;
 }
 
 .table-wrap {
