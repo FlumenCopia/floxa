@@ -144,16 +144,15 @@
   justify-content: center;
   padding: clamp(64px, 7vw, 96px) clamp(44px, 6vw, 84px);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 48px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.52);
-  backdrop-filter: blur(24px) saturate(160%) brightness(1.08);
-  -webkit-backdrop-filter: blur(24px) saturate(160%) brightness(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 32px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(28px) saturate(130%) brightness(0.96);
+  -webkit-backdrop-filter: blur(28px) saturate(130%) brightness(0.96);
   box-shadow:
-    0 36px 90px rgba(0, 0, 0, 0.55),
-    0 0 80px rgba(77, 255, 160, 0.05),
-    inset 0 1px 1px rgba(255, 255, 255, 0.3),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
+    0 40px 100px rgba(0, 0, 0, 0.7),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.5);
   transition:
     width 1.15s cubic-bezier(0.16, 1, 0.3, 1),
     min-height 1.15s cubic-bezier(0.16, 1, 0.3, 1),
@@ -168,22 +167,7 @@
 
 .client-welcome-glass::before,
 .client-welcome-glass::after {
-  content: "";
-  position: absolute;
-  left: 6%;
-  right: 6%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  pointer-events: none;
-}
-
-.client-welcome-glass::before {
-  top: 0;
-}
-
-.client-welcome-glass::after {
-  bottom: 0;
-  opacity: 0.5;
+  display: none;
 }
 
 /* Stage Track for Overlapping Transitions without Layout Jumps */

@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   Search,
+  User,
 } from "lucide-react";
 
 const primaryNavItems = [
@@ -600,7 +601,7 @@ export default function Floxaheader({
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               ) : (
-                <span>{consultant?.name ? consultant.name.slice(0, 2).toUpperCase() : "AK"}</span>
+                <User size={18} strokeWidth={2} />
               )}
             </div>
             <div>
