@@ -156,7 +156,7 @@ textarea {
   padding: clamp(64px, 7vw, 96px) clamp(44px, 6vw, 84px);
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 32px;
+  border-radius: 44px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(28px) saturate(130%) brightness(0.96);
   -webkit-backdrop-filter: blur(28px) saturate(130%) brightness(0.96);
@@ -8011,14 +8011,14 @@ textarea {
 /* ============================================================
    ZERO BORDER RADIUS FOR ALL SECTIONS, CARDS, AND TABLES
    ============================================================ */
-section,
+section:not(.client-welcome-stage),
 [class*="-section"],
 [class*="section-"],
 .section,
 .card,
 .card2,
-[class*="-card"],
-[class*="card-"],
+[class*="-card"]:not(.login-card):not(.client-welcome-glass),
+[class*="card-"]:not(.login-card):not(.client-welcome-glass),
 .kpi-card,
 .dashboard-card,
 .dashboard-projects-card,
@@ -8073,13 +8073,35 @@ tr:first-child th:first-child,
 tr:first-child th:last-child,
 tr:last-child td:first-child,
 tr:last-child td:last-child,
-section::before,
-section::after,
+section:not(.client-welcome-stage)::before,
+section:not(.client-welcome-stage)::after,
 .card::before,
 .card::after,
-[class*="-card"]::before,
-[class*="-card"]::after,
+[class*="-card"]:not(.login-card):not(.client-welcome-glass)::before,
+[class*="-card"]:not(.login-card):not(.client-welcome-glass)::after,
 .table-wrap::before,
 .table-wrap::after {
   border-radius: 0 !important;
+}
+
+/* ============================================================
+   ONLY THIS SECTION (LOGIN / WELCOME GLASS CARD) HAS BORDER RADIUS
+   ============================================================ */
+.login-card,
+.client-welcome-glass {
+  border-radius: 44px !important;
+}
+
+@media (max-width: 900px) {
+  .login-card,
+  .client-welcome-glass {
+    border-radius: 36px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .login-card,
+  .client-welcome-glass {
+    border-radius: 28px !important;
+  }
 }
