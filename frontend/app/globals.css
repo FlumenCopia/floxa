@@ -857,7 +857,7 @@ textarea {
   width: calc(100% - 20px);
   margin: 3px 10px;
   padding: 11px 16px;
-  border-radius: 14px;
+  border-radius: 0;
   border: 1px solid transparent;
   background: transparent;
   color: #9fbeaf;
@@ -873,6 +873,7 @@ textarea {
 }
 
 .nav-item:hover {
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.04);
   color: #ffffff;
   border-color: rgba(77, 255, 160, 0.2);
@@ -881,6 +882,7 @@ textarea {
 }
 
 .nav-item.active {
+  border-radius: 0;
   color: #ffffff;
   font-weight: 600;
   background: linear-gradient(135deg, rgba(77, 255, 160, 0.18) 0%, rgba(14, 48, 30, 0.45) 100%);
