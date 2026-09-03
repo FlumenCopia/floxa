@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentConsultant, updateCurrentConsultant } from "../../src/lib/authApi";
 import { showError, showSuccess } from "../../src/lib/toast";
+import { Camera, Upload, Trash2 } from "lucide-react";
 
 function getAccountErrorMessage(error, fallback = "Profile could not be updated.") {
   if (error?.detail) {
@@ -390,10 +391,7 @@ export default function Account() {
               onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.12)")}
               onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                <circle cx="12" cy="13" r="4" />
-              </svg>
+              <Camera size={17} strokeWidth={2.2} />
             </button>
 
             {/* Hidden File Input */}
@@ -447,11 +445,7 @@ export default function Account() {
                   onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
+                  <Upload size={15} strokeWidth={2.2} stroke="#34d399" />
                   Upload Photo
                 </button>
 
@@ -475,10 +469,7 @@ export default function Account() {
                   onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.2">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                    <circle cx="12" cy="13" r="4" />
-                  </svg>
+                  <Camera size={15} strokeWidth={2.2} stroke="#34d399" />
                   Take Photo
                 </button>
 
@@ -503,10 +494,7 @@ export default function Account() {
                     onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(239, 68, 68, 0.12)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.2">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
+                    <Trash2 size={15} strokeWidth={2.2} stroke="#f87171" />
                     Remove Photo
                   </button>
                 ) : null}

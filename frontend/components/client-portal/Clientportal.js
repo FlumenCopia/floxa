@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ShoppingCart, Gem, Globe, Sparkles, Sprout, Building2, X, ArrowLeft, ArrowRight } from "lucide-react";
 
 const firstFrameFields = [
   {
@@ -99,14 +100,24 @@ const defaultAnswers = {
   feeling: "",
 };
 
-const choiceIconLabels = {
-  cart: "$",
-  gem: "D",
-  globe: "O",
-  spark: "*",
-  sprout: "^",
-  building: "#",
-};
+function ChoiceIcon({ icon }) {
+  switch (icon) {
+    case "cart":
+      return <ShoppingCart size={16} strokeWidth={1.8} />;
+    case "gem":
+      return <Gem size={16} strokeWidth={1.8} />;
+    case "globe":
+      return <Globe size={16} strokeWidth={1.8} />;
+    case "spark":
+      return <Sparkles size={16} strokeWidth={1.8} />;
+    case "sprout":
+      return <Sprout size={16} strokeWidth={1.8} />;
+    case "building":
+      return <Building2 size={16} strokeWidth={1.8} />;
+    default:
+      return <Sparkles size={16} strokeWidth={1.8} />;
+  }
+}
 
 
 const makeSliderState = (pairs) =>
@@ -129,7 +140,8 @@ function PortalHeader({ onClose }) {
         <img src="/image/FLOXA_log.png" alt="FLOXA" className="cp-logo-img" />
       </div>
       <button className="cp-close" onClick={onClose} type="button">
-        X Close
+        <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+        Close
       </button>
     </header>
   );
@@ -150,11 +162,13 @@ function PortalCard({ step, title, subtitle, children, onBack, onNext, submit })
       <div className="cp-card-body">{children}</div>
       <footer className="cp-card-footer">
         <button className="cp-back" type="button" onClick={onBack}>
-          {"<- Back"}
+          <ArrowLeft size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+          Back
         </button>
         <StepDots active={step} />
         <button className="cp-primary cp-footer-btn" type="button" onClick={onNext}>
-          {submit ? "Submit Discovery ->" : "Continue ->"}
+          {submit ? "Submit Discovery" : "Continue"}
+          <ArrowRight size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginLeft: "4px" }} />
         </button>
       </footer>
     </section>
@@ -219,7 +233,7 @@ function ChoiceGrid({ items, selected, setSelected, limit = 1, className = "" })
           >
             {icon ? (
               <span className={`cp-choice-icon ${icon}`.trim()}>
-                {choiceIconLabels[icon] || icon}
+                <ChoiceIcon icon={icon} />
               </span>
             ) : null}
             <strong>{title}</strong>

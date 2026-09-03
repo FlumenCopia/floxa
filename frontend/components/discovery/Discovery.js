@@ -9,6 +9,7 @@ import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset } from "../../src/lib/api";
 import { getStatusClass, getStatusLabel } from "../Allproject/ProjectSection";
 import { showError, showSuccess } from "../../src/lib/toast";
+import { FileText, X, Send, Sparkles } from "lucide-react";
 import {
   askProjectAssistant,
   generateAgreement,
@@ -2644,7 +2645,9 @@ function AgreementPanel({ projectId, onProjectRefresh }) {
   return (
     <section className="discovery-card discovery-agreement-card">
       <h2 className="discovery-panel-title">Service Agreement</h2>
-      <div className="discovery-agreement-icon">DOC</div>
+      <div className="discovery-agreement-icon">
+        <FileText size={18} strokeWidth={1.8} />
+      </div>
       {loading ? (
         <div className="discovery-info-list">
           <div className="discovery-info-row">
@@ -3179,10 +3182,7 @@ function AIChatbotPanel({ project, onClose }) {
                 aria-label="Close assistant"
                 title="Close assistant"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X size={18} strokeWidth={2.5} />
               </button>
             ) : null}
           </div>
@@ -3192,7 +3192,9 @@ function AIChatbotPanel({ project, onClose }) {
         <div className="ai-chat-scroll-area project-ai-chat-scroll">
           {messages.length === 0 && !isSending ? (
             <div className="ai-chat-empty-state">
-              <div className="ai-chat-empty-icon">AI</div>
+              <div className="ai-chat-empty-icon">
+                <Sparkles size={22} strokeWidth={1.8} />
+              </div>
               <h3>Ask about this project</h3>
               <p>
                 Ask about Discovery, Brand DNA, moodboards, concepts, agreements, payments, deliverables, or the next
@@ -3279,10 +3281,7 @@ function AIChatbotPanel({ project, onClose }) {
             />
             <button type="button" onClick={() => submitMessage()} disabled={!canSend} aria-label="Send message">
               <span className="send-btn-label">Send</span>
-              <svg className="send-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
+              <Send className="send-btn-icon" size={16} strokeWidth={2.5} />
             </button>
 
           </div>
