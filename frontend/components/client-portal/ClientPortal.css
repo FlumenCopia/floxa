@@ -2626,3 +2626,31 @@
     min-height: 220px;
   }
 }
+
+/* ============================================================
+   ZERO BORDER RADIUS FOR ALL SECTIONS, CARDS, AND TABLES
+   ============================================================ */
+section,
+[class*="-section"],
+[class*="section-"],
+.client-review-section,
+.client-review-section article,
+.client-journey-card,
+.client-competitor-card,
+.client-agreement-card,
+.client-dashboard-panel,
+.cp-card,
+.card,
+[class*="-card"],
+[class*="card-"],
+table,
+.table-wrap,
+[class*="-table"],
+[class*="table-"],
+thead,
+tbody,
+tr,
+th,
+td {
+  border-radius: 0 !important;
+}

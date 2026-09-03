@@ -15,8 +15,8 @@
   --danger: #ff6b6b;
   --amber: #f0b429;
   --cobalt: #4a9eff;
-  --r: 16px;
-  --r-sm: 12px;
+  --r: 0px;
+  --r-sm: 0px;
   --r-full: 999px;
   --sidebar: 268px;
   --topbar: 60px;
@@ -8009,4 +8009,80 @@ textarea {
   .ai-chat-input-shell button {
     transition: none;
   }
+}
+
+/* ============================================================
+   ZERO BORDER RADIUS FOR ALL SECTIONS, CARDS, AND TABLES
+   ============================================================ */
+section,
+[class*="-section"],
+[class*="section-"],
+.section,
+.card,
+.card2,
+[class*="-card"],
+[class*="card-"],
+.kpi-card,
+.dashboard-card,
+.dashboard-projects-card,
+.activity-card,
+.settings-card,
+.settings-danger-card,
+.project-table-card,
+.project-wizard-card,
+.project-review-card,
+.discovery-card,
+.discovery-overview-card,
+.discovery-concept-card,
+.discovery-mini-card,
+.discovery-form-card,
+.discovery-moodboard-list-card,
+.discovery-table-card,
+.ai-suite-card,
+.ai-suite-live-card,
+.ai-suite-tool-card,
+.ai-suite-stage-card,
+.ai-suite-output-card,
+.analytics-card,
+.analytics-metric-card,
+.analytics-chart-card,
+.analytics-module-card,
+.analytics-table-card,
+.analytics-report-card,
+.cp-card,
+.client-dashboard-panel,
+.client-journey-card,
+.client-competitor-card,
+.client-agreement-card,
+.client-review-section,
+table,
+.table-wrap,
+[class*="-table"],
+[class*="table-"],
+.dash-table,
+.project-table,
+.discovery-table,
+.analytics-table,
+thead,
+tbody,
+tr,
+th,
+td,
+th:first-child,
+th:last-child,
+td:first-child,
+td:last-child,
+tr:first-child th:first-child,
+tr:first-child th:last-child,
+tr:last-child td:first-child,
+tr:last-child td:last-child,
+section::before,
+section::after,
+.card::before,
+.card::after,
+[class*="-card"]::before,
+[class*="-card"]::after,
+.table-wrap::before,
+.table-wrap::after {
+  border-radius: 0 !important;
 }
