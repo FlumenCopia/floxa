@@ -1116,7 +1116,7 @@ textarea {
   z-index: 30;
   width: min(370px, calc(100vw - 32px));
   border: 1px solid rgba(77, 255, 160, 0.2);
-  border-radius: 18px;
+  border-radius: 0;
   background: rgba(5, 22, 13, 0.98);
   box-shadow: 0 26px 70px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
   overflow: hidden;
@@ -1152,7 +1152,7 @@ textarea {
 
 .notification-head button {
   border: 1px solid rgba(77, 255, 160, 0.18);
-  border-radius: 999px;
+  border-radius: 0;
   background: rgba(77, 255, 160, 0.08);
   color: #bfe8d3;
   cursor: pointer;
@@ -1170,7 +1170,7 @@ textarea {
 
 .notification-item {
   display: grid;
-  grid-template-columns: 8px 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 12px;
   align-items: start;
   padding: 14px 18px;
@@ -1183,12 +1183,7 @@ textarea {
 }
 
 .notification-status-dot {
-  width: 8px;
-  height: 8px;
-  margin-top: 6px;
-  border-radius: 999px;
-  background: var(--neon);
-  box-shadow: 0 0 0 4px rgba(77, 255, 160, 0.1);
+  display: none;
 }
 
 .notification-copy {
@@ -7129,8 +7124,21 @@ textarea {
     right: 10px;
     left: 10px;
     width: auto;
+    border-radius: 0;
     max-width: calc(100vw - 20px);
     z-index: 99;
+  }
+
+  .notification-head button {
+    border-radius: 0;
+  }
+
+  .notification-status-dot {
+    display: none;
+  }
+
+  .notification-item {
+    grid-template-columns: 1fr auto;
   }
 
   .project-table-container,

@@ -679,7 +679,6 @@ export default function Floxaheader({
                         }
                       }}
                     >
-                      <span className="notification-status-dot" />
                       <div className="notification-copy">
                         <p>{notification.description || notification.action}</p>
                         {notification.actor_type ? <small>{notification.actor_type}</small> : null}
