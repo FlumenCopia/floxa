@@ -1060,7 +1060,7 @@ textarea {
   gap: 8px;
   background: rgba(6, 39, 24, 0.8);
   border: 1px solid rgba(77, 255, 160, 0.12);
-  border-radius: var(--r-full);
+  border-radius: 0;
   padding: 0 15px;
   height: 39px;
 }
@@ -1098,6 +1098,7 @@ textarea {
 }
 
 .notification-dot {
+  display: none;
   position: absolute;
   top: 6px;
   right: 6px;

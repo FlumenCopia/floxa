@@ -642,7 +642,6 @@ export default function Floxaheader({
               onClick={handleNotificationToggle}
             >
               <Icon type="bell" />
-              {visibleNotificationCount ? <span className="notification-dot" /> : null}
             </button>
             {isNotificationOpen ? (
               <div className="notification-dropdown">
