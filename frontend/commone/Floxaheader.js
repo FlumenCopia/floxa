@@ -22,16 +22,16 @@ import {
 } from "lucide-react";
 
 const primaryNavItems = [
-  { label: "Dashboard", icon: "grid", route: "/" },
-  { label: "Projects", icon: "mail", route: "/project" },
-  { label: "Discovery", icon: "search", route: "/discovery" },
-  { label: "AI Suite", icon: "star", route: "/ai-suite" },
-  { label: "Analytics", icon: "chart", route: "/analytics" },
+  { label: "DASHBOARD", icon: "grid", route: "/" },
+  { label: "PROJECTS", icon: "mail", route: "/project" },
+  { label: "DISCOVERY", icon: "search", route: "/discovery" },
+  { label: "AI SUITE", icon: "star", route: "/ai-suite" },
+  { label: "ANALYTICS", icon: "chart", route: "/analytics" },
 ];
 
-const clientNavItems = [{ label: "Client Portal", icon: "portal", route: "/client-portal" }];
+const clientNavItems = [{ label: "CLIENT PORTAL", icon: "portal", route: "/client-portal" }];
 
-const accountNavItems = [{ label: "Settings", icon: "settings", route: "/settings" }];
+const accountNavItems = [{ label: "SETTINGS", icon: "settings", route: "/settings" }];
 
 const mobileTabItems = [
   { label: "Home", icon: "grid", route: "/" },
@@ -202,9 +202,9 @@ export default function Floxaheader({
   notifications = [],
   notificationsLoading = false,
   readActivityIds = [],
-  onNotificationClick = () => {},
-  onNotificationsOpen = () => {},
-  onMarkNotificationsRead = () => {},
+  onNotificationClick = () => { },
+  onNotificationsOpen = () => { },
+  onMarkNotificationsRead = () => { },
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -221,17 +221,17 @@ export default function Floxaheader({
   const resolvedActiveNav = pathname === "/project" ? "Projects" : activeNav;
   const resolvedPrimaryNavItems = primaryNavItems.map((item) => ({
     ...item,
-    active: item.label === resolvedActiveNav,
+    active: item.label.toLowerCase() === resolvedActiveNav.toLowerCase(),
   }));
 
   const resolvedMobileTabItems = mobileTabItems.map((item) => ({
     ...item,
     active:
-      (resolvedActiveNav === "Dashboard" && item.label === "Home") ||
-      (resolvedActiveNav === "Projects" && item.label === "Projects") ||
-      (resolvedActiveNav === "AI Suite" && item.label === "AI") ||
-      (resolvedActiveNav === "Client Portal" && item.label === "Portal") ||
-      (resolvedActiveNav === "Settings" && item.label === "Settings"),
+      (resolvedActiveNav?.toLowerCase() === "dashboard" && item.label.toLowerCase() === "home") ||
+      (resolvedActiveNav?.toLowerCase() === "projects" && item.label.toLowerCase() === "projects") ||
+      (resolvedActiveNav?.toLowerCase() === "ai suite" && item.label.toLowerCase() === "ai") ||
+      (resolvedActiveNav?.toLowerCase() === "client portal" && item.label.toLowerCase() === "portal") ||
+      (resolvedActiveNav?.toLowerCase() === "settings" && item.label.toLowerCase() === "settings"),
   }));
   const visibleNotifications = headerNotifications.length ? headerNotifications : notifications;
   const visibleNotificationsLoading = headerNotificationsLoading || notificationsLoading;
@@ -252,10 +252,10 @@ export default function Floxaheader({
         currentNotifications.map((notification) =>
           readIdSet.has(notification.id)
             ? {
-                ...notification,
-                is_read: true,
-                read_at: notification.read_at || readAt,
-              }
+              ...notification,
+              is_read: true,
+              read_at: notification.read_at || readAt,
+            }
             : notification
         )
       );
@@ -576,7 +576,7 @@ export default function Floxaheader({
           {accountNavItems.map((item) => (
             <NavItem key={item.label} item={item} onClick={() => handleNavigation(item.route)} />
           ))}
-          <NavItem item={{ label: "Logout", icon: "logout" }} onClick={handleLogout} />
+          <NavItem item={{ label: "LOGOUT", icon: "logout" }} onClick={handleLogout} />
         </div>
 
         <div className="sidebar-footer">

@@ -867,6 +867,8 @@ textarea {
   position: relative;
   cursor: pointer;
   text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   transition: all 0.22s ease;
 }
 
