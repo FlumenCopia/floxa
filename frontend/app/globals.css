@@ -1461,16 +1461,15 @@ textarea {
 }
 
 .kpi-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: rgba(77, 255, 160, 0.1);
+  width: auto;
+  height: auto;
+  background: transparent;
   color: var(--neon);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
-  box-shadow: 0 0 12px rgba(77, 255, 160, 0.15);
+  padding: 0;
+  box-shadow: none;
 }
 
 .dashboard-grid {
@@ -6432,10 +6431,11 @@ textarea {
   }
 
   .kpi-icon {
-    width: 24px;
-    height: 24px;
-    padding: 5px;
-    border-radius: 8px;
+    width: auto;
+    height: auto;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .dashboard-card {
