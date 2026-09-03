@@ -1447,7 +1447,7 @@ textarea {
   width: auto;
   height: auto;
   background: transparent;
-  color: var(--neon);
+  color: #ffffff !important;
   display: flex;
   align-items: center;
   justify-content: center;
