@@ -1455,6 +1455,11 @@ textarea {
   box-shadow: none;
 }
 
+.kpi-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);

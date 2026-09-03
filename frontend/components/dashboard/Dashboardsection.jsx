@@ -10,14 +10,14 @@ import { FolderKanban, IndianRupee, Sparkles, Clock, Plus } from "lucide-react";
 function KpiIcon({ type }) {
   switch (type) {
     case "revenue":
-      return <IndianRupee size={18} strokeWidth={1.8} />;
+      return <IndianRupee size={22} strokeWidth={1.8} />;
     case "ai":
-      return <Sparkles size={18} strokeWidth={1.8} />;
+      return <Sparkles size={22} strokeWidth={1.8} />;
     case "completion":
-      return <Clock size={18} strokeWidth={1.8} />;
+      return <Clock size={22} strokeWidth={1.8} />;
     case "project":
     default:
-      return <FolderKanban size={18} strokeWidth={1.8} />;
+      return <FolderKanban size={22} strokeWidth={1.8} />;
   }
 }
 
