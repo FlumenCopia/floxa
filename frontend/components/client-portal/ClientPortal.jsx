@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { clientPortalService } from "../../services/clientPortalService";
 import { ClientDashboard } from "./ClientDashboard";
 import "./ClientPortal.css";
@@ -8,6 +9,9 @@ import { DiscoveryFlow } from "./DiscoveryFlow";
 import { DiscoveryReview } from "./DiscoveryReview";
 import { ProfileScreen } from "./ProfileScreen";
 import { LoginScreen, SplashScreen, WelcomeStage } from "./SplashScreen";
+import { VideoCallModal } from "./VideoCallModal";
+import { webRTCService } from "../../services/webRTCService";
+import { supportSocket } from "../../services/supportSocketService";
 
 function getResumeScreen(status) {
   const normalizedStatus = String(status || "").toLowerCase();
@@ -91,7 +95,15 @@ function writeDiscoveryDraft(projectId, discovery) {
   );
 }
 
-export function ClientPortal({ token }) {
+export function ClientPortal({ token, isConsultant = false }) {
+  const searchParams = useSearchParams();
+  const isConsultantMode =
+    isConsultant ||
+    searchParams?.get("mode") === "consultant" ||
+    searchParams?.get("consultant") === "true" ||
+    (typeof window !== "undefined" && window.location.pathname.startsWith("/client-portal"));
+  const consultantToken = searchParams?.get("consultant_token") || "";
+
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -125,18 +137,26 @@ export function ClientPortal({ token }) {
   };
 
   const loadSavedPortalProgress = useCallback(async (portalProject) => {
-    const profileResponse = await clientPortalService.getClientProfile(portalProject.id);
-    if (!profileResponse.success) {
-      throw new Error(profileResponse.error || "Unable to load portal progress.");
+    let savedProfile = null;
+    try {
+      const profileResponse = await clientPortalService.getClientProfile(portalProject.id);
+      if (profileResponse?.success) {
+        savedProfile = profileResponse.data;
+      }
+    } catch {
+      // New project without profile yet
     }
 
-    const savedProfile = profileResponse.success ? profileResponse.data : null;
-    const discoveryResponse = await clientPortalService.getDiscoveryDraft(portalProject.id);
-    if (!discoveryResponse.success) {
-      throw new Error(discoveryResponse.error || "Unable to load discovery progress.");
+    let savedDiscovery = null;
+    try {
+      const discoveryResponse = await clientPortalService.getDiscoveryDraft(portalProject.portal_token || portalProject.id);
+      if (discoveryResponse?.success) {
+        savedDiscovery = discoveryResponse.data;
+      }
+    } catch {
+      // New project without discovery yet
     }
 
-    const savedDiscovery = discoveryResponse.success ? discoveryResponse.data : null;
     const projectWithSavedData = savedProfile
       ? {
           ...portalProject,
@@ -220,6 +240,13 @@ export function ClientPortal({ token }) {
     }
   }, [loading, project, screen, token]);
 
+  useEffect(() => {
+    const portalToken = token || project?.portal_token;
+    if (portalToken && isRealPortalToken(portalToken)) {
+      supportSocket.connect({ portalToken });
+    }
+  }, [token, project?.portal_token]);
+
   if (loading) {
     return (
       <main className="client-portal-shell client-loading-shell">
@@ -248,13 +275,17 @@ export function ClientPortal({ token }) {
   };
 
   const screenProps = {
+    token,
+    portalToken: token || project?.portal_token,
     project,
     branding,
     clientData,
     setClientData,
     profileReturnScreen,
     resumeScreen: resumeTargetScreen || getResumeScreen(project?.status),
-    requiresPassword: isRealPortalToken(token),
+    requiresPassword: isRealPortalToken(token) && !isConsultantMode,
+    isConsultantMode,
+    consultantToken,
     onNext: goToScreen,
     onVerifyPassword: handlePortalAccess,
     onProjectRefresh: refreshProject,
@@ -279,6 +310,27 @@ export function ClientPortal({ token }) {
             goToScreen("splash");
           }}
         />
+      ) : null}
+
+      {screen !== "splash" && screen !== "login" ? (
+        <>
+          <button
+            type="button"
+            className="floxa-video-call-trigger-btn"
+            onClick={() =>
+              webRTCService.initiateCall({
+                projectId: project?.project_id || project?.id,
+                clientName: project?.client_name || project?.company_name || project?.client?.name || "Client",
+                projectTitle: project?.title || project?.company_name || "Brand Project",
+                role: "client",
+                portalToken: token || project?.portal_token,
+              })
+            }
+          >
+            📹 Video Call Consultant
+          </button>
+          <VideoCallModal currentRole="client" project={project} />
+        </>
       ) : null}
     </main>
   );

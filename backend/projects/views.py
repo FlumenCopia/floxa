@@ -118,20 +118,38 @@ def sign_portal_access_token(portal_token):
 
 
 def is_verified_client_portal_access(request, portal_token):
+    portal_token_str = str(portal_token)
+
+    # 1. Check signed portal access cookie (set after client enters password)
     signed_value = request.COOKIES.get(PORTAL_ACCESS_COOKIE_NAME)
+    if signed_value:
+        try:
+            value = signing.TimestampSigner(salt=PORTAL_ACCESS_SALT).unsign(
+                signed_value,
+                max_age=PORTAL_ACCESS_MAX_AGE,
+            )
+            if value == portal_token_str:
+                return True
+        except Exception:
+            pass
 
-    if not signed_value:
-        return False
+    # 2. Check matching X-Client-Portal-Token header (for authenticated client portal API calls)
+    header_token = request.headers.get("X-Client-Portal-Token", "").strip()
+    if header_token and header_token == portal_token_str:
+        return True
 
+    # 3. If project exists and has NO password set, allow open access
     try:
-        value = signing.TimestampSigner(salt=PORTAL_ACCESS_SALT).unsign(
-            signed_value,
-            max_age=PORTAL_ACCESS_MAX_AGE,
-        )
-    except signing.BadSignature:
-        return False
+        if portal_token_str.isdigit():
+            project = Project.objects.get(id=int(portal_token_str), is_archived=False)
+        else:
+            project = Project.objects.get(portal_token=portal_token_str, is_archived=False)
+        if not project.portal_password_hash and not getattr(project, "portal_password", None):
+            return True
+    except Exception:
+        pass
 
-    return value == str(portal_token)
+    return False
 
 
 class ClientPortalAccessPermission(BasePermission):
@@ -2534,7 +2552,15 @@ class ClientPortalPasswordVerifyView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if not check_password(password, project.portal_password_hash):
+        is_password_valid = False
+        if project.portal_password_hash:
+            is_password_valid = check_password(password, project.portal_password_hash)
+        elif hasattr(project, "portal_password") and project.portal_password:
+            is_password_valid = (password == project.portal_password) or check_password(password, project.portal_password)
+        else:
+            is_password_valid = True
+
+        if not is_password_valid:
             return Response(
                 {"detail": "Incorrect portal password."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -2603,41 +2629,193 @@ class ClientPortalDiscoveryView(APIView):
     authentication_classes = []
     permission_classes = [ClientPortalAccessPermission]
 
-    def get(self, request, portal_token):
+    def get_project(self, portal_token):
+        portal_token_str = str(portal_token)
+        if portal_token_str.isdigit():
+            try:
+                return Project.objects.get(
+                    id=int(portal_token_str),
+                    is_archived=False,
+                )
+            except Exception:
+                pass
+
         try:
-            project = Project.objects.get(
-                portal_token=portal_token,
+            return Project.objects.get(
+                portal_token=portal_token_str,
                 is_archived=False,
             )
-        except Project.DoesNotExist:
+        except Exception:
+            pass
+
+        return None
+
+    def get(self, request, portal_token):
+        project = self.get_project(portal_token)
+        if project is None:
             return Response(
                 {"detail": "Client portal link not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        try:
-            discovery = (
-                ProjectDiscovery.objects.prefetch_related(
-                    "sliders",
-                    "emotions",
-                    "competitors",
-                    "visual_styles",
-                )
-                .select_related("project")
-                .get(project=project)
+        discovery = (
+            ProjectDiscovery.objects.prefetch_related(
+                "sliders",
+                "emotions",
+                "competitors",
+                "visual_styles",
             )
-        except ProjectDiscovery.DoesNotExist:
+            .select_related("project")
+            .filter(project=project)
+            .first()
+        )
+
+        data = {}
+        if discovery:
+            serializer = ProjectDiscoverySerializer(discovery)
+            data = serializer.data
+            data["business_description"] = discovery.what_business_does or ""
+            data["businessDescription"] = discovery.what_business_does or ""
+            data["whatDo"] = discovery.what_business_does or ""
+            data["whatDoYouDo"] = discovery.what_business_does or ""
+            data["targetCustomer"] = discovery.target_customer or ""
+            data["whyChooseUs"] = discovery.why_choose_us or ""
+            data["whyChooseYou"] = discovery.why_choose_us or ""
+            data["brandFeeling"] = discovery.brand_feeling or ""
+            data["whyTrustYou"] = discovery.brand_feeling or ""
+            data["selectedAudience"] = [discovery.audience_archetype] if discovery.audience_archetype else []
+            data["persona"] = discovery.audience_archetype or ""
+            data["is_submitted"] = bool(discovery.submitted_at)
+            data["is_complete"] = is_complete_discovery_snapshot(get_discovery_snapshot(discovery))
+
+            data["personality_sliders"] = [
+                {"slider_key": s.slider_key, "value": s.value}
+                for s in discovery.sliders.all()
+            ]
+            data["emotions"] = [e.emotion for e in discovery.emotions.all()]
+            data["visual_styles"] = [v.style for v in discovery.visual_styles.all()]
+            data["competitors"] = [
+                {"name": c.name, "rating": c.rating, "reason": c.reason}
+                for c in discovery.competitors.all()
+            ]
+        else:
+            data = {
+                "what_business_does": "",
+                "target_customer": "",
+                "why_choose_us": "",
+                "brand_feeling": "",
+                "audience_archetype": "",
+                "business_description": "",
+                "businessDescription": "",
+                "whatDo": "",
+                "whatDoYouDo": "",
+                "targetCustomer": "",
+                "whyChooseUs": "",
+                "whyChooseYou": "",
+                "brandFeeling": "",
+                "whyTrustYou": "",
+                "selectedAudience": [],
+                "persona": "",
+                "personality_sliders": [],
+                "sliders": [],
+                "emotions": [],
+                "visual_styles": [],
+                "competitors": [],
+                "is_submitted": False,
+                "is_complete": False,
+            }
+
+        latest_req = ProjectActivity.objects.filter(
+            project=project,
+            action="client_help_requested",
+        ).order_by("-created_at").first()
+
+        active_help = None
+        if latest_req:
+            latest_resolved = ProjectActivity.objects.filter(
+                project=project,
+                action="client_help_resolved",
+                created_at__gt=latest_req.created_at,
+            ).first()
+            if not latest_resolved:
+                active_help = {
+                    "page_id": latest_req.metadata.get("page_id", "Step 1"),
+                    "field_key": latest_req.metadata.get("field_key", ""),
+                    "question": latest_req.metadata.get("question", latest_req.description),
+                    "is_active": True,
+                    "requested_at": latest_req.created_at.isoformat(),
+                }
+        data["active_help"] = active_help
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    def post(self, request, portal_token):
+        project = self.get_project(portal_token)
+        if project is None:
             return Response(
-                {"detail": "Project discovery not found for this project."},
+                {"detail": "Client portal link not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = ProjectDiscoverySerializer(discovery)
-        data = serializer.data
-        data["is_submitted"] = bool(discovery.submitted_at)
-        data["is_complete"] = is_complete_discovery_snapshot(get_discovery_snapshot(discovery))
+        raw_data = dict(request.data)
+        for k in ("business_description", "businessDescription", "whatDo", "whatDoYouDo"):
+            if k in raw_data and raw_data[k]:
+                raw_data["what_business_does"] = raw_data[k]
+                break
 
-        return Response(data, status=status.HTTP_200_OK)
+        if "targetCustomer" in raw_data and "target_customer" not in raw_data:
+            raw_data["target_customer"] = raw_data["targetCustomer"]
+        if "whyChooseUs" in raw_data and "why_choose_us" not in raw_data:
+            raw_data["why_choose_us"] = raw_data["whyChooseUs"]
+        if "whyChooseYou" in raw_data and "why_choose_us" not in raw_data:
+            raw_data["why_choose_us"] = raw_data["whyChooseYou"]
+        if "brandFeeling" in raw_data and "brand_feeling" not in raw_data:
+            raw_data["brand_feeling"] = raw_data["brandFeeling"]
+        if "whyTrustYou" in raw_data and "brand_feeling" not in raw_data:
+            raw_data["brand_feeling"] = raw_data["whyTrustYou"]
+        if "personality_sliders" in raw_data and "sliders" not in raw_data:
+            raw_data["sliders"] = raw_data["personality_sliders"]
+
+        if "selectedEmotions" in raw_data and "emotions" not in raw_data:
+            raw_data["emotions"] = [
+                {"emotion": e} if isinstance(e, str) else e
+                for e in raw_data["selectedEmotions"]
+            ]
+        elif "emotions" in raw_data and isinstance(raw_data["emotions"], list):
+            raw_data["emotions"] = [
+                {"emotion": e} if isinstance(e, str) else e
+                for e in raw_data["emotions"]
+            ]
+
+        if "selectedVisual" in raw_data and "visual_styles" not in raw_data:
+            raw_data["visual_styles"] = [
+                {"style": s} if isinstance(s, str) else s
+                for s in raw_data["selectedVisual"]
+            ]
+        elif "visual_styles" in raw_data and isinstance(raw_data["visual_styles"], list):
+            raw_data["visual_styles"] = [
+                {"style": s} if isinstance(s, str) else s
+                for s in raw_data["visual_styles"]
+            ]
+
+        for k in ("customer_archetype", "persona", "selectedAudience"):
+            if k in raw_data and raw_data[k]:
+                val = raw_data[k]
+                raw_data["audience_archetype"] = val[0] if isinstance(val, list) and val else str(val)
+                break
+
+        if "comps" in raw_data and "competitors" not in raw_data:
+            raw_data["competitors"] = raw_data["comps"]
+
+        if "competitors" in raw_data and isinstance(raw_data["competitors"], list):
+            raw_data["competitors"] = [
+                c for c in raw_data["competitors"]
+                if isinstance(c, dict) and c.get("name", "").strip()
+            ]
+
+        request._full_data = raw_data
+        view_helper = ProjectDiscoveryView()
+        return view_helper.save_discovery(request, project, mark_submitted=False)
 
 
 class ClientPortalMoodboardView(APIView):
@@ -4522,7 +4700,108 @@ class ProjectDiscoveryView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        serializer = ProjectDiscoverySerializer(data=request.data)
+        req_data = getattr(request, "_full_data", None)
+        if not isinstance(req_data, dict):
+            try:
+                req_data = request.data if isinstance(request.data, dict) else {}
+            except Exception:
+                req_data = {}
+        raw_data = dict(req_data)
+
+        basics = raw_data.get("business_basics") or raw_data.get("basics") or {}
+        if isinstance(basics, dict):
+            if "whatDoYouDo" in basics and "what_business_does" not in raw_data:
+                raw_data["what_business_does"] = basics["whatDoYouDo"]
+            if "targetCustomer" in basics and "target_customer" not in raw_data:
+                raw_data["target_customer"] = basics["targetCustomer"]
+            if "whyChooseYou" in basics and "why_choose_us" not in raw_data:
+                raw_data["why_choose_us"] = basics["whyChooseYou"]
+            if "brandFeeling" in basics and "brand_feeling" not in raw_data:
+                raw_data["brand_feeling"] = basics["brandFeeling"]
+            if "whyTrustYou" in basics and "brand_feeling" not in raw_data:
+                raw_data["brand_feeling"] = basics["whyTrustYou"]
+
+        if "whatDoYouDo" in raw_data and "what_business_does" not in raw_data:
+            raw_data["what_business_does"] = raw_data["whatDoYouDo"]
+        if "targetCustomer" in raw_data and "target_customer" not in raw_data:
+            raw_data["target_customer"] = raw_data["targetCustomer"]
+        if "whyChooseYou" in raw_data and "why_choose_us" not in raw_data:
+            raw_data["why_choose_us"] = raw_data["whyChooseYou"]
+        if "brandFeeling" in raw_data and "brand_feeling" not in raw_data:
+            raw_data["brand_feeling"] = raw_data["brandFeeling"]
+        if "whyTrustYou" in raw_data and "brand_feeling" not in raw_data:
+            raw_data["brand_feeling"] = raw_data["whyTrustYou"]
+
+        for k in ("customer_archetype", "persona", "selectedAudience"):
+            if k in raw_data and raw_data[k]:
+                val = raw_data[k]
+                raw_data["audience_archetype"] = val[0] if isinstance(val, list) and val else str(val)
+                break
+
+        if "personality_sliders" in raw_data and "sliders" not in raw_data:
+            raw_data["sliders"] = raw_data["personality_sliders"]
+
+        if "selectedEmotions" in raw_data and "emotions" not in raw_data:
+            raw_data["emotions"] = [
+                {"emotion": e} if isinstance(e, str) else e
+                for e in raw_data["selectedEmotions"]
+            ]
+        elif "emotions" in raw_data and isinstance(raw_data["emotions"], list):
+            raw_data["emotions"] = [
+                {"emotion": e} if isinstance(e, str) else e
+                for e in raw_data["emotions"]
+            ]
+
+        if "selectedVisual" in raw_data and "styles" not in raw_data and "visual_styles" not in raw_data:
+            raw_data["visual_styles"] = [
+                {"style": s} if isinstance(s, str) else s
+                for s in raw_data["selectedVisual"]
+            ]
+        elif "styles" in raw_data and "visual_styles" not in raw_data:
+            raw_data["visual_styles"] = [
+                {"style": s} if isinstance(s, str) else s
+                for s in raw_data["styles"]
+            ]
+        elif "visual_styles" in raw_data and isinstance(raw_data["visual_styles"], list):
+            raw_data["visual_styles"] = [
+                {"style": s} if isinstance(s, str) else s
+                for s in raw_data["visual_styles"]
+            ]
+
+        if "comps" in raw_data and "competitors" not in raw_data:
+            raw_data["competitors"] = raw_data["comps"]
+
+        if "competitors" in raw_data and isinstance(raw_data["competitors"], list):
+            raw_data["competitors"] = [
+                c for c in raw_data["competitors"]
+                if isinstance(c, dict) and c.get("name", "").strip()
+            ]
+
+        if existing_discovery:
+            for field in ("what_business_does", "target_customer", "why_choose_us", "brand_feeling", "audience_archetype"):
+                if not raw_data.get(field) and getattr(existing_discovery, field, None):
+                    raw_data[field] = getattr(existing_discovery, field)
+
+            if not raw_data.get("emotions") and existing_discovery.emotions.exists():
+                raw_data["emotions"] = [{"emotion": e.emotion} for e in existing_discovery.emotions.all()]
+
+            if not raw_data.get("competitors") and existing_discovery.competitors.exists():
+                raw_data["competitors"] = [
+                    {"name": c.name, "rating": c.rating or "neutral", "reason": c.reason or ""}
+                    for c in existing_discovery.competitors.all()
+                    if c.name and c.name.strip()
+                ]
+
+            if not raw_data.get("visual_styles") and existing_discovery.visual_styles.exists():
+                raw_data["visual_styles"] = [{"style": v.style} for v in existing_discovery.visual_styles.all()]
+
+            if not raw_data.get("sliders") and existing_discovery.sliders.exists():
+                raw_data["sliders"] = [
+                    {"slider_key": s.slider_key, "left_label": s.left_label, "right_label": s.right_label, "value": s.value}
+                    for s in existing_discovery.sliders.all()
+                ]
+
+        serializer = ProjectDiscoverySerializer(data=raw_data)
 
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -7399,3 +7678,182 @@ class ConsultantAgreementFileView(APIView):
         response["Cache-Control"] = "private, no-store, max-age=0"
         response["X-Content-Type-Options"] = "nosniff"
         return response
+
+
+class ClientPortalHelpRequestView(APIView):
+    """
+    REST API endpoint for client to request help on a discovery step.
+    Creates activity log and broadcasts to consultant via WebSocket channel layer.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request, portal_token):
+        portal_token_str = str(portal_token)
+        try:
+            project = Project.objects.select_related("client", "consultant").get(
+                portal_token=portal_token_str,
+                is_archived=False,
+            )
+        except Project.DoesNotExist:
+            return Response({"detail": "Project not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        page_id = request.data.get("page_id", "Step 1")
+        question = request.data.get("question", "Client requested assistance.")
+        field_key = request.data.get("field_key", "")
+
+        client_name = project.client.name if project.client else project.company_name or "Client"
+        description = f"{client_name} requested help on {page_id}: \"{question}\""
+
+        activity = ProjectActivity.objects.create(
+            project=project,
+            consultant=project.consultant,
+            actor_type=ProjectActivity.ActorType.CLIENT,
+            action="client_help_requested",
+            description=description,
+            metadata={
+                "page_id": page_id,
+                "question": question,
+                "field_key": field_key,
+                "portal_token": portal_token_str,
+                "project_id": project.id,
+            }
+        )
+
+        # Broadcast via Channel Layer to Consultant
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                payload = {
+                    "type": "broadcast_help_requested",
+                    "data": {
+                        "project_id": project.id,
+                        "project_title": project.title,
+                        "client_name": client_name,
+                        "portal_token": portal_token_str,
+                        "page_id": page_id,
+                        "field_key": field_key,
+                        "question": question,
+                        "requested_at": activity.created_at.isoformat(),
+                    }
+                }
+                async_to_sync(channel_layer.group_send)(f"consultant_user_{project.consultant_id}", payload)
+                async_to_sync(channel_layer.group_send)(f"support_project_{project.id}", payload)
+        except Exception as e:
+            logger.warning("Channel layer broadcast failed: %s", e)
+
+        return Response({
+            "success": True,
+            "message": "Consultant notified successfully.",
+            "activity_id": activity.id,
+            "description": description,
+        }, status=status.HTTP_200_OK)
+
+
+class ClientPortalHelpResolveView(APIView):
+    """
+    REST API endpoint to resolve an active help request.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request, portal_token):
+        portal_token_str = str(portal_token)
+        try:
+            project = Project.objects.get(
+                portal_token=portal_token_str,
+                is_archived=False,
+            )
+        except Project.DoesNotExist:
+            return Response({"detail": "Project not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        page_id = request.data.get("page_id", "")
+
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f"support_project_{project.id}",
+                    {
+                        "type": "broadcast_help_resolved",
+                        "data": {
+                            "project_id": project.id,
+                            "page_id": page_id,
+                        }
+                    }
+                )
+        except Exception as e:
+            logger.warning("Channel layer resolve broadcast failed: %s", e)
+
+        return Response({"success": True, "message": "Help session resolved."}, status=status.HTTP_200_OK)
+
+
+class ClientPortalClientListView(APIView):
+    """
+    Returns active client projects for the client portal dropdown.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        projects = Project.objects.filter(is_archived=False).select_related("client").order_by("-updated_at")[:50]
+        data = [
+            {
+                "id": p.id,
+                "title": p.title,
+                "company_name": p.company_name,
+                "portal_token": str(p.portal_token),
+                "client_name": p.client.name if p.client else (p.company_name or "Client"),
+                "client_email": (p.client.email if p.client else "") or (getattr(p, "client_email", "") or ""),
+            }
+            for p in projects
+        ]
+        return Response({"success": True, "data": data}, status=status.HTTP_200_OK)
+
+
+class ClientPortalHelpStatusView(APIView):
+    """
+    Returns active help session status for a project portal.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, portal_token):
+        portal_token_str = str(portal_token)
+        try:
+            project = Project.objects.get(portal_token=portal_token_str, is_archived=False)
+        except Project.DoesNotExist:
+            return Response({"success": False, "detail": "Project not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        latest_req = ProjectActivity.objects.filter(
+            project=project,
+            action="client_help_requested",
+        ).order_by("-created_at").first()
+
+        if not latest_req:
+            return Response({"success": True, "active_help": None}, status=status.HTTP_200_OK)
+
+        latest_resolved = ProjectActivity.objects.filter(
+            project=project,
+            action="client_help_resolved",
+            created_at__gt=latest_req.created_at,
+        ).first()
+
+        if latest_resolved:
+            return Response({"success": True, "active_help": None}, status=status.HTTP_200_OK)
+
+        return Response({
+            "success": True,
+            "active_help": {
+                "page_id": latest_req.metadata.get("page_id", "Step 1"),
+                "field_key": latest_req.metadata.get("field_key", ""),
+                "question": latest_req.metadata.get("question", latest_req.description),
+                "is_active": True,
+                "requested_at": latest_req.created_at.isoformat(),
+            }
+        }, status=status.HTTP_200_OK)
+

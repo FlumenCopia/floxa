@@ -123,10 +123,13 @@ async function resolvePortalProject(linkToken) {
 
 function mapPortalProjectToClientProject(portalProject) {
   const backendProgress = Number(portalProject.progress);
+  const portalToken = portalProject.portal_token || portalProject.token || activeToken || "";
 
   return {
     ...clone(defaultProject),
     id: portalProject.project_id,
+    portal_token: portalToken,
+    portalToken: portalToken,
     name: portalProject.company_name || defaultProject.name,
     clientEmail: portalProject.client_email || defaultProject.clientEmail,
     status: portalProject.status || defaultProject.status,
@@ -930,6 +933,122 @@ export const clientPortalService = {
       success: false,
       error: "Agreement file is not available.",
     };
+  },
+
+  async requestHelp(token, { pageId, question, fieldKey = "" }) {
+    const targetToken = token || activeToken;
+    if (!targetToken || targetToken === "test-token") {
+      return { success: true, message: "Local help request stored." };
+    }
+
+    try {
+      const response = await apiRequest(`/client-portal/${targetToken}/help-request/`, {
+        method: "POST",
+        body: JSON.stringify({
+          page_id: pageId,
+          question,
+          field_key: fieldKey,
+        }),
+      });
+
+      return {
+        success: true,
+        data: response,
+      };
+    } catch (err) {
+      console.warn("REST API help request fallback error:", err);
+      return {
+        success: false,
+        error: err.message || "Failed to notify consultant via REST.",
+      };
+    }
+  },
+
+  async resolveHelp(token, { pageId = "" }) {
+    const targetToken = token || activeToken;
+    if (!targetToken || targetToken === "test-token") {
+      return { success: true };
+    }
+
+    try {
+      const response = await apiRequest(`/client-portal/${targetToken}/help-resolve/`, {
+        method: "POST",
+        body: JSON.stringify({
+          page_id: pageId,
+        }),
+      });
+
+      return {
+        success: true,
+        data: response,
+      };
+    } catch (err) {
+      console.warn("REST API help resolve fallback error:", err);
+      return {
+        success: false,
+        error: err.message || "Failed to resolve help via REST.",
+      };
+    }
+  },
+
+  async getClientList() {
+    try {
+      const resp = await apiRequest("/client-portal/client-list/");
+      if (resp && resp.data) {
+        return resp.data;
+      }
+      return Array.isArray(resp) ? resp : [];
+    } catch (err) {
+      console.warn("Failed to fetch client list from client portal API:", err);
+      return [];
+    }
+  },
+
+  async getHelpStatus(portalToken) {
+    if (!portalToken) return { success: false };
+    try {
+      const resp = await apiRequest(`/client-portal/${portalToken}/help-status/`);
+      return resp;
+    } catch (err) {
+      console.warn("Failed to fetch help status:", err);
+      return { success: false };
+    }
+  },
+
+  async getDiscoveryDraft(portalToken = activeToken) {
+    if (!portalToken || portalToken === "test-token") {
+      return { success: false };
+    }
+    try {
+      const resp = await apiRequest(`/client-portal/${portalToken}/discovery/`, {
+        headers: {
+          "X-Client-Portal-Token": portalToken,
+        },
+      });
+      return { success: true, data: resp };
+    } catch (err) {
+      console.warn("Failed to fetch discovery draft from server:", err);
+      return { success: false, error: err.message };
+    }
+  },
+
+  async saveDiscoveryDraft(portalToken = activeToken, payload = {}) {
+    if (!portalToken || portalToken === "test-token") {
+      return { success: true };
+    }
+    try {
+      const resp = await apiRequest(`/client-portal/${portalToken}/discovery/`, {
+        method: "POST",
+        headers: {
+          "X-Client-Portal-Token": portalToken,
+        },
+        body: JSON.stringify(payload),
+      });
+      return { success: true, data: resp };
+    } catch (err) {
+      console.warn("Failed to save discovery draft to server:", err);
+      return { success: false, error: err.message };
+    }
   },
 
   async logout() {

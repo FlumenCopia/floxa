@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { clientPortalService } from "../../services/clientPortalService";
+import { supportSocket } from "../../services/supportSocketService";
+import { showSuccess } from "../../src/lib/toast";
 
 const personalityClusters = [
   { min: -3, max: -1.5, name: "Soft Minimalist" },
@@ -49,6 +51,7 @@ export const emotionsList = [
   "Edgy",
   "Friendly",
   "Prestige",
+  "Aspirational",
   "Pure",
   "Fun",
   "Confident",
@@ -58,37 +61,33 @@ export const emotionsList = [
   "Elegant",
   "Earthy",
   "Electric",
-  "Classic",
 ];
 
-export const personas = [
-  { name: "Budget Conscious", desc: "Price-sensitive, value-focused buyers" },
-  { name: "Quality Seeker", desc: "Research-driven, pay premium for quality" },
-  { name: "Trend Follower", desc: "Culture-aware early adopters" },
-  { name: "Premium Loyalist", desc: "Exclusive tastes, brand-loyal, high LTV" },
+const personas = [
+  { name: "Value-Seeker", desc: "Price-first, practical & ROI-focused" },
+  { name: "Premium-Seeker", desc: "Status, craft & quality above all" },
+  { name: "Innovator", desc: "Early adopter, loves novelty & speed" },
+  { name: "Traditionalist", desc: "Reliability, heritage & proven track record" },
 ];
 
-export const visualStyles = [
-  "Minimal Clean",
-  "Bold Geometric",
-  "Organic Warm",
-  "Luxury Editorial",
-  "Retro Craft",
-  "Tech Forward",
-  "Playful Illustrative",
-  "Classic Heritage",
-  "Street Urban",
+const visualStylesList = [
+  { name: "Bold & Loud", desc: "High contrast, big type, intense color" },
+  { name: "Minimal & Clean", desc: "Generous whitespace, restraint, precision" },
+  { name: "Warm & Earthy", desc: "Natural tones, organic textures, approachable" },
+  { name: "Dark & Luxurious", desc: "Deep palettes, metallic accents, moody" },
+  { name: "Playful & Vibrant", desc: "Bright colors, rounded shapes, energy" },
+  { name: "Editorial & Typographic", desc: "Serif-led, sophisticated, literary feel" },
 ];
 
 export const defaultCompetitors = [
-  { name: "", rating: "", reason: "" },
-  { name: "", rating: "", reason: "" },
-  { name: "", rating: "", reason: "" },
+  { name: "", rating: "neutral", reason: "" },
+  { name: "", rating: "neutral", reason: "" },
+  { name: "", rating: "neutral", reason: "" },
 ];
 
 export const allSliderDefinitions = [...slidersOne, ...slidersTwo];
 
-function getSliderDefinitionsForStep(step) {
+export function getSliderDefinitionsForStep(step) {
   if (step < 2) {
     return [];
   }
@@ -106,45 +105,51 @@ export function readStoredDraft(draftKey) {
   }
 
   try {
-    const localValue = window.localStorage.getItem(draftKey);
-    return localValue ? JSON.parse(localValue) : {};
+    const raw = window.localStorage.getItem(draftKey);
+    return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
 }
 
-function toBackendSliderValue(value) {
+export function toBackendSliderValue(value) {
   return Math.round(((Number(value || 0) + 3) / 6) * 100);
 }
 
 export function getCompetitorNameForPayload(competitor) {
-  return String(competitor.name || "").trim();
+  return competitor.name.trim();
 }
 
 export function buildDiscoveryPayload({ basics, sliders, emotions, persona, comps, styles, step }) {
-  const sliderDefinitions = getSliderDefinitionsForStep(step);
+  const allSliders = [...slidersOne, ...slidersTwo];
 
   return {
-    what_business_does: basics.whatDo.trim(),
-    target_customer: basics.targetCustomer.trim(),
-    why_choose_us: basics.whyChooseUs.trim(),
-    brand_feeling: basics.brandFeeling.trim(),
-    audience_archetype: persona,
-    sliders: sliderDefinitions.map((slider) => ({
+    step,
+    business_basics: basics,
+    sliders: allSliders.map((slider) => ({
       slider_key: slider.key,
       left_label: slider.left,
       right_label: slider.right,
       value: toBackendSliderValue(sliders[slider.key] ?? 0),
     })),
-    emotions: emotions.map((emotion) => ({ emotion })),
-    competitors: comps
+    personality_sliders: allSliders.map((slider) => ({
+      slider_key: slider.key,
+      left_label: slider.left,
+      right_label: slider.right,
+      value: toBackendSliderValue(sliders[slider.key] ?? 0),
+    })),
+    emotions: (emotions || []).map((e) => (typeof e === "string" ? { emotion: e } : e)),
+    customer_archetype: persona,
+    audience_archetype: persona,
+    persona: persona,
+    competitors: (comps || [])
       .filter((competitor) => getCompetitorNameForPayload(competitor))
       .map((competitor) => ({
         name: getCompetitorNameForPayload(competitor),
         rating: competitor.rating || "neutral",
-        reason: competitor.reason.trim(),
+        reason: (competitor.reason || "").trim(),
       })),
-    visual_styles: styles.map((style) => ({ style })),
+    visual_styles: (styles || []).map((s) => (typeof s === "string" ? { style: s } : s)),
   };
 }
 
@@ -162,9 +167,14 @@ function formatDiscoverySaveError(error) {
 
 export function DiscoveryFlow({
   project,
+  token,
+  portalToken,
   onNext,
+  isConsultantMode = false,
+  consultantToken = "",
 }) {
-  const draftKey = `floxa-discovery-${project.id}`;
+  const targetPortalToken = portalToken || token || project?.portal_token || project?.portalToken || "";
+  const draftKey = `floxa-discovery-${project?.id || "draft"}`;
   const [step, setStep] = useState(() => {
     const draft = readStoredDraft(draftKey);
     return Math.min(6, Math.max(1, draft.step ?? 1));
@@ -184,11 +194,132 @@ export function DiscoveryFlow({
   }));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [activeHelpSession, setActiveHelpSession] = useState(null);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [helpQuestion, setHelpQuestion] = useState("");
+
+  const pageId = `frame_${step}`;
+  const isCurrentStepHelpActive = Boolean(
+    activeHelpSession?.is_active && (activeHelpSession?.page_id === pageId || activeHelpSession?.page_id?.includes(`Step ${step}`))
+  );
+  const isReadOnly = Boolean(isConsultantMode && !isCurrentStepHelpActive);
 
   const pcts = [28, 36, 44, 54, 64, 75];
   const pct = pcts[step - 1];
 
   useEffect(() => {
+    if (!targetPortalToken) return;
+
+    supportSocket.connect({
+      portalToken: targetPortalToken,
+      consultantToken: consultantToken || (isConsultantMode ? localStorage.getItem("floxa_jwt") || "" : ""),
+    });
+
+    const unsubscribeInitial = supportSocket.on("initial_state", (data) => {
+      if (data?.active_help) {
+        setActiveHelpSession(data.active_help);
+      }
+    });
+
+    const unsubscribeHelpReq = supportSocket.on("help_requested", (data) => {
+      setActiveHelpSession(data);
+    });
+
+    const unsubscribeHelpResolved = supportSocket.on("help_resolved", () => {
+      setActiveHelpSession(null);
+    });
+
+    const unsubscribeFieldSync = supportSocket.on("field_sync", (data) => {
+      if (data.field_key.startsWith("basics.") || data.field_key.startsWith("answers.")) {
+        const rawKey = data.field_key.split(".")[1];
+        let targetKey = rawKey;
+        if (rawKey === "whatDoYouDo" || rawKey === "businessDescription" || rawKey === "whatDo") targetKey = "whatDo";
+        if (rawKey === "whyChooseYou" || rawKey === "whyChooseUs") targetKey = "whyChooseUs";
+        if (rawKey === "whyTrustYou" || rawKey === "brandFeeling") targetKey = "brandFeeling";
+        if (rawKey === "targetCustomer") targetKey = "targetCustomer";
+        setBasics((prev) => ({ ...prev, [targetKey]: data.value }));
+      } else if (data.field_key.startsWith("slider.")) {
+        const key = data.field_key.split(".")[1];
+        setSliders((prev) => ({ ...prev, [key]: data.value }));
+      } else if (data.field_key === "emotions" || data.field_key === "selectedEmotions") {
+        setEmotions(data.value || []);
+      } else if (data.field_key === "persona" || data.field_key === "selectedAudience" || data.field_key === "customer_archetype" || data.field_key === "audience_archetype") {
+        const val = Array.isArray(data.value) ? (data.value[0] || "") : (data.value || "");
+        setPersona(val);
+      } else if (data.field_key === "styles" || data.field_key === "selectedVisual") {
+        setStyles(data.value || []);
+      } else if (data.field_key === "comps" || data.field_key === "competitors") {
+        if (Array.isArray(data.value)) {
+          setComps(data.value);
+        }
+      }
+    });
+
+    const unsubscribeStepNav = supportSocket.on("step_navigate", (data) => {
+      if (typeof data.step === "number" && data.step >= 1 && data.step <= 6) {
+        setStep(data.step);
+      }
+    });
+
+    return () => {
+      unsubscribeInitial();
+      unsubscribeHelpReq();
+      unsubscribeHelpResolved();
+      unsubscribeFieldSync();
+      unsubscribeStepNav();
+    };
+  }, [targetPortalToken, consultantToken, isConsultantMode]);
+
+  // Pre-load saved discovery answers from server database on mount
+  useEffect(() => {
+    if (!targetPortalToken) return;
+    clientPortalService.getDiscoveryDraft(targetPortalToken).then((res) => {
+      if (res?.success && res.data) {
+        const d = res.data;
+        setBasics((prev) => ({
+          ...prev,
+          whatDo: d.business_description || d.businessDescription || d.whatDo || prev.whatDo,
+          targetCustomer: d.target_customer || d.targetCustomer || prev.targetCustomer,
+          whyChooseUs: d.why_choose_us || d.whyChooseUs || prev.whyChooseUs,
+          brandFeeling: d.brand_feeling || d.brandFeeling || prev.brandFeeling,
+        }));
+
+        if (Array.isArray(d.emotions) && d.emotions.length > 0) {
+          const loadedEmotions = d.emotions.map((e) => (typeof e === "string" ? e : e.emotion)).filter(Boolean);
+          setEmotions(loadedEmotions);
+        }
+
+        if (Array.isArray(d.sliders) || Array.isArray(d.personality_sliders)) {
+          const sList = d.sliders || d.personality_sliders;
+          const sMap = {};
+          sList.forEach((s) => {
+            if (s.slider_key && s.value !== undefined) {
+              sMap[s.slider_key] = Math.round((s.value / 100) * 6 - 3);
+            }
+          });
+          if (Object.keys(sMap).length > 0) {
+            setSliders((prev) => ({ ...prev, ...sMap }));
+          }
+        }
+
+        if (d.audience_archetype || d.customer_archetype) {
+          setPersona(d.audience_archetype || d.customer_archetype);
+        }
+
+        if (Array.isArray(d.competitors) && d.competitors.length > 0) {
+          setComps(d.competitors);
+        }
+
+        if (Array.isArray(d.visual_styles) && d.visual_styles.length > 0) {
+          setStyles(d.visual_styles.map((v) => (typeof v === "string" ? v : v.style)).filter(Boolean));
+        }
+      }
+    });
+  }, [targetPortalToken]);
+
+  useEffect(() => {
+    if (isReadOnly) return;
+
     const draft = { basics, sliders, emotions, persona, styles, comps, step };
     window.localStorage.setItem(draftKey, JSON.stringify(draft));
 
@@ -203,15 +334,217 @@ export function DiscoveryFlow({
         step,
       });
 
-      clientPortalService.saveDiscoveryDraft(project.id, payload).catch(() => undefined);
+      if (targetPortalToken) {
+        clientPortalService.saveDiscoveryDraft(targetPortalToken, payload).catch(() => undefined);
+      }
     }, 500);
 
     return () => window.clearTimeout(timeout);
-  }, [draftKey, project.id, step, basics, sliders, emotions, persona, styles, comps]);
+  }, [draftKey, targetPortalToken, step, basics, sliders, emotions, persona, styles, comps, isReadOnly]);
 
   const updateSlider = useCallback((key, val) => {
+    if (isReadOnly) return;
     setSliders((current) => ({ ...current, [key]: val }));
-  }, []);
+    supportSocket.syncField({
+      pageId,
+      fieldKey: `slider.${key}`,
+      value: val,
+    });
+  }, [isReadOnly, pageId]);
+
+  const handleBasicsChange = (key, value) => {
+    if (isReadOnly) return;
+    setBasics((current) => ({ ...current, [key]: value }));
+    supportSocket.syncField({
+      pageId,
+      fieldKey: `basics.${key}`,
+      value,
+    });
+    if (key === "whatDo") {
+      supportSocket.syncField({
+        pageId,
+        fieldKey: "answers.whatDoYouDo",
+        value,
+      });
+      supportSocket.syncField({
+        pageId,
+        fieldKey: "basics.businessDescription",
+        value,
+      });
+    } else if (key === "whyChooseUs") {
+      supportSocket.syncField({
+        pageId,
+        fieldKey: "answers.whyChooseYou",
+        value,
+      });
+    } else if (key === "brandFeeling") {
+      supportSocket.syncField({
+        pageId,
+        fieldKey: "answers.whyTrustYou",
+        value,
+      });
+    }
+  };
+
+  const handleEmotionToggle = (word) => {
+    if (isReadOnly) return;
+    let next;
+    if (emotions.includes(word)) {
+      next = emotions.filter((item) => item !== word);
+    } else if (emotions.length < 8) {
+      next = [...emotions, word];
+    } else {
+      return;
+    }
+    setEmotions(next);
+    supportSocket.syncField({
+      pageId,
+      fieldKey: "emotions",
+      value: next,
+    });
+  };
+
+  const handlePersonaSelect = (name) => {
+    if (isReadOnly) return;
+    const next = persona === name ? "" : name;
+    setPersona(next);
+    supportSocket.syncField({
+      pageId,
+      fieldKey: "persona",
+      value: next,
+    });
+    supportSocket.syncField({
+      pageId,
+      fieldKey: "selectedAudience",
+      value: next ? [next] : [],
+    });
+  };
+
+  const handleStylesToggle = (name) => {
+    if (isReadOnly) return;
+    const next = styles.includes(name)
+      ? styles.filter((item) => item !== name)
+      : [...styles, name];
+    setStyles(next);
+    supportSocket.syncField({
+      pageId,
+      fieldKey: "styles",
+      value: next,
+    });
+    supportSocket.syncField({
+      pageId,
+      fieldKey: "selectedVisual",
+      value: next,
+    });
+  };
+
+  const handleCompsChange = (updater) => {
+    if (isReadOnly) return;
+    setComps((current) => {
+      const next = updater(current);
+      supportSocket.syncField({
+        pageId,
+        fieldKey: "comps",
+        value: next,
+      });
+      supportSocket.syncField({
+        pageId,
+        fieldKey: "competitors",
+        value: next,
+      });
+      return next;
+    });
+  };
+
+  const stepTitles = {
+    1: "Step 1: Business Essentials",
+    2: "Step 2: Brand Personality",
+    3: "Step 3: Visual & Structural Identity",
+    4: "Step 4: Brand Emotions",
+    5: "Step 5: Customer Archetype & Competitors",
+    6: "Step 6: Visual Styles",
+  };
+
+  const submitHelpRequest = () => {
+    const stepTitle = stepTitles[step] || `Step ${step}`;
+    const question = helpQuestion.trim() || `I need guidance with ${stepTitle}.`;
+
+    // 1. Immediately auto-save all currently filled fields to the backend database
+    const payload = buildDiscoveryPayload({
+      basics,
+      sliders,
+      emotions,
+      persona,
+      comps,
+      styles,
+      step,
+    });
+    const saveToken = targetPortalToken || project?.portal_token || project?.id;
+    if (saveToken) {
+      clientPortalService.saveDiscoveryDraft(saveToken, payload).catch((err) => {
+        console.warn("Auto-save draft on help request failed:", err);
+      });
+    }
+
+    // 2. Broadcast all currently filled fields AND sliders over WebSocket to consultant
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.whatDo", value: basics.whatDo });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.businessDescription", value: basics.whatDo });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.whatDoYouDo", value: basics.whatDo });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.targetCustomer", value: basics.targetCustomer });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.targetCustomer", value: basics.targetCustomer });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.whyChooseUs", value: basics.whyChooseUs });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.whyChooseYou", value: basics.whyChooseUs });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.brandFeeling", value: basics.brandFeeling });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.whyTrustYou", value: basics.brandFeeling });
+
+    Object.entries(sliders).forEach(([sliderKey, val]) => {
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: `slider.${sliderKey}`, value: val });
+    });
+
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "emotions", value: emotions });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedEmotions", value: emotions });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "persona", value: persona });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedAudience", value: persona ? [persona] : [] });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "comps", value: comps });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "competitors", value: comps });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "styles", value: styles });
+    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedVisual", value: styles });
+
+    // 3. Send help request via WebSocket for real-time live sync
+    supportSocket.requestHelp({
+      pageId: stepTitle,
+      fieldKey: "",
+      question,
+    });
+
+    // 4. Call REST API endpoint for network visibility & persistent activity
+    if (targetPortalToken) {
+      clientPortalService.requestHelp(targetPortalToken, {
+        pageId: stepTitle,
+        question,
+        fieldKey: "",
+      }).catch((err) => console.warn("REST help request error:", err));
+    }
+
+    setActiveHelpSession({
+      page_id: stepTitle,
+      question,
+      is_active: true,
+    });
+    setShowHelpModal(false);
+    setHelpQuestion("");
+    showSuccess(`Help requested on ${stepTitle}. Your consultant has been notified!`);
+  };
+
+  const resolveCurrentHelp = () => {
+    const stepTitle = stepTitles[step] || pageId;
+    supportSocket.resolveHelp({ pageId: stepTitle });
+    if (targetPortalToken) {
+      clientPortalService.resolveHelp(targetPortalToken, { pageId: stepTitle }).catch(() => undefined);
+    }
+    setActiveHelpSession(null);
+    showSuccess("Help marked as resolved.");
+  };
 
   const getCluster = () => {
     const values = Object.values(sliders).filter((value) => value !== undefined);
@@ -252,6 +585,8 @@ export function DiscoveryFlow({
   };
 
   async function nextStep() {
+    if (isReadOnly) return;
+
     const valid =
       (step !== 1 ||
         Boolean(
@@ -279,7 +614,9 @@ export function DiscoveryFlow({
       const data = await saveDiscoveryProgress();
 
       if (data.success) {
-        setStep((current) => current + 1);
+        const next = step + 1;
+        setStep(next);
+        supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
       } else {
         setMessage(data.error ?? "Something went wrong.");
       }
@@ -291,15 +628,56 @@ export function DiscoveryFlow({
     }
   }
 
+  function prevStep() {
+    if (step <= 1) return;
+    const prev = step - 1;
+    setStep(prev);
+    supportSocket.navigateStep({ step: prev, pageId: `frame_${prev}` });
+  }
+
   return (
     <div className="client-discovery-screen">
-      <div className="client-discovery-content">
+      <div className={`client-discovery-content ${isReadOnly ? "consultant-view-locked" : ""}`.trim()}>
+        {isConsultantMode ? (
+          isReadOnly ? (
+            <div className="consultant-mode-banner read-only">
+              <div>
+                <strong>👁️ View Mode:</strong> Client has not requested help on Step {step}. Inputs are locked.
+              </div>
+              <div className="consultant-mode-banner-badge">Read Only</div>
+            </div>
+          ) : (
+            <div className="consultant-mode-banner live-edit">
+              <div>
+                <strong>🟢 Live Assistance Active:</strong> Co-editing Step {step} with client in real-time.
+                {activeHelpSession?.question ? <span style={{ display: "block", fontSize: "12px", opacity: 0.9 }}>Client Doubt: &quot;{activeHelpSession.question}&quot;</span> : null}
+              </div>
+              <div className="consultant-mode-banner-badge">
+                <span className="banner-pulse-dot" /> Live
+              </div>
+            </div>
+          )
+        ) : null}
+
         <div className="client-discovery-topbar">
           <div className="client-small-logo">
             <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-small-logo-img" />
           </div>
-          <div>
-            Phase 2 of 9 <span>{pct}%</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {!isConsultantMode ? (
+              isCurrentStepHelpActive ? (
+                <button type="button" className="client-help-trigger-btn active-help" onClick={resolveCurrentHelp}>
+                  <span className="banner-pulse-dot" /> Help Active • Click to Resolve
+                </button>
+              ) : (
+                <button type="button" className="client-help-trigger-btn" onClick={() => setShowHelpModal(true)}>
+                  💬 Need Help on Step {step}?
+                </button>
+              )
+            ) : null}
+            <div>
+              Phase 2 of 9 <span>{pct}%</span>
+            </div>
           </div>
         </div>
 
@@ -339,9 +717,8 @@ export function DiscoveryFlow({
                 <span>{field.label}</span>
                 <textarea
                   value={basics[field.key]}
-                  onChange={(event) =>
-                    setBasics((current) => ({ ...current, [field.key]: event.target.value }))
-                  }
+                  disabled={isReadOnly}
+                  onChange={(event) => handleBasicsChange(field.key, event.target.value)}
                   className="floxa-input"
                   placeholder={field.placeholder}
                   rows={3}
@@ -363,6 +740,7 @@ export function DiscoveryFlow({
               <SliderRow
                 key={key}
                 {...slider}
+                disabled={isReadOnly}
                 value={sliders[key] ?? 0}
                 onChange={(value) => updateSlider(key, value)}
               />
@@ -382,6 +760,7 @@ export function DiscoveryFlow({
               <SliderRow
                 key={key}
                 {...slider}
+                disabled={isReadOnly}
                 value={sliders[key] ?? 0}
                 onChange={(value) => updateSlider(key, value)}
               />
@@ -402,13 +781,8 @@ export function DiscoveryFlow({
                 <button
                   key={word}
                   type="button"
-                  onClick={() => {
-                    if (emotions.includes(word)) {
-                      setEmotions((current) => current.filter((item) => item !== word));
-                    } else if (emotions.length < 8) {
-                      setEmotions((current) => [...current, word]);
-                    }
-                  }}
+                  disabled={isReadOnly}
+                  onClick={() => handleEmotionToggle(word)}
                   className={`floxa-chip ${emotions.includes(word) ? "active" : ""}`}
                 >
                   {word}
@@ -431,7 +805,8 @@ export function DiscoveryFlow({
                 <button
                   type="button"
                   key={item.name}
-                  onClick={() => setPersona(item.name)}
+                  disabled={isReadOnly}
+                  onClick={() => handlePersonaSelect(item.name)}
                   className={persona === item.name ? "active" : ""}
                 >
                   <strong>{item.name}</strong>
@@ -445,8 +820,9 @@ export function DiscoveryFlow({
               <div className="client-competitor-card" key={index}>
                 <input
                   value={competitor.name}
+                  disabled={isReadOnly}
                   onChange={(event) =>
-                    setComps((current) =>
+                    handleCompsChange((current) =>
                       current.map((item, itemIndex) =>
                         itemIndex === index ? { ...item, name: event.target.value } : item
                       )
@@ -459,8 +835,9 @@ export function DiscoveryFlow({
                     <button
                       type="button"
                       key={rating}
+                      disabled={isReadOnly}
                       onClick={() =>
-                        setComps((current) =>
+                        handleCompsChange((current) =>
                           current.map((item, itemIndex) =>
                             itemIndex === index
                               ? { ...item, rating: item.rating === rating ? "" : rating }
@@ -476,8 +853,9 @@ export function DiscoveryFlow({
                 </div>
                 <input
                   value={competitor.reason}
+                  disabled={isReadOnly}
                   onChange={(event) =>
-                    setComps((current) =>
+                    handleCompsChange((current) =>
                       current.map((item, itemIndex) =>
                         itemIndex === index ? { ...item, reason: event.target.value } : item
                       )
@@ -499,20 +877,15 @@ export function DiscoveryFlow({
             </h2>
             <p>Select the aesthetic directions that resonate most.</p>
             <div className="client-chip-wrap">
-              {visualStyles.map((style) => (
+              {visualStylesList.map((style) => (
                 <button
-                  key={style}
+                  key={style.name}
                   type="button"
-                  onClick={() => {
-                    if (styles.includes(style)) {
-                      setStyles((current) => current.filter((item) => item !== style));
-                    } else if (styles.length < 3) {
-                      setStyles((current) => [...current, style]);
-                    }
-                  }}
-                  className={`floxa-chip ${styles.includes(style) ? "active" : ""}`}
+                  disabled={isReadOnly}
+                  onClick={() => handleStylesToggle(style.name)}
+                  className={`floxa-chip ${styles.includes(style.name) ? "active" : ""}`}
                 >
-                  {style}
+                  {style.name}
                 </button>
               ))}
             </div>
@@ -523,7 +896,7 @@ export function DiscoveryFlow({
 
         <div className="client-discovery-actions">
           {step > 1 ? (
-            <button type="button" onClick={() => setStep((current) => current - 1)}>
+            <button type="button" onClick={prevStep}>
               &lt;- Back
             </button>
           ) : (
@@ -543,6 +916,32 @@ export function DiscoveryFlow({
           )}
         </div>
       </div>
+
+      {showHelpModal ? (
+        <div className="client-help-modal-overlay" onClick={() => setShowHelpModal(false)}>
+          <div className="client-help-modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>💬 Ask Consultant for Assistance</h3>
+            <p>
+              Stuck or confused on <strong>Step {step}</strong>? Your consultant will be notified instantly and can assist you live on this screen.
+            </p>
+            <textarea
+              className="client-help-modal-textarea"
+              placeholder="What are you confused about? (e.g. Which slider position or competitor details to include?)"
+              value={helpQuestion}
+              onChange={(e) => setHelpQuestion(e.target.value)}
+              autoFocus
+            />
+            <div className="client-help-modal-actions">
+              <button type="button" className="client-help-modal-cancel" onClick={() => setShowHelpModal(false)}>
+                Cancel
+              </button>
+              <button type="button" className="client-help-modal-submit" onClick={submitHelpRequest}>
+                Notify Consultant
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="client-discovery-preview">
         <div className="client-mini-orb">

@@ -10,13 +10,18 @@
   font-display: swap;
 }
 
-.client-portal-shell {
+:root,
+.client-portal-shell,
+.cp-screen {
   --floxa-text: #f0f7f4;
   --floxa-muted: #89aca0;
   --floxa-dim: rgba(137, 172, 160, 0.5);
   --floxa-deep: #0a1912;
   --floxa-neon: #4dffa0;
   --glass-border: rgba(137, 172, 160, 0.16);
+}
+
+.client-portal-shell {
   position: relative;
   isolation: isolate;
   width: 100%;
@@ -2642,12 +2647,6 @@
     padding: 18px 12px;
   }
 
-  .client-discovery-topbar {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 10px;
-  }
-
   .client-discovery-dots {
     flex-wrap: wrap;
   }
@@ -2692,3 +2691,880 @@
     min-height: 220px;
   }
 }
+
+/* ==========================================================================
+   Live Consultant Assistance & Doubt Clearing Styles
+   ========================================================================== */
+
+.consultant-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  backdrop-filter: blur(8px);
+  animation: fadeInDown 0.25s ease-out;
+}
+
+.consultant-mode-banner.read-only {
+  background: rgba(255, 179, 0, 0.08);
+  border: 1px solid rgba(255, 179, 0, 0.25);
+  color: #ffb300;
+}
+
+.consultant-mode-banner.live-edit {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.consultant-mode-banner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.consultant-mode-banner .banner-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  animation: pulseDot 1.5s infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.6; }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.client-help-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(6px);
+}
+
+.client-help-trigger-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.client-help-trigger-btn.active-help {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10b981;
+}
+
+.client-help-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.client-help-modal-card {
+  width: 100%;
+  max-width: 480px;
+  background: #121217;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.client-help-modal-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #f8fafc;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.client-help-modal-card p {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.client-help-modal-textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #f8fafc;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 90px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.client-help-modal-textarea:focus {
+  border-color: #6366f1;
+}
+
+.client-help-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.client-help-modal-cancel {
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.client-help-modal-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
+}
+
+.client-help-modal-submit {
+  padding: 8px 20px;
+  border-radius: 10px;
+  background: #6366f1;
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.client-help-modal-submit:hover {
+  background: #4f46e5;
+  transform: translateY(-1px);
+}
+
+.consultant-view-locked {
+  pointer-events: none !important;
+  opacity: 0.72 !important;
+  user-select: none !important;
+}
+
+/* ==========================================================================
+   FLOXA 1-ON-1 WEBRTC VIDEO CALLING STYLES
+   ========================================================================== */
+
+.floxa-video-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+}
+
+/* FLUMENX-STYLE CALL CARD (INCOMING & OUTGOING) - EXACT SCREENSHOT MATCH */
+.floxa-flumenx-call-card {
+  width: min(90vw, 380px);
+  padding: 44px 32px 38px 32px;
+  background: #111a15;
+  border: 1px solid rgba(77, 255, 160, 0.14);
+  border-radius: 26px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #ffffff;
+  animation: floxaCardPop 0.25s ease-out;
+}
+
+@keyframes floxaCardPop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.floxa-concentric-ring {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  border: 1.5px solid #1a4d3a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: floxaConcentricGlow 2.4s infinite ease-out;
+}
+
+@keyframes floxaConcentricGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(77, 255, 160, 0.25);
+    border-color: #1a4d3a;
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(77, 255, 160, 0);
+    border-color: #2e7d5e;
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(77, 255, 160, 0);
+    border-color: #1a4d3a;
+  }
+}
+
+.floxa-concentric-avatar {
+  width: 94px;
+  height: 94px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #15261d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floxa-call-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.floxa-call-avatar-placeholder {
+  font-size: 28px;
+  font-weight: 700;
+  color: #4dffa0;
+  letter-spacing: 1px;
+}
+
+.floxa-call-person-name {
+  margin: 20px 0 0 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+}
+
+.floxa-call-status-subtitle {
+  margin: 6px 0 32px 0;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.floxa-call-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  width: 100%;
+}
+
+.floxa-call-circle-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.floxa-btn-decline {
+  background: #eb4444;
+  box-shadow: 0 8px 22px rgba(235, 68, 68, 0.38);
+}
+
+.floxa-btn-decline:hover {
+  transform: scale(1.08);
+  background: #dc2626;
+  box-shadow: 0 10px 28px rgba(235, 68, 68, 0.55);
+}
+
+.floxa-btn-accept {
+  background: #0ea664;
+  box-shadow: 0 8px 22px rgba(14, 166, 100, 0.38);
+}
+
+.floxa-btn-accept:hover {
+  transform: scale(1.08);
+  background: #059669;
+  box-shadow: 0 10px 28px rgba(14, 166, 100, 0.55);
+}
+
+/* CONNECTED VIDEO CALL MODAL (CENTERED IN VIEWPORT - APPLE/macOS STYLE) */
+.floxa-video-connected-modal {
+  position: relative;
+  width: min(92vw, 860px);
+  height: min(85vh, 580px);
+  border-radius: 24px;
+  background: #0b120e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 36px 90px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: floxaModalScaleIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+@keyframes floxaModalScaleIn {
+  0% { transform: scale(0.94); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.floxa-video-connected-modal.floxa-video-expanded {
+  width: 96vw;
+  height: 94vh;
+}
+
+/* macOS Window Header */
+.floxa-mac-window-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: rgba(18, 24, 21, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f0f7f4;
+  z-index: 10;
+}
+
+.floxa-mac-traffic-lights {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 80px;
+}
+
+.floxa-traffic-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  padding: 0;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.floxa-traffic-dot:hover {
+  transform: scale(1.15);
+  opacity: 0.85;
+}
+
+.floxa-dot-red {
+  background: #ff5f56;
+}
+
+.floxa-dot-yellow {
+  background: #ffbd2e;
+}
+
+.floxa-dot-green {
+  background: #27c93f;
+}
+
+.floxa-mac-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.floxa-apple-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #30d158;
+  box-shadow: 0 0 10px #30d158;
+  animation: floxaBlink 1.4s infinite;
+}
+
+.floxa-mac-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+}
+
+.floxa-apple-duration-pill {
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(48, 209, 88, 0.12);
+  color: #30d158;
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.floxa-mac-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 80px;
+  justify-content: flex-end;
+}
+
+.floxa-apple-header-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.floxa-apple-header-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+/* Video Viewport */
+.floxa-video-viewport {
+  position: relative;
+  flex: 1;
+  background: #050a07;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floxa-remote-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Local Video (Corner PIP - Apple Style) */
+.floxa-local-pip-container {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 170px;
+  height: 108px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  background: #111a15;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+  z-index: 5;
+  transition: all 0.2s ease;
+}
+
+.floxa-local-pip-container:hover {
+  transform: scale(1.04);
+  border-color: rgba(77, 255, 160, 0.55);
+}
+
+.floxa-local-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.floxa-cam-off-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.floxa-sharing-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(48, 209, 88, 0.95);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 12px;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Empty Viewport Guidance */
+.floxa-viewport-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  background: radial-gradient(circle at center, rgba(18, 38, 28, 0.88) 0%, rgba(4, 9, 6, 0.96) 100%);
+  z-index: 2;
+  gap: 14px;
+}
+
+.floxa-viewport-hint-icon {
+  font-size: 42px;
+  animation: floxaPulseIcon 2s infinite ease-in-out;
+}
+
+@keyframes floxaPulseIcon {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+.floxa-viewport-hint-text {
+  font-size: 13.5px;
+  color: rgba(240, 247, 244, 0.85);
+  max-width: 340px;
+  line-height: 1.5;
+}
+
+.floxa-quick-share-btn {
+  padding: 10px 22px;
+  border-radius: 20px;
+  border: 1.5px solid #4dffa0;
+  background: rgba(77, 255, 160, 0.16);
+  color: #4dffa0;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(77, 255, 160, 0.28);
+}
+
+.floxa-quick-share-btn:hover {
+  background: #4dffa0;
+  color: #06110a;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(77, 255, 160, 0.45);
+}
+
+/* APPLE / macOS FLOATING GLASS CONTROL ISLAND */
+.floxa-apple-toolbar-island {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 22px;
+  background: rgba(24, 28, 26, 0.8);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+  z-index: 10;
+}
+
+.floxa-apple-ctrl-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease;
+}
+
+.floxa-apple-ctrl-btn:hover {
+  transform: translateY(-2px);
+}
+
+.floxa-apple-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.floxa-apple-ctrl-btn:hover .floxa-apple-icon-wrap {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.floxa-apple-ctrl-btn.muted .floxa-apple-icon-wrap {
+  background: #ffffff;
+  color: #1c1c1e;
+  border-color: #ffffff;
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.3);
+}
+
+.floxa-apple-ctrl-btn.sharing .floxa-apple-icon-wrap {
+  background: #30d158;
+  color: #ffffff;
+  border-color: #30d158;
+  box-shadow: 0 4px 20px rgba(48, 209, 88, 0.5);
+}
+
+.floxa-apple-end-btn .floxa-apple-icon-wrap {
+  background: #ff3b30;
+  color: #ffffff;
+  border-color: #ff3b30;
+  width: 52px;
+  height: 52px;
+  box-shadow: 0 6px 20px rgba(255, 59, 48, 0.5);
+}
+
+.floxa-apple-end-btn:hover .floxa-apple-icon-wrap {
+  background: #e02d23;
+  transform: scale(1.05);
+}
+
+.floxa-apple-btn-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: -0.1px;
+}
+
+/* MINIMIZED FLOATING BUBBLE */
+.floxa-video-minimized-bubble {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 140px;
+  height: 94px;
+  z-index: 10000;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 2px solid #4dffa0;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  background: #030805;
+  cursor: pointer;
+}
+
+.floxa-minimized-video-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.floxa-minimized-info {
+  position: absolute;
+  bottom: 4px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #4dffa0;
+  font-size: 10px;
+  font-family: monospace;
+}
+
+.floxa-expand-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.65);
+  color: #4dffa0;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* PERSISTENT FLOATING CLIENT CALL TRIGGER BUTTON */
+.floxa-video-call-trigger-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 30px;
+  border: 1px solid rgba(77, 255, 160, 0.35);
+  background: rgba(10, 25, 18, 0.85);
+  backdrop-filter: blur(12px);
+  color: #f0f7f4;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 14px rgba(77, 255, 160, 0.15);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floxa-video-call-trigger-btn:hover {
+  background: rgba(77, 255, 160, 0.15);
+  border-color: #4dffa0;
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 20px rgba(77, 255, 160, 0.3);
+}
+
+/* NAVBAR VIDEO CALL BUTTON (CONSULTANT) */
+.floxa-nav-video-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(77, 255, 160, 0.3);
+  background: rgba(77, 255, 160, 0.08);
+  color: #4dffa0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.floxa-nav-video-btn:hover {
+  background: rgba(77, 255, 160, 0.18);
+  border-color: #4dffa0;
+}
+
+.floxa-nav-video-btn.ringing {
+  background: rgba(77, 255, 160, 0.25);
+  border-color: #4dffa0;
+  animation: floxaPulseBtn 1.2s infinite;
+}
+
+@keyframes floxaPulseBtn {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(77, 255, 160, 0.6); }
+  50% { box-shadow: 0 0 0 8px rgba(77, 255, 160, 0); }
+}
+
+/* NAVBAR INCOMING CALL ACTIONS GROUP (CONSULTANT) */
+.floxa-nav-incoming-call-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 4px 12px;
+  background: rgba(8, 28, 18, 0.95);
+  border: 1px solid #4dffa0;
+  border-radius: 999px;
+  box-shadow: 0 0 16px rgba(77, 255, 160, 0.35);
+  animation: floxaPulseBtn 1.5s infinite;
+}
+
+.floxa-nav-ringing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #e0f8ec;
+  font-weight: 500;
+}
+
+.floxa-nav-ringing-indicator strong {
+  color: #4dffa0;
+  font-weight: 700;
+}
+
+.floxa-nav-btn-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  background: #10b981;
+  color: #032010;
+  border: none;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.floxa-nav-btn-pick:hover {
+  background: #34d399;
+  transform: scale(1.05);
+}
+
+.floxa-nav-btn-deny {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.floxa-nav-btn-deny:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
+

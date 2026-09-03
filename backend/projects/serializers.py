@@ -130,6 +130,29 @@ class ProjectDiscoverySerializer(serializers.ModelSerializer):
     competitors = DiscoveryCompetitorSerializer(many=True, required=False)
     visual_styles = DiscoveryVisualStyleSerializer(many=True, required=False)
 
+    VALID_EMOTIONS = {
+        "Trust", "Bold", "Warm", "Calm", "Raw", "Sharp", "Fresh", "Playful",
+        "Refined", "Strong", "Soft", "Vibrant", "Heritage", "Modern", "Honest",
+        "Edgy", "Friendly", "Prestige", "Aspirational", "Pure", "Fun", "Confident",
+        "Subtle", "Dynamic", "Quiet", "Elegant", "Earthy", "Electric"
+    }
+
+    VALID_PERSONAS = {"Value-Seeker", "Premium-Seeker", "Innovator", "Traditionalist", ""}
+
+    def validate_emotions(self, value):
+        if len(value) > 8:
+            raise serializers.ValidationError("Cannot select more than 8 brand words.")
+        for item in value:
+            emotion_name = item.get("emotion") if isinstance(item, dict) else getattr(item, "emotion", str(item))
+            if emotion_name not in self.VALID_EMOTIONS:
+                raise serializers.ValidationError(f"'{emotion_name}' is not a valid brand word.")
+        return value
+
+    def validate_audience_archetype(self, value):
+        if value and value not in self.VALID_PERSONAS:
+            raise serializers.ValidationError(f"'{value}' is not a valid customer archetype.")
+        return value
+
     class Meta:
         model = ProjectDiscovery
         fields = [
