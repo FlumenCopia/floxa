@@ -758,7 +758,7 @@ export default function Floxaheader({
               title={callState === "connected" ? "Active Video Call" : "Video Call"}
               onClick={handleNavbarVideoClick}
             >
-              <Video size={18} strokeWidth={2} />
+              <Video size={24} strokeWidth={2} />
             </button>
           )}
           <div className="notification-wrap">

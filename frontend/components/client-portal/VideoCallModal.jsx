@@ -358,9 +358,9 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
             >
               <div className="floxa-apple-icon-wrap">
                 {isAudioMuted ? (
-                  <MicOff size={20} strokeWidth={2.2} />
+                  <MicOff size={22} strokeWidth={2.2} />
                 ) : (
-                  <Mic size={20} strokeWidth={2.2} />
+                  <Mic size={22} strokeWidth={2.2} />
                 )}
               </div>
               <span className="floxa-apple-btn-label">{isAudioMuted ? "Unmute" : "Mute"}</span>
@@ -375,9 +375,9 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
             >
               <div className="floxa-apple-icon-wrap">
                 {isVideoMuted ? (
-                  <VideoOff size={20} strokeWidth={2.2} />
+                  <VideoOff size={22} strokeWidth={2.2} />
                 ) : (
-                  <Video size={20} strokeWidth={2.2} />
+                  <Video size={22} strokeWidth={2.2} />
                 )}
               </div>
               <span className="floxa-apple-btn-label">{isVideoMuted ? "Start Cam" : "Camera"}</span>
@@ -391,7 +391,7 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
               title="End Video Call"
             >
               <div className="floxa-apple-icon-wrap">
-                <PhoneOff size={20} strokeWidth={2.2} />
+                <PhoneOff size={22} strokeWidth={2.2} />
               </div>
               <span className="floxa-apple-btn-label">End</span>
             </button>

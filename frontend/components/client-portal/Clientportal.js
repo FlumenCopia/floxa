@@ -189,7 +189,7 @@ function PortalHeader({ onClose, onVideoCall, callState }) {
                   : "Video Call"
             }
           >
-            <Video size={18} strokeWidth={2} />
+            <Video size={24} strokeWidth={2} />
           </button>
         ) : null}
         <button className="cp-close" onClick={onClose} type="button">
