@@ -487,15 +487,9 @@ function OverviewPanel({
         {paymentItems.length > 0 ? (
           <>
             <div className="discovery-payment-bar" style={{ gridTemplateColumns: getPaymentGridColumns(paymentItems) }} aria-hidden="true">
-              <span className="advance" title={`Advance: ${paymentItems[0]?.split}%`}>
-                <span className="discovery-bar-pct">{paymentItems[0]?.split}%</span>
-              </span>
-              <span className="mid" title={`Mid: ${paymentItems[1]?.split}%`}>
-                <span className="discovery-bar-pct">{paymentItems[1]?.split}%</span>
-              </span>
-              <span className="final" title={`Final: ${paymentItems[2]?.split}%`}>
-                <span className="discovery-bar-pct">{paymentItems[2]?.split}%</span>
-              </span>
+              <span className="advance" title={`Advance: ${paymentItems[0]?.split}%`} />
+              <span className="mid" title={`Mid: ${paymentItems[1]?.split}%`} />
+              <span className="final" title={`Final: ${paymentItems[2]?.split}%`} />
             </div>
             <div className="discovery-payment-legend">
               <span><i className="advance" /> Advance {paymentItems[0].split}%</span>
@@ -2888,15 +2882,9 @@ function PaymentsPanel({ project, onProjectRefresh }) {
               style={{ gridTemplateColumns: getPaymentGridColumns(paymentItems) }}
               aria-hidden="true"
             >
-              <span className="advance" title={`Advance: ${paymentItems[0]?.split}%`}>
-                <span className="discovery-bar-pct">{paymentItems[0]?.split}%</span>
-              </span>
-              <span className="mid" title={`Mid: ${paymentItems[1]?.split}%`}>
-                <span className="discovery-bar-pct">{paymentItems[1]?.split}%</span>
-              </span>
-              <span className="final" title={`Final: ${paymentItems[2]?.split}%`}>
-                <span className="discovery-bar-pct">{paymentItems[2]?.split}%</span>
-              </span>
+              <span className="advance" title={`Advance: ${paymentItems[0]?.split}%`} />
+              <span className="mid" title={`Mid: ${paymentItems[1]?.split}%`} />
+              <span className="final" title={`Final: ${paymentItems[2]?.split}%`} />
             </div>
             <div className="discovery-payment-list">
               {paymentItems.map((item) => (
