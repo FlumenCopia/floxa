@@ -492,9 +492,9 @@ function OverviewPanel({
               <span className="final" title={`Final: ${paymentItems[2]?.split}%`} />
             </div>
             <div className="discovery-payment-legend">
-              <span><i className="advance" /> Advance {paymentItems[0].split}%</span>
-              <span><i className="mid" /> Mid {paymentItems[1].split}%</span>
-              <span><i className="final" /> Final {paymentItems[2].split}%</span>
+              <span>Advance {paymentItems[0].split}%</span>
+              <span>Mid {paymentItems[1].split}%</span>
+              <span>Final {paymentItems[2].split}%</span>
             </div>
             <div className="discovery-payment-list">
               {paymentItems.map((item) => (
