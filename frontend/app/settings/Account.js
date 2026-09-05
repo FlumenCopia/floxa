@@ -328,30 +328,15 @@ export default function Account() {
     <>
       {/* Reference Styled Profile Picture Card */}
       <div
-        className="card settings-card mb-3"
-        ref={menuRef}
+        className="card settings-card settings-profile-card mb-3"
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "24px", flexWrap: "wrap" }}>
+        <div className="settings-profile-header">
           
           {/* Circular Avatar with Overlapping Camera Button */}
-          <div style={{ position: "relative", width: "90px", height: "90px", flexShrink: 0 }}>
+          <div className="settings-profile-avatar-wrapper" ref={menuRef}>
             <div
+              className="settings-profile-avatar"
               onClick={() => setMenuOpen((open) => !open)}
-              style={{
-                width: "90px",
-                height: "90px",
-                borderRadius: "50%",
-                overflow: "hidden",
-                background: "#085744",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "28px",
-                fontWeight: "700",
-                color: "#ffffff",
-                cursor: "pointer",
-                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.4)",
-              }}
               title="Click to update photo"
             >
               {avatarUrl ? (
@@ -368,30 +353,12 @@ export default function Account() {
             {/* Overlapping Camera Action Badge */}
             <button
               type="button"
+              className="settings-avatar-badge-btn"
               onClick={() => setMenuOpen((open) => !open)}
               disabled={uploadingAvatar}
               aria-label="Change photo options"
-              style={{
-                position: "absolute",
-                bottom: "-2px",
-                right: "-2px",
-                width: "34px",
-                height: "34px",
-                borderRadius: "50%",
-                background: "#085744",
-                color: "#ffffff",
-                border: "2.5px solid #ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                boxShadow: "0 3px 10px rgba(0, 0, 0, 0.5)",
-                transition: "transform 0.15s ease",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.12)")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
-              <Camera size={17} strokeWidth={2.2} />
+              <Camera size={16} strokeWidth={2.2} />
             </button>
 
             {/* Hidden File Input */}
@@ -405,45 +372,14 @@ export default function Account() {
 
             {/* Floating Dropdown Menu */}
             {menuOpen ? (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "100px",
-                  left: "0",
-                  zIndex: 100,
-                  background: "#02231c",
-                  border: "1px solid rgba(16, 185, 129, 0.35)",
-                  borderRadius: "12px",
-                  padding: "8px",
-                  minWidth: "190px",
-                  boxShadow: "0 15px 35px rgba(0, 0, 0, 0.6)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "4px",
-                }}
-              >
+              <div className="settings-avatar-dropdown">
                 <button
                   type="button"
+                  className="settings-avatar-dropdown-item"
                   onClick={() => {
                     setMenuOpen(false);
                     fileInputRef.current?.click();
                   }}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "#f8fafc",
-                    padding: "9px 12px",
-                    borderRadius: "6px",
-                    fontSize: "0.85rem",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    width: "100%",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   <Upload size={15} strokeWidth={2.2} stroke="#34d399" />
                   Upload Photo
@@ -451,23 +387,8 @@ export default function Account() {
 
                 <button
                   type="button"
+                  className="settings-avatar-dropdown-item"
                   onClick={startCamera}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "#f8fafc",
-                    padding: "9px 12px",
-                    borderRadius: "6px",
-                    fontSize: "0.85rem",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    width: "100%",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
                   <Camera size={15} strokeWidth={2.2} stroke="#34d399" />
                   Take Photo
@@ -476,23 +397,8 @@ export default function Account() {
                 {avatarUrl ? (
                   <button
                     type="button"
+                    className="settings-avatar-dropdown-item danger"
                     onClick={handleAvatarRemove}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "#f87171",
-                      padding: "9px 12px",
-                      borderRadius: "6px",
-                      fontSize: "0.85rem",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      width: "100%",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(239, 68, 68, 0.12)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     <Trash2 size={15} strokeWidth={2.2} stroke="#f87171" />
                     Remove Photo
@@ -503,29 +409,17 @@ export default function Account() {
           </div>
 
           {/* User Details & Clickable Photo Trigger matching reference */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1, minWidth: "220px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-              <h2 style={{ fontSize: "1.45rem", fontWeight: "800", color: "#f8fafc", margin: 0, letterSpacing: "-0.01em" }}>
+          <div className="settings-profile-info">
+            <div className="settings-profile-title-row">
+              <h2 className="settings-profile-name">
                 {formData.email || formData.name || "Consultant"}
               </h2>
-              <span
-                style={{
-                  background: "rgba(16, 185, 129, 0.15)",
-                  color: "#34d399",
-                  border: "1px solid rgba(16, 185, 129, 0.3)",
-                  borderRadius: "20px",
-                  padding: "2px 10px",
-                  fontSize: "0.75rem",
-                  fontWeight: "700",
-                  letterSpacing: "0.05em",
-                  textTransform: "uppercase",
-                }}
-              >
+              <span className="settings-profile-badge">
                 Admin
               </span>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.95rem", color: "#94a3b8" }}>
+            <div className="settings-profile-subtitle">
               <span>CONSULTANT</span>
               <span>•</span>
               <span>{formData.company || "General"}</span>
@@ -603,8 +497,10 @@ export default function Account() {
             ) : (
               <div
                 style={{
-                  width: "300px",
-                  height: "300px",
+                  width: "min(300px, 70vw)",
+                  height: "min(300px, 70vw)",
+                  maxWidth: "100%",
+                  aspectRatio: "1 / 1",
                   borderRadius: "50%",
                   overflow: "hidden",
                   border: "3px solid #10b981",
