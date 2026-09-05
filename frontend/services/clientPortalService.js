@@ -1,4 +1,4 @@
-import { apiRequest, buildApiUrl } from "../src/lib/api";
+import { apiRequest, buildApiUrl } from "../src/lib/api.js";
 
 const STORAGE_PREFIX = "floxa_client_portal_mock_";
 
@@ -102,22 +102,58 @@ function mapBackendProfileToClientData(profile) {
 
 async function resolvePortalProject(linkToken) {
   if (!linkToken || linkToken === "test-token") {
-    return null;
+    return { notFound: false, data: null };
   }
 
   try {
-    const response = await fetch(buildApiUrl(`/client-portal/${linkToken}/`), {
+    const search = typeof window !== "undefined" ? window.location.search || "" : "";
+    const response = await fetch(buildApiUrl(`/client-portal/${linkToken}/${search}`), {
       method: "GET",
       credentials: "include",
     });
 
-    if (!response.ok) {
-      return null;
+    if (response.status === 404) {
+      return { notFound: true, data: null };
     }
 
-    return response.json();
+    if (response.status === 403) {
+      let detail = "";
+      try {
+        const body = await response.json();
+        detail = body?.detail || "";
+      } catch {}
+      const isPasswordRequired = detail.toLowerCase().includes("password");
+      return {
+        notFound: false,
+        requirePassword: isPasswordRequired,
+        forbidden: !isPasswordRequired,
+        error: detail || "Permission denied",
+        data: null,
+      };
+    }
+
+    if (response.status === 401) {
+      let detail = "";
+      try {
+        const body = await response.json();
+        detail = body?.detail || "";
+      } catch {}
+      return {
+        notFound: false,
+        unauthorized: true,
+        error: detail || "Authentication required. Please log in.",
+        data: null,
+      };
+    }
+
+    if (!response.ok) {
+      return { notFound: false, serverError: true, data: null };
+    }
+
+    const data = await response.json();
+    return { notFound: false, data };
   } catch {
-    return null;
+    return { notFound: false, networkError: true, data: null };
   }
 }
 
@@ -150,14 +186,14 @@ function mapPortalProjectToClientProject(portalProject) {
 
 function mapBackendDiscoveryToClientData(discovery) {
   return {
-    whatDo: discovery.what_business_does || "",
-    targetCustomer: discovery.target_customer || "",
-    whyChooseUs: discovery.why_choose_us || "",
-    brandFeeling: discovery.brand_feeling || "",
-    audienceArchetype: discovery.audience_archetype || "",
-    emotions: discovery.emotions?.map((item) => item.emotion) || [],
+    whatDo: discovery.what_business_does || discovery.business_description || discovery.businessDescription || discovery.whatDo || discovery.whatDoYouDo || "",
+    targetCustomer: discovery.target_customer || discovery.targetCustomer || "",
+    whyChooseUs: discovery.why_choose_us || discovery.whyChooseUs || discovery.whyChooseYou || "",
+    brandFeeling: discovery.brand_feeling || discovery.brandFeeling || discovery.whyTrustYou || "",
+    audienceArchetype: discovery.audience_archetype || discovery.persona || (Array.isArray(discovery.selectedAudience) ? discovery.selectedAudience[0] : ""),
+    emotions: discovery.emotions?.map((item) => (typeof item === "string" ? item : item.emotion)) || [],
     competitors: discovery.competitors || [],
-    visualStyles: discovery.visual_styles?.map((item) => item.style) || [],
+    visualStyles: discovery.visual_styles?.map((item) => (typeof item === "string" ? item : item.style)) || [],
   };
 }
 
@@ -166,19 +202,27 @@ function isBackendDiscoveryComplete(discovery) {
     return false;
   }
 
+  if (typeof discovery.is_complete === "boolean") {
+    return discovery.is_complete;
+  }
+
+  if (typeof discovery.isComplete === "boolean") {
+    return discovery.isComplete;
+  }
+
   const requiredFields = [
-    discovery.what_business_does,
-    discovery.target_customer,
-    discovery.why_choose_us,
-    discovery.brand_feeling,
-    discovery.audience_archetype,
+    discovery.what_business_does || discovery.business_description || discovery.businessDescription || discovery.whatDo || discovery.whatDoYouDo,
+    discovery.target_customer || discovery.targetCustomer,
+    discovery.why_choose_us || discovery.whyChooseUs || discovery.whyChooseYou,
+    discovery.brand_feeling || discovery.brandFeeling || discovery.whyTrustYou,
+    discovery.audience_archetype || discovery.persona || (Array.isArray(discovery.selectedAudience) ? discovery.selectedAudience[0] : ""),
   ];
 
   return (
     requiredFields.every((value) => String(value || "").trim()) &&
-    Boolean(discovery.emotions?.length) &&
-    Boolean(discovery.competitors?.length) &&
-    Boolean(discovery.visual_styles?.length)
+    Boolean(discovery.emotions?.length || discovery.selectedEmotions?.length) &&
+    Boolean(discovery.competitors?.length || discovery.comps?.length) &&
+    Boolean(discovery.visual_styles?.length || discovery.visualStyles?.length || discovery.styles?.length || discovery.selectedVisual?.length)
   );
 }
 
@@ -193,28 +237,21 @@ function fromBackendSliderValue(value) {
 }
 
 function mapBackendDiscoveryToDraft(discovery) {
-  const sliders = (discovery.sliders || []).reduce((result, slider) => ({
+  const sliders = (discovery.sliders || discovery.personality_sliders || []).reduce((result, slider) => ({
     ...result,
     [slider.slider_key]: fromBackendSliderValue(slider.value),
   }), {});
 
   return {
-    basics: {
-      whatDo: discovery.what_business_does || "",
-      targetCustomer: discovery.target_customer || "",
-      whyChooseUs: discovery.why_choose_us || "",
-      brandFeeling: discovery.brand_feeling || "",
-    },
+    whatDo: discovery.what_business_does || discovery.business_description || discovery.businessDescription || discovery.whatDo || discovery.whatDoYouDo || "",
+    targetCustomer: discovery.target_customer || discovery.targetCustomer || "",
+    whyChooseUs: discovery.why_choose_us || discovery.whyChooseUs || discovery.whyChooseYou || "",
+    brandFeeling: discovery.brand_feeling || discovery.brandFeeling || discovery.whyTrustYou || "",
+    emotions: discovery.emotions?.map((item) => (typeof item === "string" ? item : item.emotion)) || [],
+    persona: discovery.audience_archetype || discovery.persona || (Array.isArray(discovery.selectedAudience) ? discovery.selectedAudience[0] : ""),
+    competitors: discovery.competitors || [],
+    visualStyles: discovery.visual_styles?.map((item) => (typeof item === "string" ? item : item.style)) || [],
     sliders,
-    emotions: discovery.emotions?.map((item) => item.emotion) || [],
-    persona: discovery.audience_archetype || "",
-    comps: discovery.competitors?.map((item) => ({
-      name: item.name || "",
-      rating: item.rating || "",
-      reason: item.reason || "",
-    })) || [],
-    styles: discovery.visual_styles?.map((item) => item.style) || [],
-    step: 1,
   };
 }
 
@@ -262,11 +299,10 @@ function mapProjectAgreement(agreement) {
 function getAgreementStatusLabel(status) {
   const labels = {
     draft: "Draft",
-    shared: "Draft",
+    shared: "Shared",
     signature_requested: "Signature Requested",
-    signed: "Signed / Active",
-    active: "Signed / Active",
-    locked: "Completed / Locked",
+    signed: "Signed",
+    active: "Active",
     completed: "Completed / Locked",
   };
 
@@ -276,23 +312,48 @@ function getAgreementStatusLabel(status) {
 export const clientPortalService = {
   async createSession(linkToken) {
     activeToken = linkToken || "test-token";
-    const portalProject = await resolvePortalProject(activeToken);
+    const res = await resolvePortalProject(activeToken);
 
+    if (res.notFound) {
+      return { notFound: true };
+    }
+
+    if (res.requirePassword) {
+      return { requirePassword: true };
+    }
+
+    if (res.forbidden) {
+      return { forbidden: true, error: res.error || "Permission denied" };
+    }
+
+    if (res.unauthorized) {
+      return { unauthorized: true, error: res.error || "Authentication required." };
+    }
+
+    if (res.serverError) {
+      return { serverError: true, error: "Unable to load portal. Please try again later." };
+    }
+
+    if (res.networkError) {
+      return { networkError: true, error: "Network connection error. Please check your connection." };
+    }
+
+    const portalProject = res.data;
     if (!portalProject && activeToken !== "test-token") {
-      return null;
+      return { requirePassword: true };
     }
 
     const project = portalProject ? mapPortalProjectToClientProject(portalProject) : readProject(activeToken);
 
-    return writeProject(project, activeToken);
+    return { success: true, project: writeProject(project, activeToken) };
   },
 
   async getProject() {
     if (activeToken && activeToken !== "test-token") {
-      const portalProject = await resolvePortalProject(activeToken);
+      const res = await resolvePortalProject(activeToken);
 
-      if (portalProject) {
-        return { success: true, data: writeProject(mapPortalProjectToClientProject(portalProject), activeToken) };
+      if (res.data) {
+        return { success: true, data: writeProject(mapPortalProjectToClientProject(res.data), activeToken) };
       }
 
       return { success: false, error: "Portal password verification required." };
@@ -306,19 +367,31 @@ export const clientPortalService = {
       return { success: true, data: readProject(portalToken) };
     }
 
-    const portalProject = await resolvePortalProject(portalToken);
+    const res = await resolvePortalProject(portalToken);
 
-    if (!portalProject) {
+    if (!res.data) {
       return { success: false };
     }
 
     return {
       success: true,
-      data: writeProject(mapPortalProjectToClientProject(portalProject), portalToken),
+      data: writeProject(mapPortalProjectToClientProject(res.data), portalToken),
     };
   },
 
-  async verifyPortalPassword(password, portalToken = activeToken) {
+  async verifyPortalPassword(arg1, arg2) {
+    let password = arg1;
+    let portalToken = arg2 || activeToken;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof arg1 === "string" && uuidRegex.test(arg1.trim()) && typeof arg2 === "string" && !uuidRegex.test(arg2.trim())) {
+      portalToken = arg1.trim();
+      password = arg2;
+    } else if (typeof arg2 === "string" && uuidRegex.test(arg2.trim())) {
+      portalToken = arg2.trim();
+      password = arg1;
+    }
+
     if (!portalToken || portalToken === "test-token") {
       return { success: true };
     }
@@ -714,72 +787,141 @@ export const clientPortalService = {
     return { success: true, data: updated.brandDNA };
   },
 
-  async getDiscoveryDraft(projectId, portalToken = activeToken) {
-    if (hasBackendProjectId(projectId) && portalToken && portalToken !== "test-token") {
-      try {
-        const discovery = await apiRequest(`/projects/${projectId}/discovery/`, {
-          headers: {
-            "X-Client-Portal-Token": portalToken,
-          },
-        });
+  async getDiscoveryDraft(target, portalTokenArg = activeToken) {
+    const hasNumericId = hasBackendProjectId(target);
+    const token = (!hasNumericId && target && target !== "test-token")
+      ? target
+      : (portalTokenArg && portalTokenArg !== "test-token" ? portalTokenArg : activeToken);
 
-        return {
-          success: true,
-          data: {
-            raw: discovery,
-            clientData: mapBackendDiscoveryToClientData(discovery),
-            draft: mapBackendDiscoveryToDraft(discovery),
-            isComplete: isBackendDiscoveryComplete(discovery),
-            isSubmitted: Boolean(discovery.submitted_at),
-          },
-        };
-      } catch (error) {
-        if (error?.detail === "Project discovery not found for this project.") {
-          return { success: true, data: null };
-        }
-
-        if (error?.detail) {
-          return { success: false, error: error.detail };
-        }
-
-        return { success: false, error: "Unable to load your discovery." };
-      }
+    if (!hasNumericId && (!token || token === "test-token")) {
+      return { success: true, data: null };
     }
 
-    return { success: true, data: null };
+    try {
+      let discovery;
+      if (token && token !== "test-token") {
+        discovery = await apiRequest(`/client-portal/${token}/discovery/`, {
+          headers: {
+            "X-Client-Portal-Token": token,
+          },
+        });
+      } else if (hasNumericId) {
+        discovery = await apiRequest(`/projects/${target}/discovery/`, {
+          headers: token ? { "X-Client-Portal-Token": token } : {},
+        });
+      } else {
+        return { success: true, data: null };
+      }
+
+      if (!discovery) {
+        return { success: true, data: null };
+      }
+
+      const isSubmitted = Boolean(discovery.submitted_at || discovery.is_submitted);
+      const isComplete = isBackendDiscoveryComplete(discovery);
+
+      const clientData = mapBackendDiscoveryToClientData(discovery);
+      const draft = mapBackendDiscoveryToDraft(discovery);
+
+      const normalizedData = {
+        ...discovery,
+        raw: discovery,
+        clientData,
+        draft,
+        isComplete,
+        isSubmitted,
+        is_complete: isComplete,
+        is_submitted: isSubmitted,
+        whatDo: draft.whatDo,
+        targetCustomer: draft.targetCustomer,
+        whyChooseUs: draft.whyChooseUs,
+        brandFeeling: draft.brandFeeling,
+        persona: draft.persona,
+      };
+
+      return {
+        success: true,
+        data: normalizedData,
+      };
+    } catch (error) {
+      if (error?.detail === "Project discovery not found for this project." || error?.status === 404) {
+        return { success: true, data: null };
+      }
+
+      if (error?.detail) {
+        return { success: false, error: error.detail };
+      }
+
+      return { success: false, error: error.message || "Unable to load your discovery." };
+    }
   },
 
-  async saveDiscoveryDraft(projectId, payload) {
-    if (hasBackendProjectId(projectId) && activeToken && activeToken !== "test-token") {
-      try {
-        const discovery = await apiRequest(`/projects/${projectId}/discovery/`, {
+  async saveDiscoveryDraft(target, payload = {}) {
+    const hasNumericId = hasBackendProjectId(target);
+    const token = (!hasNumericId && target && target !== "test-token")
+      ? target
+      : (activeToken && activeToken !== "test-token" ? activeToken : "");
+
+    if (!hasNumericId && (!token || token === "test-token")) {
+      return { success: true };
+    }
+
+    try {
+      let discovery;
+      if (token && token !== "test-token") {
+        discovery = await apiRequest(`/client-portal/${token}/discovery/`, {
           method: "POST",
           headers: {
-            "X-Client-Portal-Token": activeToken,
+            "X-Client-Portal-Token": token,
           },
           body: JSON.stringify(payload),
         });
-        const project = readProject();
-        const clientData = mapBackendDiscoveryToClientData(discovery);
-        const updated = {
-          ...project,
-          status: "PROFILE_COMPLETE",
-          brandDNA: {
-            ...project.brandDNA,
-            ...clientData,
-          },
-        };
-
-        writeProject(updated);
-
-        return { success: true, data: updated.brandDNA };
-      } catch (error) {
-        console.error("Client discovery draft API validation error:", error);
-        throw error;
+      } else if (hasNumericId) {
+        discovery = await apiRequest(`/projects/${target}/discovery/`, {
+          method: "POST",
+          headers: token ? { "X-Client-Portal-Token": token } : {},
+          body: JSON.stringify(payload),
+        });
+      } else {
+        return { success: true };
       }
-    }
 
-    return { success: true };
+      const project = readProject();
+      const clientData = mapBackendDiscoveryToClientData(discovery || {});
+      const updated = {
+        ...project,
+        status: "PROFILE_COMPLETE",
+        brandDNA: {
+          ...project.brandDNA,
+          ...clientData,
+        },
+      };
+
+      writeProject(updated);
+
+      const draft = mapBackendDiscoveryToDraft(discovery || {});
+
+      const normalizedData = {
+        ...(discovery || {}),
+        raw: discovery,
+        clientData,
+        draft,
+        isComplete,
+        isSubmitted,
+        is_complete: isComplete,
+        is_submitted: isSubmitted,
+        whatDo: draft.whatDo,
+        targetCustomer: draft.targetCustomer,
+        whyChooseUs: draft.whyChooseUs,
+        brandFeeling: draft.brandFeeling,
+        persona: draft.persona,
+      };
+
+      return { success: true, data: normalizedData };
+    } catch (error) {
+      console.error("Client discovery draft API validation error:", error);
+      return { success: false, error: error?.detail || error?.message || "Failed to save discovery draft." };
+    }
   },
 
   async submitDiscovery(projectId, payload) {
@@ -1015,41 +1157,7 @@ export const clientPortalService = {
     }
   },
 
-  async getDiscoveryDraft(portalToken = activeToken) {
-    if (!portalToken || portalToken === "test-token") {
-      return { success: false };
-    }
-    try {
-      const resp = await apiRequest(`/client-portal/${portalToken}/discovery/`, {
-        headers: {
-          "X-Client-Portal-Token": portalToken,
-        },
-      });
-      return { success: true, data: resp };
-    } catch (err) {
-      console.warn("Failed to fetch discovery draft from server:", err);
-      return { success: false, error: err.message };
-    }
-  },
 
-  async saveDiscoveryDraft(portalToken = activeToken, payload = {}) {
-    if (!portalToken || portalToken === "test-token") {
-      return { success: true };
-    }
-    try {
-      const resp = await apiRequest(`/client-portal/${portalToken}/discovery/`, {
-        method: "POST",
-        headers: {
-          "X-Client-Portal-Token": portalToken,
-        },
-        body: JSON.stringify(payload),
-      });
-      return { success: true, data: resp };
-    } catch (err) {
-      console.warn("Failed to save discovery draft to server:", err);
-      return { success: false, error: err.message };
-    }
-  },
 
   async logout() {
     if (activeToken && activeToken !== "test-token") {

@@ -23,6 +23,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import BasePermission
 from rest_framework.permissions import IsAuthenticated
@@ -94,7 +95,11 @@ from .serializers import (
     ProjectSerializer,
     generate_secure_portal_password,
 )
-from .progress import calculate_project_progress, calculate_project_workflow_status
+from .progress import (
+    calculate_project_progress,
+    calculate_project_workflow_status,
+    get_workflow_status_annotation,
+)
 from .razorpay_service import (
     RazorpayConfigurationError,
     RazorpayGatewayError,
@@ -122,6 +127,9 @@ def is_verified_client_portal_access(request, portal_token):
 
     # 1. Check signed portal access cookie (set after client enters password)
     signed_value = request.COOKIES.get(PORTAL_ACCESS_COOKIE_NAME)
+    if not signed_value:
+        signed_value = request.headers.get("X-Portal-Access-Token", "").strip()
+
     if signed_value:
         try:
             value = signing.TimestampSigner(salt=PORTAL_ACCESS_SALT).unsign(
@@ -133,10 +141,27 @@ def is_verified_client_portal_access(request, portal_token):
         except Exception:
             pass
 
-    # 2. Check matching X-Client-Portal-Token header (for authenticated client portal API calls)
-    header_token = request.headers.get("X-Client-Portal-Token", "").strip()
-    if header_token and header_token == portal_token_str:
-        return True
+    # 2. Check if caller is assigned consultant accessing via authenticated Support Mode
+    user = getattr(request, "user", None)
+    if user and user.is_authenticated:
+        try:
+            if portal_token_str.isdigit():
+                project = Project.objects.get(id=int(portal_token_str), is_archived=False)
+            else:
+                project = Project.objects.get(portal_token=portal_token_str, is_archived=False)
+            if project.consultant_id == user.id:
+                query_params = getattr(request, "query_params", request.GET)
+                support_indicator = (
+                    request.headers.get("X-Support-Mode")
+                    or request.headers.get("X-Consultant-Support")
+                    or query_params.get("support")
+                    or query_params.get("mode")
+                    or query_params.get("consultant")
+                )
+                if support_indicator and str(support_indicator).strip().lower() in ("true", "1", "yes", "consultant"):
+                    return True
+        except Exception:
+            pass
 
     # 3. If project exists and has NO password set, allow open access
     try:
@@ -156,17 +181,74 @@ class ClientPortalAccessPermission(BasePermission):
     message = "Portal password verification required."
 
     def has_permission(self, request, view):
-        portal_token = view.kwargs.get("portal_token")
+        portal_token = view.kwargs.get("portal_token") or request.headers.get("X-Client-Portal-Token", "").strip()
         if not portal_token:
-            return False
+            raise NotFound("Client portal link not found.")
+
+        portal_token_str = str(portal_token)
+        try:
+            if portal_token_str.isdigit():
+                project = Project.objects.get(id=int(portal_token_str), is_archived=False)
+            else:
+                project = Project.objects.get(portal_token=portal_token_str, is_archived=False)
+        except (Project.DoesNotExist, ValueError):
+            raise NotFound("Client portal link not found.")
+
+        # If consultant is authenticated via JWT/session, verify consultant owns project
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            if project.consultant_id != user.id:
+                raise PermissionDenied("Permission denied: you are not the assigned consultant for this project.")
+
+            query_params = getattr(request, "query_params", request.GET)
+            support_indicator = (
+                request.headers.get("X-Support-Mode")
+                or request.headers.get("X-Consultant-Support")
+                or query_params.get("support")
+                or query_params.get("mode")
+                or query_params.get("consultant")
+            )
+            is_support_mode = False
+            if support_indicator:
+                norm = str(support_indicator).strip().lower()
+                if norm in ("true", "1", "yes", "consultant"):
+                    is_support_mode = True
+
+            if is_support_mode:
+                return True
+            # On normal client URL without Support Mode signal, do NOT silently enter as support.
+            # Continue to client portal verification below.
 
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             header_token = request.headers.get("X-Client-Portal-Token", "").strip()
-            if not header_token or header_token != str(portal_token):
-                self.message = "Portal token verification failed."
-                return False
+            if not header_token or header_token != portal_token_str:
+                raise PermissionDenied("Portal token verification failed.")
 
-        return is_verified_client_portal_access(request, portal_token)
+        if not is_verified_client_portal_access(request, portal_token):
+            raise PermissionDenied(self.message)
+
+        return True
+
+
+class ClientOnlyActionPermission(BasePermission):
+    message = "Consultants assisting in Support Mode are not permitted to perform client-only actions."
+
+    def has_permission(self, request, view):
+        # 1. Reject if authenticated consultant/user is calling
+        user = getattr(request, "user", None)
+        if user and user.is_authenticated:
+            raise PermissionDenied(self.message)
+
+        # 2. Reject if Support Mode headers or flags are present
+        support_indicator = (
+            request.headers.get("X-Support-Mode")
+            or request.headers.get("X-Consultant-Support")
+            or request.query_params.get("support")
+        )
+        if support_indicator and str(support_indicator).lower() in ("true", "1", "yes"):
+            raise PermissionDenied(self.message)
+
+        return True
 
 
 def mask_email(email):
@@ -1658,6 +1740,14 @@ class ProjectListCreateView(APIView):
 
         workflow_status = request.query_params.get("status", "").strip()
 
+        if workflow_status:
+            if workflow_status in PROJECT_WORKFLOW_STATUS_FILTERS:
+                projects = projects.annotate(
+                    annotated_workflow_status=get_workflow_status_annotation(),
+                ).filter(annotated_workflow_status=workflow_status)
+            else:
+                projects = projects.none()
+
         projects = projects.order_by("-created_at").select_related(
             "client_profile",
             "discovery",
@@ -1673,16 +1763,6 @@ class ProjectListCreateView(APIView):
             "deliverables",
             "payment_milestones",
         )
-
-        if workflow_status:
-            if workflow_status in PROJECT_WORKFLOW_STATUS_FILTERS:
-                projects = [
-                    project
-                    for project in projects
-                    if calculate_project_workflow_status(project) == workflow_status
-                ]
-            else:
-                projects = projects.none()
 
         paginator = ProjectPagination()
         paginated_projects = paginator.paginate_queryset(projects, request)
@@ -2508,7 +2588,7 @@ def _project_assistant_source_labels(context):
 
 
 class ClientPortalProjectView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def get(self, request, portal_token):
@@ -2597,7 +2677,7 @@ class ClientPortalLogoutView(APIView):
 
 
 class ClientPortalBrandDNAView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def get(self, request, portal_token):
@@ -2626,7 +2706,7 @@ class ClientPortalBrandDNAView(APIView):
 
 
 class ClientPortalDiscoveryView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def get_project(self, portal_token):
@@ -2819,7 +2899,7 @@ class ClientPortalDiscoveryView(APIView):
 
 
 class ClientPortalMoodboardView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def get(self, request, portal_token):
@@ -2845,7 +2925,7 @@ class ClientPortalMoodboardView(APIView):
 
 
 class ClientPortalMoodboardSelectView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def post(self, request, portal_token, moodboard_id):
@@ -2903,7 +2983,7 @@ class ClientPortalMoodboardSelectView(APIView):
 
 
 class ClientPortalConceptView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def get(self, request, portal_token):
@@ -2935,7 +3015,7 @@ class ClientPortalConceptView(APIView):
 
 
 class ClientPortalConceptFeedbackView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def post(self, request, portal_token, concept_id):
@@ -3055,7 +3135,7 @@ class ClientPortalConceptFeedbackView(APIView):
 
 
 class ClientPortalDeliverableView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def get(self, request, portal_token):
@@ -3083,7 +3163,7 @@ class ClientPortalDeliverableView(APIView):
 
 
 class ClientPortalAgreementView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def get_project(self, portal_token):
@@ -3159,6 +3239,7 @@ class ClientPortalProjectAgreementPDFView(ClientPortalAgreementView):
 
 
 class ClientPortalProjectAgreementSignView(ClientPortalAgreementView):
+    permission_classes = [ClientPortalAccessPermission, ClientOnlyActionPermission]
     def post(self, request, portal_token):
         project = self.get_project(portal_token)
 
@@ -3308,7 +3389,7 @@ class ClientPortalProjectAgreementSignView(ClientPortalAgreementView):
 
 
 class ClientPortalGeneratedAgreementView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def get_project(self, portal_token):
@@ -3413,6 +3494,7 @@ class ClientPortalGeneratedAgreementPDFView(ClientPortalGeneratedAgreementView):
 
 
 class ClientPortalGeneratedAgreementAcceptView(ClientPortalGeneratedAgreementView):
+    permission_classes = [ClientPortalAccessPermission, ClientOnlyActionPermission]
     def post(self, request, portal_token):
         project = self.get_project(portal_token)
 
@@ -3484,7 +3566,7 @@ class ClientPortalGeneratedAgreementAcceptView(ClientPortalGeneratedAgreementVie
 
 
 class ClientPortalPaymentMilestoneView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     milestone_order = {
@@ -3515,8 +3597,8 @@ class ClientPortalPaymentMilestoneView(APIView):
 
 
 class ClientPortalPaymentOrderCreateView(APIView):
-    authentication_classes = []
-    permission_classes = [ClientPortalAccessPermission]
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
+    permission_classes = [ClientPortalAccessPermission, ClientOnlyActionPermission]
 
     def get_project(self, portal_token):
         try:
@@ -3694,8 +3776,8 @@ class ClientPortalPaymentOrderCreateView(APIView):
 
 
 class ClientPortalPaymentVerifyView(APIView):
-    authentication_classes = []
-    permission_classes = [ClientPortalAccessPermission]
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
+    permission_classes = [ClientPortalAccessPermission, ClientOnlyActionPermission]
 
     required_fields = [
         "razorpay_order_id",
@@ -4184,7 +4266,7 @@ class RazorpayWebhookView(APIView):
 
 
 class ClientPortalAssetDownloadView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def get_project(self, portal_token):
@@ -4351,8 +4433,8 @@ class ClientPortalAssetDownloadView(APIView):
 
 
 class ClientPortalSignOffView(APIView):
-    authentication_classes = []
-    permission_classes = [ClientPortalAccessPermission]
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
+    permission_classes = [ClientPortalAccessPermission, ClientOnlyActionPermission]
 
     def post(self, request, portal_token):
         try:
@@ -4424,7 +4506,7 @@ class ClientPortalSignOffView(APIView):
 
 
 class ClientPortalActivityView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def get(self, request, portal_token):
@@ -4448,7 +4530,7 @@ class ClientPortalActivityView(APIView):
 
 
 class ClientPortalActivityMarkReadView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [ClientPortalAccessPermission]
 
     def post(self, request, portal_token):
@@ -4478,7 +4560,7 @@ class ClientPortalActivityMarkReadView(APIView):
 
 
 class ClientProfileView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [AllowAny]
 
     def get_project(self, request, project_id):
@@ -4593,7 +4675,7 @@ class ClientProfileView(APIView):
 
 
 class ProjectDiscoveryView(APIView):
-    authentication_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
     permission_classes = [AllowAny]
 
     def get_project(self, request, project_id):
@@ -6026,17 +6108,23 @@ class AgreementView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        agreement = getattr(project, "project_agreement", None)
-
-        if agreement is None:
+        project_agreement = getattr(project, "project_agreement", None)
+        if project_agreement is not None:
             return Response(
-                {"detail": "Agreement not found."},
-                status=status.HTTP_404_NOT_FOUND,
+                get_project_agreement_payload(project_agreement, request),
+                status=status.HTTP_200_OK,
+            )
+
+        manual_agreement = self.get_agreement(project)
+        if manual_agreement is not None:
+            return Response(
+                ConsultantAgreementSerializer(manual_agreement, context={"request": request}).data,
+                status=status.HTTP_200_OK,
             )
 
         return Response(
-            get_project_agreement_payload(agreement, request),
-            status=status.HTTP_200_OK,
+            {"detail": "Agreement not found."},
+            status=status.HTTP_404_NOT_FOUND,
         )
 
     def post(self, request, project_id):
@@ -7685,8 +7773,8 @@ class ClientPortalHelpRequestView(APIView):
     REST API endpoint for client to request help on a discovery step.
     Creates activity log and broadcasts to consultant via WebSocket channel layer.
     """
-    authentication_classes = []
-    permission_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
+    permission_classes = [ClientPortalAccessPermission]
 
     def post(self, request, portal_token):
         portal_token_str = str(portal_token)
@@ -7756,8 +7844,8 @@ class ClientPortalHelpResolveView(APIView):
     """
     REST API endpoint to resolve an active help request.
     """
-    authentication_classes = []
-    permission_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
+    permission_classes = [ClientPortalAccessPermission]
 
     def post(self, request, portal_token):
         portal_token_str = str(portal_token)
@@ -7794,13 +7882,13 @@ class ClientPortalHelpResolveView(APIView):
 
 class ClientPortalClientListView(APIView):
     """
-    Returns active client projects for the client portal dropdown.
+    Returns active client projects for the authenticated consultant's client portal dropdown.
     """
-    authentication_classes = []
-    permission_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        projects = Project.objects.filter(is_archived=False).select_related("client").order_by("-updated_at")[:50]
+        projects = Project.objects.filter(consultant=request.user, is_archived=False).select_related("client").order_by("-updated_at")[:50]
         data = [
             {
                 "id": p.id,
@@ -7808,7 +7896,6 @@ class ClientPortalClientListView(APIView):
                 "company_name": p.company_name,
                 "portal_token": str(p.portal_token),
                 "client_name": p.client.name if p.client else (p.company_name or "Client"),
-                "client_email": (p.client.email if p.client else "") or (getattr(p, "client_email", "") or ""),
             }
             for p in projects
         ]
@@ -7819,8 +7906,8 @@ class ClientPortalHelpStatusView(APIView):
     """
     Returns active help session status for a project portal.
     """
-    authentication_classes = []
-    permission_classes = []
+    authentication_classes = [CookieOrHeaderJWTAuthentication]
+    permission_classes = [ClientPortalAccessPermission]
 
     def get(self, request, portal_token):
         portal_token_str = str(portal_token)

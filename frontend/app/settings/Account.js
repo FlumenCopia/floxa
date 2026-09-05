@@ -289,11 +289,16 @@ export default function Account() {
       return;
     }
 
-    if (phone && !/^\d{10}$/.test(phone)) {
-      const message = "Phone number must be exactly 10 digits.";
-      setMessage(message);
-      showError(message);
-      return;
+    if (phone) {
+      const hasPlus = phone.startsWith("+");
+      const rest = hasPlus ? phone.slice(1) : phone;
+      const digits = phone.replace(/\D/g, "");
+      if (phone.length > 50 || rest.includes("+") || !/^[\d\s\-().]+$/.test(rest) || digits.length < 7 || digits.length > 15) {
+        const message = "Phone number must contain between 7 and 15 digits.";
+        setMessage(message);
+        showError(message);
+        return;
+      }
     }
 
     try {

@@ -33,9 +33,7 @@ from .models import (
     ProjectDiscovery,
 )
 from .progress import calculate_project_progress, calculate_project_workflow_status
-from .upload_validation import optimize_uploaded_image, validate_upload_file
-from .upload_validation import can_client_download_deliverable
-from .upload_validation import optimize_uploaded_image, validate_upload_file
+from .upload_validation import can_client_download_deliverable, optimize_uploaded_image, validate_upload_file
 
 
 class ClientProfileSerializer(serializers.ModelSerializer):
@@ -56,11 +54,51 @@ class ClientProfileSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def to_internal_value(self, data):
+        if hasattr(data, "copy"):
+            data = data.copy()
+        elif isinstance(data, dict):
+            data = dict(data)
+        if isinstance(data, dict) and "website" in data:
+            import re
+            website = str(data.get("website") or "").strip()
+            if website and not re.match(r"^https?://", website, re.IGNORECASE):
+                data["website"] = f"https://{website}"
+        return super().to_internal_value(data)
+
     def validate_phone(self, value):
         phone = str(value or "").strip()
-        if phone and (not phone.isdigit() or len(phone) != 10):
-            raise serializers.ValidationError("Phone number must be exactly 10 digits.")
+        if not phone:
+            return ""
+        if len(phone) > 50:
+            raise serializers.ValidationError("Phone number is too long (maximum 50 characters).")
+        has_plus = phone.startswith("+")
+        rest = phone[1:] if has_plus else phone
+        if "+" in rest:
+            raise serializers.ValidationError("Invalid phone number format.")
+        import re
+        if not re.match(r"^[\d\s\-().]+$", rest):
+            raise serializers.ValidationError(
+                "Phone number can only contain digits, spaces, hyphens, dots, parentheses, and an optional leading +."
+            )
+        digits = re.sub(r"\D", "", phone)
+        if len(digits) < 7 or len(digits) > 15:
+            raise serializers.ValidationError(
+                "Phone number must contain between 7 and 15 digits."
+            )
         return phone
+
+    def validate_website(self, value):
+        website = str(value or "").strip()
+        if not website:
+            return ""
+        import re
+        if not re.match(r"^https?://", website, re.IGNORECASE):
+            website = f"https://{website}"
+        from django.core.validators import URLValidator
+        validator = URLValidator()
+        validator(website)
+        return website
 
     def validate_year_started(self, value):
         if value is not None:
