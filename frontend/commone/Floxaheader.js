@@ -132,28 +132,28 @@ function getRelativeTime(timestamp) {
   return formatRelativeTimeString(years, "year");
 }
 
-function Icon({ type }) {
+function Icon({ type, size, strokeWidth }) {
   switch (type) {
     case "grid":
-      return <LayoutDashboard size={16} strokeWidth={1.8} />;
+      return <LayoutDashboard size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "mail":
-      return <FolderKanban size={16} strokeWidth={1.8} />;
+      return <FolderKanban size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "search":
-      return <Compass size={16} strokeWidth={1.8} />;
+      return <Compass size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "star":
-      return <Sparkles size={16} strokeWidth={1.8} />;
+      return <Sparkles size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "chart":
-      return <BarChart3 size={16} strokeWidth={1.8} />;
+      return <BarChart3 size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "portal":
-      return <ExternalLink size={16} strokeWidth={1.8} />;
+      return <ExternalLink size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "settings":
-      return <Settings size={16} strokeWidth={1.8} />;
+      return <Settings size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "bell":
-      return <Bell size={16} strokeWidth={1.8} />;
+      return <Bell size={size || 24} strokeWidth={strokeWidth || 2} />;
     case "logout":
-      return <LogOut size={16} strokeWidth={1.8} />;
+      return <LogOut size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     default:
-      return <LayoutDashboard size={16} strokeWidth={1.8} />;
+      return <LayoutDashboard size={size || 16} strokeWidth={strokeWidth || 1.8} />;
   }
 }
 
@@ -769,7 +769,7 @@ export default function Floxaheader({
               aria-expanded={isNotificationOpen}
               onClick={handleNotificationToggle}
             >
-              <Icon type="bell" />
+              <Icon type="bell" size={24} strokeWidth={2} />
             </button>
             {isNotificationOpen ? (
               <div className="notification-dropdown">
