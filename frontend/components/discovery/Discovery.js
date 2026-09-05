@@ -400,15 +400,6 @@ function SummaryHeader({ project }) {
     }
   }
 
-  function handleOpenPortal() {
-    if (!project?.portal_token) {
-      showError("Client portal link is unavailable for this project.");
-      return;
-    }
-
-    window.open(`/client/${project.portal_token}`, "_blank", "noopener,noreferrer");
-  }
-
   return (
     <section className="discovery-card discovery-summary">
       <div className="discovery-summary-main">
@@ -427,9 +418,6 @@ function SummaryHeader({ project }) {
           <button className="btn btn-secondary discovery-link-btn" type="button" onClick={handleCopyPortalLink}>
             <span className="discovery-btn-icon" aria-hidden="true" />
             Link
-          </button>
-          <button className="btn btn-primary discovery-portal-btn" type="button" onClick={handleOpenPortal}>
-            {"Portal ->"}
           </button>
         </div>
       </div>
