@@ -66,44 +66,7 @@
   font: inherit;
 }
 
-.client-portal-shell::before {
-  content: "";
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  width: 170vmax;
-  height: 170vmax;
-  margin-top: -85vmax;
-  margin-left: -85vmax;
-  z-index: -2;
-  background: url("/client-design/banner1.png") center ;
-  opacity: 1;
-  filter: brightness(1.35) contrast(1.12) saturate(1.35);
-  animation: client-background-spin 90s linear infinite;
-  will-change: transform;
-  pointer-events: none;
-}
-
-.client-portal-shell::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(circle at 50% 35%, rgba(77, 255, 160, 0.12), transparent 55%),
-    radial-gradient(circle at 50% 50%, rgba(0, 15, 8, 0.12), rgba(0, 7, 4, 0.55)),
-    linear-gradient(180deg, rgba(0, 10, 6, 0.08) 0%, rgba(0, 7, 4, 0.48) 100%);
-  pointer-events: none;
-}
-
-@keyframes client-background-spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
+/* (Background inherited from global floxa-ambient-bg rule in globals.css) */
 
 @keyframes client-design-enter {
   from {
@@ -186,16 +149,17 @@
   justify-content: center;
   padding: clamp(64px, 7vw, 96px) clamp(44px, 6vw, 84px);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 48px;
-  background: rgba(0, 14, 8, 0.32);
-  backdrop-filter: blur(20px) saturate(160%) brightness(1.08);
-  -webkit-backdrop-filter: blur(20px) saturate(160%) brightness(1.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: none !important;
+  border-right: none !important;
+  border-radius: 44px !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(28px) saturate(130%) brightness(0.96);
+  -webkit-backdrop-filter: blur(28px) saturate(130%) brightness(0.96);
   box-shadow:
-    0 32px 80px rgba(0, 0, 0, 0.5),
-    0 0 80px rgba(77, 255, 160, 0.05),
-    inset 0 1px 1px rgba(255, 255, 255, 0.25),
-    inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+    0 40px 100px rgba(0, 0, 0, 0.7),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.5);
   transition:
     width 1.15s cubic-bezier(0.16, 1, 0.3, 1),
     min-height 1.15s cubic-bezier(0.16, 1, 0.3, 1),
@@ -210,22 +174,7 @@
 
 .client-welcome-glass::before,
 .client-welcome-glass::after {
-  content: "";
-  position: absolute;
-  left: 6%;
-  right: 6%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  pointer-events: none;
-}
-
-.client-welcome-glass::before {
-  top: 0;
-}
-
-.client-welcome-glass::after {
-  bottom: 0;
-  opacity: 0.5;
+  display: none;
 }
 
 /* Stage Track for Overlapping Transitions without Layout Jumps */
@@ -1828,32 +1777,44 @@
 .client-journey-card {
   min-height: 175px;
   position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   padding: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 22px;
   color: rgba(190, 221, 209, 0.34);
-  background: rgba(13, 24, 19, 0.36);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.48);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4);
   text-align: left;
   cursor: not-allowed;
   transition:
-    transform 0.2s ease,
-    border-color 0.2s ease,
-    background 0.2s ease;
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.3s ease,
+    background 0.3s ease,
+    box-shadow 0.3s ease;
 }
 
 .client-journey-card.available {
-  color: rgba(241, 250, 247, 0.9);
-  border-color: rgba(255, 255, 255, 0.13);
+  color: rgba(241, 250, 247, 0.95);
+  border-color: rgba(255, 255, 255, 0.18);
   cursor: pointer;
 }
 
 .client-journey-card.available:hover {
-  transform: translateY(-4px);
-  border-color: rgba(196, 239, 223, 0.32);
-  background: rgba(24, 42, 36, 0.52);
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(255, 255, 255, 0.32);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 40%), rgba(14, 28, 42, 0.62);
+  box-shadow:
+    0 28px 60px rgba(0, 0, 0, 0.55),
+    0 0 30px rgba(77, 255, 160, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 
 .client-card-number,
@@ -1884,65 +1845,24 @@
 }
 
 .client-dashboard-panel {
+  position: relative;
+  overflow: hidden;
   margin-top: 14px;
   padding: clamp(24px, 4vw, 42px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 26px;
-  background: rgba(8, 18, 13, 0.58);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.52);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.28),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.4);
 }
 
-.client-panel-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
-}
 
-.client-panel-heading span,
-.client-brand-summary > span {
-  color: rgba(174, 219, 202, 0.5);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
 
-.client-panel-heading h2 {
-  margin: 2px 0 0;
-  color: #fff;
-  font-size: 28px;
-  text-transform: capitalize;
-}
 
-.client-brand-summary h3 {
-  margin: 8px 0;
-  color: #dfffee;
-  font-size: clamp(24px, 4vw, 46px);
-}
-
-.client-brand-summary p,
-.client-panel-stack p {
-  max-width: 720px;
-  margin: 0;
-  color: rgba(190, 221, 209, 0.62);
-  line-height: 1.7;
-}
-
-.client-panel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 14px;
-}
-
-.client-panel-grid article,
-.client-panel-stack article {
-  min-width: 0;
-  padding: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.04);
-}
 
 .client-panel-grid article.selected {
   border-color: rgba(157, 239, 205, 0.42);
@@ -2690,6 +2610,34 @@
   .client-agreement-preview-frame {
     min-height: 220px;
   }
+}
+
+/* ============================================================
+   ZERO BORDER RADIUS FOR ALL SECTIONS, CARDS, AND TABLES
+   ============================================================ */
+section,
+[class*="-section"],
+[class*="section-"],
+.client-review-section,
+.client-review-section article,
+.client-journey-card,
+.client-competitor-card,
+.client-agreement-card,
+.client-dashboard-panel,
+.cp-card,
+.card,
+[class*="-card"],
+[class*="card-"],
+table,
+.table-wrap,
+[class*="-table"],
+[class*="table-"],
+thead,
+tbody,
+tr,
+th,
+td {
+  border-radius: 0 !important;
 }
 
 /* ==========================================================================
@@ -3566,5 +3514,3 @@
   color: #ffffff;
   border-color: #ef4444;
 }
-
-

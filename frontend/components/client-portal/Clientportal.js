@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ShoppingCart, Gem, Globe, Sparkles, Sprout, Building2, X, ArrowLeft, ArrowRight } from "lucide-react";
 import { supportSocket } from "../../services/supportSocketService";
 import { clientPortalService } from "../../services/clientPortalService";
 import { getProjects } from "../../src/lib/projectApi";
@@ -136,14 +137,24 @@ const defaultAnswers = {
   whyTrustYou: "",
 };
 
-const choiceIconLabels = {
-  cart: "$",
-  gem: "D",
-  globe: "O",
-  spark: "*",
-  sprout: "^",
-  building: "#",
-};
+function ChoiceIcon({ icon }) {
+  switch (icon) {
+    case "cart":
+      return <ShoppingCart size={16} strokeWidth={1.8} />;
+    case "gem":
+      return <Gem size={16} strokeWidth={1.8} />;
+    case "globe":
+      return <Globe size={16} strokeWidth={1.8} />;
+    case "spark":
+      return <Sparkles size={16} strokeWidth={1.8} />;
+    case "sprout":
+      return <Sprout size={16} strokeWidth={1.8} />;
+    case "building":
+      return <Building2 size={16} strokeWidth={1.8} />;
+    default:
+      return <Sparkles size={16} strokeWidth={1.8} />;
+  }
+}
 
 const makeSliderState = (pairs) =>
   pairs.reduce((acc, pair) => ({ ...acc, [pair.join("-")]: 0 }), {});
@@ -175,12 +186,13 @@ function PortalHeader({ onClose, onVideoCall, callState }) {
             {callState === "connected"
               ? "In Call"
               : callState === "incoming_ringing"
-              ? "Incoming Call!"
-              : "Video Call Client"}
+                ? "Incoming Call!"
+                : "Video Call Client"}
           </button>
         ) : null}
         <button className="cp-close" onClick={onClose} type="button">
-          X Close
+          <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+          Close
         </button>
       </div>
     </header>
@@ -265,7 +277,8 @@ function PortalCard({
       </div>
       <footer className="cp-card-footer">
         <button className="cp-back" type="button" onClick={onBack}>
-          {"<- Back"}
+          <ArrowLeft size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+          Back
         </button>
         <StepDots active={step} />
         {!isConsultantMode ? (
@@ -275,7 +288,8 @@ function PortalCard({
             onClick={onNext}
             disabled={isReadOnly}
           >
-            {submit ? "Submit Discovery ->" : "Continue ->"}
+            {submit ? "Submit Discovery" : "Continue"}
+            <ArrowRight size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginLeft: "4px" }} />
           </button>
         ) : !submit ? (
           <button
@@ -284,13 +298,17 @@ function PortalCard({
             onClick={onNext}
             disabled={isReadOnly}
           >
-            {"Continue ->"}
+            Continue
+            <ArrowRight size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginLeft: "4px" }} />
           </button>
         ) : null}
       </footer>
     </section>
   );
 }
+
+
+
 
 function SliderRows({ pairs, values, setValues, isReadOnly, onSync }) {
   return (
@@ -359,7 +377,7 @@ function ChoiceGrid({ items, selected, setSelected, limit = 1, className = "", i
           >
             {icon ? (
               <span className={`cp-choice-icon ${icon}`.trim()}>
-                {choiceIconLabels[icon] || icon}
+                <ChoiceIcon icon={icon} />
               </span>
             ) : null}
             <strong>{title}</strong>
@@ -738,9 +756,9 @@ export default function Clientportal() {
       const next = base.map((item, i) =>
         i === index
           ? {
-              ...item,
-              [field]: field === "rating" && item.rating === value ? "" : value,
-            }
+            ...item,
+            [field]: field === "rating" && item.rating === value ? "" : value,
+          }
           : item
       );
       supportSocket.syncField({ pageId, fieldKey: "comps", value: next });

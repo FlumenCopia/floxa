@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getProjects } from "../../src/lib/projectApi";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
+import { ChevronDown, Plus } from "lucide-react";
 
 export const statusOptions = [
   "All statuses",
@@ -263,23 +264,7 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                     onClick={() => setIsStatusOpen((open) => !open)}
                   >
                     {selectedStatus}
-                    <svg
-                      className="project-filter-caret"
-                      width="14"
-                      height="14"
-                      viewBox="0 0 14 14"
-                      fill="none"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path
-                        d="M3.5 5.25L7 8.75L10.5 5.25"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+                    <ChevronDown className="project-filter-caret" size={14} />
                   </button>
 
                   {isStatusOpen ? (
@@ -299,7 +284,8 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                 </div>
 
                 <button className="btn btn-primary project-new-btn" type="button" onClick={handleOpenWizard}>
-                  + New
+                  <Plus size={15} strokeWidth={2.2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+                  New
                 </button>
               </div>
             </div>

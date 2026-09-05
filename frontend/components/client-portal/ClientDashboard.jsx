@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { clientPortalService } from "../../services/clientPortalService";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/src/lib/api";
+import { Bell } from "lucide-react";
 
 const phaseLabels = [
   "Profile",
@@ -1134,10 +1135,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               onClick={toggleNotifications}
             >
               <span className="client-notification-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" focusable="false">
-                  <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
-                  <path d="M10 20a2 2 0 0 0 4 0" />
-                </svg>
+                <Bell size={18} strokeWidth={1.8} />
               </span>
               {unreadCount > 0 ? <span className="client-notification-count">{unreadCount}</span> : null}
             </button>

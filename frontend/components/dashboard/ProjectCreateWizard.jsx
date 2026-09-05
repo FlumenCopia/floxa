@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { createProject, retryProjectInvite } from "../../src/lib/projectApi";
 import { showError, showSuccess } from "../../src/lib/toast";
+import { Check } from "lucide-react";
 
 const paymentFields = ["advance", "mid", "final"];
 
@@ -30,9 +31,7 @@ function StepIndicator({ done, active, step }) {
   if (done) {
     return (
       <span className={`project-step-chip ${active ? "active" : ""} done`.trim()}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
-          <path d="m5 13 4 4L19 7" />
-        </svg>
+        <Check size={14} strokeWidth={2.4} />
       </span>
     );
   }

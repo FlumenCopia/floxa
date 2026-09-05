@@ -6,6 +6,7 @@ import { useState } from "react";
 import { registerConsultant } from "../../src/lib/authApi";
 import { showError, showSuccess } from "../../src/lib/toast";
 import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
+import { ArrowRight, ArrowLeft, User, Mail, Lock } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -97,9 +98,7 @@ export default function RegisterPage() {
             >
               <span>Let&apos;s Begin</span>
               <span className="login-btn-arrow" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
+                <ArrowRight size={14} strokeWidth={2.5} />
               </span>
             </button>
           </div>
@@ -126,9 +125,7 @@ export default function RegisterPage() {
               >
                 <span>Go Back</span>
                 <span className="login-btn-arrow" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                  </svg>
+                  <ArrowLeft size={14} strokeWidth={2.5} />
                 </span>
               </button>
             </div>
@@ -138,10 +135,7 @@ export default function RegisterPage() {
               {/* Input 1: Name */}
               <div className="login-pill-input-wrap">
                 <span className="login-pill-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
+                  <User size={18} strokeWidth={2} stroke="#6b7280" />
                 </span>
                 <input
                   type="text"
@@ -158,10 +152,7 @@ export default function RegisterPage() {
               {/* Input 2: Email */}
               <div className="login-pill-input-wrap">
                 <span className="login-pill-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="4" width="20" height="16" rx="2" />
-                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                  </svg>
+                  <Mail size={18} strokeWidth={2} stroke="#6b7280" />
                 </span>
                 <input
                   type="email"
@@ -178,10 +169,7 @@ export default function RegisterPage() {
               {/* Input 3: Password */}
               <div className="login-pill-input-wrap">
                 <span className="login-pill-icon" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
+                  <Lock size={18} strokeWidth={2} stroke="#6b7280" />
                 </span>
                 <input
                   type="password"
@@ -210,9 +198,7 @@ export default function RegisterPage() {
               >
                 <span>{isLoading ? "Creating account..." : "Get Started"}</span>
                 <span className="login-btn-arrow" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                  </svg>
+                  <ArrowRight size={14} strokeWidth={2.5} />
                 </span>
               </button>
 

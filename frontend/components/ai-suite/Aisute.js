@@ -2,6 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getBrandDNA, getDiscoverySummary, getProject, getProjects } from "../../src/lib/projectApi";
+import {
+  Sparkles,
+  Dna,
+  Mic,
+  Palette,
+  Lightbulb,
+  FileText,
+  FileCheck,
+  HeartHandshake,
+  BarChart2,
+  Bot,
+} from "lucide-react";
 
 const tools = [
   {
@@ -107,24 +119,26 @@ const tools = [
 
 function ToolIcon({ type }) {
   switch (type) {
+    case "spark":
+      return <Sparkles size={18} strokeWidth={1.8} />;
     case "dna":
-      return <span className="ai-suite-tool-glyph">DNA</span>;
+      return <Dna size={18} strokeWidth={1.8} />;
     case "voice":
-      return <span className="ai-suite-tool-glyph">MIC</span>;
+      return <Mic size={18} strokeWidth={1.8} />;
     case "palette":
-      return <span className="ai-suite-tool-glyph">ART</span>;
+      return <Palette size={18} strokeWidth={1.8} />;
     case "idea":
-      return <span className="ai-suite-tool-glyph">IDEA</span>;
+      return <Lightbulb size={18} strokeWidth={1.8} />;
     case "brief":
-      return <span className="ai-suite-tool-glyph">BRF</span>;
+      return <FileText size={18} strokeWidth={1.8} />;
     case "doc":
-      return <span className="ai-suite-tool-glyph">DOC</span>;
+      return <FileCheck size={18} strokeWidth={1.8} />;
     case "heart":
-      return <span className="ai-suite-tool-glyph">AI</span>;
+      return <HeartHandshake size={18} strokeWidth={1.8} />;
     case "chart":
-      return <span className="ai-suite-tool-glyph">BAR</span>;
+      return <BarChart2 size={18} strokeWidth={1.8} />;
     default:
-      return <span className="ai-suite-tool-glyph">AI</span>;
+      return <Sparkles size={18} strokeWidth={1.8} />;
   }
 }
 
@@ -407,7 +421,9 @@ export default function Aisute() {
 
           <section className="ai-suite-card ai-suite-live-card">
             <div className="ai-suite-live-main">
-              <div className="ai-suite-live-icon">+</div>
+              <div className="ai-suite-live-icon">
+                <Bot size={18} strokeWidth={1.8} />
+              </div>
               <div>
                 <div className="ai-suite-live-title">AI Co-Pilot is {isCopilotLive ? "active" : "paused"}</div>
                 <div className="ai-suite-live-copy">

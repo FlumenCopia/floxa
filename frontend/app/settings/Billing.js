@@ -1,5 +1,7 @@
 "use client";
 
+import { Check } from "lucide-react";
+
 const planFeatures = ["Plan details unavailable"];
 
 export default function Billing() {
@@ -13,9 +15,7 @@ export default function Billing() {
       <div className="settings-feature-list">
         {planFeatures.map((feature) => (
           <div className="settings-feature-item" key={feature}>
-            <svg aria-hidden="true" className="settings-check-icon" viewBox="0 0 24 24">
-              <path d="m5 12 4 4L19 6" />
-            </svg>
+            <Check aria-hidden="true" className="settings-check-icon" size={16} strokeWidth={2.2} />
             <span>{feature}</span>
           </div>
         ))}
