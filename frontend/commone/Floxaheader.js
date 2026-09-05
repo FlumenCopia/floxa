@@ -21,6 +21,10 @@ import {
   Search,
   User,
 } from "lucide-react";
+import { supportSocket } from "../services/supportSocketService";
+import { webRTCService } from "../services/webRTCService";
+import { VideoCallModal } from "../components/client-portal/VideoCallModal";
+import "../components/client-portal/ClientPortal.css";
 
 const primaryNavItems = [
   { label: "DASHBOARD", icon: "grid", route: "/" },
@@ -43,6 +47,7 @@ const mobileTabItems = [
 ];
 
 const notificationTabByAction = {
+  client_help_requested: "discovery",
   client_profile_submitted: "discovery",
   client_profile_updated: "discovery",
   discovery_submitted: "discovery",
@@ -240,6 +245,54 @@ export default function Floxaheader({
     ? headerNotifications.filter((notification) => !notification.is_read).length
     : notificationCount;
 
+  const [callState, setCallState] = useState("idle");
+
+  useEffect(() => {
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("floxa_jwt") ||
+          localStorage.getItem("floxa_token") ||
+          "active"
+        : "";
+    if (token) {
+      supportSocket.connectConsultantNotifications({ consultantToken: token });
+    }
+
+    return webRTCService.on("state_change", (state) => {
+      setCallState(state);
+    });
+  }, []);
+
+  const handleNavbarVideoClick = () => {
+    if (callState === "incoming_ringing") {
+      webRTCService.acceptCall();
+    } else if (callState === "connected") {
+      // active
+    } else {
+      const targetNotif = visibleNotifications.find(
+        (n) => n.project_id || n.metadata?.project_id
+      );
+      const targetProjectId =
+        targetNotif?.project_id || targetNotif?.metadata?.project_id;
+      if (targetProjectId) {
+        webRTCService.initiateCall({
+          projectId: targetProjectId,
+          clientName:
+            targetNotif?.client_name ||
+            targetNotif?.metadata?.client_name ||
+            "Client",
+          projectTitle:
+            targetNotif?.project_title ||
+            targetNotif?.metadata?.project_title ||
+            "Project",
+          role: "consultant",
+        });
+      } else {
+        router.push("/client-portal");
+      }
+    }
+  };
+
   useEffect(() => {
     if (!readActivityIds.length) {
       return;
@@ -311,7 +364,7 @@ export default function Floxaheader({
 
     async function validateSession() {
       try {
-        const currentConsultant = await getCurrentConsultant();
+        const currentConsultant = await getCurrentConsultant(true);
         cachedConsultant = currentConsultant;
         hasValidatedSession = true;
 
@@ -345,6 +398,11 @@ export default function Floxaheader({
     }
 
     let isMounted = true;
+
+    // Connect consultant global WebSocket notification listener
+    const consultantJwt = typeof window !== "undefined" ? (localStorage.getItem("floxa_jwt") || localStorage.getItem("access") || "active") : "";
+    supportSocket.connectConsultantNotifications({ consultantToken: consultantJwt });
+
     const initialLoadId = window.setTimeout(() => {
       if (isMounted) {
         loadHeaderNotifications({ showLoading: true });
@@ -356,10 +414,37 @@ export default function Floxaheader({
       }
     }, 30000);
 
+    const unsubscribeLiveHelp = supportSocket.on("help_requested", (data) => {
+      if (!isMounted) return;
+      const clientName = data.client_name || "Client";
+      const projectTitle = data.project_title ? ` (${data.project_title})` : "";
+      const stepLabel = data.page_id || "a step";
+      const questionText = data.question ? `: "${data.question}"` : "";
+
+      const newNotification = {
+        id: Date.now(),
+        action: "client_help_requested",
+        description: `💬 ${clientName}${projectTitle} needs help on ${stepLabel}${questionText}`,
+        is_read: false,
+        created_at: new Date().toISOString(),
+        portal_token: data.portal_token,
+        project_id: data.project_id,
+        metadata: {
+          portal_token: data.portal_token,
+          project_id: data.project_id,
+          page_id: data.page_id,
+        },
+      };
+
+      setHeaderNotifications((current) => [newNotification, ...current]);
+      showSuccess(`💬 ${clientName} needs help on ${stepLabel}${questionText}`);
+    });
+
     return () => {
       isMounted = false;
       window.clearTimeout(initialLoadId);
       window.clearInterval(intervalId);
+      unsubscribeLiveHelp();
     };
   }, [isAuthChecked, loadHeaderNotifications]);
 
@@ -445,6 +530,12 @@ export default function Floxaheader({
 
   const handleNotificationItemClick = (notification) => {
     setIsNotificationOpen(false);
+
+    if (notification?.action === "client_help_requested" && (notification?.portal_token || notification?.metadata?.portal_token)) {
+      const token = notification.portal_token || notification.metadata.portal_token;
+      router.push(`/client/${token}?mode=consultant&consultant=true`);
+      return;
+    }
 
     const projectId = getNotificationProjectId(notification);
     const tab = notificationTabByAction[notification?.action];
@@ -634,6 +725,41 @@ export default function Floxaheader({
               onChange={(event) => setProjectSearch(event.target.value)}
             />
           </form>
+          {callState === "incoming_ringing" ? (
+            <div className="floxa-nav-incoming-call-group">
+              <span className="floxa-nav-ringing-indicator">
+                📹 Incoming: <strong>{webRTCService.currentCallInfo?.clientName || "Client"}</strong>
+              </span>
+              <button
+                type="button"
+                className="floxa-nav-btn-pick"
+                title="Accept Call"
+                onClick={() => webRTCService.acceptCall()}
+              >
+                📞 Pick
+              </button>
+              <button
+                type="button"
+                className="floxa-nav-btn-deny"
+                title="Decline Call"
+                onClick={() => webRTCService.rejectCall()}
+              >
+                ✕ Deny
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={`floxa-nav-video-btn ${callState === "connected" ? "in-call" : ""}`}
+              title={callState === "connected" ? "Active Video Call" : "Video Call Client"}
+              onClick={handleNavbarVideoClick}
+            >
+              <span>📹</span>
+              <span>
+                {callState === "connected" ? "In Call" : "Video Call"}
+              </span>
+            </button>
+          )}
           <div className="notification-wrap">
             <button
               className="icon-btn"
@@ -699,6 +825,8 @@ export default function Floxaheader({
           {children}
         </div>
       </div>
+
+      <VideoCallModal currentRole="consultant" />
 
       <div className="mobile-tabbar">
         {resolvedMobileTabItems.map((item) => (

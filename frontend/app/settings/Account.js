@@ -529,23 +529,6 @@ export default function Account() {
               <span>CONSULTANT</span>
               <span>•</span>
               <span>{formData.company || "General"}</span>
-              <span>•</span>
-              <button
-                type="button"
-                onClick={() => setMenuOpen((open) => !open)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  color: "#34d399",
-                  fontWeight: "700",
-                  textDecoration: "underline",
-                  cursor: "pointer",
-                  fontSize: "0.95rem",
-                }}
-              >
-                Photo
-              </button>
             </div>
           </div>
         </div>

@@ -42,10 +42,19 @@ from projects.views import (
     ClientPortalProjectAgreementSignView,
     ClientPortalProjectView,
     ClientPortalSignOffView,
+    ClientPortalHelpRequestView,
+    ClientPortalHelpResolveView,
+    ClientPortalHelpStatusView,
+    ClientPortalClientListView,
     RazorpayWebhookView,
 )
 
 urlpatterns = [
+    path(
+        "api/client-portal/client-list/",
+        ClientPortalClientListView.as_view(),
+        name="client-portal-client-list",
+    ),
     path("admin/", admin.site.urls),
     path("api/auth/", include("accounts.urls")),
     path("api/ai/", include("ai_assistant.urls")),
@@ -60,12 +69,27 @@ urlpatterns = [
         name="client-portal-project",
     ),
     path(
+        "api/client-portal/<uuid:portal_token>/help-status/",
+        ClientPortalHelpStatusView.as_view(),
+        name="client-portal-help-status",
+    ),
+    path(
+        "api/client-portal/<uuid:portal_token>/help-request/",
+        ClientPortalHelpRequestView.as_view(),
+        name="client-portal-help-request",
+    ),
+    path(
+        "api/client-portal/<uuid:portal_token>/help-resolve/",
+        ClientPortalHelpResolveView.as_view(),
+        name="client-portal-help-resolve",
+    ),
+    path(
         "api/client-portal/<uuid:portal_token>/brand-dna/",
         ClientPortalBrandDNAView.as_view(),
         name="client-portal-brand-dna",
     ),
     path(
-        "api/client-portal/<uuid:portal_token>/discovery/",
+        "api/client-portal/<str:portal_token>/discovery/",
         ClientPortalDiscoveryView.as_view(),
         name="client-portal-discovery",
     ),
