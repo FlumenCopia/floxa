@@ -2534,10 +2534,12 @@ textarea {
   margin-bottom: 14px;
 }
 
-.discovery-payment-legend span {
+.discovery-payment-legend span,
+.discovery-payment-legend .discovery-payment-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 7px;
   padding: 5px 14px;
   border-radius: 20px;
   background: rgba(8, 30, 20, 0.65);
@@ -2548,10 +2550,36 @@ textarea {
   transition: all 0.2s ease;
 }
 
-.discovery-payment-legend span:hover {
+.discovery-payment-legend span:hover,
+.discovery-payment-legend .discovery-payment-pill:hover {
   background: rgba(14, 45, 30, 0.85);
   border-color: rgba(77, 255, 160, 0.35);
   transform: translateY(-1px);
+}
+
+.discovery-payment-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #09472e;
+  box-shadow: 0 0 7px rgba(39, 85, 61, 0.65);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.discovery-payment-dot.advance {
+  background: #09472e;
+  box-shadow: 0 0 7px rgba(39, 85, 61, 0.65);
+}
+
+.discovery-payment-dot.mid {
+  background: #109b62;
+  box-shadow: 0 0 7px rgba(31, 142, 85, 0.65);
+}
+
+.discovery-payment-dot.final {
+  background: #11ec77;
+  box-shadow: 0 0 7px rgba(4, 225, 111, 0.65);
 }
 
 .discovery-payment-list {
@@ -8183,13 +8211,29 @@ section:not(.client-welcome-stage)::after,
 }
 
 @keyframes pulseDot {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.35); opacity: 0.6; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.35);
+    opacity: 0.6;
+  }
 }
 
 @keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .client-help-trigger-btn {
@@ -8499,6 +8543,7 @@ section:not(.client-welcome-stage)::after,
     opacity: 0;
     transform: translateY(-6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -8646,4 +8691,4 @@ section:not(.client-welcome-stage)::after,
     font-size: 0.7rem;
     padding: 1px 8px;
   }
-}
+}

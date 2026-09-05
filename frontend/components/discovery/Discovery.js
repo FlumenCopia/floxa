@@ -492,9 +492,15 @@ function OverviewPanel({
               <span className="final" title={`Final: ${paymentItems[2]?.split}%`} />
             </div>
             <div className="discovery-payment-legend">
-              <span>Advance {paymentItems[0].split}%</span>
-              <span>Mid {paymentItems[1].split}%</span>
-              <span>Final {paymentItems[2].split}%</span>
+              {paymentItems.map((item, idx) => {
+                const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
+                return (
+                  <span key={item.label || typeClass} className={`discovery-payment-pill ${typeClass}`}>
+                    <i className={`discovery-payment-dot ${typeClass}`} aria-hidden="true" />
+                    {item.label} {item.split}%
+                  </span>
+                );
+              })}
             </div>
             <div className="discovery-payment-list">
               {paymentItems.map((item) => (
