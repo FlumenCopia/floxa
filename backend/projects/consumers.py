@@ -59,12 +59,13 @@ class ConsultantNotificationConsumer(AsyncJsonWebsocketConsumer):
         if not self.user and raw_token:
             self.user = await self.get_user_from_jwt(raw_token)
 
-        # Fallback to first consultant if local dev
         if not self.user:
-            self.user = await self.get_default_consultant()
-
-        if not self.user:
-            await self.close(code=4003)
+            logger.warning("Unauthenticated WebSocket connection to consultant notifications rejected.")
+            await self.send_json({
+                "type": "ERROR",
+                "message": "Authentication credentials required. Connection rejected."
+            })
+            await self.close(code=4001)
             return
 
         self.consultant_group = f"consultant_user_{self.user.id}"
@@ -153,11 +154,6 @@ class ConsultantNotificationConsumer(AsyncJsonWebsocketConsumer):
             logger.warning("Consultant JWT validation failed: %s", e)
             return None
 
-    @database_sync_to_async
-    def get_default_consultant(self):
-        from accounts.models import Consultant
-        return Consultant.objects.first()
-
 
 class SupportConsumer(AsyncJsonWebsocketConsumer):
     """
@@ -181,15 +177,17 @@ class SupportConsumer(AsyncJsonWebsocketConsumer):
             self.user = scope_user
             self.role = "consultant"
 
+        # Parse cookies from headers
+        headers = dict(self.scope.get("headers", []))
+        cookie_header = headers.get(b"cookie", b"").decode("utf-8")
+        cookie_dict = {}
+        for item in cookie_header.split(";"):
+            if "=" in item:
+                k, v = item.strip().split("=", 1)
+                cookie_dict[k] = v
+
         # Check cookies if not in query params
         if not consultant_token or consultant_token == "active":
-            headers = dict(self.scope.get("headers", []))
-            cookie_header = headers.get(b"cookie", b"").decode("utf-8")
-            cookie_dict = {}
-            for item in cookie_header.split(";"):
-                if "=" in item:
-                    k, v = item.strip().split("=", 1)
-                    cookie_dict[k] = v
             consultant_token = cookie_dict.get("floxa_access") or cookie_dict.get("access") or cookie_dict.get("jwt")
 
         # Authenticate consultant if JWT token is supplied
@@ -210,6 +208,14 @@ class SupportConsumer(AsyncJsonWebsocketConsumer):
             is_owner = await self.verify_consultant_ownership(self.project["id"], self.user.id)
             if not is_owner:
                 await self.send_json({"type": "ERROR", "message": "Permission denied"})
+                await self.close(code=4003)
+                return
+
+        # If client, verify portal password access credentials if project is password-protected
+        if self.role == "client" and self.project.get("has_password"):
+            is_verified = await self.verify_client_password_access(self.portal_token_str, cookie_dict, query_params)
+            if not is_verified:
+                await self.send_json({"type": "ERROR", "message": "Portal password verification required"})
                 await self.close(code=4003)
                 return
 
@@ -488,6 +494,7 @@ class SupportConsumer(AsyncJsonWebsocketConsumer):
         from projects.models import Project
         try:
             p = Project.objects.select_related("client").get(portal_token=portal_token_str, is_archived=False)
+            has_pw = bool(p.portal_password_hash or getattr(p, "portal_password", None))
             return {
                 "id": p.id,
                 "title": p.title,
@@ -495,9 +502,32 @@ class SupportConsumer(AsyncJsonWebsocketConsumer):
                 "client_name": p.client.name if p.client else p.company_name,
                 "company_name": p.company_name,
                 "portal_token": p.portal_token,
+                "has_password": has_pw,
             }
         except Exception:
             return None
+
+    @database_sync_to_async
+    def verify_client_password_access(self, portal_token_str, cookie_dict, query_params):
+        from django.core import signing
+        from projects.views import PORTAL_ACCESS_COOKIE_NAME, PORTAL_ACCESS_SALT, PORTAL_ACCESS_MAX_AGE
+
+        signed_val = (
+            cookie_dict.get(PORTAL_ACCESS_COOKIE_NAME)
+            or query_params.get("portal_access_token", [None])[0]
+            or query_params.get("access_token", [None])[0]
+        )
+        if not signed_val:
+            return False
+
+        try:
+            val = signing.TimestampSigner(salt=PORTAL_ACCESS_SALT).unsign(
+                signed_val,
+                max_age=PORTAL_ACCESS_MAX_AGE
+            )
+            return val == portal_token_str
+        except Exception:
+            return False
 
     @database_sync_to_async
     def verify_consultant_ownership(self, project_id, user_id):

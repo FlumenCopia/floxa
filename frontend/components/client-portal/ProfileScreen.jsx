@@ -46,24 +46,55 @@ function normalizeWebsite(value) {
 }
 
 function formatProfileSaveError(error) {
-  if (error?.website?.length) {
-    return `Website: ${error.website[0]}`;
+  if (!error) {
+    return "Unable to save your profile.";
   }
 
-  if (error?.email?.length) {
-    return `Email: ${error.email[0]}`;
-  }
-
-  if (error?.year_started?.length) {
-    return `Year started: ${error.year_started[0]}`;
-  }
-
-  if (error?.detail) {
-    return error.detail;
+  if (typeof error === "string") {
+    return error;
   }
 
   if (error instanceof Error) {
     return error.message;
+  }
+
+  const fieldLabels = {
+    phone: "Phone",
+    client_name: "Name",
+    company_name: "Company",
+    name: "Name",
+    company: "Company",
+    industry: "Industry",
+    year_started: "Year started",
+    yearStart: "Year started",
+    location: "Location",
+    email: "Email",
+    website: "Website",
+    non_field_errors: "",
+    detail: "",
+  };
+
+  for (const [key, label] of Object.entries(fieldLabels)) {
+    const val = error[key];
+    if (val) {
+      const msg = Array.isArray(val) ? val[0] : (typeof val === "string" ? val : null);
+      if (msg && typeof msg === "string") {
+        return label ? `${label}: ${msg}` : msg;
+      }
+    }
+  }
+
+  for (const [k, v] of Object.entries(error)) {
+    if (k === "status" || k === "_csrfRetried") continue;
+    const msg = Array.isArray(v) ? v[0] : (typeof v === "string" ? v : null);
+    if (msg && typeof msg === "string") {
+      const formattedKey = k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      return `${formattedKey}: ${msg}`;
+    }
+  }
+
+  if (error.detail && typeof error.detail === "string") {
+    return error.detail;
   }
 
   return "Unable to save your profile.";
@@ -103,9 +134,27 @@ export function ProfileScreen({
       return;
     }
 
-    if (!/^\d{10}$/.test(fields.phone.trim())) {
-      setError("Phone number must be exactly 10 digits.");
-      return;
+    const phoneTrimmed = fields.phone.trim();
+    if (phoneTrimmed) {
+      if (phoneTrimmed.length > 50) {
+        setError("Phone number is too long (maximum 50 characters).");
+        return;
+      }
+      const hasPlus = phoneTrimmed.startsWith("+");
+      const rest = hasPlus ? phoneTrimmed.slice(1) : phoneTrimmed;
+      if (rest.includes("+")) {
+        setError("Invalid phone number format.");
+        return;
+      }
+      if (!/^[\d\s\-().]+$/.test(rest)) {
+        setError("Phone number can only contain digits, spaces, hyphens, dots, parentheses, and an optional leading +.");
+        return;
+      }
+      const digits = phoneTrimmed.replace(/\D/g, "");
+      if (digits.length < 7 || digits.length > 15) {
+        setError("Phone number must contain between 7 and 15 digits.");
+        return;
+      }
     }
 
     const profilePayload = {
@@ -114,7 +163,7 @@ export function ProfileScreen({
       industry: fields.industry.trim(),
       year_started: fields.yearStart ? Number(fields.yearStart) : null,
       location: fields.location.trim(),
-      phone: fields.phone.trim(),
+      phone: phoneTrimmed,
       email: fields.email.trim(),
       website: normalizeWebsite(fields.website),
     };

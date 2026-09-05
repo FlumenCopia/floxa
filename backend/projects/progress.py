@@ -1,6 +1,20 @@
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Case, CharField, Exists, OuterRef, Q, Value, When
 
-from .models import Concept, Deliverable, PaymentMilestone, ProjectAgreement
+from .models import (
+    Agreement,
+    BrandDNA,
+    ClientProfile,
+    Concept,
+    Deliverable,
+    DiscoveryCompetitor,
+    DiscoveryEmotion,
+    DiscoveryVisualStyle,
+    Moodboard,
+    PaymentMilestone,
+    Project,
+    ProjectAgreement,
+)
 
 
 def has_related_object(project, related_name):
@@ -318,3 +332,102 @@ def calculate_project_workflow_status(project):
         return "discovery"
 
     return "created"
+
+
+def get_workflow_status_annotation():
+    """Build SQL Case/When annotation matching calculate_project_workflow_status priority waterfall."""
+    has_final_paid = Exists(
+        PaymentMilestone.objects.filter(
+            project=OuterRef("pk"),
+            type=PaymentMilestone.Type.FINAL,
+            status=PaymentMilestone.Status.PAID,
+        )
+    )
+
+    has_shared_deliverable = Exists(
+        Deliverable.objects.filter(
+            project=OuterRef("pk"),
+            status=Deliverable.Status.SHARED,
+        )
+    )
+
+    has_agreement = Exists(
+        ProjectAgreement.objects.filter(project=OuterRef("pk"))
+    ) | Exists(
+        Agreement.objects.filter(project=OuterRef("pk"))
+    )
+
+    has_shared_or_approved_concept = Exists(
+        Concept.objects.filter(
+            project=OuterRef("pk"),
+            status__in=[Concept.Status.SHARED, Concept.Status.APPROVED],
+        )
+    )
+
+    has_moodboard = Exists(
+        Moodboard.objects.filter(project=OuterRef("pk"))
+    )
+
+    has_brand_dna = Exists(
+        BrandDNA.objects.filter(project=OuterRef("pk"))
+    )
+
+    has_advance_paid = Exists(
+        PaymentMilestone.objects.filter(
+            project=OuterRef("pk"),
+            type=PaymentMilestone.Type.ADVANCE,
+            status=PaymentMilestone.Status.PAID,
+        )
+    )
+
+    has_advance_ready = Exists(
+        PaymentMilestone.objects.filter(
+            project=OuterRef("pk"),
+            type=PaymentMilestone.Type.ADVANCE,
+            status__in=[
+                PaymentMilestone.Status.READY,
+                PaymentMilestone.Status.REQUESTED,
+            ],
+        )
+    )
+
+    has_client_profile = Exists(
+        ClientProfile.objects.filter(project=OuterRef("pk"))
+    )
+
+    has_emotions = Exists(
+        DiscoveryEmotion.objects.filter(discovery__project=OuterRef("pk"))
+    )
+    has_competitors = Exists(
+        DiscoveryCompetitor.objects.filter(discovery__project=OuterRef("pk"))
+    )
+    has_visual_styles = Exists(
+        DiscoveryVisualStyle.objects.filter(discovery__project=OuterRef("pk"))
+    )
+
+    complete_discovery_q = (
+        Q(discovery__isnull=False)
+        & ~Q(discovery__what_business_does__isnull=True) & ~Q(discovery__what_business_does="")
+        & ~Q(discovery__target_customer__isnull=True) & ~Q(discovery__target_customer="")
+        & ~Q(discovery__why_choose_us__isnull=True) & ~Q(discovery__why_choose_us="")
+        & ~Q(discovery__brand_feeling__isnull=True) & ~Q(discovery__brand_feeling="")
+        & ~Q(discovery__audience_archetype__isnull=True) & ~Q(discovery__audience_archetype="")
+        & has_emotions
+        & has_competitors
+        & has_visual_styles
+    )
+
+    return Case(
+        When(Q(client_signed_off=True) | Q(status=Project.Status.DELIVERED), then=Value("delivered")),
+        When(has_final_paid, then=Value("final_paid")),
+        When(has_shared_deliverable, then=Value("deliverables")),
+        When(has_agreement, then=Value("agreement")),
+        When(has_shared_or_approved_concept, then=Value("concepts")),
+        When(has_moodboard, then=Value("moodboards")),
+        When(has_brand_dna, then=Value("brand_dna")),
+        When(has_advance_paid, then=Value("advance_paid")),
+        When(has_advance_ready, then=Value("advance_payment")),
+        When(has_client_profile | complete_discovery_q, then=Value("discovery")),
+        default=Value("created"),
+        output_field=CharField(),
+    )

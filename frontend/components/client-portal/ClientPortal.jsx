@@ -73,11 +73,11 @@ function getBackendResumeScreen(savedProfile, savedDiscovery) {
     return "profile";
   }
 
-  if (savedDiscovery?.isSubmitted) {
+  if (savedDiscovery?.isSubmitted || savedDiscovery?.is_submitted) {
     return "dashboard";
   }
 
-  if (savedDiscovery?.isComplete) {
+  if (savedDiscovery?.isComplete || savedDiscovery?.is_complete) {
     return "review";
   }
 
@@ -85,13 +85,37 @@ function getBackendResumeScreen(savedProfile, savedDiscovery) {
 }
 
 function writeDiscoveryDraft(projectId, discovery) {
-  if (typeof window === "undefined" || !projectId || !discovery?.draft) {
+  if (
+    typeof window === "undefined" ||
+    !projectId ||
+    !discovery?.draft ||
+    discovery?.isSubmitted ||
+    discovery?.is_submitted
+  ) {
     return;
   }
 
+  const existing = window.localStorage.getItem(`floxa-discovery-${projectId}`);
+  let existingStep = undefined;
+  if (existing) {
+    try {
+      const parsed = JSON.parse(existing);
+      if (typeof parsed?.step === "number") {
+        existingStep = parsed.step;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const draftToWrite = {
+    ...discovery.draft,
+    ...(existingStep !== undefined ? { step: existingStep } : {}),
+  };
+
   window.localStorage.setItem(
     `floxa-discovery-${projectId}`,
-    JSON.stringify(discovery.draft)
+    JSON.stringify(draftToWrite)
   );
 }
 
@@ -107,6 +131,7 @@ export function ClientPortal({ token, isConsultant = false }) {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorType, setErrorType] = useState("notFound");
   const [screen, setScreen] = useState(() => readStoredScreen(token) || "splash");
   const [resumeTargetScreen, setResumeTargetScreen] = useState("");
   const [clientData, setClientData] = useState({});
@@ -169,7 +194,7 @@ export function ClientPortal({ token, isConsultant = false }) {
         }
       : portalProject;
 
-    if (savedDiscovery) {
+    if (savedDiscovery && !savedDiscovery.isSubmitted && !savedDiscovery.is_submitted) {
       writeDiscoveryDraft(portalProject.id, savedDiscovery);
     }
 
@@ -197,7 +222,50 @@ export function ClientPortal({ token, isConsultant = false }) {
   useEffect(() => {
     clientPortalService
       .createSession(token)
-      .then(async (portalProject) => {
+      .then(async (sessionResult) => {
+        if (sessionResult?.notFound) {
+          setErrorType("notFound");
+          setError("Link not found");
+          return;
+        }
+
+        if (sessionResult?.forbidden) {
+          setErrorType("forbidden");
+          setError(sessionResult.error || "Permission denied");
+          return;
+        }
+
+        if (sessionResult?.unauthorized) {
+          setErrorType("unauthorized");
+          setError(sessionResult.error || "Authentication required");
+          return;
+        }
+
+        if (sessionResult?.requirePassword) {
+          setResumeTargetScreen("");
+          setScreen("login");
+          return;
+        }
+
+        if (sessionResult?.serverError) {
+          setErrorType("serverError");
+          setError(sessionResult.error || "Unable to load portal. Please try again later.");
+          return;
+        }
+
+        if (sessionResult?.networkError) {
+          setErrorType("networkError");
+          setError(sessionResult.error || "Network connection error. Please check your connection.");
+          return;
+        }
+
+        if (sessionResult?.error) {
+          setErrorType("serverError");
+          setError(sessionResult.error);
+          return;
+        }
+
+        const portalProject = sessionResult?.project || sessionResult;
         if (portalProject) {
           applyProject(portalProject);
 
@@ -223,14 +291,15 @@ export function ClientPortal({ token, isConsultant = false }) {
           } else {
             setScreen(getDemoInitialScreen(token, portalProject.status));
           }
-        } else if (isRealPortalToken(token)) {
-          setResumeTargetScreen("");
-          setScreen("login");
         } else {
+          setErrorType("notFound");
           setError("Invalid link");
         }
       })
-      .catch(() => setError("Something went wrong. Please try again."))
+      .catch(() => {
+        setErrorType("serverError");
+        setError("Something went wrong. Please try again.");
+      })
       .finally(() => setLoading(false));
   }, [applyProject, loadSavedPortalProgress, token]);
 
@@ -258,12 +327,26 @@ export function ClientPortal({ token, isConsultant = false }) {
   }
 
   if (error) {
+    let errorHeading = "Link not found";
+    let errorSub = "Contact your consultant for a new link.";
+
+    if (errorType === "forbidden") {
+      errorHeading = "Access Denied";
+      errorSub = "Contact your project consultant or administrator.";
+    } else if (errorType === "unauthorized") {
+      errorHeading = "Authentication Required";
+      errorSub = "Please log in to continue.";
+    } else if (errorType === "serverError" || errorType === "networkError") {
+      errorHeading = "Unable to Load Portal";
+      errorSub = "Please check your connection and try again.";
+    }
+
     return (
       <main className="client-portal-shell client-error-shell">
         <div>Locked</div>
-        <strong>Link not found</strong>
+        <strong>{errorHeading}</strong>
         <p>{error}</p>
-        <span>Contact your consultant for a new link.</span>
+        <span>{errorSub}</span>
       </main>
     );
   }
