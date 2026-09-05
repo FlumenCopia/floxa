@@ -186,8 +186,8 @@ function PortalHeader({ onClose, onVideoCall, callState }) {
             {callState === "connected"
               ? "In Call"
               : callState === "incoming_ringing"
-              ? "Incoming Call!"
-              : "Video Call Client"}
+                ? "Incoming Call!"
+                : "Video Call Client"}
           </button>
         ) : null}
         <button className="cp-close" onClick={onClose} type="button">
@@ -306,6 +306,9 @@ function PortalCard({
     </section>
   );
 }
+
+
+
 
 function SliderRows({ pairs, values, setValues, isReadOnly, onSync }) {
   return (
@@ -753,9 +756,9 @@ export default function Clientportal() {
       const next = base.map((item, i) =>
         i === index
           ? {
-              ...item,
-              [field]: field === "rating" && item.rating === value ? "" : value,
-            }
+            ...item,
+            [field]: field === "rating" && item.rating === value ? "" : value,
+          }
           : item
       );
       supportSocket.syncField({ pageId, fieldKey: "comps", value: next });
