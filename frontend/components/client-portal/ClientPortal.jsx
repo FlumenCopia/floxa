@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Video } from "lucide-react";
 import { clientPortalService } from "../../services/clientPortalService";
 import { ClientDashboard } from "./ClientDashboard";
 import "./ClientPortal.css";
@@ -410,7 +411,8 @@ export function ClientPortal({ token, isConsultant = false }) {
               })
             }
           >
-            📹 Video Call Consultant
+            <Video size={15} strokeWidth={2} />
+            <span>Video Call Consultant</span>
           </button>
           <VideoCallModal currentRole="client" project={project} />
         </>

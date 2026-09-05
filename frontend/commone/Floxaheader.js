@@ -20,6 +20,9 @@ import {
   X,
   Search,
   User,
+  Video,
+  Phone,
+  PhoneOff,
 } from "lucide-react";
 import { supportSocket } from "../services/supportSocketService";
 import { webRTCService } from "../services/webRTCService";
@@ -728,7 +731,8 @@ export default function Floxaheader({
           {callState === "incoming_ringing" ? (
             <div className="floxa-nav-incoming-call-group">
               <span className="floxa-nav-ringing-indicator">
-                📹 Incoming: <strong>{webRTCService.currentCallInfo?.clientName || "Client"}</strong>
+                <Video size={13} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+                Incoming: <strong>{webRTCService.currentCallInfo?.clientName || "Client"}</strong>
               </span>
               <button
                 type="button"
@@ -736,7 +740,7 @@ export default function Floxaheader({
                 title="Accept Call"
                 onClick={() => webRTCService.acceptCall()}
               >
-                📞 Pick
+                <Phone size={12} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "3px" }} /> Pick
               </button>
               <button
                 type="button"
@@ -744,20 +748,17 @@ export default function Floxaheader({
                 title="Decline Call"
                 onClick={() => webRTCService.rejectCall()}
               >
-                ✕ Deny
+                <PhoneOff size={12} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "3px" }} /> Deny
               </button>
             </div>
           ) : (
             <button
               type="button"
               className={`floxa-nav-video-btn ${callState === "connected" ? "in-call" : ""}`}
-              title={callState === "connected" ? "Active Video Call" : "Video Call Client"}
+              title={callState === "connected" ? "Active Video Call" : "Video Call"}
               onClick={handleNavbarVideoClick}
             >
-              <span>📹</span>
-              <span>
-                {callState === "connected" ? "In Call" : "Video Call"}
-              </span>
+              <Video size={18} strokeWidth={2} />
             </button>
           )}
           <div className="notification-wrap">
