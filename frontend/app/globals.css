@@ -7440,10 +7440,22 @@ textarea {
   color: #f3f8f2;
   font-size: 18px;
   line-height: 1.25;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .settings-card-title-row {
   margin-bottom: 20px;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .settings-card-title-row .settings-card-title {
@@ -8029,8 +8041,8 @@ section:not(.client-welcome-stage),
 .section,
 .card:not(.dashboard-card):not(.kpi-card),
 .card2,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card),
-[class*="card-"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card),
+[class$="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card):not([class*="-title"]):not([class*="-header"]):not([class*="-body"]):not([class*="-row"]):not([class*="-actions"]),
+[class*="-card "]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card):not([class*="-title"]):not([class*="-header"]):not([class*="-body"]):not([class*="-row"]):not([class*="-actions"]),
 .settings-card,
 .settings-danger-card,
 .project-table-card,
@@ -8085,8 +8097,8 @@ section:not(.client-welcome-stage)::before,
 section:not(.client-welcome-stage)::after,
 .card:not(.dashboard-card):not(.kpi-card)::before,
 .card:not(.dashboard-card):not(.kpi-card)::after,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card)::before,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card)::after,
+[class$="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card):not([class*="-title"]):not([class*="-header"])::before,
+[class$="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card):not([class*="-title"]):not([class*="-header"])::after,
 .table-wrap::before,
 .table-wrap::after {
   border-radius: 0 !important;
@@ -8336,8 +8348,8 @@ section:not(.client-welcome-stage)::after,
 .client-agreement-card,
 .card:not(.login-card):not(.client-welcome-glass),
 .card2,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass),
-[class*="card-"]:not(.login-card):not(.client-welcome-glass) {
+[class$="-card"]:not(.login-card):not(.client-welcome-glass):not([class*="-title"]):not([class*="-header"]):not([class*="-body"]):not([class*="-row"]):not([class*="-actions"]):not([class*="-btn"]):not([class*="-desc"]):not([class*="-text"]):not([class*="-icon"]):not([class*="-footer"]):not([class*="-top"]):not([class*="-number"]):not([class*="-arrow"]),
+[class*="-card "]:not(.login-card):not(.client-welcome-glass):not([class*="-title"]):not([class*="-header"]):not([class*="-body"]):not([class*="-row"]):not([class*="-actions"]):not([class*="-btn"]):not([class*="-desc"]):not([class*="-text"]):not([class*="-icon"]):not([class*="-footer"]):not([class*="-top"]):not([class*="-number"]):not([class*="-arrow"]) {
   border-radius: 0 !important;
   border: 1px solid rgba(77, 255, 160, 0.2) !important;
   background: linear-gradient(135deg, rgba(77, 255, 160, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(6, 22, 15, 0.72) !important;
