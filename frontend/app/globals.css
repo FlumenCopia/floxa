@@ -2383,16 +2383,12 @@ textarea {
   --progress: 45%;
   width: 48px;
   height: 48px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1.5px solid rgba(77, 255, 160, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #4dffa0;
   font-size: 12px;
   font-weight: 700;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .discovery-link-btn {
