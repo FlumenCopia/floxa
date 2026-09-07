@@ -450,7 +450,6 @@ function OverviewPanel({
         <div className="discovery-timeline">
           {projectActivitiesLoading ? (
             <div className="discovery-timeline-item idle">
-              <div className="discovery-timeline-dot" />
               <div className="discovery-timeline-copy">
                 <div className="discovery-timeline-text">Loading timeline</div>
                 <div className="discovery-timeline-date">Fetching recent project activity.</div>
@@ -459,7 +458,6 @@ function OverviewPanel({
           ) : null}
           {!projectActivitiesLoading && timelineActivities.length === 0 ? (
             <div className="discovery-timeline-item idle">
-              <div className="discovery-timeline-dot" />
               <div className="discovery-timeline-copy">
                 <div className="discovery-timeline-text">No activity yet</div>
                 <div className="discovery-timeline-date">Activity will appear here when available.</div>
