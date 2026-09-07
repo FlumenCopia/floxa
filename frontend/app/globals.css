@@ -3277,10 +3277,7 @@ textarea {
   padding: 22px;
   border: 1px dashed rgba(77, 255, 160, 0.28);
   border-radius: 14px;
-  background:
-    radial-gradient(circle at 50% 18%, rgba(77, 255, 160, 0.14), transparent 34%),
-    linear-gradient(145deg, rgba(77, 255, 160, 0.07), rgba(255, 255, 255, 0.025)),
-    rgba(0, 7, 4, 0.32);
+
   cursor: pointer;
   text-align: center;
   transition:
@@ -3292,9 +3289,7 @@ textarea {
 .discovery-moodboard-dropzone:hover,
 .discovery-moodboard-dropzone:focus-within {
   border-color: rgba(77, 255, 160, 0.48);
-  background:
-    radial-gradient(circle at 50% 18%, rgba(77, 255, 160, 0.2), transparent 36%),
-    rgba(77, 255, 160, 0.08);
+
   transform: translateY(-1px);
 }
 
@@ -3328,19 +3323,24 @@ textarea {
 }
 
 .discovery-moodboard-dropzone::before {
-  content: "+";
-  width: 42px;
-  height: 42px;
+  content: "";
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(77, 255, 160, 0.22);
-  border-radius: 999px;
-  color: #4dffa0;
-  background: rgba(77, 255, 160, 0.08);
-  font-size: 22px;
-  font-weight: 500;
+  border: none;
+  border-radius: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234dffa0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' y1='3' x2='12' y2='15'/%3E%3C/svg%3E") center / contain no-repeat;
+  box-shadow: none;
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
+
+.discovery-moodboard-dropzone:hover::before {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 0 8px rgba(77, 255, 160, 0.5));
+}
+
 
 .discovery-moodboard-selected-file {
   grid-column: 1 / -1;
