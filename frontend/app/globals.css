@@ -2526,10 +2526,10 @@ textarea {
 .discovery-payment-bar {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
-  gap: 6px;
+  gap: 0;
   align-items: center;
   height: 16px;
-  padding: 3px;
+  padding: 2.5px;
   border-radius: 999px;
   background: rgba(4, 18, 11, 0.65);
   border: 1px solid rgba(77, 255, 160, 0.16);
@@ -2537,17 +2537,40 @@ textarea {
   backdrop-filter: blur(8px);
   margin-bottom: 14px;
   position: relative;
+  overflow: hidden;
 }
 
 .discovery-payment-bar span,
 .discovery-payment-segment {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: 0;
   position: relative;
   overflow: hidden;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
+}
+
+.discovery-payment-bar span:first-child,
+.discovery-payment-segment:first-child {
+  border-top-left-radius: 999px;
+  border-bottom-left-radius: 999px;
+}
+
+.discovery-payment-bar span:last-child,
+.discovery-payment-segment:last-child {
+  border-top-right-radius: 999px;
+  border-bottom-right-radius: 999px;
+}
+
+.discovery-payment-bar span:only-child,
+.discovery-payment-segment:only-child {
+  border-radius: 999px;
+}
+
+.discovery-payment-bar span:not(:last-child),
+.discovery-payment-segment:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .discovery-payment-bar span::before,
@@ -2559,35 +2582,41 @@ textarea {
   right: 0;
   height: 50%;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.05) 100%);
-  border-radius: 999px 999px 0 0;
   pointer-events: none;
+}
+
+.discovery-payment-bar span:first-child::before,
+.discovery-payment-segment:first-child::before {
+  border-top-left-radius: 999px;
+}
+
+.discovery-payment-bar span:last-child::before,
+.discovery-payment-segment:last-child::before {
+  border-top-right-radius: 999px;
 }
 
 .discovery-payment-bar span:hover,
 .discovery-payment-segment:hover {
-  transform: scaleY(1.2);
-  filter: brightness(1.25);
+  transform: scaleY(1.15);
+  filter: brightness(1.2);
   z-index: 2;
 }
 
 .discovery-payment-bar .advance,
 .discovery-payment-segment.advance {
   background: linear-gradient(135deg, #16a34a 0%, #0d5f30 100%);
-  border: 1px solid rgba(74, 222, 128, 0.3);
   box-shadow: 0 0 10px rgba(22, 163, 74, 0.45);
 }
 
 .discovery-payment-bar .mid,
 .discovery-payment-segment.mid {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border: 1px solid rgba(110, 231, 183, 0.35);
   box-shadow: 0 0 12px rgba(16, 185, 129, 0.55);
 }
 
 .discovery-payment-bar .final,
 .discovery-payment-segment.final {
   background: linear-gradient(135deg, #4dffa0 0%, #22c55e 100%);
-  border: 1px solid rgba(187, 247, 208, 0.5);
   box-shadow: 0 0 14px rgba(77, 255, 160, 0.75);
 }
 
@@ -2760,8 +2789,8 @@ textarea {
 
 .discovery-overview-card .discovery-payment-bar {
   height: 14px;
-  padding: 2.5px;
-  gap: 5px;
+  padding: 2px;
+  gap: 0;
   margin-bottom: 12px;
 }
 
@@ -3925,8 +3954,8 @@ textarea {
 
 .discovery-payment-bar-large {
   height: 20px;
-  padding: 3.5px;
-  gap: 7px;
+  padding: 3px;
+  gap: 0;
   margin-bottom: 16px;
 }
 
