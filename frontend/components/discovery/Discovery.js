@@ -3368,6 +3368,42 @@ export default function Discovery() {
   const [readActivityIds, setReadActivityIds] = useState([]);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
+  const tabsRef = useRef(null);
+  const isDraggingTabsRef = useRef(false);
+  const startTabsXRef = useRef(0);
+  const startScrollLeftRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+
+  const handleTabsPointerDown = (event) => {
+    if (!tabsRef.current) return;
+    isDraggingTabsRef.current = true;
+    hasDraggedRef.current = false;
+    startTabsXRef.current = event.pageX || event.clientX;
+    startScrollLeftRef.current = tabsRef.current.scrollLeft;
+  };
+
+  const handleTabsPointerMove = (event) => {
+    if (!isDraggingTabsRef.current || !tabsRef.current) return;
+    const currentX = event.pageX || event.clientX;
+    const diff = currentX - startTabsXRef.current;
+    if (Math.abs(diff) > 4) {
+      hasDraggedRef.current = true;
+    }
+    tabsRef.current.scrollLeft = startScrollLeftRef.current - diff;
+  };
+
+  const handleTabsPointerUp = () => {
+    isDraggingTabsRef.current = false;
+  };
+
+  useEffect(() => {
+    if (!tabsRef.current) return;
+    const activeTabEl = tabsRef.current.querySelector(".discovery-tab.active");
+    if (activeTabEl) {
+      activeTabEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }, [activeTab]);
+
   const refreshProject = useCallback(async () => {
     const projectId = new URLSearchParams(window.location.search).get("projectId");
 
@@ -3695,7 +3731,16 @@ export default function Discovery() {
             <div className="discovery-shell">
               <SummaryHeader project={project} />
 
-              <div className="discovery-tabs" role="tablist" aria-label="Discovery sections">
+              <div
+                ref={tabsRef}
+                className="discovery-tabs"
+                role="tablist"
+                aria-label="Discovery sections"
+                onPointerDown={handleTabsPointerDown}
+                onPointerMove={handleTabsPointerMove}
+                onPointerUp={handleTabsPointerUp}
+                onPointerLeave={handleTabsPointerUp}
+              >
                 {discoveryTabs.map((tab) => (
                   <button
                     key={tab}
@@ -3703,7 +3748,11 @@ export default function Discovery() {
                     type="button"
                     role="tab"
                     aria-selected={activeTab === tab}
-                    onClick={() => {
+                    onClick={(event) => {
+                      if (hasDraggedRef.current) {
+                        event.preventDefault();
+                        return;
+                      }
                       setActiveTab(tab);
                       handleMarkTabActivitiesRead(tab);
                     }}
