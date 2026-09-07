@@ -1135,7 +1135,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               onClick={toggleNotifications}
             >
               <span className="client-notification-icon" aria-hidden="true">
-                <Bell size={18} strokeWidth={1.8} />
+                <Bell size={22} strokeWidth={2} />
               </span>
               {unreadCount > 0 ? <span className="client-notification-count">{unreadCount}</span> : null}
             </button>

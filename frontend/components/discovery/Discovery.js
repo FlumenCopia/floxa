@@ -401,15 +401,6 @@ function SummaryHeader({ project }) {
     }
   }
 
-  function handleOpenPortal() {
-    if (!project?.portal_token) {
-      showError("Client portal link is unavailable for this project.");
-      return;
-    }
-
-    window.open(`/client/${project.portal_token}`, "_blank", "noopener,noreferrer");
-  }
-
   return (
     <section className="discovery-card discovery-summary">
       <div className="discovery-summary-main">
@@ -428,9 +419,6 @@ function SummaryHeader({ project }) {
           <button className="btn btn-secondary discovery-link-btn" type="button" onClick={handleCopyPortalLink}>
             <span className="discovery-btn-icon" aria-hidden="true" />
             Link
-          </button>
-          <button className="btn btn-primary discovery-portal-btn" type="button" onClick={handleOpenPortal}>
-            {"Portal ->"}
           </button>
         </div>
       </div>
@@ -463,7 +451,6 @@ function OverviewPanel({
         <div className="discovery-timeline">
           {projectActivitiesLoading ? (
             <div className="discovery-timeline-item idle">
-              <div className="discovery-timeline-dot" />
               <div className="discovery-timeline-copy">
                 <div className="discovery-timeline-text">Loading timeline</div>
                 <div className="discovery-timeline-date">Fetching recent project activity.</div>
@@ -472,7 +459,6 @@ function OverviewPanel({
           ) : null}
           {!projectActivitiesLoading && timelineActivities.length === 0 ? (
             <div className="discovery-timeline-item idle">
-              <div className="discovery-timeline-dot" />
               <div className="discovery-timeline-copy">
                 <div className="discovery-timeline-text">No activity yet</div>
                 <div className="discovery-timeline-date">Activity will appear here when available.</div>
@@ -481,16 +467,16 @@ function OverviewPanel({
           ) : null}
           {!projectActivitiesLoading
             ? timelineActivities.map((activity) => (
-                <div className="discovery-timeline-item" key={activity.id}>
-                  <div className="discovery-timeline-dot" />
-                  <div className="discovery-timeline-copy">
-                    <div className="discovery-timeline-text">{activity.description || activity.action}</div>
-                    <div className="discovery-timeline-date">
-                      {activity.actor_type || "system"} - {formatActivityDate(activity.created_at)}
-                    </div>
+              <div className="discovery-timeline-item" key={activity.id}>
+                <div className="discovery-timeline-dot" />
+                <div className="discovery-timeline-copy">
+                  <div className="discovery-timeline-text">{activity.description || activity.action}</div>
+                  <div className="discovery-timeline-date">
+                    {activity.actor_type || "system"} - {formatActivityDate(activity.created_at)}
                   </div>
                 </div>
-              ))
+              </div>
+            ))
             : null}
         </div>
       </section>
@@ -500,14 +486,20 @@ function OverviewPanel({
         {paymentItems.length > 0 ? (
           <>
             <div className="discovery-payment-bar" style={{ gridTemplateColumns: getPaymentGridColumns(paymentItems) }} aria-hidden="true">
-              <span className="advance" />
-              <span className="mid" />
-              <span className="final" />
+              <span className="advance" title={`Advance: ${paymentItems[0]?.split}%`} />
+              <span className="mid" title={`Mid: ${paymentItems[1]?.split}%`} />
+              <span className="final" title={`Final: ${paymentItems[2]?.split}%`} />
             </div>
             <div className="discovery-payment-legend">
-              <span><i className="advance" /> Advance {paymentItems[0].split}%</span>
-              <span><i className="mid" /> Mid {paymentItems[1].split}%</span>
-              <span><i className="final" /> Final {paymentItems[2].split}%</span>
+              {paymentItems.map((item, idx) => {
+                const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
+                return (
+                  <span key={item.label || typeClass} className={`discovery-payment-pill ${typeClass}`}>
+                    <i className={`discovery-payment-dot ${typeClass}`} aria-hidden="true" />
+                    {item.label} {item.split}%
+                  </span>
+                );
+              })}
             </div>
             <div className="discovery-payment-list">
               {paymentItems.map((item) => (
@@ -733,9 +725,9 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
   const enhancedBrief = hasSummary ? buildEnhancedBrief(summary) : {};
   const isStaleBrandDNA = Boolean(
     hasBrandDNA &&
-      summary?.discovery_updated_at &&
-      brandDNA?.updated_at &&
-      isAfterDate(summary.discovery_updated_at, brandDNA.updated_at)
+    summary?.discovery_updated_at &&
+    brandDNA?.updated_at &&
+    isAfterDate(summary.discovery_updated_at, brandDNA.updated_at)
   );
   const savedBrief = hasBrandDNA ? {
     business: brandDNA.business_summary,
@@ -823,11 +815,11 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
           </div>
 
           {generatingBrandDNA ? (
-              <div className="discovery-form-block">
-                <div className="discovery-form-label">Generating</div>
-                <BriefValue>Creating and saving the Brand DNA report from client discovery...</BriefValue>
-              </div>
-            ) : null}
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Generating</div>
+              <BriefValue>Creating and saving the Brand DNA report from client discovery...</BriefValue>
+            </div>
+          ) : null}
 
           {brandDNAError ? (
             <div className="discovery-form-block">
@@ -854,7 +846,7 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
           onClick={() => setShowEnhancedBrief(true)}
           disabled={!hasSummary || showEnhancedBrief}
         >
-          {showEnhancedBrief ? "Enhanced brief ready" : "+ Enhance with AI"}
+          {showEnhancedBrief ? "Enhanced brief ready" : " Enhance with AI"}
         </button>
         <button
           className="discovery-text-action"
@@ -871,20 +863,20 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
 function hasDiscoverySummary(summary) {
   return Boolean(
     summary &&
-      (
-        summary.client_name ||
-        summary.company_name ||
-        summary.industry ||
-        summary.what_business_does ||
-        summary.target_customer ||
-        summary.why_choose_us ||
-        summary.brand_feeling ||
-        summary.audience_archetype ||
-        summary.sliders?.length ||
-        summary.emotions?.length ||
-        summary.visual_styles?.length ||
-        summary.top_competitors?.length
-      )
+    (
+      summary.client_name ||
+      summary.company_name ||
+      summary.industry ||
+      summary.what_business_does ||
+      summary.target_customer ||
+      summary.why_choose_us ||
+      summary.brand_feeling ||
+      summary.audience_archetype ||
+      summary.sliders?.length ||
+      summary.emotions?.length ||
+      summary.visual_styles?.length ||
+      summary.top_competitors?.length
+    )
   );
 }
 
@@ -1232,7 +1224,7 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
           ) : null}
           <div className="discovery-moodboard-actions">
             <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
-              {saving ? (statusText || "Uploading...") : "+ Upload moodboard"}
+              {saving ? (statusText || "Uploading...") : "Upload moodboard"}
             </button>
           </div>
         </form>
@@ -2986,9 +2978,9 @@ function PaymentsPanel({ project, onProjectRefresh }) {
               style={{ gridTemplateColumns: getPaymentGridColumns(paymentItems) }}
               aria-hidden="true"
             >
-              <span className="advance" />
-              <span className="mid" />
-              <span className="final" />
+              <span className="advance" title={`Advance: ${paymentItems[0]?.split}%`} />
+              <span className="mid" title={`Mid: ${paymentItems[1]?.split}%`} />
+              <span className="final" title={`Final: ${paymentItems[2]?.split}%`} />
             </div>
             <div className="discovery-payment-list">
               {paymentItems.map((item) => (
@@ -3311,9 +3303,8 @@ function AIChatbotPanel({ project, onClose }) {
               {messages.map((message) => (
                 <article
                   key={message.id}
-                  className={`ai-chat-message ${message.role === "user" ? "user" : "assistant"} ${
-                    message.isError ? "error" : ""
-                  }`.trim()}
+                  className={`ai-chat-message ${message.role === "user" ? "user" : "assistant"} ${message.isError ? "error" : ""
+                    }`.trim()}
                 >
                   <div className="ai-chat-bubble">
                     <AssistantMessageText text={message.text} />
@@ -3715,10 +3706,10 @@ export default function Discovery() {
         currentActivities.map((activity) =>
           readIdSet.has(activity.id)
             ? {
-                ...activity,
-                is_read: true,
-                read_at: activity.read_at || readAt,
-              }
+              ...activity,
+              is_read: true,
+              read_at: activity.read_at || readAt,
+            }
             : activity
         )
       );
@@ -3726,10 +3717,10 @@ export default function Discovery() {
         currentActivities.map((activity) =>
           readIdSet.has(activity.id)
             ? {
-                ...activity,
-                is_read: true,
-                read_at: activity.read_at || readAt,
-              }
+              ...activity,
+              is_read: true,
+              read_at: activity.read_at || readAt,
+            }
             : activity
         )
       );
@@ -3855,26 +3846,26 @@ export default function Discovery() {
 
                 {isAssistantOpen && typeof document !== "undefined"
                   ? createPortal(
+                    <div
+                      className="project-ai-modal-backdrop"
+                      role="presentation"
+                      onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                          setIsAssistantOpen(false);
+                        }
+                      }}
+                    >
                       <div
-                        className="project-ai-modal-backdrop"
-                        role="presentation"
-                        onMouseDown={(event) => {
-                          if (event.target === event.currentTarget) {
-                            setIsAssistantOpen(false);
-                          }
-                        }}
+                        className="project-ai-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="FLOXA Project Assistant"
                       >
-                        <div
-                          className="project-ai-modal"
-                          role="dialog"
-                          aria-modal="true"
-                          aria-label="FLOXA Project Assistant"
-                        >
-                          <AIChatbotPanel project={project} onClose={() => setIsAssistantOpen(false)} />
-                        </div>
-                      </div>,
-                      document.body
-                    )
+                        <AIChatbotPanel project={project} onClose={() => setIsAssistantOpen(false)} />
+                      </div>
+                    </div>,
+                    document.body
+                  )
                   : null}
 
               </>

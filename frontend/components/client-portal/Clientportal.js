@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShoppingCart, Gem, Globe, Sparkles, Sprout, Building2, X, ArrowLeft, ArrowRight } from "lucide-react";
+import { ShoppingCart, Gem, Globe, Sparkles, Sprout, Building2, X, ArrowLeft, ArrowRight, Video } from "lucide-react";
 import { supportSocket } from "../../services/supportSocketService";
 import { clientPortalService } from "../../services/clientPortalService";
 import { getProjects } from "../../src/lib/projectApi";
@@ -181,13 +181,15 @@ function PortalHeader({ onClose, onVideoCall, callState }) {
             type="button"
             className={`floxa-nav-video-btn ${callState === "incoming_ringing" ? "ringing" : ""}`}
             onClick={onVideoCall}
+            title={
+              callState === "connected"
+                ? "In Call"
+                : callState === "incoming_ringing"
+                  ? "Incoming Call!"
+                  : "Video Call"
+            }
           >
-            📹{" "}
-            {callState === "connected"
-              ? "In Call"
-              : callState === "incoming_ringing"
-                ? "Incoming Call!"
-                : "Video Call Client"}
+            <Video size={24} strokeWidth={2} />
           </button>
         ) : null}
         {onClose ? (

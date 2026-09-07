@@ -20,6 +20,9 @@ import {
   X,
   Search,
   User,
+  Video,
+  Phone,
+  PhoneOff,
 } from "lucide-react";
 import { supportSocket } from "../services/supportSocketService";
 import { webRTCService } from "../services/webRTCService";
@@ -129,28 +132,28 @@ function getRelativeTime(timestamp) {
   return formatRelativeTimeString(years, "year");
 }
 
-function Icon({ type }) {
+function Icon({ type, size, strokeWidth }) {
   switch (type) {
     case "grid":
-      return <LayoutDashboard size={16} strokeWidth={1.8} />;
+      return <LayoutDashboard size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "mail":
-      return <FolderKanban size={16} strokeWidth={1.8} />;
+      return <FolderKanban size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "search":
-      return <Compass size={16} strokeWidth={1.8} />;
+      return <Compass size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "star":
-      return <Sparkles size={16} strokeWidth={1.8} />;
+      return <Sparkles size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "chart":
-      return <BarChart3 size={16} strokeWidth={1.8} />;
+      return <BarChart3 size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "portal":
-      return <ExternalLink size={16} strokeWidth={1.8} />;
+      return <ExternalLink size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "settings":
-      return <Settings size={16} strokeWidth={1.8} />;
+      return <Settings size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "bell":
-      return <Bell size={16} strokeWidth={1.8} />;
+      return <Bell size={size || 24} strokeWidth={strokeWidth || 2} />;
     case "logout":
-      return <LogOut size={16} strokeWidth={1.8} />;
+      return <LogOut size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     default:
-      return <LayoutDashboard size={16} strokeWidth={1.8} />;
+      return <LayoutDashboard size={size || 16} strokeWidth={strokeWidth || 1.8} />;
   }
 }
 
@@ -742,7 +745,8 @@ export default function Floxaheader({
           {callState === "incoming_ringing" ? (
             <div className="floxa-nav-incoming-call-group">
               <span className="floxa-nav-ringing-indicator">
-                📹 Incoming: <strong>{webRTCService.currentCallInfo?.clientName || "Client"}</strong>
+                <Video size={13} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+                Incoming: <strong>{webRTCService.currentCallInfo?.clientName || "Client"}</strong>
               </span>
               <button
                 type="button"
@@ -750,7 +754,7 @@ export default function Floxaheader({
                 title="Accept Call"
                 onClick={() => webRTCService.acceptCall()}
               >
-                📞 Pick
+                <Phone size={12} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "3px" }} /> Pick
               </button>
               <button
                 type="button"
@@ -758,20 +762,17 @@ export default function Floxaheader({
                 title="Decline Call"
                 onClick={() => webRTCService.rejectCall()}
               >
-                ✕ Deny
+                <PhoneOff size={12} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "3px" }} /> Deny
               </button>
             </div>
           ) : (
             <button
               type="button"
               className={`floxa-nav-video-btn ${callState === "connected" ? "in-call" : ""}`}
-              title={callState === "connected" ? "Active Video Call" : "Video Call Client"}
+              title={callState === "connected" ? "Active Video Call" : "Video Call"}
               onClick={handleNavbarVideoClick}
             >
-              <span>📹</span>
-              <span>
-                {callState === "connected" ? "In Call" : "Video Call"}
-              </span>
+              <Video size={24} strokeWidth={2} />
             </button>
           )}
           <div className="notification-wrap">
@@ -782,7 +783,7 @@ export default function Floxaheader({
               aria-expanded={isNotificationOpen}
               onClick={handleNotificationToggle}
             >
-              <Icon type="bell" />
+              <Icon type="bell" size={24} strokeWidth={2} />
             </button>
             {isNotificationOpen ? (
               <div className="notification-dropdown">
