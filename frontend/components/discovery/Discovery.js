@@ -486,9 +486,16 @@ function OverviewPanel({
         {paymentItems.length > 0 ? (
           <>
             <div className="discovery-payment-bar" style={{ gridTemplateColumns: getPaymentGridColumns(paymentItems) }} aria-hidden="true">
-              <span className="advance" title={`Advance: ${paymentItems[0]?.split}%`} />
-              <span className="mid" title={`Mid: ${paymentItems[1]?.split}%`} />
-              <span className="final" title={`Final: ${paymentItems[2]?.split}%`} />
+              {paymentItems.map((item, idx) => {
+                const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
+                return (
+                  <span
+                    key={item.label || typeClass}
+                    className={`discovery-payment-segment ${typeClass}`}
+                    title={`${item.label}: ${item.split}%`}
+                  />
+                );
+              })}
             </div>
             <div className="discovery-payment-legend">
               {paymentItems.map((item, idx) => {
@@ -2978,9 +2985,16 @@ function PaymentsPanel({ project, onProjectRefresh }) {
               style={{ gridTemplateColumns: getPaymentGridColumns(paymentItems) }}
               aria-hidden="true"
             >
-              <span className="advance" title={`Advance: ${paymentItems[0]?.split}%`} />
-              <span className="mid" title={`Mid: ${paymentItems[1]?.split}%`} />
-              <span className="final" title={`Final: ${paymentItems[2]?.split}%`} />
+              {paymentItems.map((item, idx) => {
+                const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
+                return (
+                  <span
+                    key={item.label || typeClass}
+                    className={`discovery-payment-segment ${typeClass}`}
+                    title={`${item.label}: ${item.split}%`}
+                  />
+                );
+              })}
             </div>
             <div className="discovery-payment-list">
               {paymentItems.map((item) => (
