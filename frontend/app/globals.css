@@ -392,17 +392,11 @@ textarea {
 }
 
 .login-pill-input-wrap:hover {
-  background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.3);
 }
 
 .login-pill-input-wrap:focus-within {
-  background: rgba(255, 255, 255, 0.1);
   border-color: rgba(77, 255, 160, 0.55);
-  box-shadow:
-    0 6px 24px rgba(77, 255, 160, 0.25),
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.35),
-    0 0 0 1px rgba(77, 255, 160, 0.4);
   transform: translateY(-1px);
 }
 
