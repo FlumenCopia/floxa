@@ -466,16 +466,16 @@ function OverviewPanel({
           ) : null}
           {!projectActivitiesLoading
             ? timelineActivities.map((activity) => (
-                <div className="discovery-timeline-item" key={activity.id}>
-                  <div className="discovery-timeline-dot" />
-                  <div className="discovery-timeline-copy">
-                    <div className="discovery-timeline-text">{activity.description || activity.action}</div>
-                    <div className="discovery-timeline-date">
-                      {activity.actor_type || "system"} - {formatActivityDate(activity.created_at)}
-                    </div>
+              <div className="discovery-timeline-item" key={activity.id}>
+                <div className="discovery-timeline-dot" />
+                <div className="discovery-timeline-copy">
+                  <div className="discovery-timeline-text">{activity.description || activity.action}</div>
+                  <div className="discovery-timeline-date">
+                    {activity.actor_type || "system"} - {formatActivityDate(activity.created_at)}
                   </div>
                 </div>
-              ))
+              </div>
+            ))
             : null}
         </div>
       </section>
@@ -724,9 +724,9 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
   const enhancedBrief = hasSummary ? buildEnhancedBrief(summary) : {};
   const isStaleBrandDNA = Boolean(
     hasBrandDNA &&
-      summary?.discovery_updated_at &&
-      brandDNA?.updated_at &&
-      isAfterDate(summary.discovery_updated_at, brandDNA.updated_at)
+    summary?.discovery_updated_at &&
+    brandDNA?.updated_at &&
+    isAfterDate(summary.discovery_updated_at, brandDNA.updated_at)
   );
   const savedBrief = hasBrandDNA ? {
     business: brandDNA.business_summary,
@@ -814,11 +814,11 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
           </div>
 
           {generatingBrandDNA ? (
-              <div className="discovery-form-block">
-                <div className="discovery-form-label">Generating</div>
-                <BriefValue>Creating and saving the Brand DNA report from client discovery...</BriefValue>
-              </div>
-            ) : null}
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Generating</div>
+              <BriefValue>Creating and saving the Brand DNA report from client discovery...</BriefValue>
+            </div>
+          ) : null}
 
           {brandDNAError ? (
             <div className="discovery-form-block">
@@ -845,7 +845,7 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
           onClick={() => setShowEnhancedBrief(true)}
           disabled={!hasSummary || showEnhancedBrief}
         >
-          {showEnhancedBrief ? "Enhanced brief ready" : "+ Enhance with AI"}
+          {showEnhancedBrief ? "Enhanced brief ready" : " Enhance with AI"}
         </button>
         <button
           className="discovery-text-action"
@@ -862,20 +862,20 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
 function hasDiscoverySummary(summary) {
   return Boolean(
     summary &&
-      (
-        summary.client_name ||
-        summary.company_name ||
-        summary.industry ||
-        summary.what_business_does ||
-        summary.target_customer ||
-        summary.why_choose_us ||
-        summary.brand_feeling ||
-        summary.audience_archetype ||
-        summary.sliders?.length ||
-        summary.emotions?.length ||
-        summary.visual_styles?.length ||
-        summary.top_competitors?.length
-      )
+    (
+      summary.client_name ||
+      summary.company_name ||
+      summary.industry ||
+      summary.what_business_does ||
+      summary.target_customer ||
+      summary.why_choose_us ||
+      summary.brand_feeling ||
+      summary.audience_archetype ||
+      summary.sliders?.length ||
+      summary.emotions?.length ||
+      summary.visual_styles?.length ||
+      summary.top_competitors?.length
+    )
   );
 }
 
@@ -3211,9 +3211,8 @@ function AIChatbotPanel({ project, onClose }) {
               {messages.map((message) => (
                 <article
                   key={message.id}
-                  className={`ai-chat-message ${message.role === "user" ? "user" : "assistant"} ${
-                    message.isError ? "error" : ""
-                  }`.trim()}
+                  className={`ai-chat-message ${message.role === "user" ? "user" : "assistant"} ${message.isError ? "error" : ""
+                    }`.trim()}
                 >
                   <div className="ai-chat-bubble">
                     <AssistantMessageText text={message.text} />
@@ -3615,10 +3614,10 @@ export default function Discovery() {
         currentActivities.map((activity) =>
           readIdSet.has(activity.id)
             ? {
-                ...activity,
-                is_read: true,
-                read_at: activity.read_at || readAt,
-              }
+              ...activity,
+              is_read: true,
+              read_at: activity.read_at || readAt,
+            }
             : activity
         )
       );
@@ -3626,10 +3625,10 @@ export default function Discovery() {
         currentActivities.map((activity) =>
           readIdSet.has(activity.id)
             ? {
-                ...activity,
-                is_read: true,
-                read_at: activity.read_at || readAt,
-              }
+              ...activity,
+              is_read: true,
+              read_at: activity.read_at || readAt,
+            }
             : activity
         )
       );
@@ -3755,26 +3754,26 @@ export default function Discovery() {
 
                 {isAssistantOpen && typeof document !== "undefined"
                   ? createPortal(
+                    <div
+                      className="project-ai-modal-backdrop"
+                      role="presentation"
+                      onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                          setIsAssistantOpen(false);
+                        }
+                      }}
+                    >
                       <div
-                        className="project-ai-modal-backdrop"
-                        role="presentation"
-                        onMouseDown={(event) => {
-                          if (event.target === event.currentTarget) {
-                            setIsAssistantOpen(false);
-                          }
-                        }}
+                        className="project-ai-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="FLOXA Project Assistant"
                       >
-                        <div
-                          className="project-ai-modal"
-                          role="dialog"
-                          aria-modal="true"
-                          aria-label="FLOXA Project Assistant"
-                        >
-                          <AIChatbotPanel project={project} onClose={() => setIsAssistantOpen(false)} />
-                        </div>
-                      </div>,
-                      document.body
-                    )
+                        <AIChatbotPanel project={project} onClose={() => setIsAssistantOpen(false)} />
+                      </div>
+                    </div>,
+                    document.body
+                  )
                   : null}
 
               </>
