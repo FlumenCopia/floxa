@@ -246,6 +246,8 @@ export default function Floxaheader({
     : notificationCount;
 
   const [callState, setCallState] = useState("idle");
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     const token =
@@ -364,7 +366,7 @@ export default function Floxaheader({
 
     async function validateSession() {
       try {
-        const currentConsultant = await getCurrentConsultant(true);
+        const currentConsultant = await getCurrentConsultant();
         cachedConsultant = currentConsultant;
         hasValidatedSession = true;
 
@@ -598,13 +600,12 @@ export default function Floxaheader({
     }
   };
 
-  const handleLogout = async () => {
-    const confirmed = window.confirm("Are you sure you want to logout?");
+  const handleOpenLogoutModal = () => {
+    setIsLogoutModalOpen(true);
+  };
 
-    if (!confirmed) {
-      return;
-    }
-
+  const handleConfirmLogout = async () => {
+    setIsLoggingOut(true);
     try {
       await logoutConsultant();
       showSuccess("Logout successful.");
@@ -612,12 +613,25 @@ export default function Floxaheader({
       console.error("Logout failed:", error);
       showError(error?.detail || "Logout failed.");
     } finally {
+      setIsLoggingOut(false);
+      setIsLogoutModalOpen(false);
       localStorage.removeItem("consultant");
       setHeaderNotifications([]);
       closeSidebar();
       router.push("/login");
     }
   };
+
+  useEffect(() => {
+    if (!isLogoutModalOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && !isLoggingOut) {
+        setIsLogoutModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isLogoutModalOpen, isLoggingOut]);
 
   if (!isAuthChecked) {
     return null;
@@ -668,7 +682,7 @@ export default function Floxaheader({
           {accountNavItems.map((item) => (
             <NavItem key={item.label} item={item} onClick={() => handleNavigation(item.route)} />
           ))}
-          <NavItem item={{ label: "LOGOUT", icon: "logout" }} onClick={handleLogout} />
+          <NavItem item={{ label: "LOGOUT", icon: "logout" }} onClick={handleOpenLogoutModal} />
         </div>
 
         <div className="sidebar-footer">
@@ -827,6 +841,51 @@ export default function Floxaheader({
       </div>
 
       <VideoCallModal currentRole="consultant" />
+
+      {isLogoutModalOpen ? (
+        <div
+          className="floxa-logout-overlay"
+          onClick={() => {
+            if (!isLoggingOut) setIsLogoutModalOpen(false);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="floxa-logout-title"
+        >
+          <div
+            className="floxa-logout-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="floxa-logout-icon-wrap" aria-hidden="true">
+              <LogOut size={24} strokeWidth={2.2} />
+            </div>
+            <h3 id="floxa-logout-title" className="floxa-logout-title">
+              Log Out
+            </h3>
+            <p className="floxa-logout-desc">
+              Are you sure you want to log out of your FLOXA account?
+            </p>
+            <div className="floxa-logout-actions">
+              <button
+                type="button"
+                className="floxa-logout-btn-cancel"
+                onClick={() => setIsLogoutModalOpen(false)}
+                disabled={isLoggingOut}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="floxa-logout-btn-confirm"
+                onClick={handleConfirmLogout}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? "Logging out..." : "Log Out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mobile-tabbar">
         {resolvedMobileTabItems.map((item) => (

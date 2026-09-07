@@ -899,6 +899,9 @@ export const clientPortalService = {
 
       writeProject(updated);
 
+      const isSubmitted = Boolean(discovery?.submitted_at || discovery?.is_submitted);
+      const isComplete = isBackendDiscoveryComplete(discovery || {});
+
       const draft = mapBackendDiscoveryToDraft(discovery || {});
 
       const normalizedData = {

@@ -191,6 +191,11 @@ class ProjectDiscoverySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(f"'{value}' is not a valid customer archetype.")
         return value
 
+    def validate_visual_styles(self, value):
+        if len(value) > 3:
+            raise serializers.ValidationError("Cannot select more than 3 visual styles.")
+        return value
+
     class Meta:
         model = ProjectDiscovery
         fields = [

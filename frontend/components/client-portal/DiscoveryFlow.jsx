@@ -120,12 +120,37 @@ export function getCompetitorNameForPayload(competitor) {
   return competitor.name.trim();
 }
 
-export function buildDiscoveryPayload({ basics, sliders, emotions, persona, comps, styles, step }) {
+export function buildDiscoveryPayload({ basics = {}, sliders, emotions, persona, comps, styles, step }) {
   const allSliders = [...slidersOne, ...slidersTwo];
+
+  const whatDo = basics.whatDo || basics.whatDoYouDo || basics.what_business_does || basics.businessDescription || "";
+  const targetCustomer = basics.targetCustomer || basics.target_customer || "";
+  const whyChooseUs = basics.whyChooseUs || basics.whyChooseYou || basics.why_choose_us || "";
+  const brandFeeling = basics.brandFeeling || basics.brand_feeling || basics.whyTrustYou || "";
 
   return {
     step,
-    business_basics: basics,
+    business_basics: {
+      ...basics,
+      whatDo,
+      whatDoYouDo: whatDo,
+      targetCustomer,
+      whyChooseUs,
+      whyChooseYou: whyChooseUs,
+      brandFeeling,
+      whyTrustYou: brandFeeling,
+    },
+    what_business_does: whatDo,
+    whatDo,
+    whatDoYouDo: whatDo,
+    target_customer: targetCustomer,
+    targetCustomer,
+    why_choose_us: whyChooseUs,
+    whyChooseUs,
+    whyChooseYou: whyChooseUs,
+    brand_feeling: brandFeeling,
+    brandFeeling,
+    whyTrustYou: brandFeeling,
     sliders: allSliders.map((slider) => ({
       slider_key: slider.key,
       left_label: slider.left,
@@ -138,7 +163,15 @@ export function buildDiscoveryPayload({ basics, sliders, emotions, persona, comp
       right_label: slider.right,
       value: toBackendSliderValue(sliders[slider.key] ?? 0),
     })),
-    emotions: (emotions || []).map((e) => (typeof e === "string" ? { emotion: e } : e)),
+    emotions: Array.from(
+      new Set(
+        (emotions || [])
+          .map((e) => (typeof e === "string" ? e : e?.emotion))
+          .filter(Boolean)
+      )
+    )
+      .slice(0, 8)
+      .map((emotion) => ({ emotion })),
     customer_archetype: persona,
     audience_archetype: persona,
     persona: persona,
@@ -149,7 +182,15 @@ export function buildDiscoveryPayload({ basics, sliders, emotions, persona, comp
         rating: competitor.rating || "neutral",
         reason: (competitor.reason || "").trim(),
       })),
-    visual_styles: (styles || []).map((s) => (typeof s === "string" ? { style: s } : s)),
+    visual_styles: Array.from(
+      new Set(
+        (styles || [])
+          .map((s) => (typeof s === "string" ? s : s?.style))
+          .filter(Boolean)
+      )
+    )
+      .slice(0, 3)
+      .map((style) => ({ style })),
   };
 }
 
@@ -172,17 +213,39 @@ export function DiscoveryFlow({
   onNext,
   isConsultantMode = false,
   consultantToken = "",
+  initialStep,
 }) {
   const targetPortalToken = portalToken || token || project?.portal_token || project?.portalToken || "";
   const draftKey = `floxa-discovery-${project?.id || "draft"}`;
   const [step, setStep] = useState(() => {
+    if (typeof initialStep === "number" && initialStep >= 1 && initialStep <= 6) {
+      return initialStep;
+    }
     const draft = readStoredDraft(draftKey);
     return Math.min(6, Math.max(1, draft.step ?? 1));
   });
   const [sliders, setSliders] = useState(() => readStoredDraft(draftKey).sliders ?? {});
-  const [emotions, setEmotions] = useState(() => readStoredDraft(draftKey).emotions ?? []);
+  const [emotions, setEmotions] = useState(() => {
+    const raw = readStoredDraft(draftKey).emotions ?? [];
+    return Array.from(
+      new Set(
+        (Array.isArray(raw) ? raw : [])
+          .map((item) => (typeof item === "string" ? item : item?.emotion))
+          .filter(Boolean)
+      )
+    ).slice(0, 8);
+  });
   const [persona, setPersona] = useState(() => readStoredDraft(draftKey).persona ?? "");
-  const [styles, setStyles] = useState(() => readStoredDraft(draftKey).styles ?? []);
+  const [styles, setStyles] = useState(() => {
+    const raw = readStoredDraft(draftKey).styles ?? [];
+    return Array.from(
+      new Set(
+        (Array.isArray(raw) ? raw : [])
+          .map((item) => (typeof item === "string" ? item : item?.style))
+          .filter(Boolean)
+      )
+    ).slice(0, 3);
+  });
   const [comps, setComps] = useState([
     ...(readStoredDraft(draftKey).comps ?? defaultCompetitors),
   ]);
@@ -285,7 +348,13 @@ export function DiscoveryFlow({
         }));
 
         if (Array.isArray(d.emotions) && d.emotions.length > 0) {
-          const loadedEmotions = d.emotions.map((e) => (typeof e === "string" ? e : e.emotion)).filter(Boolean);
+          const loadedEmotions = Array.from(
+            new Set(
+              d.emotions
+                .map((e) => (typeof e === "string" ? e : e?.emotion))
+                .filter(Boolean)
+            )
+          ).slice(0, 8);
           setEmotions(loadedEmotions);
         }
 
@@ -311,7 +380,15 @@ export function DiscoveryFlow({
         }
 
         if (Array.isArray(d.visual_styles) && d.visual_styles.length > 0) {
-          setStyles(d.visual_styles.map((v) => (typeof v === "string" ? v : v.style)).filter(Boolean));
+          setStyles(
+            Array.from(
+              new Set(
+                d.visual_styles
+                  .map((v) => (typeof v === "string" ? v : v.style))
+                  .filter(Boolean)
+              )
+            ).slice(0, 3)
+          );
         }
       }
     });
@@ -388,19 +465,28 @@ export function DiscoveryFlow({
 
   const handleEmotionToggle = (word) => {
     if (isReadOnly) return;
-    let next;
-    if (emotions.includes(word)) {
-      next = emotions.filter((item) => item !== word);
-    } else if (emotions.length < 8) {
-      next = [...emotions, word];
-    } else {
-      return;
-    }
-    setEmotions(next);
-    supportSocket.syncField({
-      pageId,
-      fieldKey: "emotions",
-      value: next,
+    setEmotions((current) => {
+      const normalizedCurrent = Array.from(
+        new Set(
+          (current || [])
+            .map((item) => (typeof item === "string" ? item : item?.emotion))
+            .filter(Boolean)
+        )
+      );
+      let next;
+      if (normalizedCurrent.includes(word)) {
+        next = normalizedCurrent.filter((item) => item !== word);
+      } else if (normalizedCurrent.length < 8) {
+        next = [...normalizedCurrent, word];
+      } else {
+        return normalizedCurrent;
+      }
+      supportSocket.syncField({
+        pageId,
+        fieldKey: "emotions",
+        value: next,
+      });
+      return next;
     });
   };
 
@@ -422,19 +508,33 @@ export function DiscoveryFlow({
 
   const handleStylesToggle = (name) => {
     if (isReadOnly) return;
-    const next = styles.includes(name)
-      ? styles.filter((item) => item !== name)
-      : [...styles, name];
-    setStyles(next);
-    supportSocket.syncField({
-      pageId,
-      fieldKey: "styles",
-      value: next,
-    });
-    supportSocket.syncField({
-      pageId,
-      fieldKey: "selectedVisual",
-      value: next,
+    setStyles((current) => {
+      const normalizedCurrent = Array.from(
+        new Set(
+          (current || [])
+            .map((item) => (typeof item === "string" ? item : item?.style))
+            .filter(Boolean)
+        )
+      );
+      let next;
+      if (normalizedCurrent.includes(name)) {
+        next = normalizedCurrent.filter((item) => item !== name);
+      } else if (normalizedCurrent.length < 3) {
+        next = [...normalizedCurrent, name];
+      } else {
+        return normalizedCurrent;
+      }
+      supportSocket.syncField({
+        pageId,
+        fieldKey: "styles",
+        value: next,
+      });
+      supportSocket.syncField({
+        pageId,
+        fieldKey: "selectedVisual",
+        value: next,
+      });
+      return next;
     });
   };
 
@@ -571,17 +671,40 @@ export function DiscoveryFlow({
       step,
     });
 
-    return clientPortalService.saveDiscoveryDraft(project.id, payload);
+    const saveToken = targetPortalToken || project?.portal_token || project?.id;
+    return clientPortalService.saveDiscoveryDraft(saveToken, payload);
   };
 
   const handleFinish = async () => {
-    if (!styles.length) {
+    if (step === 6 && !styles.length) {
       setMessage("Choose at least one visual style.");
       return;
     }
 
-    setMessage("");
-    onNext("review");
+    setSaving(true);
+    try {
+      const payload = buildDiscoveryPayload({
+        basics,
+        sliders,
+        emotions,
+        persona,
+        comps,
+        styles,
+        step,
+      });
+      const draft = { basics, sliders, emotions, persona, styles, comps, step };
+      window.localStorage.setItem(draftKey, JSON.stringify(draft));
+      const saveToken = targetPortalToken || project?.portal_token || project?.id;
+      if (saveToken) {
+        await clientPortalService.saveDiscoveryDraft(saveToken, payload);
+      }
+    } catch (err) {
+      console.warn("Saving draft on review transition error:", err);
+    } finally {
+      setSaving(false);
+      setMessage("");
+      onNext("review");
+    }
   };
 
   async function nextStep() {
@@ -684,10 +807,25 @@ export function DiscoveryFlow({
         <div className="client-discovery-dots">
           <span>Step {step} of 6</span>
           {[1, 2, 3, 4, 5, 6].map((item) => (
-            <i
+            <button
               key={item}
-              className={item < step ? "complete" : item === step ? "active" : ""}
-            />
+              type="button"
+              onClick={() => {
+                setStep(item);
+                supportSocket.navigateStep({ step: item, pageId: `frame_${item}` });
+              }}
+              style={{
+                background: "transparent",
+                border: "none",
+                padding: "2px",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+              }}
+              title={`Jump to Step ${item}`}
+            >
+              <i className={item < step ? "complete" : item === step ? "active" : ""} />
+            </button>
           ))}
         </div>
 
@@ -889,6 +1027,7 @@ export function DiscoveryFlow({
                 </button>
               ))}
             </div>
+            <div className="client-helper-text">{styles.length} / 3 selected</div>
           </>
         ) : null}
 

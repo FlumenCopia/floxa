@@ -3421,7 +3421,50 @@ textarea {
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
+
+.discovery-moodboard-link:hover {
+  background: rgba(77, 255, 160, 0.15);
+  color: #ffffff;
+}
+
+.discovery-moodboard-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.discovery-moodboard-delete-btn {
+  flex: 0 0 auto;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 999px;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.08);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.discovery-moodboard-delete-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #ffffff;
+}
+
+.discovery-moodboard-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 
 .discovery-moodboard-card,
 .discovery-concept-card {
@@ -8609,4 +8652,135 @@ section:not(.client-welcome-stage)::after,
     font-size: 0.7rem;
     padding: 1px 8px;
   }
-}
+}
+
+/* ==========================================================================
+   FLOXA In-Screen Logout Modal
+   ========================================================================== */
+.floxa-logout-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 16px;
+  animation: floxaFadeIn 0.2s ease-out;
+}
+
+.floxa-logout-modal {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), #0a1310;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 32px 28px 26px;
+  text-align: center;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.8),
+    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    0 0 40px rgba(77, 255, 160, 0.08);
+  animation: floxaScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floxa-logout-icon-wrap {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f87171;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.2);
+}
+
+.floxa-logout-title {
+  margin: 0 0 10px;
+  font-size: 21px;
+  font-weight: 700;
+  color: #f5fff8;
+  letter-spacing: -0.3px;
+}
+
+.floxa-logout-desc {
+  margin: 0 0 26px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #9bd7c3;
+  opacity: 0.9;
+}
+
+.floxa-logout-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.floxa-logout-btn-cancel {
+  flex: 1;
+  padding: 11px 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  color: #a8cfbe;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.floxa-logout-btn-cancel:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.floxa-logout-btn-confirm {
+  flex: 1;
+  padding: 11px 18px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 12px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(239, 68, 68, 0.35);
+  transition: all 0.15s ease;
+}
+
+.floxa-logout-btn-confirm:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  box-shadow: 0 6px 22px rgba(239, 68, 68, 0.5);
+  transform: translateY(-1px);
+}
+
+.floxa-logout-btn-confirm:disabled,
+.floxa-logout-btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes floxaFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes floxaScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+

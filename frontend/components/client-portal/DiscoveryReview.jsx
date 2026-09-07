@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { clientPortalService } from "../../services/clientPortalService";
 import {
   allSliderDefinitions,
@@ -29,8 +29,8 @@ function ReviewSection({ title, items, action }) {
         {action}
       </div>
       <div className="client-review-items">
-        {items.map((item) => (
-          <article key={item.label}>
+        {items.map((item, index) => (
+          <article key={`${title}-${item.label || "item"}-${index}`}>
             <span>{item.label}</span>
             <strong>{cleanValue(item.value)}</strong>
           </article>
@@ -63,24 +63,59 @@ export function DiscoveryReview({
   onNext,
   onProjectRefresh,
 }) {
-  const draftKey = `floxa-discovery-${project.id}`;
-  const draft = useMemo(() => readStoredDraft(draftKey), [draftKey]);
+  const draftKey = `floxa-discovery-${project?.id || "draft"}`;
+  const [draft, setDraft] = useState(() => readStoredDraft(draftKey));
   const [confirmed, setConfirmed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const targetToken = project?.portal_token || project?.portalToken || "";
+    if (targetToken || project?.id) {
+      clientPortalService.getDiscoveryDraft(targetToken || project.id).then((res) => {
+        if (res?.success && res.data) {
+          const loaded = res.data.draft || res.data;
+          const local = readStoredDraft(draftKey);
+          setDraft((prev) => ({
+            ...loaded,
+            ...local,
+            ...prev,
+            basics: {
+              ...(loaded.basics || {}),
+              ...(local?.basics || {}),
+              ...(prev?.basics || {}),
+              whatDo: prev?.basics?.whatDo || local?.basics?.whatDo || loaded.whatDo || loaded.business_description || loaded.businessDescription || "",
+              targetCustomer: prev?.basics?.targetCustomer || local?.basics?.targetCustomer || loaded.targetCustomer || loaded.target_customer || "",
+              whyChooseUs: prev?.basics?.whyChooseUs || local?.basics?.whyChooseUs || loaded.whyChooseUs || loaded.why_choose_us || "",
+              brandFeeling: prev?.basics?.brandFeeling || local?.basics?.brandFeeling || loaded.brandFeeling || loaded.brand_feeling || "",
+            },
+          }));
+        }
+      });
+    }
+  }, [draftKey, project?.id, project?.portal_token, project?.portalToken]);
+
   const basics = {
     whatDo: "",
     targetCustomer: "",
     whyChooseUs: "",
     brandFeeling: "",
-    ...(draft.basics ?? {}),
+    ...(draft?.basics ?? {}),
   };
-  const sliders = draft.sliders ?? {};
-  const emotions = draft.emotions ?? [];
-  const persona = draft.persona ?? "";
-  const comps = draft.comps ?? defaultCompetitors;
-  const styles = draft.styles ?? [];
-  const step = Math.max(6, draft.step ?? 6);
+  const sliders = draft?.sliders ?? {};
+  const emotions = Array.from(
+    new Set(
+      (draft?.emotions ?? []).map((e) => (typeof e === "string" ? e : e?.emotion)).filter(Boolean)
+    )
+  );
+  const persona = draft?.persona ?? "";
+  const comps = draft?.comps ?? defaultCompetitors;
+  const styles = Array.from(
+    new Set(
+      (draft?.styles ?? []).map((s) => (typeof s === "string" ? s : s?.style)).filter(Boolean)
+    )
+  );
+  const step = Math.max(6, draft?.step ?? 6);
   const sliderItems = allSliderDefinitions.map((slider) => ({
     label: `${slider.left} / ${slider.right}`,
     value: formatReviewSliderValue(slider, sliders[slider.key]),
@@ -88,11 +123,11 @@ export function DiscoveryReview({
   const competitors = comps
     .filter((competitor) => competitor.name || competitor.rating || competitor.reason)
     .map((competitor, index) => ({
-      label: competitor.name || `Competitor ${index + 1}`,
+      label: competitor.name ? `Competitor ${index + 1} (${competitor.name})` : `Competitor ${index + 1}`,
       value: [
         competitor.rating ? `Rating: ${competitor.rating}` : "",
         competitor.reason ? `Reason: ${competitor.reason}` : "",
-      ].filter(Boolean).join(" - "),
+      ].filter(Boolean).join(" - ") || "No feedback provided",
     }));
   const profileItems = [
     { label: "Name", value: clientData.clientName },
@@ -149,7 +184,7 @@ export function DiscoveryReview({
       }
     } catch (error) {
       console.error("Client discovery review submit failed:", error);
-      setMessage(error instanceof Error ? error.message : "Unable to submit discovery. Please try again.");
+      setMessage(error?.detail || (error instanceof Error ? error.message : "Unable to submit discovery. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -188,13 +223,29 @@ export function DiscoveryReview({
               title="Discovery Summary"
               items={businessItems}
               action={(
-                <button type="button" onClick={() => onNext("discovery")}>
-                  Edit Discovery
+                <button type="button" onClick={() => onNext("discovery", { step: 1 })}>
+                  Edit Answers
                 </button>
               )}
             />
-            <ReviewSection title="Brand Personality" items={sliderItems} />
-            <ReviewSection title="Audience, Competitors & Style" items={audienceItems} />
+            <ReviewSection
+              title="Brand Personality"
+              items={sliderItems}
+              action={(
+                <button type="button" onClick={() => onNext("discovery", { step: 2 })}>
+                  Edit Sliders
+                </button>
+              )}
+            />
+            <ReviewSection
+              title="Audience, Competitors & Style"
+              items={audienceItems}
+              action={(
+                <button type="button" onClick={() => onNext("discovery", { step: 4 })}>
+                  Edit Choices
+                </button>
+              )}
+            />
           </div>
         </div>
 

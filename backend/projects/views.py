@@ -2838,8 +2838,27 @@ class ClientPortalDiscoveryView(APIView):
             )
 
         raw_data = dict(request.data)
-        for k in ("business_description", "businessDescription", "whatDo", "whatDoYouDo"):
-            if k in raw_data and raw_data[k]:
+        basics = raw_data.get("business_basics") or raw_data.get("basics") or {}
+        if isinstance(basics, dict):
+            for k in ("whatDo", "whatDoYouDo", "businessDescription", "business_description", "what_business_does"):
+                if k in basics and basics[k] and "what_business_does" not in raw_data:
+                    raw_data["what_business_does"] = basics[k]
+                    break
+            for k in ("targetCustomer", "target_customer"):
+                if k in basics and basics[k] and "target_customer" not in raw_data:
+                    raw_data["target_customer"] = basics[k]
+                    break
+            for k in ("whyChooseUs", "whyChooseYou", "why_choose_us"):
+                if k in basics and basics[k] and "why_choose_us" not in raw_data:
+                    raw_data["why_choose_us"] = basics[k]
+                    break
+            for k in ("brandFeeling", "whyTrustYou", "brand_feeling"):
+                if k in basics and basics[k] and "brand_feeling" not in raw_data:
+                    raw_data["brand_feeling"] = basics[k]
+                    break
+
+        for k in ("business_description", "businessDescription", "whatDo", "whatDoYouDo", "what_business_does"):
+            if k in raw_data and raw_data[k] and "what_business_does" not in raw_data:
                 raw_data["what_business_does"] = raw_data[k]
                 break
 
@@ -2856,27 +2875,39 @@ class ClientPortalDiscoveryView(APIView):
         if "personality_sliders" in raw_data and "sliders" not in raw_data:
             raw_data["sliders"] = raw_data["personality_sliders"]
 
-        if "selectedEmotions" in raw_data and "emotions" not in raw_data:
-            raw_data["emotions"] = [
-                {"emotion": e} if isinstance(e, str) else e
-                for e in raw_data["selectedEmotions"]
-            ]
+        raw_emotions = []
+        if "selectedEmotions" in raw_data and isinstance(raw_data["selectedEmotions"], list):
+            raw_emotions = raw_data["selectedEmotions"]
         elif "emotions" in raw_data and isinstance(raw_data["emotions"], list):
-            raw_data["emotions"] = [
-                {"emotion": e} if isinstance(e, str) else e
-                for e in raw_data["emotions"]
-            ]
+            raw_emotions = raw_data["emotions"]
 
-        if "selectedVisual" in raw_data and "visual_styles" not in raw_data:
-            raw_data["visual_styles"] = [
-                {"style": s} if isinstance(s, str) else s
-                for s in raw_data["selectedVisual"]
-            ]
+        if raw_emotions:
+            seen_emotions = set()
+            deduped_emotions = []
+            for item in raw_emotions:
+                ename = item.get("emotion") if isinstance(item, dict) else (getattr(item, "emotion", None) or str(item))
+                if ename and ename.strip() and ename.strip() not in seen_emotions:
+                    seen_emotions.add(ename.strip())
+                    deduped_emotions.append({"emotion": ename.strip()})
+            raw_data["emotions"] = deduped_emotions[:8]
+
+        raw_styles = []
+        if "selectedVisual" in raw_data and isinstance(raw_data["selectedVisual"], list):
+            raw_styles = raw_data["selectedVisual"]
+        elif "styles" in raw_data and isinstance(raw_data["styles"], list):
+            raw_styles = raw_data["styles"]
         elif "visual_styles" in raw_data and isinstance(raw_data["visual_styles"], list):
-            raw_data["visual_styles"] = [
-                {"style": s} if isinstance(s, str) else s
-                for s in raw_data["visual_styles"]
-            ]
+            raw_styles = raw_data["visual_styles"]
+
+        if raw_styles:
+            seen_styles = set()
+            deduped_styles = []
+            for item in raw_styles:
+                sname = item.get("style") if isinstance(item, dict) else (getattr(item, "style", None) or str(item))
+                if sname and sname.strip() and sname.strip() not in seen_styles:
+                    seen_styles.add(sname.strip())
+                    deduped_styles.append({"style": sname.strip()})
+            raw_data["visual_styles"] = deduped_styles[:3]
 
         for k in ("customer_archetype", "persona", "selectedAudience"):
             if k in raw_data and raw_data[k]:
@@ -4792,27 +4823,39 @@ class ProjectDiscoveryView(APIView):
 
         basics = raw_data.get("business_basics") or raw_data.get("basics") or {}
         if isinstance(basics, dict):
-            if "whatDoYouDo" in basics and "what_business_does" not in raw_data:
-                raw_data["what_business_does"] = basics["whatDoYouDo"]
-            if "targetCustomer" in basics and "target_customer" not in raw_data:
-                raw_data["target_customer"] = basics["targetCustomer"]
-            if "whyChooseYou" in basics and "why_choose_us" not in raw_data:
-                raw_data["why_choose_us"] = basics["whyChooseYou"]
-            if "brandFeeling" in basics and "brand_feeling" not in raw_data:
-                raw_data["brand_feeling"] = basics["brandFeeling"]
-            if "whyTrustYou" in basics and "brand_feeling" not in raw_data:
-                raw_data["brand_feeling"] = basics["whyTrustYou"]
+            for k in ("whatDo", "whatDoYouDo", "businessDescription", "business_description", "what_business_does"):
+                if k in basics and basics[k] and "what_business_does" not in raw_data:
+                    raw_data["what_business_does"] = basics[k]
+                    break
+            for k in ("targetCustomer", "target_customer"):
+                if k in basics and basics[k] and "target_customer" not in raw_data:
+                    raw_data["target_customer"] = basics[k]
+                    break
+            for k in ("whyChooseUs", "whyChooseYou", "why_choose_us"):
+                if k in basics and basics[k] and "why_choose_us" not in raw_data:
+                    raw_data["why_choose_us"] = basics[k]
+                    break
+            for k in ("brandFeeling", "whyTrustYou", "brand_feeling"):
+                if k in basics and basics[k] and "brand_feeling" not in raw_data:
+                    raw_data["brand_feeling"] = basics[k]
+                    break
 
-        if "whatDoYouDo" in raw_data and "what_business_does" not in raw_data:
-            raw_data["what_business_does"] = raw_data["whatDoYouDo"]
-        if "targetCustomer" in raw_data and "target_customer" not in raw_data:
-            raw_data["target_customer"] = raw_data["targetCustomer"]
-        if "whyChooseYou" in raw_data and "why_choose_us" not in raw_data:
-            raw_data["why_choose_us"] = raw_data["whyChooseYou"]
-        if "brandFeeling" in raw_data and "brand_feeling" not in raw_data:
-            raw_data["brand_feeling"] = raw_data["brandFeeling"]
-        if "whyTrustYou" in raw_data and "brand_feeling" not in raw_data:
-            raw_data["brand_feeling"] = raw_data["whyTrustYou"]
+        for k in ("whatDo", "whatDoYouDo", "businessDescription", "business_description", "what_business_does"):
+            if k in raw_data and raw_data[k] and "what_business_does" not in raw_data:
+                raw_data["what_business_does"] = raw_data[k]
+                break
+        for k in ("targetCustomer", "target_customer"):
+            if k in raw_data and raw_data[k] and "target_customer" not in raw_data:
+                raw_data["target_customer"] = raw_data[k]
+                break
+        for k in ("whyChooseUs", "whyChooseYou", "why_choose_us"):
+            if k in raw_data and raw_data[k] and "why_choose_us" not in raw_data:
+                raw_data["why_choose_us"] = raw_data[k]
+                break
+        for k in ("brandFeeling", "whyTrustYou", "brand_feeling"):
+            if k in raw_data and raw_data[k] and "brand_feeling" not in raw_data:
+                raw_data["brand_feeling"] = raw_data[k]
+                break
 
         for k in ("customer_archetype", "persona", "selectedAudience"):
             if k in raw_data and raw_data[k]:
@@ -4823,32 +4866,39 @@ class ProjectDiscoveryView(APIView):
         if "personality_sliders" in raw_data and "sliders" not in raw_data:
             raw_data["sliders"] = raw_data["personality_sliders"]
 
-        if "selectedEmotions" in raw_data and "emotions" not in raw_data:
-            raw_data["emotions"] = [
-                {"emotion": e} if isinstance(e, str) else e
-                for e in raw_data["selectedEmotions"]
-            ]
+        raw_emotions = []
+        if "selectedEmotions" in raw_data and isinstance(raw_data["selectedEmotions"], list):
+            raw_emotions = raw_data["selectedEmotions"]
         elif "emotions" in raw_data and isinstance(raw_data["emotions"], list):
-            raw_data["emotions"] = [
-                {"emotion": e} if isinstance(e, str) else e
-                for e in raw_data["emotions"]
-            ]
+            raw_emotions = raw_data["emotions"]
 
-        if "selectedVisual" in raw_data and "styles" not in raw_data and "visual_styles" not in raw_data:
-            raw_data["visual_styles"] = [
-                {"style": s} if isinstance(s, str) else s
-                for s in raw_data["selectedVisual"]
-            ]
-        elif "styles" in raw_data and "visual_styles" not in raw_data:
-            raw_data["visual_styles"] = [
-                {"style": s} if isinstance(s, str) else s
-                for s in raw_data["styles"]
-            ]
+        if raw_emotions:
+            seen_emotions = set()
+            deduped_emotions = []
+            for item in raw_emotions:
+                ename = item.get("emotion") if isinstance(item, dict) else (getattr(item, "emotion", None) or str(item))
+                if ename and ename.strip() and ename.strip() not in seen_emotions:
+                    seen_emotions.add(ename.strip())
+                    deduped_emotions.append({"emotion": ename.strip()})
+            raw_data["emotions"] = deduped_emotions[:8]
+
+        raw_styles = []
+        if "selectedVisual" in raw_data and isinstance(raw_data["selectedVisual"], list):
+            raw_styles = raw_data["selectedVisual"]
+        elif "styles" in raw_data and isinstance(raw_data["styles"], list):
+            raw_styles = raw_data["styles"]
         elif "visual_styles" in raw_data and isinstance(raw_data["visual_styles"], list):
-            raw_data["visual_styles"] = [
-                {"style": s} if isinstance(s, str) else s
-                for s in raw_data["visual_styles"]
-            ]
+            raw_styles = raw_data["visual_styles"]
+
+        if raw_styles:
+            seen_styles = set()
+            deduped_styles = []
+            for item in raw_styles:
+                sname = item.get("style") if isinstance(item, dict) else (getattr(item, "style", None) or str(item))
+                if sname and sname.strip() and sname.strip() not in seen_styles:
+                    seen_styles.add(sname.strip())
+                    deduped_styles.append({"style": sname.strip()})
+            raw_data["visual_styles"] = deduped_styles[:3]
 
         if "comps" in raw_data and "competitors" not in raw_data:
             raw_data["competitors"] = raw_data["comps"]
@@ -4865,7 +4915,13 @@ class ProjectDiscoveryView(APIView):
                     raw_data[field] = getattr(existing_discovery, field)
 
             if not raw_data.get("emotions") and existing_discovery.emotions.exists():
-                raw_data["emotions"] = [{"emotion": e.emotion} for e in existing_discovery.emotions.all()]
+                seen_e = set()
+                deduped_e = []
+                for e in existing_discovery.emotions.all():
+                    if e.emotion and e.emotion.strip() not in seen_e:
+                        seen_e.add(e.emotion.strip())
+                        deduped_e.append({"emotion": e.emotion.strip()})
+                raw_data["emotions"] = deduped_e[:8]
 
             if not raw_data.get("competitors") and existing_discovery.competitors.exists():
                 raw_data["competitors"] = [
@@ -4875,7 +4931,13 @@ class ProjectDiscoveryView(APIView):
                 ]
 
             if not raw_data.get("visual_styles") and existing_discovery.visual_styles.exists():
-                raw_data["visual_styles"] = [{"style": v.style} for v in existing_discovery.visual_styles.all()]
+                seen_s = set()
+                deduped_s = []
+                for v in existing_discovery.visual_styles.all():
+                    if v.style and v.style.strip() not in seen_s:
+                        seen_s.add(v.style.strip())
+                        deduped_s.append({"style": v.style.strip()})
+                raw_data["visual_styles"] = deduped_s[:3]
 
             if not raw_data.get("sliders") and existing_discovery.sliders.exists():
                 raw_data["sliders"] = [

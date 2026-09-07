@@ -356,6 +356,38 @@ export async function updateAgreement(projectId, formData) {
   return uploadProjectFormData(`/projects/${projectId}/agreement/`, formData, "PATCH");
 }
 
+export async function deleteMoodboard(projectId, moodboardId) {
+  invalidateConsultantActivitiesCache();
+  await ensureCsrfCookie();
+
+  const endpoint = `/projects/${projectId}/moodboards/${moodboardId}/`;
+  const csrfToken = getCsrfToken();
+  const headers = csrfToken ? { "X-CSRFToken": csrfToken } : {};
+  let response = await fetch(buildApiUrl(endpoint), {
+    method: "DELETE",
+    credentials: "include",
+    headers,
+  });
+
+  if (response.status === 401) {
+    const refreshed = await refreshCookieSession();
+
+    if (refreshed) {
+      response = await fetch(buildApiUrl(endpoint), {
+        method: "DELETE",
+        credentials: "include",
+        headers,
+      });
+    }
+  }
+
+  if (response.status === 204) {
+    return { success: true };
+  }
+
+  return parseApiResponse(response);
+}
+
 export async function deleteConcept(projectId, conceptId) {
   invalidateConsultantActivitiesCache();
   await ensureCsrfCookie();

@@ -153,7 +153,12 @@ export function ClientPortal({ token, isConsultant = false }) {
     return portalProject;
   }, [applyProject]);
 
-  const goToScreen = (nextScreen) => {
+  const [editStep, setEditStep] = useState(1);
+
+  const goToScreen = (nextScreen, options = {}) => {
+    if (typeof options?.step === "number") {
+      setEditStep(options.step);
+    }
     setProfileReturnScreen(
       nextScreen === "profile" && ["dashboard", "review"].includes(screen) ? screen : ""
     );
@@ -370,6 +375,7 @@ export function ClientPortal({ token, isConsultant = false }) {
     isConsultantMode,
     consultantToken,
     onNext: goToScreen,
+    initialStep: editStep,
     onVerifyPassword: handlePortalAccess,
     onProjectRefresh: refreshProject,
   };
@@ -383,8 +389,8 @@ export function ClientPortal({ token, isConsultant = false }) {
         />
       ) : null}
       {screen === "profile" ? <ProfileScreen {...screenProps} /> : null}
-      {screen === "discovery" ? <DiscoveryFlow {...screenProps} /> : null}
-      {screen === "review" ? <DiscoveryReview {...screenProps} /> : null}
+      {screen === "discovery" ? <DiscoveryFlow key={`discovery-step-${editStep}`} {...screenProps} /> : null}
+      {screen === "review" ? <DiscoveryReview key="review-stage" {...screenProps} /> : null}
       {screen === "dashboard" ? (
         <ClientDashboard
           {...screenProps}

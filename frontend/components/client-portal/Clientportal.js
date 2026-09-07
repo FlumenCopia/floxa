@@ -190,10 +190,12 @@ function PortalHeader({ onClose, onVideoCall, callState }) {
                 : "Video Call Client"}
           </button>
         ) : null}
-        <button className="cp-close" onClick={onClose} type="button">
-          <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
-          Close
-        </button>
+        {onClose ? (
+          <button className="cp-close" onClick={onClose} type="button">
+            <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+            Close
+          </button>
+        ) : null}
       </div>
     </header>
   );
@@ -834,9 +836,18 @@ export default function Clientportal() {
 
   if (!entered) {
     return (
-      <main className="cp-screen">
-        <PortalHeader onClose={() => router.push("/")} />
-        <section className="cp-entry-card">
+      <main className="cp-screen" onClick={() => router.push("/")}>
+        <PortalHeader />
+        <section className="cp-entry-card" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="cp-entry-card-close"
+            onClick={() => router.push("/")}
+            aria-label="Close"
+          >
+            <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+            Close
+          </button>
           <div className="cp-orb" aria-hidden="true" />
           <h1>{"Let's discover your brand."}</h1>
           <p>
@@ -1182,6 +1193,7 @@ export default function Clientportal() {
             className="cp-visual-grid"
             isReadOnly={isReadOnly}
             items={visualOptions}
+            limit={3}
             selected={selectedVisual}
             setSelected={setSelectedVisual}
             onSync={(val) =>
