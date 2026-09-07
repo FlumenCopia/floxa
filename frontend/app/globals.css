@@ -8528,8 +8528,8 @@ section:not(.client-welcome-stage)::after,
 .client-agreement-card,
 .card:not(.login-card):not(.client-welcome-glass),
 .card2,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass),
-[class*="card-"]:not(.login-card):not(.client-welcome-glass) {
+[class*="-card"]:not(.login-card):not(.client-welcome-glass):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]),
+[class*="card-"]:not(.login-card):not(.client-welcome-glass):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]) {
   border-radius: 0 !important;
   border: 1px solid rgba(77, 255, 160, 0.2) !important;
   background: linear-gradient(135deg, rgba(77, 255, 160, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(6, 22, 15, 0.72) !important;
@@ -8540,6 +8540,19 @@ section:not(.client-welcome-stage)::after,
     0 0 24px rgba(77, 255, 160, 0.06),
     inset 0 1px 1px rgba(77, 255, 160, 0.12),
     inset 0 -1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+
+.kpi-card-header,
+.dashboard-card-header,
+[class*="card-header"],
+[class*="-card-header"],
+[class*="card-title"],
+[class*="-card-title"] {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 @media (max-width: 900px) {
