@@ -2623,7 +2623,7 @@ textarea {
 .discovery-payment-legend {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
   flex-wrap: wrap;
   margin-bottom: 14px;
 }
@@ -2631,28 +2631,27 @@ textarea {
 .discovery-payment-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(77, 255, 160, 0.16);
-  border-radius: 999px;
-  font-size: 11.5px;
+  gap: 7px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-size: 12px;
   font-weight: 600;
   color: #f4f8f2;
-  backdrop-filter: blur(8px);
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease;
   cursor: default;
 }
 
 .discovery-payment-pill:hover {
-  background: rgba(77, 255, 160, 0.06);
-  border-color: rgba(77, 255, 160, 0.32);
+  background: transparent;
+  border: none;
+  opacity: 0.85;
 }
 
 .discovery-payment-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
   display: inline-block;
   flex-shrink: 0;
 }
@@ -2800,13 +2799,13 @@ textarea {
 }
 
 .discovery-overview-card .discovery-payment-legend {
-  gap: 8px;
+  gap: 14px;
   margin-bottom: 12px;
 }
 
 .discovery-overview-card .discovery-payment-pill {
-  padding: 4px 10px;
-  font-size: 11px;
+  padding: 0;
+  font-size: 11.5px;
 }
 
 .discovery-overview-card .discovery-payment-list,
