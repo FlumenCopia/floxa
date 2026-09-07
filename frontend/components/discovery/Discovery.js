@@ -1190,7 +1190,7 @@ function MoodboardsPanel({ projectId }) {
           ) : null}
           <div className="discovery-moodboard-actions">
             <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
-              {saving ? (statusText || "Uploading...") : "+ Upload moodboard"}
+              {saving ? (statusText || "Uploading...") : "Upload moodboard"}
             </button>
           </div>
         </form>
