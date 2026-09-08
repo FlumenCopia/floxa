@@ -5529,6 +5529,209 @@ textarea {
   border-radius: 0;
 }
 
+/* ==========================================================================
+   Airbrushed Segmented Donut Chart (Projects by Status)
+   ========================================================================== */
+
+.airbrushed-donut-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.airbrushed-donut-wrapper .chart-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1.18 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+}
+
+.airbrushed-donut-wrapper .svg-container {
+  position: absolute;
+  width: 72%;
+  height: 80%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.airbrushed-donut-wrapper svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Sector Groups */
+.airbrushed-donut-wrapper .petal-group {
+  cursor: pointer;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+  transform-origin: 250px 250px;
+}
+
+.airbrushed-donut-wrapper .petal-group:hover {
+  transform: scale(1.035);
+}
+
+.airbrushed-donut-wrapper .petal-group.active {
+  transform: scale(1.045);
+}
+
+/* Stat Labels in the 4 corners */
+.airbrushed-donut-wrapper .stat-badge {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease, background-color 0.2s ease;
+  z-index: 10;
+  user-select: none;
+}
+
+.airbrushed-donut-wrapper .stat-badge:hover {
+  transform: scale(1.05);
+  background: rgba(125, 125, 125, 0.08);
+}
+
+.airbrushed-donut-wrapper .stat-badge.active {
+  transform: scale(1.08);
+  background: rgba(125, 125, 125, 0.12);
+}
+
+.airbrushed-donut-wrapper .stat-sub {
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 1px;
+}
+
+.airbrushed-donut-wrapper .stat-num {
+  font-size: 2.85rem;
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  color: #f3f4f6;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+
+/* Corner alignments matching reference */
+.airbrushed-donut-wrapper .badge-tl {
+  top: 8%;
+  left: 6%;
+  text-align: left;
+  align-items: flex-start;
+}
+
+.airbrushed-donut-wrapper .badge-tr {
+  top: 8%;
+  right: 6%;
+  text-align: right;
+  align-items: flex-end;
+}
+
+.airbrushed-donut-wrapper .badge-bl {
+  bottom: 8%;
+  left: 6%;
+  text-align: left;
+  align-items: flex-start;
+}
+
+.airbrushed-donut-wrapper .badge-br {
+  bottom: 8%;
+  right: 6%;
+  text-align: right;
+  align-items: flex-end;
+}
+
+/* Pointer Arrows */
+.airbrushed-donut-wrapper .marker-arrow {
+  fill: #f3f4f6;
+  transition: fill 0.3s ease;
+}
+
+/* Tooltip */
+.airbrushed-donut-wrapper .tooltip-card {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  padding: 8px 14px;
+  border-radius: 10px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -125%) scale(0.95);
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.airbrushed-donut-wrapper .tooltip-card.show {
+  opacity: 1;
+  transform: translate(-50%, -140%) scale(1);
+}
+
+.airbrushed-donut-wrapper .tt-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.airbrushed-donut-wrapper .tt-val {
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+@media (max-width: 600px) {
+  .airbrushed-donut-wrapper .chart-stage {
+    aspect-ratio: 1 / 1.1;
+  }
+
+  .airbrushed-donut-wrapper .svg-container {
+    width: 82%;
+    height: 75%;
+  }
+
+  .airbrushed-donut-wrapper .stat-num {
+    font-size: 2.1rem;
+  }
+
+  .airbrushed-donut-wrapper .badge-tl {
+    top: 4%;
+    left: 3%;
+  }
+
+  .airbrushed-donut-wrapper .badge-tr {
+    top: 4%;
+    right: 3%;
+  }
+
+  .airbrushed-donut-wrapper .badge-bl {
+    bottom: 4%;
+    left: 3%;
+  }
+
+  .airbrushed-donut-wrapper .badge-br {
+    bottom: 4%;
+    right: 3%;
+  }
+}
+
 .analytics-bottom-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

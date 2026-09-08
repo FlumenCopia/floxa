@@ -1,11 +1,10 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { getAnalytics } from "../../src/lib/projectApi";
 import { getStatusColorByLabel, getStatusLabel, statusOptions } from "../Allproject/ProjectSection";
 
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import PillowyStatusChart from "./PillowyStatusChart";
 
 const timeframeOptions = ["Last 6 months"];
 
@@ -159,7 +158,6 @@ export default function Analytics() {
   const [selectedModuleName, setSelectedModuleName] = useState("Moodboard");
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState(null);
   const [hoveredModuleName, setHoveredModuleName] = useState(null);
-  const [disabledStatusLabels, setDisabledStatusLabels] = useState(() => new Set());
 
   useEffect(() => {
     let isMounted = true;
@@ -213,229 +211,8 @@ export default function Analytics() {
   const selectedStatus =
     statusSegments.find((item) => item.label === selectedStatusLabel) || statusSegments[0] || null;
   const selectedModule = modulePerformance.find((item) => item.name === selectedModuleName) || modulePerformance[0];
-    const hoveredTrendPoint = hoveredTrendIndex === null ? null : trendBars[hoveredTrendIndex];
-    const hoveredModule = hoveredModuleName ? modulePerformance.find((item) => item.name === hoveredModuleName) : null;
-  const statusSeries = useMemo(() => statusSegments.map((item) => item.value), [statusSegments]);
-  const statusLabels = useMemo(() => statusSegments.map((item) => item.label), [statusSegments]);
-  const statusColors = useMemo(() => statusSegments.map((item) => item.color), [statusSegments]);
-  const toggleDisabledStatusLabel = (label) => {
-    setDisabledStatusLabels((current) => {
-      const next = new Set(current);
-
-      if (next.has(label)) {
-        next.delete(label);
-      } else {
-        next.add(label);
-      }
-
-      return next;
-    });
-  };
-  const statusChartOptions = useMemo(
-    () => ({
-      chart: {
-        animations: {
-          enabled: true,
-          easing: "easeinout",
-          speed: 520,
-          animateGradually: {
-            enabled: false,
-          },
-          dynamicAnimation: {
-            enabled: true,
-            speed: 520,
-          },
-        },
-        background: "transparent",
-        id: "projects-status-donut",
-        toolbar: {
-          show: false,
-        },
-        events: {
-          dataPointMouseEnter: (_event, _chartContext, config) => {
-            const label = statusLabels[config.dataPointIndex];
-            if (label) {
-              setSelectedStatusLabel(label);
-            }
-          },
-          dataPointSelection: (event, chartContext, config) => {
-            const label = statusLabels[config.dataPointIndex];
-            if (label) {
-              chartContext?.toggleSeries?.(label);
-              if (event) {
-                toggleDisabledStatusLabel(label);
-              }
-              setSelectedStatusLabel(label);
-            }
-          },
-          legendClick: (_chartContext, seriesIndex) => {
-            const label = statusLabels[seriesIndex];
-            if (label) {
-              toggleDisabledStatusLabel(label);
-              setSelectedStatusLabel(label);
-            }
-          },
-        },
-        sparkline: {
-          enabled: false,
-        },
-        type: "donut",
-      },
-      colors: statusColors,
-      dataLabels: {
-        enabled: false,
-      },
-      fill: {
-        opacity: 1,
-      },
-      labels: statusLabels,
-      legend: {
-        show: true,
-        position: "right",
-        horizontalAlign: "center",
-        floating: false,
-        fontSize: "12px",
-        fontFamily: "inherit",
-        fontWeight: 400,
-        labels: {
-          colors: "#8eb0a0",
-          useSeriesColors: false,
-        },
-        markers: {
-          size: 8,
-          shape: "circle",
-          strokeWidth: 0,
-          offsetX: -3,
-        },
-        itemMargin: {
-          horizontal: 0,
-          vertical: 8,
-        },
-        onItemClick: {
-          toggleDataSeries: true,
-        },
-        onItemHover: {
-          highlightDataSeries: false,
-        },
-        formatter: (seriesName, opts) => {
-          const val = opts.w.globals.series[opts.seriesIndex];
-          return `${seriesName} (${val}%)`;
-        },
-      },
-      plotOptions: {
-        pie: {
-          customScale: 0.98,
-          donut: {
-            size: "70%",
-            labels: {
-              show: true,
-              name: {
-                show: true,
-                color: "#8eb0a0",
-                fontFamily: "inherit",
-                fontSize: "12px",
-                fontWeight: 400,
-                offsetY: 20,
-              },
-              value: {
-                show: true,
-                color: "#ffffff",
-                fontFamily: "inherit",
-                fontSize: "28px",
-                fontWeight: 700,
-                offsetY: -8,
-                formatter: (value) => `${Math.round(Number(value) || 0)}%`,
-              },
-              total: {
-                show: true,
-                showAlways: true,
-                label: "Total Projects",
-                color: "#8eb0a0",
-                fontFamily: "inherit",
-                fontSize: "12px",
-                fontWeight: 400,
-                formatter: () => {
-                  const total = toNumber(analytics?.total_projects);
-                  return total > 1 ? `${total}` : "25";
-                },
-              },
-            },
-          },
-          expandOnClick: false,
-        },
-      },
-      responsive: [
-        {
-          breakpoint: 700,
-          options: {
-            legend: {
-              position: "bottom",
-            },
-          },
-        },
-      ],
-      states: {
-        active: {
-          filter: {
-            type: "none",
-          },
-        },
-        hover: {
-          filter: {
-            type: "none",
-          },
-        },
-      },
-      stroke: {
-        show: true,
-        width: 2.5,
-        colors: ["#0a1f14"],
-        lineCap: "butt",
-      },
-      theme: {
-        mode: "dark",
-      },
-      tooltip: {
-        enabled: true,
-        fillSeriesColor: false,
-        theme: "dark",
-        y: {
-          formatter: (value, options) => {
-            const count = statusSegments[options.seriesIndex]?.count || 0;
-            return `${Math.round(Number(value) || 0)}% - ${count} projects`;
-          },
-          title: {
-            formatter: (seriesName) => seriesName,
-          },
-        },
-      },
-    }),
-    [analytics, statusColors, statusLabels, statusSegments]
-  );
-  const disabledStatusLegendStyles = useMemo(
-    () =>
-      statusLabels
-        .map((label, index) =>
-          disabledStatusLabels.has(label)
-            ? `
-                      .analytics-status-apex .apexcharts-legend-series[rel="${index + 1}"] {
-                        opacity: 0.42 !important;
-                        cursor: pointer !important;
-                      }
-
-                      .analytics-status-apex .apexcharts-legend-series[rel="${index + 1}"] .apexcharts-legend-text {
-                        opacity: 0.72 !important;
-                        text-decoration-line: line-through !important;
-                        text-decoration-color: rgba(142, 176, 160, 0.72) !important;
-                        cursor: pointer !important;
-                      }
-                    `
-            : ""
-        )
-        .join(""),
-    [disabledStatusLabels, statusLabels]
-  );
-
+  const hoveredTrendPoint = hoveredTrendIndex === null ? null : trendBars[hoveredTrendIndex];
+  const hoveredModule = hoveredModuleName ? modulePerformance.find((item) => item.name === hoveredModuleName) : null;
   const linePath = useMemo(() => {
     const maxHeight = 170;
     const stepX = trendBars.length > 1 ? 670 / (trendBars.length - 1) : 0;
@@ -579,47 +356,17 @@ export default function Analytics() {
                 </div>
               </div>
             </section>
-
             <section className="analytics-card analytics-module-card">
               <div className="analytics-card-head">
                 <h2>Projects by status</h2>
-                  <span>{selectedStatus ? `${selectedStatus.value}% share` : "0% share"}</span>
-                </div>
-                <div className="analytics-status-layout">
-                  <div className="analytics-donut-wrap analytics-status-apex" style={{ gridColumn: "1 / -1", width: "100%" }}>
-                    <ReactApexChart
-                      height={220}
-                      options={statusChartOptions}
-                      series={statusSeries}
-                      type="donut"
-                      width="100%"
-                    />
-                    <style>{`
-                      .analytics-status-apex .apexcharts-legend-series {
-                        align-items: center;
-                        gap: 2px;
-                        opacity: 1;
-                        cursor: pointer;
-                        transition: opacity 180ms ease, filter 180ms ease;
-                      }
-
-                      .analytics-status-apex .apexcharts-legend-marker {
-                        opacity: 1;
-                        transition: opacity 180ms ease, transform 180ms ease;
-                      }
-
-                      .analytics-status-apex .apexcharts-legend-text {
-                        text-decoration-line: none;
-                        text-decoration-thickness: 1px;
-                        text-decoration-color: rgba(142, 176, 160, 0.8);
-                        text-underline-offset: 2px;
-                        cursor: pointer;
-                        transition: color 180ms ease, opacity 180ms ease, text-decoration-color 180ms ease;
-                      }
-                      ${disabledStatusLegendStyles}
-                    `}</style>
-                </div>
+                <span>{selectedStatus ? `${selectedStatus.value}% share` : "Status breakdown"}</span>
               </div>
+              <PillowyStatusChart
+                statusSegments={statusSegments}
+                totalProjects={toNumber(analytics?.total_projects) || 25}
+                selectedStatusLabel={selectedStatusLabel}
+                onSelectStatus={(label) => setSelectedStatusLabel(label)}
+              />
             </section>
           </div>
 
