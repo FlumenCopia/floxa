@@ -5545,8 +5545,8 @@ textarea {
 .airbrush-chart-stage {
   position: relative;
   width: 100%;
-  max-width: 480px;
-  height: 310px;
+  max-width: 490px;
+  height: 315px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5555,8 +5555,8 @@ textarea {
 
 .airbrush-svg-container {
   position: absolute;
-  width: 250px;
-  height: 250px;
+  width: 270px;
+  height: 270px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5589,7 +5589,7 @@ textarea {
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: 8px;
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease, background 0.2s ease;
   z-index: 10;
@@ -5605,48 +5605,48 @@ textarea {
 .airbrush-stat-sub {
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #9ca3af;
+  color: #8eb0a0;
   line-height: 1.2;
   margin-bottom: 2px;
 }
 
 .airbrush-stat-num {
-  font-size: 2.35rem;
+  font-size: 2.65rem;
   font-weight: 300;
   line-height: 1;
-  color: #f3f4f6;
+  color: #ffffff;
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 /* Precision Safe Corner Anchoring */
 .airbrush-stat-badge.badge-tl {
-  top: 8px;
-  left: 12px;
+  top: 6px;
+  left: 10px;
   text-align: left;
   align-items: flex-start;
 }
 
 .airbrush-stat-badge.badge-tr {
-  top: 8px;
-  right: 12px;
+  top: 6px;
+  right: 10px;
   text-align: right;
   align-items: flex-end;
 }
 
 .airbrush-stat-badge.badge-bl {
-  bottom: 8px;
-  left: 12px;
+  bottom: 6px;
+  left: 10px;
   text-align: left;
   align-items: flex-start;
 }
 
 .airbrush-stat-badge.badge-br {
-  bottom: 8px;
-  right: 12px;
+  bottom: 6px;
+  right: 10px;
   text-align: right;
   align-items: flex-end;
 }

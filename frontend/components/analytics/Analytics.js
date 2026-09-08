@@ -359,7 +359,7 @@ export default function Analytics() {
             <section className="analytics-card analytics-module-card">
               <div className="analytics-card-head">
                 <h2>Projects by status</h2>
-                <span>{selectedStatus ? `${selectedStatus.value}% share` : "Status breakdown"}</span>
+                <span>{toNumber(analytics?.total_projects) || 25} Total Projects</span>
               </div>
               <PillowyStatusChart
                 statusSegments={statusSegments}

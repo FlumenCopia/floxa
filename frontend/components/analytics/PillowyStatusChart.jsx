@@ -4,9 +4,9 @@ import React, { useState, useMemo, useRef } from "react";
 
 const cx = 250;
 const cy = 250;
-const radius = 186; // Outer circle radius
-const gapOffset = 9; // Perpendicular gap between slices
-const cornerR = 14; // Rounded corners
+const radius = 188; // Outer circle radius
+const gapOffset = 5.5; // Refined tight gap offset for authentic cushion seam
+const cornerR = 14; // Smooth rounded corners
 
 function degToRad(deg) {
   return ((deg - 90) * Math.PI) / 180;
@@ -27,7 +27,7 @@ function createRoundedWedge(cx, cy, r, startAngle, sweepAngle, cornerRadius) {
 
   const R = r - gapOffset;
 
-  const innerFilletDist = Math.min(cornerRadius * 1.5, 24);
+  const innerFilletDist = Math.min(cornerRadius * 1.5, 22);
   const pInnerStart = {
     x: ox + innerFilletDist * Math.cos(radStart),
     y: oy + innerFilletDist * Math.sin(radStart),
@@ -106,10 +106,10 @@ export default function PillowyStatusChart({
   const svgWrapRef = useRef(null);
 
   // Exact 4-sector configuration from user reference:
-  // Green: Top-Left (Secondary 18%)
-  // Blue: Top-Right (Secondary 22%)
-  // Pink: Bottom-Right (Secondary 24%)
-  // Yellow: Bottom-Left (Primary 36%)
+  // Green: Top-Left (In Progress 18%)
+  // Blue: Top-Right (Deliverables 22%)
+  // Pink: Bottom-Right (Created 12% or 24%)
+  // Yellow: Bottom-Left (Delivered 48% or 36%)
   const segmentsData = useMemo(() => {
     const findPct = (label, defaultPct, defaultCount) => {
       const match = statusSegments.find(
@@ -123,15 +123,15 @@ export default function PillowyStatusChart({
     };
 
     const blue = findPct("Deliverables", 22, 6);
-    const pink = findPct("Created", 24, 6);
-    const yellow = findPct("Delivered", 36, 9);
+    const pink = findPct("Created", 12, 3);
+    const yellow = findPct("Delivered", 48, 12);
     const green = findPct("In Progress", 18, 4);
 
     return {
-      blue: { ...blue, id: "blue", name: "Deliverables", title: "Deliverables", color: "#0284c7" },
-      pink: { ...pink, id: "pink", name: "Created", title: "Created", color: "#ec4899" },
-      yellow: { ...yellow, id: "yellow", name: "Delivered", title: "Delivered", color: "#eab308" },
-      green: { ...green, id: "green", name: "In Progress", title: "In Progress", color: "#16a34a" },
+      blue: { ...blue, id: "blue", title: "Deliverables", color: "#0ea5e9" },
+      pink: { ...pink, id: "pink", title: "Created", color: "#ec4899" },
+      yellow: { ...yellow, id: "yellow", title: "Delivered", color: "#f59e0b" },
+      green: { ...green, id: "green", title: "In Progress", color: "#22c55e" },
     };
   }, [statusSegments]);
 
@@ -157,7 +157,7 @@ export default function PillowyStatusChart({
         pct: segmentsData.blue.pct,
         count: segmentsData.blue.count,
         badgeClass: "badge-tr",
-        badgeSub: (segmentsData.blue.title || "Deliverables").toUpperCase(),
+        badgeSub: "DELIVERABLES",
       },
       {
         id: "pink",
@@ -167,7 +167,7 @@ export default function PillowyStatusChart({
         pct: segmentsData.pink.pct,
         count: segmentsData.pink.count,
         badgeClass: "badge-br",
-        badgeSub: (segmentsData.pink.title || "Created").toUpperCase(),
+        badgeSub: "CREATED",
       },
       {
         id: "yellow",
@@ -177,7 +177,7 @@ export default function PillowyStatusChart({
         pct: segmentsData.yellow.pct,
         count: segmentsData.yellow.count,
         badgeClass: "badge-bl",
-        badgeSub: (segmentsData.yellow.title || "Delivered").toUpperCase(),
+        badgeSub: "DELIVERED",
       },
       {
         id: "green",
@@ -187,7 +187,7 @@ export default function PillowyStatusChart({
         pct: segmentsData.green.pct,
         count: segmentsData.green.count,
         badgeClass: "badge-tl",
-        badgeSub: (segmentsData.green.title || "In Progress").toUpperCase(),
+        badgeSub: "IN PROGRESS",
       },
     ],
     [segmentsData, sweepBlue, sweepPink, sweepYellow, sweepGreen]
@@ -235,7 +235,7 @@ export default function PillowyStatusChart({
   return (
     <div className="airbrush-chart-wrapper">
       <div className="airbrush-chart-stage" id="chartStage" ref={chartStageRef}>
-        {/* Stat Labels in the 4 corners matching reference */}
+        {/* Corner Stat Badges with exact labels and values */}
         {sectors.map((sec) => {
           const isActive = activeId === sec.id;
           return (
@@ -267,75 +267,87 @@ export default function PillowyStatusChart({
             className="airbrush-tt-label"
             style={{ color: activeSector?.info.color || "inherit" }}
           >
-            {activeSector ? `${activeSector.info.name} Segment` : "Segment"}
+            {activeSector ? activeSector.badgeSub : "Status"}
           </span>
           <span className="airbrush-tt-val">
             {activeSector
-              ? `${activeSector.info.title}: ${Math.round(activeSector.pct)}%`
+              ? `${Math.round(activeSector.pct)}% • ${activeSector.count} projects`
               : "Share"}
           </span>
         </div>
 
-        {/* SVG Graphic */}
+        {/* Central Graphic Container */}
         <div className="airbrush-svg-container" ref={svgWrapRef}>
           <svg viewBox="0 0 500 500" id="pieSvg" xmlns="http://www.w3.org/2000/svg">
             <defs>
               {/* Feathered Airbrush Blur Filters */}
-              <filter id="glow-ambient" x="-40%" y="-40%" width="180%" height="180%">
-                <feGaussianBlur stdDeviation="24" result="ambient" />
+              <filter id="glow-ambient" x="-45%" y="-45%" width="190%" height="190%">
+                <feGaussianBlur stdDeviation="22" result="ambient" />
               </filter>
 
-              {/* 1. Top-Right Blue Wedge (Secondary 22%) */}
+              {/* 1. Top-Right Blue Wedge (Deliverables 22%) */}
               <radialGradient id="grad-blue" cx="55%" cy="45%" r="65%" fx="42%" fy="35%">
                 <stop offset="0%" stopColor="#0284c7" />
-                <stop offset="45%" stopColor="#0284c7" />
-                <stop offset="78%" stopColor="#0369a1" />
-                <stop offset="94%" stopColor="#38bdf8" stopOpacity="0.85" />
-                <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0.2" />
+                <stop offset="42%" stopColor="#0284c7" />
+                <stop offset="76%" stopColor="#0369a1" />
+                <stop offset="92%" stopColor="#38bdf8" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0.25" />
               </radialGradient>
 
               <linearGradient id="wash-blue" x1="0%" y1="0%" x2="70%" y2="80%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.92" />
                 <stop offset="30%" stopColor="#e0f2fe" stopOpacity="0.45" />
                 <stop offset="65%" stopColor="#0284c7" stopOpacity="0" />
               </linearGradient>
 
-              {/* 2. Bottom-Right Pink Wedge (Secondary 24%) */}
+              {/* 2. Bottom-Right Pink Wedge (Created 12%) */}
               <radialGradient id="grad-pink" cx="48%" cy="48%" r="65%" fx="42%" fy="42%">
                 <stop offset="0%" stopColor="#f472b6" />
-                <stop offset="48%" stopColor="#ec4899" />
-                <stop offset="82%" stopColor="#f43f5e" />
-                <stop offset="94%" stopColor="#fb7185" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#ffe4e6" stopOpacity="0.2" />
+                <stop offset="46%" stopColor="#ec4899" />
+                <stop offset="80%" stopColor="#f43f5e" />
+                <stop offset="94%" stopColor="#fb7185" stopOpacity="0.85" />
+                <stop offset="100%" stopColor="#ffe4e6" stopOpacity="0.25" />
               </radialGradient>
 
-              {/* 3. Bottom-Left Yellow Wedge (Primary 36%) */}
+              <linearGradient id="wash-pink" x1="0%" y1="0%" x2="80%" y2="80%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+                <stop offset="28%" stopColor="#fce7f3" stopOpacity="0.38" />
+                <stop offset="65%" stopColor="#ec4899" stopOpacity="0" />
+              </linearGradient>
+
+              {/* 3. Bottom-Left Yellow Wedge (Delivered 48%) */}
               <radialGradient id="grad-yellow" cx="46%" cy="46%" r="65%" fx="40%" fy="40%">
                 <stop offset="0%" stopColor="#fbbf24" />
-                <stop offset="45%" stopColor="#f59e0b" />
+                <stop offset="44%" stopColor="#f59e0b" />
                 <stop offset="78%" stopColor="#eab308" />
-                <stop offset="94%" stopColor="#fde047" stopOpacity="0.85" />
-                <stop offset="100%" stopColor="#fef08a" stopOpacity="0.2" />
+                <stop offset="92%" stopColor="#fde047" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#fef08a" stopOpacity="0.25" />
               </radialGradient>
 
-              {/* 4. Top-Left Green Wedge (Secondary 18%) */}
+              <linearGradient id="wash-yellow" x1="30%" y1="0%" x2="70%" y2="90%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+                <stop offset="30%" stopColor="#fef9c3" stopOpacity="0.4" />
+                <stop offset="70%" stopColor="#f59e0b" stopOpacity="0" />
+              </linearGradient>
+
+              {/* 4. Top-Left Green Wedge (In Progress 18%) */}
               <radialGradient id="grad-green" cx="50%" cy="48%" r="65%" fx="44%" fy="40%">
                 <stop offset="0%" stopColor="#22c55e" />
-                <stop offset="46%" stopColor="#16a34a" />
-                <stop offset="80%" stopColor="#15803d" />
-                <stop offset="94%" stopColor="#4ade80" stopOpacity="0.85" />
-                <stop offset="100%" stopColor="#86efac" stopOpacity="0.2" />
+                <stop offset="44%" stopColor="#16a34a" />
+                <stop offset="78%" stopColor="#15803d" />
+                <stop offset="92%" stopColor="#4ade80" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#86efac" stopOpacity="0.25" />
               </radialGradient>
 
               <linearGradient id="wash-green" x1="100%" y1="0%" x2="30%" y2="80%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.88" />
                 <stop offset="30%" stopColor="#dcfce7" stopOpacity="0.45" />
                 <stop offset="65%" stopColor="#16a34a" stopOpacity="0" />
               </linearGradient>
             </defs>
 
             {/* Outer Diffuse Airbrush Ambient Bleed */}
-            <g id="ambientGlow" filter="url(#glow-ambient)" opacity="0.65">
+            <g id="ambientGlow" filter="url(#glow-ambient)" opacity="0.75">
               {sectors.map((sec) => (
                 <path
                   key={`glow-${sec.id}`}
@@ -352,7 +364,7 @@ export default function PillowyStatusChart({
                 const isActive = activeId === sec.id;
                 const midRad = degToRad(sec.start + sec.sweep / 2);
                 const transform = isActive
-                  ? `translate(${Math.cos(midRad) * 6}px, ${Math.sin(midRad) * 6}px) scale(1.025)`
+                  ? `translate(${Math.cos(midRad) * 6}px, ${Math.sin(midRad) * 6}px) scale(1.028)`
                   : "none";
 
                 return (
@@ -364,7 +376,7 @@ export default function PillowyStatusChart({
                     style={{
                       cursor: "pointer",
                       transform,
-                      opacity: activeId && !isActive ? 0.72 : 1,
+                      opacity: activeId && !isActive ? 0.75 : 1,
                       transformOrigin: "250px 250px",
                       transition:
                         "transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease",
@@ -373,11 +385,16 @@ export default function PillowyStatusChart({
                     onMouseLeave={handleDeactivate}
                     onClick={() => handleActivate(sec.id)}
                   >
+                    {/* Sector Base with subtle frosted rim stroke */}
                     <path
                       id={`shape-${sec.id}`}
                       d={createRoundedWedge(cx, cy, radius, sec.start, sec.sweep, cornerR)}
                       fill={`url(#grad-${sec.id})`}
+                      stroke="rgba(255, 255, 255, 0.22)"
+                      strokeWidth="1.2"
                     />
+
+                    {/* Specular 3D Wash Overlays */}
                     {sec.id === "blue" && (
                       <path
                         id="wash-blue-el"
@@ -394,6 +411,22 @@ export default function PillowyStatusChart({
                         pointerEvents="none"
                       />
                     )}
+                    {sec.id === "pink" && (
+                      <path
+                        id="wash-pink-el"
+                        d={createRoundedWedge(cx, cy, radius, sec.start, sec.sweep, cornerR)}
+                        fill="url(#wash-pink)"
+                        pointerEvents="none"
+                      />
+                    )}
+                    {sec.id === "yellow" && (
+                      <path
+                        id="wash-yellow-el"
+                        d={createRoundedWedge(cx, cy, radius, sec.start, sec.sweep, cornerR)}
+                        fill="url(#wash-yellow)"
+                        pointerEvents="none"
+                      />
+                    )}
                   </g>
                 );
               })}
@@ -405,25 +438,33 @@ export default function PillowyStatusChart({
                 id="marker-top"
                 className="airbrush-marker-arrow"
                 points={getMarkerPoints(0)}
-                fill="#0a0a0a"
+                fill="#07130c"
+                stroke="rgba(255, 255, 255, 0.25)"
+                strokeWidth="0.5"
               />
               <polygon
                 id="marker-right"
                 className="airbrush-marker-arrow"
                 points={getMarkerPoints(sweepBlue)}
-                fill="#0a0a0a"
+                fill="#07130c"
+                stroke="rgba(255, 255, 255, 0.25)"
+                strokeWidth="0.5"
               />
               <polygon
                 id="marker-bottom"
                 className="airbrush-marker-arrow"
                 points={getMarkerPoints(sweepBlue + sweepPink)}
-                fill="#0a0a0a"
+                fill="#07130c"
+                stroke="rgba(255, 255, 255, 0.25)"
+                strokeWidth="0.5"
               />
               <polygon
                 id="marker-left"
                 className="airbrush-marker-arrow"
                 points={getMarkerPoints(sweepBlue + sweepPink + sweepYellow)}
-                fill="#0a0a0a"
+                fill="#07130c"
+                stroke="rgba(255, 255, 255, 0.25)"
+                strokeWidth="0.5"
               />
             </g>
           </svg>
