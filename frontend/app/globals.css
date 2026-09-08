@@ -5530,142 +5530,141 @@ textarea {
 }
 
 /* ==========================================================================
-   Airbrushed Segmented Donut Chart (Projects by Status)
+   Airbrushed Segmented Cushion Chart (Projects by Status)
    ========================================================================== */
 
-.airbrushed-donut-wrapper {
+.airbrush-chart-wrapper {
   position: relative;
   width: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  padding: 4px 0;
+  align-items: center;
+  padding: 6px 4px 10px;
 }
 
-.airbrushed-donut-wrapper .chart-stage {
+.airbrush-chart-stage {
   position: relative;
   width: 100%;
-  aspect-ratio: 1.18 / 1;
+  max-width: 480px;
+  height: 310px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 280px;
+  margin: 0 auto;
 }
 
-.airbrushed-donut-wrapper .svg-container {
+.airbrush-svg-container {
   position: absolute;
-  width: 72%;
-  height: 80%;
+  width: 250px;
+  height: 250px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.airbrushed-donut-wrapper svg {
+.airbrush-svg-container svg {
   width: 100%;
   height: 100%;
   overflow: visible;
 }
 
 /* Sector Groups */
-.airbrushed-donut-wrapper .petal-group {
+.airbrush-petal-group {
   cursor: pointer;
-  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
   transform-origin: 250px 250px;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
 }
 
-.airbrushed-donut-wrapper .petal-group:hover {
+.airbrush-petal-group:hover {
   transform: scale(1.035);
 }
 
-.airbrushed-donut-wrapper .petal-group.active {
+.airbrush-petal-group.active {
   transform: scale(1.045);
 }
 
-/* Stat Labels in the 4 corners */
-.airbrushed-donut-wrapper .stat-badge {
+/* 4 Corner Stat Badges (Safely bounded, never clipped) */
+.airbrush-stat-badge {
   position: absolute;
   display: flex;
   flex-direction: column;
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 4px 10px;
   border-radius: 8px;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease, background-color 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease, background 0.2s ease;
   z-index: 10;
   user-select: none;
 }
 
-.airbrushed-donut-wrapper .stat-badge:hover {
-  transform: scale(1.05);
-  background: rgba(125, 125, 125, 0.08);
+.airbrush-stat-badge:hover,
+.airbrush-stat-badge.active {
+  transform: scale(1.06);
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.airbrushed-donut-wrapper .stat-badge.active {
-  transform: scale(1.08);
-  background: rgba(125, 125, 125, 0.12);
-}
-
-.airbrushed-donut-wrapper .stat-sub {
-  font-size: 0.74rem;
-  font-weight: 500;
+.airbrush-stat-sub {
+  font-size: 0.72rem;
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #9ca3af;
-  margin-bottom: 1px;
+  line-height: 1.2;
+  margin-bottom: 2px;
 }
 
-.airbrushed-donut-wrapper .stat-num {
-  font-size: 2.85rem;
+.airbrush-stat-num {
+  font-size: 2.35rem;
   font-weight: 300;
-  line-height: 1.05;
-  letter-spacing: -0.025em;
+  line-height: 1;
   color: #f3f4f6;
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
-/* Corner alignments matching reference */
-.airbrushed-donut-wrapper .badge-tl {
-  top: 8%;
-  left: 6%;
+/* Precision Safe Corner Anchoring */
+.airbrush-stat-badge.badge-tl {
+  top: 8px;
+  left: 12px;
   text-align: left;
   align-items: flex-start;
 }
 
-.airbrushed-donut-wrapper .badge-tr {
-  top: 8%;
-  right: 6%;
+.airbrush-stat-badge.badge-tr {
+  top: 8px;
+  right: 12px;
   text-align: right;
   align-items: flex-end;
 }
 
-.airbrushed-donut-wrapper .badge-bl {
-  bottom: 8%;
-  left: 6%;
+.airbrush-stat-badge.badge-bl {
+  bottom: 8px;
+  left: 12px;
   text-align: left;
   align-items: flex-start;
 }
 
-.airbrushed-donut-wrapper .badge-br {
-  bottom: 8%;
-  right: 6%;
+.airbrush-stat-badge.badge-br {
+  bottom: 8px;
+  right: 12px;
   text-align: right;
   align-items: flex-end;
 }
 
-/* Pointer Arrows */
-.airbrushed-donut-wrapper .marker-arrow {
-  fill: #f3f4f6;
+/* Pointer Arrow Triangles */
+.airbrush-marker-arrow {
+  fill: #06180f;
+  stroke: rgba(255, 255, 255, 0.2);
+  stroke-width: 0.5px;
   transition: fill 0.3s ease;
 }
 
 /* Tooltip */
-.airbrushed-donut-wrapper .tooltip-card {
+.airbrush-tooltip-card {
   position: absolute;
   background: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
   padding: 8px 14px;
   border-radius: 10px;
   pointer-events: none;
@@ -5680,55 +5679,56 @@ textarea {
   text-align: center;
 }
 
-.airbrushed-donut-wrapper .tooltip-card.show {
+.airbrush-tooltip-card.show {
   opacity: 1;
   transform: translate(-50%, -140%) scale(1);
 }
 
-.airbrushed-donut-wrapper .tt-label {
+.airbrush-tt-label {
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
-.airbrushed-donut-wrapper .tt-val {
+.airbrush-tt-val {
   font-size: 0.85rem;
+  font-weight: 600;
   color: #4b5563;
 }
 
 @media (max-width: 600px) {
-  .airbrushed-donut-wrapper .chart-stage {
-    aspect-ratio: 1 / 1.1;
+  .airbrush-chart-stage {
+    height: 280px;
   }
 
-  .airbrushed-donut-wrapper .svg-container {
-    width: 82%;
-    height: 75%;
+  .airbrush-svg-container {
+    width: 200px;
+    height: 200px;
   }
 
-  .airbrushed-donut-wrapper .stat-num {
-    font-size: 2.1rem;
+  .airbrush-stat-num {
+    font-size: 1.85rem;
   }
 
-  .airbrushed-donut-wrapper .badge-tl {
-    top: 4%;
-    left: 3%;
+  .airbrush-stat-badge.badge-tl {
+    top: 4px;
+    left: 6px;
   }
 
-  .airbrushed-donut-wrapper .badge-tr {
-    top: 4%;
-    right: 3%;
+  .airbrush-stat-badge.badge-tr {
+    top: 4px;
+    right: 6px;
   }
 
-  .airbrushed-donut-wrapper .badge-bl {
-    bottom: 4%;
-    left: 3%;
+  .airbrush-stat-badge.badge-bl {
+    bottom: 4px;
+    left: 6px;
   }
 
-  .airbrushed-donut-wrapper .badge-br {
-    bottom: 4%;
-    right: 3%;
+  .airbrush-stat-badge.badge-br {
+    bottom: 4px;
+    right: 6px;
   }
 }
 

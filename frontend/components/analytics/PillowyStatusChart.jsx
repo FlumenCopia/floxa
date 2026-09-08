@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef } from "react";
 
 const cx = 250;
 const cy = 250;
@@ -105,18 +105,18 @@ export default function PillowyStatusChart({
   const chartStageRef = useRef(null);
   const svgWrapRef = useRef(null);
 
-  // Map segments or use default values from reference:
-  // Blue: 22% (Top-Right, Deliverables)
-  // Pink: 24% or 12% (Bottom-Right, Created)
-  // Yellow: 36% or 48% (Bottom-Left, Delivered - Primary)
-  // Green: 18% (Top-Left, In Progress)
+  // Exact 4-sector configuration from user reference:
+  // Green: Top-Left (Secondary 18%)
+  // Blue: Top-Right (Secondary 22%)
+  // Pink: Bottom-Right (Secondary 24%)
+  // Yellow: Bottom-Left (Primary 36%)
   const segmentsData = useMemo(() => {
-    const findPct = (label, defaultVal, defaultCount) => {
+    const findPct = (label, defaultPct, defaultCount) => {
       const match = statusSegments.find(
         (s) => s.label?.toLowerCase() === label.toLowerCase()
       );
       return {
-        pct: match ? match.value : defaultVal,
+        pct: match ? match.value : defaultPct,
         count: match ? match.count : defaultCount,
         label: match?.label || label,
       };
@@ -128,10 +128,10 @@ export default function PillowyStatusChart({
     const green = findPct("In Progress", 18, 4);
 
     return {
-      blue: { ...blue, id: "blue", name: "Secondary", title: "Deliverables", color: "#0284c7" },
-      pink: { ...pink, id: "pink", name: "Secondary", title: "Created", color: "#ec4899" },
-      yellow: { ...yellow, id: "yellow", name: "Primary", title: "Delivered", color: "#eab308" },
-      green: { ...green, id: "green", name: "Secondary", title: "In Progress", color: "#16a34a" },
+      blue: { ...blue, id: "blue", name: "Deliverables", title: "Deliverables", color: "#0284c7" },
+      pink: { ...pink, id: "pink", name: "Created", title: "Created", color: "#ec4899" },
+      yellow: { ...yellow, id: "yellow", name: "Delivered", title: "Delivered", color: "#eab308" },
+      green: { ...green, id: "green", name: "In Progress", title: "In Progress", color: "#16a34a" },
     };
   }, [statusSegments]);
 
@@ -157,7 +157,7 @@ export default function PillowyStatusChart({
         pct: segmentsData.blue.pct,
         count: segmentsData.blue.count,
         badgeClass: "badge-tr",
-        badgeSub: "SECONDARY",
+        badgeSub: (segmentsData.blue.title || "Deliverables").toUpperCase(),
       },
       {
         id: "pink",
@@ -167,7 +167,7 @@ export default function PillowyStatusChart({
         pct: segmentsData.pink.pct,
         count: segmentsData.pink.count,
         badgeClass: "badge-br",
-        badgeSub: "SECONDARY",
+        badgeSub: (segmentsData.pink.title || "Created").toUpperCase(),
       },
       {
         id: "yellow",
@@ -177,7 +177,7 @@ export default function PillowyStatusChart({
         pct: segmentsData.yellow.pct,
         count: segmentsData.yellow.count,
         badgeClass: "badge-bl",
-        badgeSub: "PRIMARY",
+        badgeSub: (segmentsData.yellow.title || "Delivered").toUpperCase(),
       },
       {
         id: "green",
@@ -187,7 +187,7 @@ export default function PillowyStatusChart({
         pct: segmentsData.green.pct,
         count: segmentsData.green.count,
         badgeClass: "badge-tl",
-        badgeSub: "SECONDARY",
+        badgeSub: (segmentsData.green.title || "In Progress").toUpperCase(),
       },
     ],
     [segmentsData, sweepBlue, sweepPink, sweepYellow, sweepGreen]
@@ -233,22 +233,22 @@ export default function PillowyStatusChart({
   };
 
   return (
-    <div className="airbrushed-donut-wrapper">
-      <div className="chart-stage" id="chartStage" ref={chartStageRef}>
+    <div className="airbrush-chart-wrapper">
+      <div className="airbrush-chart-stage" id="chartStage" ref={chartStageRef}>
         {/* Stat Labels in the 4 corners matching reference */}
         {sectors.map((sec) => {
           const isActive = activeId === sec.id;
           return (
             <div
               key={`badge-${sec.id}`}
-              className={`stat-badge ${sec.badgeClass} ${isActive ? "active" : ""}`}
+              className={`airbrush-stat-badge ${sec.badgeClass} ${isActive ? "active" : ""}`}
               onMouseEnter={() => handleActivate(sec.id)}
               onMouseLeave={handleDeactivate}
               onClick={() => handleActivate(sec.id)}
               title={`${sec.info.title}: ${Math.round(sec.pct)}%`}
             >
-              <span className="stat-sub">{sec.badgeSub}</span>
-              <span className="stat-num" id={`val-${sec.id}`}>
+              <span className="airbrush-stat-sub">{sec.badgeSub}</span>
+              <span className="airbrush-stat-num" id={`val-${sec.id}`}>
                 {Math.round(sec.pct)}%
               </span>
             </div>
@@ -257,19 +257,19 @@ export default function PillowyStatusChart({
 
         {/* Hover Tooltip matching reference */}
         <div
-          className={`tooltip-card ${tooltipPos.show ? "show" : ""}`}
+          className={`airbrush-tooltip-card ${tooltipPos.show ? "show" : ""}`}
           style={{
             left: `${tooltipPos.x}px`,
             top: `${tooltipPos.y}px`,
           }}
         >
           <span
-            className="tt-label"
+            className="airbrush-tt-label"
             style={{ color: activeSector?.info.color || "inherit" }}
           >
             {activeSector ? `${activeSector.info.name} Segment` : "Segment"}
           </span>
-          <span className="tt-val">
+          <span className="airbrush-tt-val">
             {activeSector
               ? `${activeSector.info.title}: ${Math.round(activeSector.pct)}%`
               : "Share"}
@@ -277,7 +277,7 @@ export default function PillowyStatusChart({
         </div>
 
         {/* SVG Graphic */}
-        <div className="svg-container" ref={svgWrapRef}>
+        <div className="airbrush-svg-container" ref={svgWrapRef}>
           <svg viewBox="0 0 500 500" id="pieSvg" xmlns="http://www.w3.org/2000/svg">
             <defs>
               {/* Feathered Airbrush Blur Filters */}
@@ -335,7 +335,7 @@ export default function PillowyStatusChart({
             </defs>
 
             {/* Outer Diffuse Airbrush Ambient Bleed */}
-            <g id="ambientGlow" filter="url(#glow-ambient)" opacity="0.6">
+            <g id="ambientGlow" filter="url(#glow-ambient)" opacity="0.65">
               {sectors.map((sec) => (
                 <path
                   key={`glow-${sec.id}`}
@@ -352,19 +352,19 @@ export default function PillowyStatusChart({
                 const isActive = activeId === sec.id;
                 const midRad = degToRad(sec.start + sec.sweep / 2);
                 const transform = isActive
-                  ? `translate(${Math.cos(midRad) * 6}px, ${Math.sin(midRad) * 6}px) scale(1.02)`
+                  ? `translate(${Math.cos(midRad) * 6}px, ${Math.sin(midRad) * 6}px) scale(1.025)`
                   : "none";
 
                 return (
                   <g
                     key={`petal-${sec.id}`}
-                    className={`petal-group ${isActive ? "active" : ""}`}
+                    className={`airbrush-petal-group ${isActive ? "active" : ""}`}
                     id={`petal-${sec.id}`}
                     data-id={sec.id}
                     style={{
                       cursor: "pointer",
                       transform,
-                      opacity: activeId && !isActive ? 0.75 : 1,
+                      opacity: activeId && !isActive ? 0.72 : 1,
                       transformOrigin: "250px 250px",
                       transition:
                         "transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease",
@@ -399,27 +399,31 @@ export default function PillowyStatusChart({
               })}
             </g>
 
-            {/* 4 Perimeter Boundary Pointer Markers */}
+            {/* 4 Perimeter Boundary Pointer Markers (Dark Triangles from Reference) */}
             <g id="markersGroup">
               <polygon
                 id="marker-top"
-                className="marker-arrow"
+                className="airbrush-marker-arrow"
                 points={getMarkerPoints(0)}
+                fill="#0a0a0a"
               />
               <polygon
                 id="marker-right"
-                className="marker-arrow"
+                className="airbrush-marker-arrow"
                 points={getMarkerPoints(sweepBlue)}
+                fill="#0a0a0a"
               />
               <polygon
                 id="marker-bottom"
-                className="marker-arrow"
+                className="airbrush-marker-arrow"
                 points={getMarkerPoints(sweepBlue + sweepPink)}
+                fill="#0a0a0a"
               />
               <polygon
                 id="marker-left"
-                className="marker-arrow"
+                className="airbrush-marker-arrow"
                 points={getMarkerPoints(sweepBlue + sweepPink + sweepYellow)}
+                fill="#0a0a0a"
               />
             </g>
           </svg>
