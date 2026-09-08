@@ -289,7 +289,10 @@ export function ClientPortal({ token, isConsultant = false }) {
               applyProject(verifiedProject);
               const nextScreen = await loadSavedPortalProgress(verifiedProject);
               setResumeTargetScreen(nextScreen);
-              setScreen(nextScreen);
+              const stored = readStoredScreen(token);
+              const finalScreen = (stored && !["splash", "login"].includes(stored)) ? stored : nextScreen;
+              writeStoredScreen(token, finalScreen);
+              setScreen(finalScreen);
             } catch {
               setResumeTargetScreen("");
               setScreen("login");
@@ -426,3 +429,5 @@ export function ClientPortal({ token, isConsultant = false }) {
     </main>
   );
 }
+
+export default ClientPortal;

@@ -1,7 +1,7 @@
 "use client";
 
 import { use } from "react";
-import { ClientPortal } from "../../../components/client-portal/ClientPortal";
+import { ClientPortal } from "../../../components/client-portal/ClientPortal.jsx";
 
 export default function ClientPortalPage({ params }) {
   const { token } = use(params);

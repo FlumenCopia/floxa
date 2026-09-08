@@ -6,7 +6,7 @@ const BACKEND_BASE_URL = (
   process.env.BACKEND_API_URL ||
   process.env.NEXT_PUBLIC_BACKEND_API_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "https://floxa-1o19.vercel.app/api"
+  "http://localhost:5000/api"
 ).replace(/\/+$/, "");
 
 const ADDITIONAL_ALLOWED_ORIGINS = (process.env.ADDITIONAL_ALLOWED_ORIGINS || "")
@@ -15,10 +15,9 @@ const ADDITIONAL_ALLOWED_ORIGINS = (process.env.ADDITIONAL_ALLOWED_ORIGINS || ""
   .filter(Boolean);
 
 const ALLOWED_ORIGINS = [
-  "https://floxa.flumenx.in",
-  "https://floxa-frontend-test-lyart.vercel.app",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
+  "https://floxa.flumenx.in",
   ...ADDITIONAL_ALLOWED_ORIGINS,
 ];
 

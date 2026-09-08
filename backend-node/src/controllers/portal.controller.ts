@@ -1,0 +1,1179 @@
+import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+import path from 'path';
+import { prisma } from '../prisma/client.js';
+import { ENV } from '../config/env.js';
+import { verifyPassword, signPortalAccessToken } from '../utils/crypto.js';
+import {
+  calculateProjectProgress,
+  calculateProjectWorkflowStatus,
+  logProjectActivity,
+  recalculatePaymentMilestones,
+  canClientDownloadDeliverable,
+} from '../services/project.service.js';
+import { createRazorpayOrder, verifyPaymentSignature, fetchRazorpayPayment } from '../services/razorpay.service.js';
+import { completePaymentMilestone, PaymentCompletionError } from '../services/payment.service.js';
+import { generateSignedAgreementPdf } from '../services/pdf.service.js';
+import { maybeGenerateAgreementSnapshot } from '../services/generatedAgreement.service.js';
+import { saveFile, resolveSafeMediaPath, streamLocalFile } from '../services/storage.service.js';
+import {
+  serializeProject,
+  serializeBrandDNA,
+  serializeDiscovery,
+  serializeMoodboard,
+  serializeClientPortalMoodboard,
+  serializeConcept,
+  serializeClientPortalConcept,
+  serializeDeliverable,
+  serializeClientPortalDeliverable,
+  serializePaymentMilestone,
+  serializeProjectActivity,
+  serializeClientPortalActivity,
+} from '../utils/serializer.js';
+import {
+  getLatestActiveHelp,
+  broadcastHelpRequested,
+  broadcastHelpResolved,
+} from '../websocket/socketServer.js';
+
+export async function getClientList(req: any, res: Response, next: NextFunction) {
+  try {
+    const projects = await prisma.project.findMany({
+      where: { consultantId: req.user.id, isArchived: false },
+      include: { client: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+    });
+
+    const data = projects.map((p) => ({
+      id: p.id,
+      title: p.title,
+      company_name: p.companyName,
+      portal_token: p.portalToken,
+      client_name: p.client?.name || p.companyName || 'Client',
+    }));
+
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPortalProject(req: any, res: Response, next: NextFunction) {
+  try {
+    const project = req.project;
+    const progress = calculateProjectProgress(project);
+    const workflowStatus = calculateProjectWorkflowStatus(project);
+
+    if (project.id && project.progress !== progress) {
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { progress },
+      });
+    }
+
+    res.json(serializeProject({ ...project, progress }, workflowStatus));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function verifyPortalPassword(req: any, res: Response, next: NextFunction) {
+  try {
+    const { portal_token } = req.params;
+    const { password } = req.body;
+
+    const project = await prisma.project.findFirst({
+      where: { portalToken: portal_token, isArchived: false },
+    });
+
+    if (!project) {
+      res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
+
+    if (!project.portalPasswordHash) {
+      // No password required
+      const signedToken = signPortalAccessToken(portal_token);
+      res.cookie(ENV.PORTAL_ACCESS_COOKIE_NAME, signedToken, {
+        maxAge: ENV.PORTAL_ACCESS_MAX_AGE * 1000,
+        httpOnly: true,
+        secure: ENV.AUTH_COOKIE_SECURE,
+        sameSite: ENV.AUTH_COOKIE_SAMESITE,
+        path: '/',
+      });
+      res.json({ success: true, token: signedToken });
+      return;
+    }
+
+    const isValid = await verifyPassword(password, project.portalPasswordHash);
+    if (!isValid) {
+      res.status(401).json({ detail: 'Invalid portal password.' });
+      return;
+    }
+
+    const signedToken = signPortalAccessToken(portal_token);
+    res.cookie(ENV.PORTAL_ACCESS_COOKIE_NAME, signedToken, {
+      maxAge: ENV.PORTAL_ACCESS_MAX_AGE * 1000,
+      httpOnly: true,
+      secure: ENV.AUTH_COOKIE_SECURE,
+      sameSite: ENV.AUTH_COOKIE_SAMESITE,
+      path: '/',
+    });
+
+    res.json({ success: true, token: signedToken });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function logoutPortal(req: any, res: Response) {
+  res.clearCookie(ENV.PORTAL_ACCESS_COOKIE_NAME, {
+    path: '/',
+    sameSite: ENV.AUTH_COOKIE_SAMESITE,
+  });
+  res.json({ success: true });
+}
+
+export async function getPortalBrandDNA(req: any, res: Response, next: NextFunction) {
+  try {
+    const brandDNA = await prisma.brandDNA.findUnique({
+      where: { projectId: req.project.id },
+    });
+
+    if (!brandDNA) {
+      res.status(404).json({ detail: 'Brand DNA not generated yet.' });
+      return;
+    }
+
+    res.json(serializeBrandDNA(brandDNA));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPortalDiscovery(req: any, res: Response, next: NextFunction) {
+  try {
+    let discovery = await prisma.projectDiscovery.findUnique({
+      where: { projectId: req.project.id },
+    });
+
+    if (!discovery) {
+      discovery = await prisma.projectDiscovery.create({
+        data: { projectId: req.project.id, sliders: [], emotions: [], competitors: [], visualStyles: [] },
+      });
+    }
+
+    const serialized = serializeDiscovery(discovery);
+    const activeHelp = await getLatestActiveHelp(req.project.id);
+    (serialized as any).active_help = activeHelp;
+
+    res.json(serialized);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function savePortalDiscovery(req: any, res: Response, next: NextFunction) {
+  try {
+    const { what_business_does, target_customer, why_choose_us, brand_feeling, audience_archetype, sliders, emotions, competitors, visual_styles } = req.body;
+
+    const data: any = {};
+    if (what_business_does !== undefined) data.whatBusinessDoes = what_business_does;
+    if (target_customer !== undefined) data.targetCustomer = target_customer;
+    if (why_choose_us !== undefined) data.whyChooseUs = why_choose_us;
+    if (brand_feeling !== undefined) data.brandFeeling = brand_feeling;
+    if (audience_archetype !== undefined) data.audienceArchetype = audience_archetype;
+
+    if (sliders && Array.isArray(sliders)) {
+      data.sliders = sliders.map((s: any) => ({
+        sliderKey: s.slider_key || s.sliderKey,
+        leftLabel: s.left_label || s.leftLabel || '',
+        rightLabel: s.rightLabel || s.rightLabel || '',
+        value: Number(s.value ?? 50),
+      }));
+    }
+
+    if (emotions && Array.isArray(emotions)) {
+      const unique = Array.from(new Set(emotions.map((e: any) => (typeof e === 'string' ? e : e.emotion).trim())));
+      data.emotions = unique.slice(0, 8);
+    }
+
+    if (competitors && Array.isArray(competitors)) {
+      data.competitors = competitors.map((c: any) => ({
+        name: (c.name || '').trim(),
+        rating: c.rating || 'neutral',
+        reason: (c.reason || '').trim(),
+      }));
+    }
+
+    if (visual_styles && Array.isArray(visual_styles)) {
+      const unique = Array.from(new Set(visual_styles.map((v: any) => (typeof v === 'string' ? v : v.style).trim())));
+      data.visualStyles = unique.slice(0, 3);
+    }
+
+    data.submittedAt = new Date();
+
+    const discovery = await prisma.projectDiscovery.upsert({
+      where: { projectId: req.project.id },
+      update: data,
+      create: { projectId: req.project.id, ...data },
+    });
+
+    await prisma.project.update({
+      where: { id: req.project.id },
+      data: { status: 'discovery' },
+    });
+
+    await logProjectActivity({
+      projectId: req.project.id,
+      consultantId: req.project.consultantId,
+      actorType: 'client',
+      action: 'discovery_submitted',
+      description: 'Client submitted the discovery questionnaire via portal.',
+      metadata: { discovery_id: discovery.id },
+    });
+
+    await maybeGenerateAgreementSnapshot(req.project.id).catch(() => {});
+
+    res.json(serializeDiscovery(discovery));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPortalMoodboards(req: any, res: Response, next: NextFunction) {
+  try {
+    const moodboards = await prisma.moodboard.findMany({
+      where: { projectId: req.project.id, isShared: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(moodboards.map((m) => serializeClientPortalMoodboard(m, req.project.portalToken)));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function selectPortalMoodboard(req: any, res: Response, next: NextFunction) {
+  try {
+    const { moodboard_id } = req.params;
+
+    // Reset all moodboards for this project
+    await prisma.moodboard.updateMany({
+      where: { projectId: req.project.id },
+      data: { isSelected: false },
+    });
+
+    const selected = await prisma.moodboard.update({
+      where: { id: moodboard_id },
+      data: { isSelected: true },
+    });
+
+    await logProjectActivity({
+      projectId: req.project.id,
+      consultantId: req.project.consultantId,
+      actorType: 'client',
+      action: 'moodboard_selected',
+      description: `Client selected moodboard: ${selected.title}`,
+      metadata: { moodboard_id: selected.id },
+      visibleToClient: true,
+    });
+
+    await maybeGenerateAgreementSnapshot(req.project.id).catch(() => {});
+
+    res.json(serializeClientPortalMoodboard(selected, req.project.portalToken));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPortalConcepts(req: any, res: Response, next: NextFunction) {
+  try {
+    const concepts = await prisma.concept.findMany({
+      where: {
+        projectId: req.project.id,
+        status: { in: ['shared', 'approved', 'changes_requested'] },
+      },
+      orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    res.json(concepts.map((c) => serializeClientPortalConcept(c, req.project.portalToken)));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function submitConceptFeedback(req: any, res: Response, next: NextFunction) {
+  try {
+    const { concept_id } = req.params;
+    const { action, feedback } = req.body;
+
+    const isApprove = action === 'approved' || action === 'approve';
+    const isChangesRequested = action === 'changes_requested';
+
+    if (!isApprove && !isChangesRequested) {
+      res.status(400).json({ action: ['Use approved or changes_requested.'] });
+      return;
+    }
+
+    const concept = await prisma.concept.findFirst({
+      where: {
+        id: concept_id,
+        projectId: req.project.id,
+      },
+    });
+
+    if (!concept) {
+      res.status(404).json({ detail: 'Concept not found.' });
+      return;
+    }
+
+    if (isApprove) {
+      if (concept.status === 'approved') {
+        res.json(serializeClientPortalConcept(concept, req.project.portalToken));
+        return;
+      }
+
+      if (concept.status !== 'shared' && concept.status !== 'changes_requested') {
+        res.status(400).json({ detail: 'Only shared concepts can be approved.' });
+        return;
+      }
+    } else if (isChangesRequested) {
+      if (concept.status === 'approved') {
+        res.status(400).json({ detail: 'Approved concepts are locked and cannot receive further feedback.' });
+        return;
+      }
+
+      if (concept.status !== 'shared') {
+        res.status(400).json({ detail: 'Changes can only be requested for shared concepts.' });
+        return;
+      }
+
+      const trimmedFeedback = (feedback || '').trim();
+      if (!trimmedFeedback) {
+        res.status(400).json({ feedback: ['Feedback is required when requesting changes.'] });
+        return;
+      }
+    }
+
+    const nextStatus = isApprove ? 'approved' : 'changes_requested';
+    const trimmedFeedback = (feedback || '').trim();
+    const updated = await prisma.concept.update({
+      where: { id: concept.id },
+      data: {
+        status: nextStatus,
+        clientFeedback: isApprove ? '' : trimmedFeedback,
+      },
+    });
+
+    await recalculatePaymentMilestones(req.project.id);
+
+    const activityAction = isApprove ? 'concept_approved' : 'concept_changes_requested';
+    const activityDescription = isApprove
+      ? `Client approved concept: ${updated.title}`
+      : `Client requested changes for concept: ${updated.title}`;
+    const activityMetadata: any = {
+      concept_id: updated.id,
+      concept_title: updated.title,
+      concept_version: updated.version,
+      concept_status: nextStatus,
+    };
+    if (isChangesRequested) {
+      activityMetadata.feedback = trimmedFeedback;
+    }
+
+    await logProjectActivity({
+      projectId: req.project.id,
+      consultantId: req.project.consultantId,
+      actorType: 'client',
+      action: activityAction,
+      description: activityDescription,
+      metadata: activityMetadata,
+      visibleToClient: true,
+    });
+
+    await maybeGenerateAgreementSnapshot(req.project.id).catch(() => {});
+
+    res.json(serializeClientPortalConcept(updated, req.project.portalToken));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPortalDeliverables(req: any, res: Response, next: NextFunction) {
+  try {
+    const deliverables = await prisma.deliverable.findMany({
+      where: {
+        projectId: req.project.id,
+        status: 'shared',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const projectWithMilestones = await prisma.project.findUnique({
+      where: { id: req.project.id },
+      include: { paymentMilestones: true },
+    });
+
+    res.json(
+      deliverables.map((d) =>
+        serializeClientPortalDeliverable(d, (projectWithMilestones || req.project) as any)
+      )
+    );
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPortalAgreement(req: any, res: Response, next: NextFunction) {
+  try {
+    const agreement = await prisma.projectAgreement.findUnique({
+      where: { projectId: req.project.id },
+    });
+
+    if (!agreement || (agreement.status === 'draft' && !agreement.signatureRequestedAt)) {
+      res.status(404).json({ detail: 'Agreement not available.' });
+      return;
+    }
+
+    const portalToken = req.project.portalToken;
+    const fileUrl = `/api/client-portal/${portalToken}/agreement/pdf/`;
+    const basicPdfUrl = agreement.basicPdfFile
+      ? `/api/client-portal/${portalToken}/agreement/pdf/?type=basic`
+      : '';
+    const signedPdfUrl = agreement.signedPdfFile
+      ? `/api/client-portal/${portalToken}/agreement/pdf/?type=signed`
+      : '';
+    const downloadUrl = `/api/client-portal/${portalToken}/agreement/pdf/?download=1`;
+
+    res.json({
+      id: agreement.id,
+      project: agreement.projectId,
+      status: agreement.status,
+      title: 'Basic Agreement',
+      file_url: fileUrl,
+      basic_pdf_url: basicPdfUrl,
+      signed_pdf_url: signedPdfUrl,
+      download_url: downloadUrl,
+      basic_pdf_file: agreement.basicPdfFile,
+      signed_pdf_file: agreement.signedPdfFile,
+      signer_name: agreement.signerName,
+      signed_at: agreement.signedAt,
+      signature_method: agreement.signatureMethod,
+      signature_requested_at: agreement.signatureRequestedAt,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function downloadPortalMoodboardImage(req: any, res: Response, next: NextFunction) {
+  try {
+    const { asset_id } = req.params;
+    const moodboard = await prisma.moodboard.findFirst({
+      where: {
+        id: asset_id,
+        projectId: req.project.id,
+        isShared: true,
+      },
+    });
+
+    if (!moodboard || !moodboard.image) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    const safePath = resolveSafeMediaPath(moodboard.image);
+    if (!safePath) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    streamLocalFile(safePath, res, { isAttachment: false });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function downloadPortalConceptImage(req: any, res: Response, next: NextFunction) {
+  try {
+    const { asset_id } = req.params;
+    const concept = await prisma.concept.findFirst({
+      where: {
+        id: asset_id,
+        projectId: req.project.id,
+        status: { in: ['shared', 'approved', 'changes_requested'] },
+      },
+    });
+
+    if (!concept || !concept.image) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    const safePath = resolveSafeMediaPath(concept.image);
+    if (!safePath) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    streamLocalFile(safePath, res, { isAttachment: false });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function downloadPortalConceptFile(req: any, res: Response, next: NextFunction) {
+  try {
+    const { asset_id } = req.params;
+    const concept = await prisma.concept.findFirst({
+      where: {
+        id: asset_id,
+        projectId: req.project.id,
+        status: { in: ['shared', 'approved', 'changes_requested'] },
+      },
+    });
+
+    if (!concept || !concept.file) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    const safePath = resolveSafeMediaPath(concept.file);
+    if (!safePath) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    streamLocalFile(safePath, res, {
+      isAttachment: true,
+      filename: path.basename(concept.file),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function downloadPortalDeliverableFile(req: any, res: Response, next: NextFunction) {
+  try {
+    const { asset_id } = req.params;
+    const deliverable = await prisma.deliverable.findFirst({
+      where: {
+        id: asset_id,
+        projectId: req.project.id,
+      },
+    });
+
+    if (!deliverable) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    const projectWithMilestones = await prisma.project.findUnique({
+      where: { id: req.project.id },
+      include: { paymentMilestones: true },
+    });
+
+    const { canDownload } = canClientDownloadDeliverable(
+      (projectWithMilestones || req.project) as any,
+      deliverable
+    );
+
+    if (!canDownload) {
+      res.status(403).json({
+        detail: 'Final files will be available after the required payment is confirmed.',
+      });
+      return;
+    }
+
+    if (!deliverable.file) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    const safePath = resolveSafeMediaPath(deliverable.file);
+    if (!safePath) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    // Match Django semantics: log activity once file availability is confirmed before stream begins
+    await logProjectActivity({
+      projectId: req.project.id,
+      consultantId: req.project.consultantId,
+      actorType: 'client',
+      action: 'deliverable_downloaded',
+      description: `Client downloaded deliverable: ${deliverable.title}`,
+      metadata: {
+        deliverable_id: deliverable.id,
+        deliverable_title: deliverable.title,
+      },
+      visibleToClient: true,
+    });
+
+    streamLocalFile(safePath, res, {
+      isAttachment: true,
+      filename: path.basename(deliverable.file),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function downloadPortalAgreementPdf(req: any, res: Response, next: NextFunction) {
+  try {
+    const agreement = await prisma.projectAgreement.findUnique({
+      where: { projectId: req.project.id },
+    });
+
+    if (!agreement || (agreement.status === 'draft' && !agreement.signatureRequestedAt)) {
+      res.status(404).json({ detail: 'Agreement not found.' });
+      return;
+    }
+
+    const type = req.query.type;
+    let targetFile: string | null = null;
+
+    if (type === 'basic') {
+      targetFile = agreement.basicPdfFile;
+    } else if (type === 'signed') {
+      targetFile = agreement.signedPdfFile;
+    } else {
+      targetFile = agreement.signedPdfFile || agreement.basicPdfFile;
+    }
+
+    if (!targetFile) {
+      res.status(404).json({ detail: 'Agreement PDF is not available.' });
+      return;
+    }
+
+    const safePath = resolveSafeMediaPath(targetFile);
+    if (!safePath) {
+      res.status(404).json({ detail: 'Agreement PDF is not available.' });
+      return;
+    }
+
+    const isAttachment = req.query.download === '1';
+    const filename = agreement.signedPdfFile ? 'signed-agreement.pdf' : 'basic-agreement.pdf';
+
+    streamLocalFile(safePath, res, {
+      isAttachment,
+      filename,
+      contentType: 'application/pdf',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function signPortalAgreement(req: any, res: Response, next: NextFunction) {
+  try {
+    const { signer_name, signature_method } = req.body;
+
+    if (!signer_name || !signature_method) {
+      res.status(400).json({ detail: 'Signer name and signature method are required.' });
+      return;
+    }
+
+    let agreement = await prisma.projectAgreement.findUnique({
+      where: { projectId: req.project.id },
+    });
+
+    if (!agreement) {
+      res.status(404).json({ detail: 'Agreement not found.' });
+      return;
+    }
+
+    const signedAt = new Date();
+    const signatureImageBuffer = req.file ? req.file.buffer : undefined;
+
+    const { pdfBuffer, sha256Hash } = await generateSignedAgreementPdf(req.project, agreement, {
+      signerName: signer_name.trim(),
+      signatureMethod: signature_method,
+      signatureImageBuffer,
+      signedAt,
+      ipAddress: req.ip,
+    });
+
+    let signatureImagePath: string | undefined;
+    if (signatureImageBuffer && req.file) {
+      signatureImagePath = await saveFile('project_agreements/signatures', req.file.originalname, signatureImageBuffer, req.file.mimetype);
+    }
+
+    const signedPdfPath = await saveFile(
+      'project_agreements/signed',
+      `signed_agreement_${req.project.portalToken}.pdf`,
+      pdfBuffer,
+      'application/pdf'
+    );
+
+    const updated = await prisma.projectAgreement.update({
+      where: { id: agreement.id },
+      data: {
+        status: 'signed',
+        signerName: signer_name.trim(),
+        signatureMethod: signature_method,
+        signatureImage: signatureImagePath,
+        signedPdfFile: signedPdfPath,
+        signedAt,
+        signatureMetadata: JSON.stringify({
+          hash: sha256Hash,
+          ip: req.ip,
+          userAgent: req.headers['user-agent'],
+        }),
+      },
+    });
+
+    await logProjectActivity({
+      projectId: req.project.id,
+      consultantId: req.project.consultantId,
+      actorType: 'client',
+      action: 'agreement_signed',
+      description: `Client signed the project agreement (Digital Certificate generated).`,
+      visibleToClient: true,
+    });
+
+    await recalculatePaymentMilestones(req.project.id);
+
+    res.json({
+      id: updated.id,
+      status: updated.status,
+      signed_pdf_file: updated.signedPdfFile,
+      signer_name: updated.signerName,
+      signed_at: updated.signedAt,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPortalPayments(req: any, res: Response, next: NextFunction) {
+  try {
+    const milestones = await prisma.paymentMilestone.findMany({
+      where: { projectId: req.project.id },
+    });
+
+    const order: Record<string, number> = { advance: 1, mid: 2, final: 3 };
+    milestones.sort((a, b) => (order[a.type] || 99) - (order[b.type] || 99));
+
+    res.json(milestones.map(serializePaymentMilestone));
+  } catch (err) {
+    next(err);
+  }
+}
+
+function amountToSmallestUnit(amount: number | string): number {
+  return Math.round(Number(amount || 0) * 100);
+}
+
+function buildCreateOrderPayload(transactionObj: any, milestone: any, reused: boolean) {
+  return {
+    transaction_id: transactionObj.id,
+    razorpay_order_id: transactionObj.razorpayOrderId,
+    amount: amountToSmallestUnit(transactionObj.amount),
+    currency: transactionObj.currency || 'INR',
+    key_id: ENV.RAZORPAY_KEY_ID,
+    milestone: {
+      id: milestone.id,
+      type: milestone.type,
+      amount: Number(milestone.amount || 0).toFixed(2),
+      status: milestone.status,
+    },
+    reused,
+  };
+}
+
+export async function createPortalPaymentOrder(req: any, res: Response, next: NextFunction) {
+  try {
+    const { milestone_id } = req.params;
+    const project = req.project;
+
+    if (!project) {
+      res.status(404).json({ detail: 'Client portal link not found.' });
+      return;
+    }
+
+    const milestone = await prisma.paymentMilestone.findFirst({
+      where: { id: milestone_id, projectId: project.id },
+      include: {
+        transactions: true,
+      },
+    });
+
+    if (!milestone) {
+      res.status(404).json({ detail: 'Payment milestone not found.' });
+      return;
+    }
+
+    if (milestone.status === 'paid') {
+      res.status(400).json({ detail: 'This payment milestone is already paid.' });
+      return;
+    }
+
+    if (milestone.status !== 'requested') {
+      res.status(400).json({ detail: 'Only requested payment milestones can be paid online.' });
+      return;
+    }
+
+    if (!milestone.amount || Number(milestone.amount) <= 0) {
+      res.status(400).json({ detail: 'Payment amount must be greater than zero.' });
+      return;
+    }
+
+    if (!ENV.RAZORPAY_KEY_ID || !ENV.RAZORPAY_KEY_SECRET) {
+      res.status(503).json({ detail: 'Payment gateway is not configured.' });
+      return;
+    }
+
+    const verifiedTransaction = milestone.transactions.find((tx: any) => tx.status === 'verified');
+    if (verifiedTransaction) {
+      res.status(400).json({ detail: 'This payment milestone is already completed.' });
+      return;
+    }
+
+    const reusableTransaction = milestone.transactions
+      .filter((tx: any) => tx.status === 'created' && tx.razorpayOrderId && tx.razorpayOrderId.trim() !== '')
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    if (reusableTransaction) {
+      res.status(200).json(buildCreateOrderPayload(reusableTransaction, milestone, true));
+      return;
+    }
+
+    const currency = ENV.RAZORPAY_CURRENCY || 'INR';
+    const orderAmount = amountToSmallestUnit(milestone.amount);
+    const receipt = `floxa-${milestone.id}-${crypto.randomBytes(6).toString('hex')}`;
+    const notes = {
+      project_id: String(project.id),
+      milestone_id: String(milestone.id),
+      milestone_type: String(milestone.type),
+    };
+
+    let order: any;
+    try {
+      order = await createRazorpayOrder({
+        amount: orderAmount,
+        currency,
+        receipt,
+        notes,
+      });
+    } catch (err: any) {
+      res.status(503).json({ detail: 'Unable to create payment order. Please try again later.' });
+      return;
+    }
+
+    const razorpayOrderId = order?.id;
+    if (!razorpayOrderId) {
+      res.status(502).json({ detail: 'Payment gateway returned an invalid order.' });
+      return;
+    }
+
+    const transaction = await prisma.paymentTransaction.create({
+      data: {
+        projectId: project.id,
+        milestoneId: milestone.id,
+        razorpayOrderId,
+        amount: milestone.amount,
+        currency,
+        status: 'created',
+      },
+    });
+
+    res.status(201).json(buildCreateOrderPayload(transaction, milestone, false));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function verifyPortalPayment(req: any, res: Response, next: NextFunction) {
+  try {
+    const project = req.project;
+    if (!project) {
+      res.status(404).json({ detail: 'Client portal link not found.' });
+      return;
+    }
+
+    const razorpayOrderId = typeof req.body?.razorpay_order_id === 'string' ? req.body.razorpay_order_id.trim() : '';
+    const razorpayPaymentId = typeof req.body?.razorpay_payment_id === 'string' ? req.body.razorpay_payment_id.trim() : '';
+    const razorpaySignature = typeof req.body?.razorpay_signature === 'string' ? req.body.razorpay_signature.trim() : '';
+
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      res.status(400).json({ detail: 'Payment verification details are required.' });
+      return;
+    }
+
+    const transaction = await prisma.paymentTransaction.findFirst({
+      where: {
+        projectId: project.id,
+        razorpayOrderId,
+      },
+      include: {
+        milestone: true,
+        project: {
+          include: {
+            consultant: true,
+          },
+        },
+      },
+    });
+
+    if (!transaction) {
+      res.status(404).json({ detail: 'Payment transaction not found.' });
+      return;
+    }
+
+    const milestone = transaction.milestone;
+    if (!milestone || milestone.projectId !== project.id) {
+      res.status(404).json({ detail: 'Payment transaction not found.' });
+      return;
+    }
+
+    if (transaction.status === 'verified') {
+      if (transaction.razorpayPaymentId && transaction.razorpayPaymentId !== razorpayPaymentId) {
+        res.status(400).json({ detail: 'Payment transaction is already verified.' });
+        return;
+      }
+
+      res.status(200).json({
+        detail: 'Payment verified successfully.',
+        transaction_id: transaction.id,
+        transaction_status: transaction.status,
+        milestone: serializePaymentMilestone(milestone),
+      });
+      return;
+    }
+
+    if (transaction.status !== 'created') {
+      res.status(400).json({ detail: 'Payment transaction is not eligible for verification.' });
+      return;
+    }
+
+    if (milestone.status !== 'requested') {
+      res.status(400).json({ detail: 'Only requested payment milestones can be verified.' });
+      return;
+    }
+
+    if (!ENV.RAZORPAY_KEY_ID || !ENV.RAZORPAY_KEY_SECRET) {
+      res.status(503).json({ detail: 'Payment gateway is not configured.' });
+      return;
+    }
+
+    const isValidSignature = verifyPaymentSignature({
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+    });
+
+    if (!isValidSignature) {
+      res.status(400).json({ detail: 'Payment verification failed.' });
+      return;
+    }
+
+    let providerPayment: any;
+    try {
+      providerPayment = await fetchRazorpayPayment(razorpayPaymentId);
+    } catch (error: any) {
+      res.status(503).json({ detail: 'Unable to confirm payment with Razorpay.' });
+      return;
+    }
+
+    if (!providerPayment || typeof providerPayment !== 'object') {
+      res.status(400).json({ detail: 'Payment verification failed.' });
+      return;
+    }
+
+    const expectedAmount = amountToSmallestUnit(transaction.amount);
+    const providerAmount = Number(providerPayment.amount);
+    const providerCurrency = String(providerPayment.currency || '').toUpperCase();
+    const expectedCurrency = String(transaction.currency || '').toUpperCase();
+
+    if (
+      providerPayment.id !== razorpayPaymentId ||
+      providerPayment.order_id !== transaction.razorpayOrderId ||
+      providerAmount !== expectedAmount ||
+      providerCurrency !== expectedCurrency ||
+      providerPayment.status !== 'captured'
+    ) {
+      res.status(400).json({ detail: 'Payment verification failed.' });
+      return;
+    }
+
+    let completionResult;
+    try {
+      completionResult = await completePaymentMilestone({
+        projectId: project.id,
+        milestoneId: milestone.id,
+        actorType: 'client',
+        paymentSource: 'razorpay',
+        transactionId: transaction.id,
+        razorpayPaymentId,
+      });
+    } catch (err: any) {
+      if (err instanceof PaymentCompletionError) {
+        res.status(err.statusCode || 400).json({ detail: err.message });
+        return;
+      }
+      throw err;
+    }
+
+    res.status(200).json({
+      detail: 'Payment verified successfully.',
+      transaction_id: completionResult.transaction?.id || transaction.id,
+      transaction_status: completionResult.transaction?.status || 'verified',
+      milestone: serializePaymentMilestone(completionResult.milestone),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function portalSignOff(req: any, res: Response, next: NextFunction) {
+  try {
+    await prisma.project.update({
+      where: { id: req.project.id },
+      data: {
+        clientSignedOff: true,
+        signedOffAt: new Date(),
+        status: 'delivered',
+        progress: 100,
+      },
+    });
+
+    await logProjectActivity({
+      projectId: req.project.id,
+      consultantId: req.project.consultantId,
+      actorType: 'client',
+      action: 'client_signed_off',
+      description: 'Client completed final sign-off for the project.',
+      visibleToClient: true,
+    });
+
+    res.json({ success: true, detail: 'Project signed off successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPortalActivities(req: any, res: Response, next: NextFunction) {
+  try {
+    const activities = await prisma.projectActivity.findMany({
+      where: {
+        projectId: req.project.id,
+        visibleToClient: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    res.json(activities.map(serializeClientPortalActivity));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function markPortalActivitiesRead(req: any, res: Response, next: NextFunction) {
+  try {
+    const result = await prisma.projectActivity.updateMany({
+      where: {
+        projectId: req.project.id,
+        visibleToClient: true,
+        clientIsRead: false,
+      },
+      data: {
+        clientIsRead: true,
+        clientReadAt: new Date(),
+      },
+    });
+
+    res.json({ marked_read: result.count });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPortalHelpStatus(req: any, res: Response, next: NextFunction) {
+  try {
+    const activeHelp = await getLatestActiveHelp(req.project.id);
+    res.json({
+      success: true,
+      active_help: activeHelp && activeHelp.is_active ? activeHelp : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function requestPortalHelp(req: any, res: Response, next: NextFunction) {
+  try {
+    const { page_id, field_key, question } = req.body;
+    const pageId = String(page_id || 'Step 1');
+    const fieldKey = String(field_key || '');
+    const q = String(question || 'Client requested assistance.');
+    const clientName = req.project.client?.name || req.project.companyName || 'Client';
+    const description = `${clientName} requested help on ${pageId}: "${q}"`;
+
+    const activity = await logProjectActivity({
+      projectId: req.project.id,
+      consultantId: req.project.consultantId,
+      actorType: 'client',
+      action: 'client_help_requested',
+      description,
+      metadata: {
+        page_id: pageId,
+        field_key: fieldKey,
+        question: q,
+        portal_token: req.project.portalToken,
+        project_id: req.project.id,
+      },
+      visibleToClient: true,
+    });
+
+    broadcastHelpRequested(req.project.id, req.project.consultantId, {
+      project_id: req.project.id,
+      project_title: req.project.title,
+      client_name: clientName,
+      portal_token: req.project.portalToken,
+      page_id: pageId,
+      field_key: fieldKey,
+      question: q,
+      requested_at: activity.createdAt.toISOString(),
+    });
+
+    res.json({
+      success: true,
+      message: 'Consultant notified successfully.',
+      activity_id: activity.id,
+      description,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resolvePortalHelp(req: any, res: Response, next: NextFunction) {
+  try {
+    const { page_id } = req.body;
+    const pageId = String(page_id || '');
+
+    await logProjectActivity({
+      projectId: req.project.id,
+      consultantId: req.project.consultantId,
+      actorType: 'client',
+      action: 'client_help_resolved',
+      description: `Help session on ${pageId || 'step'} resolved.`,
+      metadata: { page_id: pageId },
+      visibleToClient: true,
+    });
+
+    broadcastHelpResolved(req.project.id, {
+      project_id: req.project.id,
+      page_id: pageId,
+      resolved_by: 'client',
+    });
+
+    res.json({ success: true, message: 'Help session resolved.' });
+  } catch (err) {
+    next(err);
+  }
+}

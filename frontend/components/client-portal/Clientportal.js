@@ -399,9 +399,27 @@ export default function Clientportal() {
   const isConsultantMode = searchParams?.get("mode") !== "client";
   const urlToken = searchParams?.get("token") || "";
 
-  const [entered, setEntered] = useState(false);
-  const [finished, setFinished] = useState(false);
-  const [step, setStep] = useState(1);
+  const [entered, setEntered] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.sessionStorage.getItem(`floxa-portal-entered-${urlToken || "default"}`) === "true";
+  });
+  const [finished, setFinished] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.sessionStorage.getItem(`floxa-portal-finished-${urlToken || "default"}`) === "true";
+  });
+  const [step, setStep] = useState(() => {
+    if (typeof window === "undefined") return 1;
+    const saved = parseInt(window.sessionStorage.getItem(`floxa-portal-step-${urlToken || "default"}`) || "1", 10);
+    return saved >= 1 && saved <= 6 ? saved : 1;
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(`floxa-portal-entered-${urlToken || "default"}`, String(entered));
+      window.sessionStorage.setItem(`floxa-portal-finished-${urlToken || "default"}`, String(finished));
+      window.sessionStorage.setItem(`floxa-portal-step-${urlToken || "default"}`, String(step));
+    }
+  }, [entered, finished, step, urlToken]);
   const [email, setEmail] = useState("");
   const [answers, setAnswers] = useState(defaultAnswers);
   const [sliderOne, setSliderOne] = useState(() => makeSliderState(personalityOne));
@@ -587,6 +605,13 @@ export default function Clientportal() {
           }
           if (Array.isArray(disc.visual_styles) && disc.visual_styles.length > 0) {
             setSelectedVisual(disc.visual_styles.map((v) => (typeof v === "string" ? v : v.style)).filter(Boolean));
+          }
+          if (disc.is_submitted || disc.isSubmitted) {
+            setFinished(true);
+            setEntered(true);
+          } else if (typeof disc.step === "number" && disc.step >= 1 && disc.step <= 6) {
+            setStep(disc.step);
+            setEntered(true);
           }
         }
       } catch (err) {
@@ -1258,3 +1283,5 @@ export default function Clientportal() {
     </main>
   );
 }
+
+export { ClientPortal } from "./ClientPortal.jsx";
