@@ -1030,7 +1030,34 @@ export async function verifyPortalPayment(req: any, res: Response, next: NextFun
 
 export async function portalSignOff(req: any, res: Response, next: NextFunction) {
   try {
-    await prisma.project.update({
+    if (req.project.clientSignedOff) {
+      res.json(serializeProject(req.project, 'delivered'));
+      return;
+    }
+
+    const hasShared = await prisma.deliverable.findFirst({
+      where: {
+        projectId: req.project.id,
+        status: 'shared',
+      },
+    });
+
+    if (!hasShared) {
+      res.status(400).json({ detail: 'Final delivery is not available for sign-off yet.' });
+      return;
+    }
+
+    const milestones = await prisma.paymentMilestone.findMany({
+      where: { projectId: req.project.id },
+    });
+
+    const unpaid = milestones.filter((m) => m.status !== 'paid');
+    if (unpaid.length > 0) {
+      res.status(400).json({ detail: 'All payment milestones must be paid before sign-off.' });
+      return;
+    }
+
+    const updatedProject = await prisma.project.update({
       where: { id: req.project.id },
       data: {
         clientSignedOff: true,
@@ -1038,18 +1065,24 @@ export async function portalSignOff(req: any, res: Response, next: NextFunction)
         status: 'delivered',
         progress: 100,
       },
+      include: { client: true },
     });
 
     await logProjectActivity({
       projectId: req.project.id,
       consultantId: req.project.consultantId,
       actorType: 'client',
-      action: 'client_signed_off',
-      description: 'Client completed final sign-off for the project.',
+      action: 'project_signed_off',
+      description: 'Client accepted the final delivery and completed the project.',
       visibleToClient: true,
+      metadata: {
+        project_id: req.project.id,
+        signed_off_at: updatedProject.signedOffAt?.toISOString(),
+        project_status: updatedProject.status,
+      },
     });
 
-    res.json({ success: true, detail: 'Project signed off successfully.' });
+    res.json(serializeProject(updatedProject, 'delivered'));
   } catch (err) {
     next(err);
   }

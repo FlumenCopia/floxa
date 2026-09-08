@@ -1,5 +1,7 @@
 import PDFDocument from 'pdfkit';
 import crypto from 'crypto';
+import fs from 'fs';
+import { resolveSafeMediaPath } from './storage.service.js';
 
 export async function generateBasicAgreementPdf(project: any): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -310,6 +312,252 @@ export async function generateGeneratedAgreementPdf(snapshot: any): Promise<Buff
         if (d.description) renderKeyValue('   Details', d.description);
       });
     }
+
+    doc.end();
+  });
+}
+
+export async function generateBrandDeliverablesPdf(project: any): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({
+      margin: 45,
+      autoFirstPage: true,
+      bufferPages: true,
+      size: 'A4',
+    });
+    const buffers: Buffer[] = [];
+
+    doc.on('data', (chunk) => buffers.push(chunk));
+    doc.on('end', () => {
+      try {
+        const range = doc.bufferedPageRange();
+        for (let i = range.start; i < range.start + range.count; i++) {
+          doc.switchToPage(i);
+          doc.font('Helvetica').fontSize(8).fillColor('#64748B');
+          doc.text(
+            `Page ${i + 1} of ${range.count}  •  Floxa Brand Delivery Package`,
+            45,
+            doc.page.height - 35,
+            { align: 'center', width: doc.page.width - 90 }
+          );
+        }
+      } catch (pageErr) {
+        // Continue if page range decoration encounters any issue
+      }
+      resolve(Buffer.concat(buffers));
+    });
+    doc.on('error', (err) => reject(err));
+
+    const companyName = project.companyName || project.title || 'Brand Project';
+    const clientName = project.client?.name || project.companyName || 'Client';
+    const dateStr = new Date().toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const renderSectionHeader = (title: string) => {
+      doc.moveDown(0.8);
+      doc.fontSize(12).font('Helvetica-Bold').fillColor('#1E3A34').text(title.toUpperCase());
+      doc.strokeColor('#94A3B8').lineWidth(0.75).moveTo(45, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveDown(0.4);
+      doc.font('Helvetica').fontSize(9.5).fillColor('#334155');
+    };
+
+    const renderBullet = (text: string, boldPrefix?: string) => {
+      doc.font('Helvetica').fontSize(9).fillColor('#334155');
+      if (boldPrefix) {
+        doc.font('Helvetica-Bold').text(`  •  ${boldPrefix}: `, { continued: true });
+        doc.font('Helvetica').text(text);
+      } else {
+        doc.text(`  •  ${text}`);
+      }
+      doc.moveDown(0.2);
+    };
+
+    // Header / Title Block
+    doc.fontSize(17).font('Helvetica-Bold').fillColor('#1E293B').text('BRAND DESIGN & IDENTITY STRATEGY PROPOSAL');
+    doc.moveDown(0.2);
+    doc.fontSize(13).font('Helvetica-Bold').fillColor('#334155').text(`${companyName.toUpperCase()} & ASSOCIATED ASSETS`);
+    doc.moveDown(0.5);
+
+    doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#1E293B').text('Prepared For: ', { continued: true });
+    doc.font('Helvetica').fillColor('#334155').text(`${clientName} (${companyName})`);
+
+    doc.font('Helvetica-Bold').fillColor('#1E293B').text('Project: ', { continued: true });
+    doc.font('Helvetica').fillColor('#334155').text(project.sector || 'Brand Strategy, Visual Identity & Deliverable Assets');
+
+    doc.font('Helvetica-Bold').fillColor('#1E293B').text('Date: ', { continued: true });
+    doc.font('Helvetica').fillColor('#334155').text(dateStr);
+    doc.moveDown(0.4);
+
+    doc.strokeColor('#94A3B8').lineWidth(1).moveTo(45, doc.y).lineTo(550, doc.y).stroke();
+    doc.moveDown(0.6);
+
+    // 1. PROJECT SUMMARY
+    renderSectionHeader('1. PROJECT SUMMARY');
+    doc.text(
+      `The proposed project involves the strategic brand positioning, identity engineering, ` +
+      `and production-ready asset creation for ${companyName} and its associated brand collateral. ` +
+      `The engagement delivers a modern, high-impact visual design ecosystem tailored for sustainable market leadership.`
+    );
+    doc.moveDown(0.5);
+
+    // 2. PROJECT OBJECTIVES
+    renderSectionHeader('2. PROJECT OBJECTIVES');
+    const objectives = [
+      `Stabilize and establish a distinct, premium market positioning for ${companyName}.`,
+      'Engineer scalable vector logo marks and typography assets for digital, print, and corporate applications.',
+      'Ensure aesthetic consistency across all touchpoints, visual collateral, and digital channels.',
+      'Facilitate client-approved concept selection with structured revision and feedback iterations.',
+      'Guarantee 100% intellectual property and copyright handover upon final milestone settlement.',
+    ];
+    objectives.forEach((obj) => renderBullet(obj));
+    doc.moveDown(0.5);
+
+    // 3. SCOPE OF WORK & BRAND STRATEGY
+    renderSectionHeader('3. SCOPE OF WORK & BRAND STRATEGY');
+    const dna = project.brandDNA || {};
+    if (dna && (dna.brandPersonalityCluster || dna.positioningSummary || dna.businessSummary)) {
+      renderBullet(dna.brandPersonalityCluster || 'Custom Strategic Direction', 'Personality Cluster');
+      renderBullet(dna.positioningSummary || 'Strategic identity tailored for market leadership.', 'Positioning Summary');
+      renderBullet(dna.businessSummary || 'Building innovative solutions for modern customers.', 'Business & Mission');
+      renderBullet(dna.targetAudienceSummary || 'Forward-thinking consumers and business clients.', 'Target Audience');
+      renderBullet(dna.brandFeelingSummary || 'Professional, confident, inspiring.', 'Brand Voice & Tone');
+    } else {
+      renderBullet('Full brand identity design, logo package, and visual direction.', 'Strategic Scope');
+    }
+    doc.moveDown(0.5);
+
+    // 4. SELECTED VISUAL MOODBOARDS (ONLY CLIENT SELECTED)
+    renderSectionHeader('4. SELECTED VISUAL MOODBOARDS');
+    const allMoodboards = project.moodboards || [];
+    const selectedMoodboards = allMoodboards.filter((m: any) => m.isSelected === true);
+    const moodboardsToShow = selectedMoodboards.length > 0 ? selectedMoodboards : allMoodboards;
+
+    if (moodboardsToShow.length > 0) {
+      moodboardsToShow.forEach((mb: any) => {
+        const isSel = Boolean(mb.isSelected);
+        doc.font('Helvetica-Bold').fontSize(10).fillColor(isSel ? '#047857' : '#1E293B');
+        doc.text(`• ${mb.title || 'Moodboard Direction'} ${isSel ? '[CLIENT SELECTED DIRECTION]' : '[Direction Concept]'}`);
+        if (mb.description) {
+          doc.font('Helvetica').fontSize(9).fillColor('#475569').text(`  ${mb.description}`);
+        }
+        if (mb.image) {
+          const safePath = resolveSafeMediaPath(mb.image);
+          if (safePath && fs.existsSync(safePath)) {
+            try {
+              if (doc.y > doc.page.height - 200) doc.addPage();
+              doc.moveDown(0.3);
+              doc.image(safePath, { fit: [470, 160], align: 'center' });
+              doc.moveDown(0.4);
+            } catch {
+              // Image rendering fallback
+            }
+          }
+        }
+        doc.moveDown(0.4);
+      });
+    } else {
+      doc.font('Helvetica').fontSize(9).fillColor('#64748B').text('Visual directions and moodboards recorded in project workspace.');
+      doc.moveDown(0.4);
+    }
+
+    // 5. APPROVED BRAND CONCEPTS & IDENTITY (ONLY CLIENT APPROVED)
+    renderSectionHeader('5. APPROVED BRAND CONCEPTS & IDENTITY');
+    const allConcepts = project.concepts || [];
+    const approvedConcepts = allConcepts.filter((c: any) => c.status === 'approved');
+    const conceptsToShow = approvedConcepts.length > 0 ? approvedConcepts : allConcepts;
+
+    if (conceptsToShow.length > 0) {
+      conceptsToShow.forEach((c: any) => {
+        const isApp = c.status === 'approved';
+        doc.font('Helvetica-Bold').fontSize(10).fillColor(isApp ? '#047857' : '#1E293B');
+        doc.text(`• ${c.title || 'Brand Concept'} (v${c.version || 1}) ${isApp ? '[APPROVED BY CLIENT]' : `[${(c.status || 'draft').toUpperCase()}]`}`);
+        if (c.description) {
+          doc.font('Helvetica').fontSize(9).fillColor('#334155').text(`  Design Notes: ${c.description}`);
+        }
+        if (c.clientFeedback) {
+          doc.font('Helvetica-Oblique').fontSize(9).fillColor('#047857').text(`  Client Feedback: "${c.clientFeedback}"`);
+        }
+        if (c.image) {
+          const safePath = resolveSafeMediaPath(c.image);
+          if (safePath && fs.existsSync(safePath)) {
+            try {
+              if (doc.y > doc.page.height - 200) doc.addPage();
+              doc.moveDown(0.3);
+              doc.image(safePath, { fit: [470, 160], align: 'center' });
+              doc.moveDown(0.4);
+            } catch {
+              // Image rendering fallback
+            }
+          }
+        }
+        doc.moveDown(0.4);
+      });
+    } else {
+      doc.font('Helvetica').fontSize(9).fillColor('#64748B').text('Final concept specifications recorded in project workspace.');
+      doc.moveDown(0.4);
+    }
+
+    // 6. PROJECT BUDGET & PAYMENT SETTLEMENT
+    renderSectionHeader('6. PROJECT BUDGET & PAYMENT SETTLEMENT');
+    const milestones = project.paymentMilestones || [];
+    const totalVal = project.projectValue || milestones.reduce((sum: number, m: any) => sum + (m.amount || 0), 0) || 0;
+    let totalPaid = 0;
+
+    if (milestones.length > 0) {
+      milestones.forEach((m: any) => {
+        const amt = m.amount || 0;
+        const isPaid = m.status === 'paid';
+        if (isPaid) totalPaid += amt;
+        const statusLabel = isPaid ? 'PAID (Settled)' : (m.status || 'pending').toUpperCase();
+        const typeLabel = (m.type || 'Milestone').toUpperCase();
+        renderBullet(`${m.percentage}% | ₹${amt.toLocaleString('en-IN')} | Status: ${statusLabel}`, `${typeLabel} Milestone`);
+      });
+    } else {
+      totalPaid = totalVal;
+      renderBullet(`100% | ₹${totalVal.toLocaleString('en-IN')} | Status: PAID (Settled)`, 'Full Brand Engagement');
+    }
+
+    doc.moveDown(0.3);
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#1E293B').text(`Total Project Investment: ₹${totalVal.toLocaleString('en-IN')}`);
+    const isFullyPaid = totalPaid >= totalVal && totalVal > 0;
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(isFullyPaid ? '#047857' : '#1E293B')
+       .text(`Total Settled Amount: ₹${totalPaid.toLocaleString('en-IN')} ${isFullyPaid ? '(100% Cleared)' : ''}`);
+    doc.moveDown(0.5);
+
+    // 7. PLATFORM & BRAND DELIVERABLES
+    renderSectionHeader('7. PLATFORM & BRAND DELIVERABLES');
+    const platformDeliverables = [
+      'Master Vector Logo Assets (.AI, .SVG, .EPS)',
+      'Digital Web & Screen PNG Logo Suite (Transparent, Dark/Light modes)',
+      'Brand Guidelines & Design Tokens Specification (.PDF)',
+      'Typography & Hierarchy System Documentation',
+      'Color Palette Hex / RGB / CMYK Standardization',
+      'Client Selected Moodboard & Visual Direction Deck',
+      'Complete Project Source Archive (.ZIP)',
+      'Verified Final Payment Receipts & Settlement Audit',
+    ];
+    platformDeliverables.forEach((deliv) => renderBullet(deliv));
+    doc.moveDown(0.5);
+
+    // 8. CONCLUSION
+    renderSectionHeader('8. CONCLUSION');
+    doc.font('Helvetica').fontSize(9.5).fillColor('#334155').text(
+      `This delivery document confirms the successful completion of the strategic branding and design ` +
+      `engagement for ${companyName}. By leveraging structured discovery, AI-assisted Brand DNA analysis, ` +
+      `and collaborative concept refinement, the resulting brand identity delivers a distinctive, scalable market presence.`
+    );
+    doc.moveDown(0.5);
+
+    // 9. DISCLAIMER & LEGAL CONSIDERATIONS
+    renderSectionHeader('9. DISCLAIMER & LEGAL CONSIDERATIONS');
+    doc.font('Helvetica').fontSize(9.5).fillColor('#334155').text(
+      `Upon confirmation of all project milestone settlements, all intellectual property, trademark designs, ` +
+      `and final delivered visual assets are irrevocably assigned and transferred to ${clientName} (${companyName}). ` +
+      `The consultant retains the non-exclusive right to showcase the finalized work in professional design portfolios.`
+    );
 
     doc.end();
   });
