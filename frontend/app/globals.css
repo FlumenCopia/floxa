@@ -5194,6 +5194,10 @@ textarea {
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 10px;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .analytics-card-head h2 {
@@ -8545,8 +8549,8 @@ section:not(.client-welcome-stage)::after,
 .client-agreement-card,
 .card:not(.login-card):not(.client-welcome-glass),
 .card2,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]),
-[class*="card-"]:not(.login-card):not(.client-welcome-glass):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]) {
+[class*="-card"]:not(.login-card):not(.client-welcome-glass):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]),
+[class*="card-"]:not(.login-card):not(.client-welcome-glass):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]) {
   border-radius: 0 !important;
   border: 1px solid rgba(77, 255, 160, 0.2) !important;
   background: linear-gradient(135deg, rgba(77, 255, 160, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(6, 22, 15, 0.72) !important;
@@ -8561,11 +8565,34 @@ section:not(.client-welcome-stage)::after,
 
 .kpi-card-header,
 .dashboard-card-header,
+.analytics-card-head,
+.client-access-card-head,
+.cp-card-top,
+.cp-card-body,
+.cp-card-footer,
+.cp-entry-card-close,
+.client-card-number,
+.client-card-arrow,
 [class*="card-header"],
 [class*="-card-header"],
+[class*="card-head"],
+[class*="-card-head"],
 [class*="card-title"],
-[class*="-card-title"] {
+[class*="-card-title"],
+[class*="card-action"],
+[class*="-card-action"],
+[class*="card-top"],
+[class*="-card-top"],
+[class*="card-body"],
+[class*="-card-body"],
+[class*="card-footer"],
+[class*="-card-footer"],
+[class*="card-arrow"],
+[class*="-card-arrow"],
+[class*="card-number"],
+[class*="-card-number"] {
   border: none !important;
+  outline: none !important;
   background: transparent !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
