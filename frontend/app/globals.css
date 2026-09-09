@@ -1523,10 +1523,10 @@ textarea {
 
 .dashboard-card {
   position: relative;
-  background: linear-gradient(135deg, rgba(77, 255, 160, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(6, 22, 15, 0.72);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(77, 255, 160, 0.2);
+  background: linear-gradient(145deg, rgba(77, 255, 160, 0.16) 0%, rgba(14, 52, 32, 0.72) 45%, rgba(4, 20, 12, 0.85) 100%);
+  backdrop-filter: blur(28px) saturate(160%) brightness(1.1);
+  -webkit-backdrop-filter: blur(28px) saturate(160%) brightness(1.1);
+  border: 1px solid rgba(77, 255, 160, 0.28);
   border-radius: 0;
   padding: 0;
   overflow: hidden;
@@ -1684,7 +1684,8 @@ textarea {
 }
 
 .dash-table thead {
-  background: rgba(14, 40, 26, 0.9);
+  background: rgba(14, 52, 32, 0.65);
+  border-bottom: 1px solid rgba(77, 255, 160, 0.25);
 }
 
 .dash-table th {
@@ -2125,15 +2126,15 @@ textarea {
 .project-table-card {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.54);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(77, 255, 160, 0.16) 0%, rgba(14, 52, 32, 0.72) 45%, rgba(4, 20, 12, 0.85) 100%);
+  backdrop-filter: blur(28px) saturate(160%) brightness(1.1);
+  -webkit-backdrop-filter: blur(28px) saturate(160%) brightness(1.1);
+  border: 1px solid rgba(77, 255, 160, 0.28);
+  border-radius: 0;
   box-shadow:
-    0 20px 48px rgba(0, 0, 0, 0.45),
-    inset 0 1px 1px rgba(255, 255, 255, 0.28),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.4);
+    0 20px 48px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.14),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .project-table-wrap {
@@ -2146,7 +2147,8 @@ textarea {
 }
 
 .project-table thead {
-  background: rgba(14, 40, 26, 0.94);
+  background: rgba(14, 52, 32, 0.65);
+  border-bottom: 1px solid rgba(77, 255, 160, 0.25);
 }
 
 .project-table th {
@@ -3786,7 +3788,8 @@ textarea {
 }
 
 .discovery-table thead {
-  background: rgba(14, 40, 26, 0.94);
+  background: rgba(14, 52, 32, 0.65);
+  border-bottom: 1px solid rgba(77, 255, 160, 0.25);
 }
 
 .discovery-table th {
@@ -8562,13 +8565,29 @@ section:not(.client-welcome-stage)::after,
 }
 
 @keyframes pulseDot {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.35); opacity: 0.6; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.35);
+    opacity: 0.6;
+  }
 }
 
 @keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .client-help-trigger-btn {
@@ -8755,15 +8774,15 @@ section:not(.client-welcome-stage)::after,
 [class*="-card"]:not(.login-card):not(.client-welcome-glass):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]),
 [class*="card-"]:not(.login-card):not(.client-welcome-glass):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]) {
   border-radius: 0 !important;
-  border: 1px solid rgba(77, 255, 160, 0.2) !important;
-  background: linear-gradient(135deg, rgba(77, 255, 160, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(6, 22, 15, 0.72) !important;
-  backdrop-filter: blur(24px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  border: 1px solid rgba(77, 255, 160, 0.28) !important;
+  background: linear-gradient(145deg, rgba(77, 255, 160, 0.16) 0%, rgba(14, 52, 32, 0.72) 45%, rgba(4, 20, 12, 0.85) 100%) !important;
+  backdrop-filter: blur(28px) saturate(160%) brightness(1.1) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) brightness(1.1) !important;
   box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.5),
-    0 0 24px rgba(77, 255, 160, 0.06),
-    inset 0 1px 1px rgba(77, 255, 160, 0.12),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.4) !important;
+    0 20px 50px rgba(0, 0, 0, 0.45),
+    0 0 30px rgba(77, 255, 160, 0.12),
+    inset 0 1px 1px rgba(77, 255, 160, 0.25),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.35) !important;
 }
 
 .kpi-card-header,
@@ -8914,6 +8933,7 @@ section:not(.client-welcome-stage)::after,
     opacity: 0;
     transform: translateY(-6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -9178,8 +9198,13 @@ section:not(.client-welcome-stage)::after,
 }
 
 @keyframes floxaFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes floxaScaleIn {
@@ -9187,9 +9212,9 @@ section:not(.client-welcome-stage)::after,
     opacity: 0;
     transform: scale(0.94) translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
   }
 }
-
