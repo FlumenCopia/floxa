@@ -2,11 +2,11 @@ process.env.NODE_ENV = 'test';
 import http from 'http';
 import crypto from 'crypto';
 import assert from 'assert';
-import { prisma } from '../dist/prisma/client.js';
-import { app } from '../dist/app.js';
-import { generateTokens } from '../dist/services/auth.service.js';
-import { signPortalAccessToken } from '../dist/utils/crypto.js';
-import { ENV } from '../dist/config/env.js';
+import { prisma } from '../../dist/prisma/client.js';
+import { app } from '../../dist/app.js';
+import { generateTokens } from '../../dist/services/auth.service.js';
+import { signPortalAccessToken } from '../../dist/utils/crypto.js';
+import { ENV } from '../../dist/config/env.js';
 
 let server;
 let baseUrl;

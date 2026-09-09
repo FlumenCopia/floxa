@@ -2,10 +2,10 @@ process.env.NODE_ENV = 'test';
 import http from 'http';
 import crypto from 'crypto';
 import assert from 'assert';
-import { prisma } from '../dist/prisma/client.js';
-import { app } from '../dist/app.js';
-import { generateTokens } from '../dist/services/auth.service.js';
-import { logProjectActivity } from '../dist/services/project.service.js';
+import { prisma } from '../../dist/prisma/client.js';
+import { app } from '../../dist/app.js';
+import { generateTokens } from '../../dist/services/auth.service.js';
+import { logProjectActivity } from '../../dist/services/project.service.js';
 
 let server;
 let baseUrl;

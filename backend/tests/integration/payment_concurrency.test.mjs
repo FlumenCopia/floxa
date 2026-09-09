@@ -3,14 +3,14 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../dist/prisma/client.js';
-import { ENV } from '../dist/config/env.js';
-import { app } from '../dist/app.js';
-import { setMockRazorpayClient } from '../dist/services/razorpay.service.js';
+import { prisma } from '../../dist/prisma/client.js';
+import { ENV } from '../../dist/config/env.js';
+import { app } from '../../dist/app.js';
+import { setMockRazorpayClient } from '../../dist/services/razorpay.service.js';
 import {
   setTestContentionHook,
   setTestFailureInjectionHook,
-} from '../dist/services/payment.service.js';
+} from '../../dist/services/payment.service.js';
 
 let server;
 let baseUrl;

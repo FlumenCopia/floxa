@@ -1,5 +1,5 @@
 {
-  "name": "floxa-backend-node",
+  "name": "floxa-backend",
   "version": "1.0.0",
   "description": "FLOXA Node.js Express Prisma MongoDB Backend",
   "main": "dist/server.js",

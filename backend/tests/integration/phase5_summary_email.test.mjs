@@ -4,11 +4,11 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import assert from 'assert';
-import { prisma } from '../dist/prisma/client.js';
-import { app } from '../dist/app.js';
-import { generateTokens } from '../dist/services/auth.service.js';
-import { setTestEmailDispatcher } from '../dist/services/email.service.js';
-import { ENV } from '../dist/config/env.js';
+import { prisma } from '../../dist/prisma/client.js';
+import { app } from '../../dist/app.js';
+import { generateTokens } from '../../dist/services/auth.service.js';
+import { setTestEmailDispatcher } from '../../dist/services/email.service.js';
+import { ENV } from '../../dist/config/env.js';
 
 let server;
 let baseUrl;

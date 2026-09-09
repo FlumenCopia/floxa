@@ -12,7 +12,7 @@ floxa/
 │   ├── prisma/schema.prisma     # Prisma ORM schema for MongoDB
 │   ├── media/                   # Local uploaded media storage (gitignored)
 │   ├── data/db/                 # Local MongoDB WiredTiger storage (gitignored)
-│   ├── scripts/                 # Developer testing utilities (WebSocket, projects)
+│   ├── scripts/                 # Developer testing utilities (scripts/diagnostics/)
 │   ├── src/                     # Express application source code (TypeScript)
 │   │   ├── config/              # Centralized environment configuration (env.ts)
 │   │   ├── controllers/         # Request handling and HTTP response dispatch
@@ -24,7 +24,7 @@ floxa/
 │   │   ├── websocket/           # WebRTC signaling and consultant support WS
 │   │   ├── app.ts               # Express application initialization
 │   │   └── server.ts            # HTTP server & WebSocket listener entrypoint
-│   ├── tests/                   # Backend integration & E2E test suites
+│   ├── tests/                   # Backend integration test suites (tests/integration/)
 │   ├── .env.example             # Backend environment configuration template
 │   ├── package.json             # Backend dependencies and scripts
 │   └── tsconfig.json            # TypeScript NodeNext configuration
@@ -128,7 +128,7 @@ floxa/
 
 > [!CAUTION]
 > **Database Safety Notice**:
-> The test scripts located in `backend/tests/` (e.g., `activities.test.mjs`, `payment_concurrency.test.mjs`, `deliverables_autogen_signoff.test.mjs`) are **database-connected integration/E2E test suites**.
+> The test scripts located in `backend/tests/integration/` (e.g., `activities.test.mjs`, `payment_concurrency.test.mjs`, `deliverables_autogen_signoff.test.mjs`) are **database-connected integration/E2E test suites**.
 > When executed, they connect directly to the MongoDB instance specified in `DATABASE_URL` and execute data mutations, document creations, and `deleteMany` cleanup operations.
 >
 > * **NEVER** run backend tests against production or shared staging databases.

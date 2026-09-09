@@ -2,10 +2,10 @@ import http from 'http';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { prisma } from '../dist/prisma/client.js';
-import { ENV } from '../dist/config/env.js';
-import { app } from '../dist/app.js';
-import { generateTokens } from '../dist/services/auth.service.js';
+import { prisma } from '../../dist/prisma/client.js';
+import { ENV } from '../../dist/config/env.js';
+import { app } from '../../dist/app.js';
+import { generateTokens } from '../../dist/services/auth.service.js';
 
 let server;
 let baseUrl;
@@ -317,7 +317,7 @@ async function runGeneratedAgreementTests() {
     }
 
     // Save a copy of the generated PDF for visual inspection artifact
-    const samplePdfPath = path.resolve(process.cwd(), '../backend/sample_inspected_agreement.pdf');
+    const samplePdfPath = path.resolve(process.cwd(), 'sample_inspected_agreement.pdf');
     fs.writeFileSync(samplePdfPath, pdfRes.buffer);
     createdFiles.push(samplePdfPath);
     console.log(`  ✓ Sample PDF saved locally for inspection: ${samplePdfPath}`);
