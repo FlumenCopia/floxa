@@ -182,9 +182,9 @@ export async function generateGeneratedAgreementPdf(snapshot: any): Promise<Buff
     const isAccepted = snapshot.status === 'accepted';
     doc.rect(50, 45, 500, 40).fill(isAccepted ? '#ecfdf5' : '#f3f4f6');
     doc.fillColor(isAccepted ? '#065f46' : '#1f2937').fontSize(15).font('Helvetica-Bold')
-       .text('FLOXA GENERATED AGREEMENT', 65, 55);
+      .text('FLOXA GENERATED AGREEMENT', 65, 55);
     doc.fontSize(10).font('Helvetica')
-       .text(`Status: ${(snapshot.status || 'draft').toUpperCase()} | Version: ${snapshot.version || 1}`, 360, 58, { align: 'right', width: 175 });
+      .text(`Status: ${(snapshot.status || 'draft').toUpperCase()} | Version: ${snapshot.version || 1}`, 360, 58, { align: 'right', width: 175 });
 
     doc.y = 95;
     doc.fillColor('#6b7280').fontSize(8).font('Helvetica');
@@ -194,7 +194,7 @@ export async function generateGeneratedAgreementPdf(snapshot: any): Promise<Buff
     }
     if (snapshot.accepted_at) {
       doc.fillColor('#059669').font('Helvetica-Bold')
-         .text(`Accepted at: ${new Date(snapshot.accepted_at).toLocaleString('en-US')}`);
+        .text(`Accepted at: ${new Date(snapshot.accepted_at).toLocaleString('en-US')}`);
     }
 
     // Section: Project and Client
@@ -524,7 +524,7 @@ export async function generateBrandDeliverablesPdf(project: any): Promise<Buffer
     doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#1E293B').text(`Total Project Investment: ₹${totalVal.toLocaleString('en-IN')}`);
     const isFullyPaid = totalPaid >= totalVal && totalVal > 0;
     doc.font('Helvetica-Bold').fontSize(9.5).fillColor(isFullyPaid ? '#047857' : '#1E293B')
-       .text(`Total Settled Amount: ₹${totalPaid.toLocaleString('en-IN')} ${isFullyPaid ? '(100% Cleared)' : ''}`);
+      .text(`Total Settled Amount: ₹${totalPaid.toLocaleString('en-IN')} ${isFullyPaid ? '(100% Cleared)' : ''}`);
     doc.moveDown(0.5);
 
     // 7. PLATFORM & BRAND DELIVERABLES
