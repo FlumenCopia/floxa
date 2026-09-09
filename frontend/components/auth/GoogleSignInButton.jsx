@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { googleAuthConsultant } from "../../src/lib/authApi";
-import { showError, showSuccess } from "../../src/lib/toast";
+import { googleAuthConsultant } from "@/lib/authApi";
+import { showError, showSuccess } from "@/lib/toast";
 
 export default function GoogleSignInButton({ label = "Continue with Google" }) {
   const router = useRouter();

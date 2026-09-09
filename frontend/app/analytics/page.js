@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import Floxaheader from "../../commone/Floxaheader";
+import Floxaheader from "@/components/common/FloxaHeader";
 import Analytics from "../../components/analytics/Analytics";
 
 function AnalyticsPageContent() {

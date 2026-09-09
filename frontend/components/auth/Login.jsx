@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { loginConsultant } from "../src/lib/authApi";
-import { showError, showSuccess } from "../src/lib/toast";
-import GoogleSignInButton from "../components/auth/GoogleSignInButton";
+import { loginConsultant } from "@/lib/authApi";
+import { showError, showSuccess } from "@/lib/toast";
+import GoogleSignInButton from "./GoogleSignInButton";
 import { ArrowRight, ArrowLeft, Mail, Lock } from "lucide-react";
 
 export default function Login() {

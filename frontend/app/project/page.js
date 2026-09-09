@@ -1,8 +1,8 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import Floxaheader from "../../commone/Floxaheader";
-import ProjectSection from "../../components/Allproject/ProjectSection";
+import Floxaheader from "@/components/common/FloxaHeader";
+import ProjectSection from "@/components/all-projects/ProjectSection";
 
 function ProjectPageContent() {
   const [isWizardOpen, setIsWizardOpen] = useState(false);

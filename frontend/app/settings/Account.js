@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getCurrentConsultant, updateCurrentConsultant } from "../../src/lib/authApi";
-import { showError, showSuccess } from "../../src/lib/toast";
+import { getCurrentConsultant, updateCurrentConsultant } from "@/lib/authApi";
+import { showError, showSuccess } from "@/lib/toast";
 import { Camera, Upload, Trash2 } from "lucide-react";
 
 function getAccountErrorMessage(error, fallback = "Profile could not be updated.") {

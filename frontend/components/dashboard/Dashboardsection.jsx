@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getConsultantActivities, getProjects } from "../../src/lib/projectApi";
-import { getStatusClass, getStatusLabel } from "../Allproject/ProjectSection";
+import { getConsultantActivities, getProjects } from "@/lib/projectApi";
+import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
 import { useRouter } from "next/navigation";
 import ProjectCreateWizard from "./ProjectCreateWizard";
 import { FolderKanban, IndianRupee, Sparkles, Clock, Plus } from "lucide-react";

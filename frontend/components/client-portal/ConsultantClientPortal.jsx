@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ShoppingCart, Gem, Globe, Sparkles, Sprout, Building2, X, ArrowLeft, ArrowRight, Video } from "lucide-react";
 import { supportSocket } from "../../services/supportSocketService";
 import { clientPortalService } from "../../services/clientPortalService";
-import { getProjects } from "../../src/lib/projectApi";
-import { showSuccess } from "../../src/lib/toast";
+import { getProjects } from "@/lib/projectApi";
+import { showSuccess } from "@/lib/toast";
 import { webRTCService } from "../../services/webRTCService";
 import { VideoCallModal } from "./VideoCallModal";
 import "./ClientPortal.css";
@@ -393,7 +393,7 @@ function ChoiceGrid({ items, selected, setSelected, limit = 1, className = "", i
   );
 }
 
-export default function Clientportal() {
+export default function ConsultantClientPortal() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isConsultantMode = searchParams?.get("mode") !== "client";

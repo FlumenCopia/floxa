@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { fetchProtectedAssetBlob } from "@/src/lib/api";
+import { fetchProtectedAssetBlob } from "@/lib/api";
 
 /**
  * Reusable ProtectedAssetImage component for fetching and rendering protected private Blob images.

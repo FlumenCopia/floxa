@@ -1,14 +1,14 @@
 "use client";
 
 import { Suspense } from "react";
-import Floxaheader from "../../commone/Floxaheader";
-import Aisute from "../../components/ai-suite/Aisute";
+import Floxaheader from "@/components/common/FloxaHeader";
+import AiSuite from "@/components/ai-suite/AiSuite";
 
 function AiSuitePageContent() {
   return (
     <div className="shell">
       <Floxaheader title="AI Suite" activeNav="AI Suite">
-        <Aisute />
+        <AiSuite />
       </Floxaheader>
     </div>
   );

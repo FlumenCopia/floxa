@@ -4,11 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import Floxaheader from "../../commone/Floxaheader";
+import Floxaheader from "../common/FloxaHeader";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
-import { downloadProtectedAsset } from "../../src/lib/api";
-import { getStatusClass, getStatusLabel } from "../Allproject/ProjectSection";
-import { showError, showSuccess } from "../../src/lib/toast";
+import { downloadProtectedAsset } from "@/lib/api";
+import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
+import { showError, showSuccess } from "@/lib/toast";
 import { FileText, X, Send, Sparkles, Trash2 } from "lucide-react";
 import {
   askProjectAssistant,
@@ -43,7 +43,7 @@ import {
   uploadConcept,
   uploadDeliverable,
   uploadMoodboard,
-} from "../../src/lib/projectApi";
+} from "@/lib/projectApi";
 
 
 const discoveryTabs = [

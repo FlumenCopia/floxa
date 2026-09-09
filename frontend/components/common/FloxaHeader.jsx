@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getCurrentConsultant, logoutConsultant, subscribeToConsultantChange, clearCurrentConsultantCache } from "../src/lib/authApi";
-import { getConsultantActivities, markConsultantActivitiesRead } from "../src/lib/projectApi";
-import { showError, showSuccess } from "../src/lib/toast";
+import { getCurrentConsultant, logoutConsultant, subscribeToConsultantChange, clearCurrentConsultantCache } from "@/lib/authApi";
+import { getConsultantActivities, markConsultantActivitiesRead } from "@/lib/projectApi";
+import { showError, showSuccess } from "@/lib/toast";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -24,10 +24,10 @@ import {
   Phone,
   PhoneOff,
 } from "lucide-react";
-import { supportSocket } from "../services/supportSocketService";
-import { webRTCService } from "../services/webRTCService";
-import { VideoCallModal } from "../components/client-portal/VideoCallModal";
-import "../components/client-portal/ClientPortal.css";
+import { supportSocket } from "@/services/supportSocketService";
+import { webRTCService } from "@/services/webRTCService";
+import { VideoCallModal } from "@/components/client-portal/VideoCallModal";
+import "@/components/client-portal/ClientPortal.css";
 
 const primaryNavItems = [
   { label: "DASHBOARD", icon: "grid", route: "/" },

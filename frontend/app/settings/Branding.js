@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { showInfo } from "../../src/lib/toast";
+import { showInfo } from "@/lib/toast";
 
 export default function Branding() {
   const [primaryColor, setPrimaryColor] = useState("#4DFFA0");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getBrandDNA, getDiscoverySummary, getProject, getProjects } from "../../src/lib/projectApi";
+import { getBrandDNA, getDiscoverySummary, getProject, getProjects } from "@/lib/projectApi";
 import {
   Sparkles,
   Dna,
@@ -242,7 +242,7 @@ function buildMoodboardDirections({ project, discovery, brandDNA }) {
   ].join("\n");
 }
 
-export default function Aisute() {
+export default function AiSuite() {
   const [selectedProject, setSelectedProject] = useState("");
   const [projects, setProjects] = useState([]);
   const [projectsLoading, setProjectsLoading] = useState(true);

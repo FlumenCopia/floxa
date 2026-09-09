@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getProjects } from "../../src/lib/projectApi";
+import { getProjects } from "@/lib/projectApi";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
 import { ChevronDown, Plus } from "lucide-react";
