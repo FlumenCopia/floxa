@@ -1,36 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
-import type { AuthenticatedRequest } from '../middleware/auth.middleware.js';
-import { prisma } from '../prisma/client.js';
+import { ProjectAgreement } from '../models/agreement.model.js';
+import { Project } from '../models/project.model.js';
 import { generateBasicAgreementPdf } from '../services/pdf.service.js';
 import { saveFile, resolveSafeMediaPath, streamLocalFile } from '../services/storage.service.js';
-import { sendAgreementSignatureRequestEmail, sendSignedProjectAgreementEmail, sanitizeEmailError } from '../services/email.service.js';
+import {
+  sendAgreementSignatureRequestEmail,
+  sendSignedProjectAgreementEmail,
+  sanitizeEmailError,
+} from '../services/email.service.js';
 import { logProjectActivity } from '../services/project.service.js';
 import { serializeProjectAgreement } from '../utils/serializer.js';
+import type { AuthenticatedRequest } from '../types/express.js';
 
-// Map of in-flight retry promises keyed by agreement ID.
-// Note: This in-memory mechanism coalesces concurrent overlapping requests within this single Node.js process instance.
-// Multi-instance / clustered deployments would require a distributed lock/queue (such as Redis).
 const inFlightSignedEmailRetries = new Map<string, Promise<{ status: number; data: unknown }>>();
 
 export async function getAgreement(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const project = await prisma.project.findFirst({
-      where: { id, consultantId: req.user!.id, isArchived: false },
-    });
+    const project = await Project.findOne({ _id: id, consultantId: req.user!.id, isArchived: false });
 
     if (!project) {
       res.status(404).json({ detail: 'Project not found.' });
       return;
     }
 
-    const agreement = await prisma.projectAgreement.findUnique({
-      where: { projectId: id },
-      include: {
-        project: true,
-      },
-    });
-
+    const agreement = await ProjectAgreement.findOne({ projectId: id });
     if (!agreement) {
       res.status(404).json({ detail: 'Agreement not found.' });
       return;
@@ -45,10 +39,7 @@ export async function getAgreement(req: AuthenticatedRequest<{ id: string }>, re
 export async function generateAgreement(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const project = await prisma.project.findUnique({
-      where: { id },
-      include: { client: true, consultant: true },
-    });
+    const project = await Project.findById(id).populate(['client', 'consultant']);
 
     if (!project) {
       res.status(404).json({ detail: 'Project not found.' });
@@ -56,26 +47,28 @@ export async function generateAgreement(req: AuthenticatedRequest<{ id: string }
     }
 
     const pdfBuffer = await generateBasicAgreementPdf(project);
-    const savedPath = await saveFile('project_agreements/basic', `agreement_${project.portalToken}.pdf`, pdfBuffer, 'application/pdf');
+    const savedPath = await saveFile(
+      'project_agreements/basic',
+      `agreement_${project.portalToken}.pdf`,
+      pdfBuffer,
+      'application/pdf'
+    );
 
-    const agreement = await prisma.projectAgreement.upsert({
-      where: { projectId: id },
-      update: {
-        basicPdfFile: savedPath,
-        generatedAt: new Date(),
-        status: 'draft',
+    const agreement = await ProjectAgreement.findOneAndUpdate(
+      { projectId: id },
+      {
+        $set: {
+          basicPdfFile: savedPath,
+          generatedAt: new Date(),
+          status: 'draft',
+        },
       },
-      create: {
-        projectId: id,
-        basicPdfFile: savedPath,
-        generatedAt: new Date(),
-        status: 'draft',
-      },
-    });
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
 
     await logProjectActivity({
       projectId: id,
-      consultantId: project.consultantId,
+      consultantId: String(project.consultantId),
       actorType: 'consultant',
       action: 'agreement_generated',
       description: 'Consultant generated project agreement PDF.',
@@ -94,23 +87,33 @@ export async function generateAgreement(req: AuthenticatedRequest<{ id: string }
 export async function shareAgreement(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const agreement = await prisma.projectAgreement.update({
-      where: { projectId: id },
-      data: {
-        status: 'shared',
-        sharedAt: new Date(),
+    const agreement = await ProjectAgreement.findOneAndUpdate(
+      { projectId: id },
+      {
+        $set: {
+          status: 'shared',
+          sharedAt: new Date(),
+        },
       },
-      include: { project: { include: { client: true, consultant: true } } },
-    });
+      { new: true }
+    );
 
-    await logProjectActivity({
-      projectId: id,
-      consultantId: agreement.project.consultantId,
-      actorType: 'consultant',
-      action: 'agreement_shared',
-      description: 'Consultant shared the basic agreement with the client.',
-      visibleToClient: true,
-    });
+    if (!agreement) {
+      res.status(404).json({ detail: 'Agreement not found.' });
+      return;
+    }
+
+    const project = await Project.findById(id);
+    if (project) {
+      await logProjectActivity({
+        projectId: id,
+        consultantId: String(project.consultantId),
+        actorType: 'consultant',
+        action: 'agreement_shared',
+        description: 'Consultant shared the basic agreement with the client.',
+        visibleToClient: true,
+      });
+    }
 
     res.json({ id: agreement.id, status: agreement.status });
   } catch (err) {
@@ -121,36 +124,42 @@ export async function shareAgreement(req: AuthenticatedRequest<{ id: string }>, 
 export async function requestSignature(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const agreement = await prisma.projectAgreement.findUnique({
-      where: { projectId: id },
-      include: { project: { include: { client: true } } },
-    });
+    const agreement = await ProjectAgreement.findOne({ projectId: id });
 
     if (!agreement || !agreement.basicPdfFile) {
       res.status(400).json({ detail: 'Generate agreement PDF before requesting signature.' });
       return;
     }
 
-    const updated = await prisma.projectAgreement.update({
-      where: { projectId: id },
-      data: {
-        status: 'signature_requested',
-        signatureRequestedAt: new Date(),
-      },
-    });
+    const project = await Project.findById(id).populate('client');
+    if (!project) {
+      res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
 
-    await sendAgreementSignatureRequestEmail(agreement.project, updated);
+    const updated = await ProjectAgreement.findByIdAndUpdate(
+      agreement.id,
+      {
+        $set: {
+          status: 'signature_requested',
+          signatureRequestedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    await sendAgreementSignatureRequestEmail(project, updated);
 
     await logProjectActivity({
       projectId: id,
-      consultantId: agreement.project.consultantId,
+      consultantId: String(project.consultantId),
       actorType: 'consultant',
       action: 'agreement_signature_requested',
       description: 'Consultant requested client signature for the agreement.',
       visibleToClient: true,
     });
 
-    res.json({ id: updated.id, status: updated.status });
+    res.json({ id: updated!.id, status: updated!.status });
   } catch (err) {
     next(err);
   }
@@ -163,8 +172,10 @@ export async function downloadAgreementFile(
 ) {
   try {
     const projectId = req.params.id || req.params.project_id;
-    const project = await prisma.project.findFirst({
-      where: { id: projectId, consultantId: req.user!.id, isArchived: false },
+    const project = await Project.findOne({
+      _id: projectId,
+      consultantId: req.user!.id,
+      isArchived: false,
     });
 
     if (!project) {
@@ -172,10 +183,7 @@ export async function downloadAgreementFile(
       return;
     }
 
-    const agreement = await prisma.projectAgreement.findUnique({
-      where: { projectId: project.id },
-    });
-
+    const agreement = await ProjectAgreement.findOne({ projectId: project.id });
     if (!agreement) {
       res.status(404).json({ detail: 'Agreement not found.' });
       return;
@@ -184,11 +192,11 @@ export async function downloadAgreementFile(
     const type = req.query.type;
     let targetFile: string | null = null;
     if (type === 'basic') {
-      targetFile = agreement.basicPdfFile;
+      targetFile = agreement.basicPdfFile || null;
     } else if (type === 'signed' || type === 'original_signed') {
-      targetFile = agreement.signedPdfFile;
+      targetFile = agreement.signedPdfFile || null;
     } else {
-      targetFile = agreement.signedPdfFile || agreement.basicPdfFile;
+      targetFile = agreement.signedPdfFile || agreement.basicPdfFile || null;
     }
 
     if (!targetFile) {
@@ -222,37 +230,23 @@ export async function retrySignedEmail(
 ) {
   try {
     const projectId = req.params.id || req.params.project_id;
-    const project = await prisma.project.findFirst({
-      where: {
-        id: projectId,
-        consultantId: req.user!.id,
-        isArchived: false,
-      },
-      include: {
-        client: true,
-        consultant: true,
-        clientProfile: true,
-      },
-    });
+    const project = await Project.findOne({
+      _id: projectId,
+      consultantId: req.user!.id,
+      isArchived: false,
+    }).populate(['client', 'consultant', 'clientProfile']);
 
     if (!project) {
       res.status(404).json({ detail: 'Project not found.' });
       return;
     }
 
-    const agreement = await prisma.projectAgreement.findUnique({
-      where: { projectId: project.id },
-      include: {
-        project: true,
-      },
-    });
-
+    const agreement = await ProjectAgreement.findOne({ projectId: project.id });
     if (!agreement || !agreement.signedAt || !agreement.signedPdfFile) {
       res.status(404).json({ detail: 'Signed agreement PDF is not available.' });
       return;
     }
 
-    // Coalesce overlapping requests for the same agreement into one in-flight send
     let inFlight = inFlightSignedEmailRetries.get(agreement.id);
     if (inFlight) {
       const result = await inFlight;
@@ -262,29 +256,25 @@ export async function retrySignedEmail(
 
     const retryPromise = (async () => {
       try {
-        // Step 1: Send the email
         await sendSignedProjectAgreementEmail(project, agreement);
 
-        // Step 2: Update database record
         try {
-          const updatedAgreement = await prisma.projectAgreement.update({
-            where: { id: agreement.id },
-            data: {
-              signedEmailFailedAt: null,
-              signedEmailError: '',
+          const updatedAgreement = await ProjectAgreement.findByIdAndUpdate(
+            agreement.id,
+            {
+              $set: {
+                signedEmailFailedAt: null,
+                signedEmailError: '',
+              },
             },
-            include: {
-              project: true,
-            },
-          });
+            { new: true }
+          );
 
           return {
             status: 200,
             data: serializeProjectAgreement(updatedAgreement, req),
           };
         } catch (dbUpdateError) {
-          // Provider accepted email, but local database update failed.
-          // Do NOT automatically resend! Accurately report delivery state uncertainty.
           console.error(
             `[Delivery State Uncertainty] Signed agreement email accepted by provider for agreement ${agreement.id} but DB update failed:`,
             dbUpdateError
@@ -300,9 +290,8 @@ export async function retrySignedEmail(
       } catch (emailError: unknown) {
         const sanitizedError = sanitizeEmailError(emailError);
         try {
-          await prisma.projectAgreement.update({
-            where: { id: agreement.id },
-            data: {
+          await ProjectAgreement.findByIdAndUpdate(agreement.id, {
+            $set: {
               signedEmailFailedAt: new Date(),
               signedEmailError: sanitizedError,
             },
@@ -327,4 +316,3 @@ export async function retrySignedEmail(
     next(err);
   }
 }
-

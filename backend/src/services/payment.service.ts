@@ -1,9 +1,29 @@
-import { prisma } from '../prisma/client.js';
+import mongoose, { ClientSession } from 'mongoose';
+import { PaymentMilestone } from '../models/paymentMilestone.model.js';
+import { PaymentTransaction } from '../models/paymentTransaction.model.js';
+import { ProjectActivity } from '../models/activity.model.js';
 import {
   logProjectActivity,
   recalculatePaymentMilestones,
   updateProjectProgress,
 } from './project.service.js';
+
+export interface CompletePaymentMilestoneParams {
+  projectId: string;
+  milestoneId: string;
+  actorType: 'client' | 'consultant' | 'system';
+  paymentSource: 'razorpay' | 'razorpay_webhook' | 'manual';
+  transactionId?: string;
+  razorpayPaymentId?: string;
+  paidAt?: Date;
+}
+
+export interface CompletePaymentMilestoneResult {
+  milestone: any;
+  transaction?: any;
+  isAlreadyVerified: boolean;
+  activityCreated: boolean;
+}
 
 export class PaymentCompletionError extends Error {
   statusCode: number;
@@ -29,7 +49,6 @@ export function setTestFailureInjectionHook(hook: (() => void) | null) {
 
 function isRetryableDatabaseError(err: any): boolean {
   if (!err) return false;
-  if (err.code === 'P2034') return true;
   const msg = (err.message || '').toLowerCase();
   return (
     msg.includes('write conflict') ||
@@ -38,23 +57,6 @@ function isRetryableDatabaseError(err: any): boolean {
     msg.includes('deadlock') ||
     msg.includes('could not serialize access')
   );
-}
-
-export interface CompletePaymentMilestoneParams {
-  projectId: string;
-  milestoneId: string;
-  actorType: 'client' | 'consultant' | 'system';
-  paymentSource: 'razorpay' | 'razorpay_webhook' | 'manual';
-  transactionId?: string;
-  razorpayPaymentId?: string;
-  paidAt?: Date;
-}
-
-export interface CompletePaymentMilestoneResult {
-  milestone: any;
-  transaction?: any;
-  isAlreadyVerified: boolean;
-  activityCreated: boolean;
 }
 
 export async function completePaymentMilestone(
@@ -86,6 +88,36 @@ export async function completePaymentMilestone(
 async function executeAtomicPaymentCompletion(
   params: CompletePaymentMilestoneParams
 ): Promise<CompletePaymentMilestoneResult> {
+  let session: ClientSession | null = null;
+  try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+  } catch {
+    session = null;
+  }
+
+  try {
+    const result = await runPaymentCompletion(params, session);
+    if (session) {
+      await session.commitTransaction();
+    }
+    return result;
+  } catch (error) {
+    if (session) {
+      await session.abortTransaction();
+    }
+    throw error;
+  } finally {
+    if (session) {
+      session.endSession();
+    }
+  }
+}
+
+async function runPaymentCompletion(
+  params: CompletePaymentMilestoneParams,
+  session: ClientSession | null
+): Promise<CompletePaymentMilestoneResult> {
   const {
     projectId,
     milestoneId,
@@ -96,286 +128,275 @@ async function executeAtomicPaymentCompletion(
     paidAt,
   } = params;
 
-  return prisma.$transaction(async (tx) => {
-    if (testContentionHook) {
-      await testContentionHook();
+  if (testContentionHook) {
+    await testContentionHook();
+  }
+
+  const now = paidAt || new Date();
+
+  const milestoneQuery = PaymentMilestone.findById(milestoneId).populate([
+    'project',
+    'transactions',
+  ]);
+  if (session) milestoneQuery.session(session);
+
+  const milestone = await milestoneQuery.exec();
+
+  if (!milestone || (milestone as any).projectId?.toString() !== projectId) {
+    throw new PaymentCompletionError('Payment milestone not found.', 404);
+  }
+
+  const transactions = (milestone as any).transactions || [];
+  const verifiedTransaction = transactions.find((t: any) => t.status === 'verified');
+
+  // 1. Manual payment path
+  if (paymentSource === 'manual') {
+    if (verifiedTransaction) {
+      throw new PaymentCompletionError('This payment has already been verified through Razorpay.');
     }
 
-    const now = paidAt || new Date();
-
-    const milestone = await tx.paymentMilestone.findUnique({
-      where: { id: milestoneId },
-      include: {
-        project: {
-          include: {
-            consultant: true,
-          },
-        },
-        transactions: true,
-      },
-    });
-
-    if (!milestone || milestone.projectId !== projectId) {
-      throw new PaymentCompletionError('Payment milestone not found.', 404);
-    }
-
-    const verifiedTransaction = milestone.transactions.find((t) => t.status === 'verified');
-
-    // 1. Manual payment path
-    if (paymentSource === 'manual') {
-      if (verifiedTransaction) {
-        throw new PaymentCompletionError('This payment has already been verified through Razorpay.');
-      }
-
-      if (milestone.status === 'paid') {
-        throw new PaymentCompletionError('Only requested milestones can be marked paid.');
-      }
-      if (milestone.status !== 'requested') {
-        throw new PaymentCompletionError('Only requested milestones can be marked paid.');
-      }
-
-      const msUpdate = await tx.paymentMilestone.updateMany({
-        where: { id: milestone.id, status: 'requested' },
-        data: {
-          status: 'paid',
-          paidAt: now,
-        },
-      });
-
-      if (msUpdate.count === 0) {
-        const checkMs = await tx.paymentMilestone.findUnique({ where: { id: milestone.id } });
-        if (checkMs?.status === 'paid') {
-          throw new PaymentCompletionError('Only requested milestones can be marked paid.');
-        }
-        throw new PaymentCompletionError('Only requested milestones can be marked paid.');
-      }
-
-      if (testFailureInjectionHook) {
-        testFailureInjectionHook();
-      }
-
-      const updatedMilestone = await tx.paymentMilestone.findUnique({ where: { id: milestone.id } });
-
-      const milestoneLabel = milestone.type.charAt(0).toUpperCase() + milestone.type.slice(1);
-      const amountDisplay = `₹${Number(milestone.amount || 0).toLocaleString('en-IN', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
-      const description = `Client paid ${amountDisplay} for the ${milestoneLabel} milestone.`;
-
-      const existingActivity = await tx.projectActivity.findFirst({
-        where: {
-          projectId: milestone.projectId,
-          action: 'payment_received',
-          metadata: {
-            contains: `"payment_milestone_id":"${milestone.id}"`,
-          },
-        },
-      });
-
-      let activityCreated = false;
-      if (!existingActivity) {
-        await logProjectActivity(
-          {
-            projectId: milestone.projectId,
-            consultantId: milestone.project.consultantId,
-            actorType,
-            action: 'payment_received',
-            description,
-            metadata: {
-              payment_milestone_id: milestone.id,
-              payment_type: milestone.type,
-              payment_source: 'manual',
-              amount: Number(milestone.amount).toFixed(2),
-              amount_display: amountDisplay,
-            },
-            visibleToClient: false,
-            clientIsRead: true,
-          },
-          tx
-        );
-        activityCreated = true;
-      }
-
-      await recalculatePaymentMilestones(milestone.projectId, tx);
-      await updateProjectProgress(milestone.projectId, tx);
-
-      return {
-        milestone: updatedMilestone,
-        isAlreadyVerified: false,
-        activityCreated,
-      };
-    }
-
-    // 2. Online payment path (verification or webhook)
-    if (!transactionId) {
-      throw new PaymentCompletionError('Payment transaction ID is required for online completion.');
-    }
-
-    const transaction = await tx.paymentTransaction.findUnique({
-      where: { id: transactionId },
-      include: {
-        milestone: true,
-      },
-    });
-
-    if (!transaction || transaction.projectId !== projectId || transaction.milestoneId !== milestone.id) {
-      throw new PaymentCompletionError('Payment transaction does not match this milestone.', 404);
-    }
-
-    // Check if THIS transaction is already verified
-    if (transaction.status === 'verified') {
-      if (razorpayPaymentId && transaction.razorpayPaymentId && transaction.razorpayPaymentId !== razorpayPaymentId) {
-        throw new PaymentCompletionError(
-          'Payment transaction is already verified with a different payment.'
-        );
-      }
-
-      const currentMilestone = await tx.paymentMilestone.findUnique({ where: { id: milestone.id } });
-      return {
-        milestone: currentMilestone,
-        transaction,
-        isAlreadyVerified: true,
-        activityCreated: false,
-      };
-    }
-
-    if (transaction.status !== 'created') {
-      throw new PaymentCompletionError('Payment transaction is not eligible for completion.');
-    }
-
-    // Check if ANOTHER transaction for this milestone is already verified
-    if (verifiedTransaction && verifiedTransaction.id !== transaction.id) {
-      throw new PaymentCompletionError('This payment milestone is already verified.');
-    }
-
-    // Check milestone status
-    if (milestone.status === 'paid') {
+    if ((milestone as any).status === 'paid') {
       throw new PaymentCompletionError('Only requested milestones can be marked paid.');
     }
-    if (milestone.status !== 'requested') {
+    if ((milestone as any).status !== 'requested') {
       throw new PaymentCompletionError('Only requested milestones can be marked paid.');
     }
 
-    // Atomically transition the PaymentTransaction (CAS pattern)
-    const txUpdate = await tx.paymentTransaction.updateMany({
-      where: {
-        id: transaction.id,
-        status: 'created',
-      },
-      data: {
-        status: 'verified',
-        razorpayPaymentId: razorpayPaymentId || undefined,
-        verifiedAt: now,
-      },
-    });
+    const msUpdate = await PaymentMilestone.updateOne(
+      { _id: (milestone as any)._id, status: 'requested' },
+      { $set: { status: 'paid', paidAt: now } },
+      { session: session || undefined }
+    );
 
-    if (txUpdate.count === 0) {
-      // Race: another concurrent process transitioned this transaction
-      const recheckTx = await tx.paymentTransaction.findUnique({
-        where: { id: transaction.id },
-      });
-      if (recheckTx && recheckTx.status === 'verified') {
-        if (razorpayPaymentId && recheckTx.razorpayPaymentId && recheckTx.razorpayPaymentId !== razorpayPaymentId) {
-          throw new PaymentCompletionError(
-            'Payment transaction is already verified with a different payment.'
-          );
-        }
-        const currentMilestone = await tx.paymentMilestone.findUnique({ where: { id: milestone.id } });
-        return {
-          milestone: currentMilestone,
-          transaction: recheckTx,
-          isAlreadyVerified: true,
-          activityCreated: false,
-        };
-      }
-      throw new PaymentCompletionError('Payment transaction is not eligible for completion.');
+    if (msUpdate.matchedCount === 0) {
+      throw new PaymentCompletionError('Only requested milestones can be marked paid.');
     }
 
     if (testFailureInjectionHook) {
       testFailureInjectionHook();
     }
 
-    // Atomically transition the PaymentMilestone
-    const msUpdate = await tx.paymentMilestone.updateMany({
-      where: {
-        id: milestone.id,
-        status: 'requested',
-      },
-      data: {
-        status: 'paid',
-        paidAt: now,
-      },
+    const updatedMilestone = await PaymentMilestone.findById((milestone as any)._id, null, {
+      session: session || undefined,
     });
 
-    if (msUpdate.count === 0) {
-      const recheckMs = await tx.paymentMilestone.findUnique({
-        where: { id: milestone.id },
-        include: { transactions: true },
-      });
-      if (recheckMs?.status === 'paid') {
-        throw new PaymentCompletionError('Only requested milestones can be marked paid.');
-      }
-      throw new PaymentCompletionError('Only requested milestones can be marked paid.');
-    }
+    const milestoneLabel = (milestone as any).type.charAt(0).toUpperCase() + (milestone as any).type.slice(1);
+    const amountDisplay = `₹${Number((milestone as any).amount || 0).toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+    const description = `Client paid ${amountDisplay} for the ${milestoneLabel} milestone.`;
 
-    const updatedTransaction = await tx.paymentTransaction.findUnique({ where: { id: transaction.id } });
-    const updatedMilestone = await tx.paymentMilestone.findUnique({ where: { id: milestone.id } });
-
-    // Check and create ProjectActivity inside the SAME transaction
-    const existingActivity = await tx.projectActivity.findFirst({
-      where: {
-        projectId: milestone.projectId,
-        action: 'payment_received',
-        metadata: {
-          contains: `"payment_milestone_id":"${milestone.id}"`,
-        },
-      },
-    });
+    const existingActivity = await ProjectActivity.findOne({
+      projectId: (milestone as any).projectId,
+      action: 'payment_received',
+      metadata: new RegExp((milestone as any).id, 'i'),
+    }).session(session || null);
 
     let activityCreated = false;
     if (!existingActivity) {
-      const milestoneLabel = milestone.type.charAt(0).toUpperCase() + milestone.type.slice(1);
-      const amountDisplay = `₹${Number(milestone.amount || 0).toLocaleString('en-IN', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
-      const description = `Client paid ${amountDisplay} for the ${milestoneLabel} milestone.`;
-
+      const consultantId = String((milestone as any).project?.consultantId || '');
       await logProjectActivity(
         {
-          projectId: milestone.projectId,
-          consultantId: milestone.project.consultantId,
+          projectId: String((milestone as any).projectId),
+          consultantId,
           actorType,
           action: 'payment_received',
           description,
           metadata: {
-            payment_milestone_id: milestone.id,
-            payment_type: milestone.type,
-            payment_source: paymentSource,
-            amount: Number(milestone.amount).toFixed(2),
+            payment_milestone_id: (milestone as any).id,
+            payment_type: (milestone as any).type,
+            payment_source: 'manual',
+            amount: Number((milestone as any).amount).toFixed(2),
             amount_display: amountDisplay,
-            transaction_id: transaction.id,
-            razorpay_order_id: transaction.razorpayOrderId,
-            razorpay_payment_id: razorpayPaymentId || transaction.razorpayPaymentId || '',
           },
-          visibleToClient: true,
-          clientIsRead: false,
+          visibleToClient: false,
+          clientIsRead: true,
         },
-        tx
+        session || undefined
       );
       activityCreated = true;
     }
 
-    // Downstream calculations in SAME tx
-    await recalculatePaymentMilestones(milestone.projectId, tx);
-    await updateProjectProgress(milestone.projectId, tx);
+    await recalculatePaymentMilestones((milestone as any).projectId?.toString(), session || undefined);
+    await updateProjectProgress((milestone as any).projectId?.toString(), session || undefined);
 
     return {
       milestone: updatedMilestone,
-      transaction: updatedTransaction,
       isAlreadyVerified: false,
       activityCreated,
     };
+  }
+
+  // 2. Online payment path (verification or webhook)
+  if (!transactionId) {
+    throw new PaymentCompletionError('Payment transaction ID is required for online completion.');
+  }
+
+  const txQuery = PaymentTransaction.findById(transactionId).populate('milestone');
+  if (session) txQuery.session(session);
+
+  const transaction = await txQuery.exec();
+
+  if (
+    !transaction ||
+    (transaction as any).projectId?.toString() !== projectId ||
+    (transaction as any).milestoneId?.toString() !== (milestone as any).id
+  ) {
+    throw new PaymentCompletionError('Payment transaction does not match this milestone.', 404);
+  }
+
+  // Check if THIS transaction is already verified
+  if ((transaction as any).status === 'verified') {
+    if (
+      razorpayPaymentId &&
+      (transaction as any).razorpayPaymentId &&
+      (transaction as any).razorpayPaymentId !== razorpayPaymentId
+    ) {
+      throw new PaymentCompletionError(
+        'Payment transaction is already verified with a different payment.'
+      );
+    }
+
+    const currentMilestone = await PaymentMilestone.findById((milestone as any)._id, null, {
+      session: session || undefined,
+    });
+
+    return {
+      milestone: currentMilestone,
+      transaction,
+      isAlreadyVerified: true,
+      activityCreated: false,
+    };
+  }
+
+  if ((transaction as any).status !== 'created') {
+    throw new PaymentCompletionError('Payment transaction is not eligible for completion.');
+  }
+
+  // Check if ANOTHER transaction for this milestone is already verified
+  if (verifiedTransaction && (verifiedTransaction as any).id !== (transaction as any).id) {
+    throw new PaymentCompletionError('This payment milestone is already verified.');
+  }
+
+  // Check milestone status
+  if ((milestone as any).status === 'paid') {
+    throw new PaymentCompletionError('Only requested milestones can be marked paid.');
+  }
+  if ((milestone as any).status !== 'requested') {
+    throw new PaymentCompletionError('Only requested milestones can be marked paid.');
+  }
+
+  // Atomically transition the PaymentTransaction (CAS pattern)
+  const txUpdate = await PaymentTransaction.updateOne(
+    { _id: (transaction as any)._id, status: 'created' },
+    {
+      $set: {
+        status: 'verified',
+        ...(razorpayPaymentId ? { razorpayPaymentId } : {}),
+        verifiedAt: now,
+      },
+    },
+    { session: session || undefined }
+  );
+
+  if (txUpdate.matchedCount === 0) {
+    const recheckTx = await PaymentTransaction.findById((transaction as any)._id, null, {
+      session: session || undefined,
+    });
+    if (recheckTx && (recheckTx as any).status === 'verified') {
+      if (
+        razorpayPaymentId &&
+        (recheckTx as any).razorpayPaymentId &&
+        (recheckTx as any).razorpayPaymentId !== razorpayPaymentId
+      ) {
+        throw new PaymentCompletionError(
+          'Payment transaction is already verified with a different payment.'
+        );
+      }
+      const currentMilestone = await PaymentMilestone.findById((milestone as any)._id, null, {
+        session: session || undefined,
+      });
+      return {
+        milestone: currentMilestone,
+        transaction: recheckTx,
+        isAlreadyVerified: true,
+        activityCreated: false,
+      };
+    }
+    throw new PaymentCompletionError('Payment transaction is not eligible for completion.');
+  }
+
+  if (testFailureInjectionHook) {
+    testFailureInjectionHook();
+  }
+
+  // Atomically transition the PaymentMilestone
+  const msUpdate = await PaymentMilestone.updateOne(
+    { _id: (milestone as any)._id, status: 'requested' },
+    { $set: { status: 'paid', paidAt: now } },
+    { session: session || undefined }
+  );
+
+  if (msUpdate.matchedCount === 0) {
+    throw new PaymentCompletionError('Only requested milestones can be marked paid.');
+  }
+
+  const updatedTransaction = await PaymentTransaction.findById((transaction as any)._id, null, {
+    session: session || undefined,
   });
+  const updatedMilestone = await PaymentMilestone.findById((milestone as any)._id, null, {
+    session: session || undefined,
+  });
+
+  const existingActivity = await ProjectActivity.findOne({
+    projectId: (milestone as any).projectId,
+    action: 'payment_received',
+    metadata: new RegExp((milestone as any).id, 'i'),
+  }).session(session || null);
+
+  let activityCreated = false;
+  if (!existingActivity) {
+    const milestoneLabel = (milestone as any).type.charAt(0).toUpperCase() + (milestone as any).type.slice(1);
+    const amountDisplay = `₹${Number((milestone as any).amount || 0).toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+    const description = `Client paid ${amountDisplay} for the ${milestoneLabel} milestone.`;
+    const consultantId = String((milestone as any).project?.consultantId || '');
+
+    await logProjectActivity(
+      {
+        projectId: String((milestone as any).projectId),
+        consultantId,
+        actorType,
+        action: 'payment_received',
+        description,
+        metadata: {
+          payment_milestone_id: (milestone as any).id,
+          payment_type: (milestone as any).type,
+          payment_source: paymentSource,
+          amount: Number((milestone as any).amount).toFixed(2),
+          amount_display: amountDisplay,
+          transaction_id: (transaction as any).id,
+          razorpay_order_id: (transaction as any).razorpayOrderId,
+          razorpay_payment_id: razorpayPaymentId || (transaction as any).razorpayPaymentId || '',
+        },
+        visibleToClient: true,
+        clientIsRead: false,
+      },
+      session || undefined
+    );
+    activityCreated = true;
+  }
+
+  await recalculatePaymentMilestones((milestone as any).projectId?.toString(), session || undefined);
+  await updateProjectProgress((milestone as any).projectId?.toString(), session || undefined);
+
+  return {
+    milestone: updatedMilestone,
+    transaction: updatedTransaction,
+    isAlreadyVerified: false,
+    activityCreated,
+  };
 }

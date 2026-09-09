@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { ENV } from '../config/env.js';
-import { prisma } from '../prisma/client.js';
+import { Project } from '../models/project.model.js';
 
 let aiClient: GoogleGenAI | null = null;
 
@@ -17,19 +17,16 @@ function getAiClient(): GoogleGenAI {
 }
 
 export async function buildProjectContext(projectId: string): Promise<string> {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    include: {
-      client: true,
-      clientProfile: true,
-      discovery: true,
-      brandDNA: true,
-      moodboards: true,
-      concepts: true,
-      deliverables: true,
-      paymentMilestones: true,
-    },
-  });
+  const project: any = await Project.findById(projectId)
+    .populate('client')
+    .populate('clientProfile')
+    .populate('discovery')
+    .populate('brandDNA')
+    .populate('moodboards')
+    .populate('concepts')
+    .populate('deliverables')
+    .populate('paymentMilestones')
+    .lean();
 
   if (!project) return 'No project context available.';
 

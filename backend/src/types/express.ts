@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import type { Consultant } from '@prisma/client';
+import type { IConsultant } from '../models/consultant.model.js';
 import type { ProjectPayload, PortalProjectPayload } from './portal.js';
 
 export interface AuthenticatedRequest<
@@ -8,7 +8,7 @@ export interface AuthenticatedRequest<
   ReqBody = Record<string, unknown>,
   ReqQuery = Record<string, string | string[] | undefined>
 > extends Request<P, ResBody, ReqBody, ReqQuery> {
-  user?: Consultant;
+  user?: IConsultant;
 }
 
 export interface PortalRequest<
@@ -18,7 +18,7 @@ export interface PortalRequest<
   ReqQuery = Record<string, string | string[] | undefined>
 > extends Request<P, ResBody, ReqBody, ReqQuery> {
   project?: PortalProjectPayload;
-  user?: Consultant;
+  user?: IConsultant;
   isSupportMode?: boolean;
   isPortalClient?: boolean;
 }
@@ -30,7 +30,7 @@ export interface PortalAccessRequest<
   ReqQuery = Record<string, string | string[] | undefined>
 > extends Request<P, ResBody, ReqBody, ReqQuery> {
   project?: PortalProjectPayload;
-  user?: Consultant;
+  user?: IConsultant;
   isSupportMode?: boolean;
   isPortalClient?: boolean;
 }

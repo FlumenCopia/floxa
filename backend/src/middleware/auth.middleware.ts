@@ -1,9 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { ENV } from '../config/env.js';
-import { prisma } from '../prisma/client.js';
-
-import type { Consultant } from '@prisma/client';
+import { Consultant } from '../models/consultant.model.js';
 import type { AuthenticatedRequest } from '../types/express.js';
 export type { AuthenticatedRequest };
 
@@ -24,10 +22,7 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
   try {
     const payload = jwt.verify(token, ENV.JWT_ACCESS_SECRET) as { userId: string };
     if (payload && payload.userId) {
-      prisma.consultant
-        .findUnique({
-          where: { id: payload.userId },
-        })
+      Consultant.findById(payload.userId)
         .then((user) => {
           if (user && user.isActive) {
             req.user = user;
@@ -66,10 +61,7 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
       return;
     }
 
-    prisma.consultant
-      .findUnique({
-        where: { id: payload.userId },
-      })
+    Consultant.findById(payload.userId)
       .then((user) => {
         if (!user || !user.isActive) {
           res.status(401).json({ detail: 'User not found or inactive.' });
@@ -78,7 +70,7 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
         req.user = user;
         next();
       })
-      .catch((err) => {
+      .catch(() => {
         res.status(500).json({ detail: 'Database error during authentication.' });
       });
   } catch (err) {

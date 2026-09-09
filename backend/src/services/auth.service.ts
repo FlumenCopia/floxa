@@ -2,64 +2,98 @@ import jwt from 'jsonwebtoken';
 import { Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { ENV } from '../config/env.js';
+import type { IConsultant } from '../models/consultant.model.js';
 
-const googleClient = new OAuth2Client();
+const googleClient = new OAuth2Client(ENV.GOOGLE_CLIENT_ID);
 
-export function generateTokens(userOrId: string | any) {
-  const userId = typeof userOrId === 'object' && userOrId !== null ? userOrId.id : String(userOrId);
-  const accessToken = jwt.sign({ userId }, ENV.JWT_ACCESS_SECRET, {
-    expiresIn: ENV.JWT_ACCESS_EXPIRES_IN,
-  });
+export function generateTokens(userOrId: IConsultant | string, userEmail?: string) {
+  const userId = typeof userOrId === 'string' ? userOrId : (userOrId as any).id || (userOrId as any)._id?.toString();
+  const email = typeof userOrId === 'string' ? userEmail : userOrId.email;
 
-  const refreshToken = jwt.sign({ userId, type: 'refresh' }, ENV.JWT_REFRESH_SECRET, {
-    expiresIn: ENV.JWT_REFRESH_EXPIRES_IN,
-  });
+  const access = jwt.sign(
+    {
+      userId,
+      email,
+    },
+    ENV.JWT_ACCESS_SECRET,
+    { expiresIn: '15m' }
+  );
 
-  return { accessToken, refreshToken };
+  const refresh = jwt.sign(
+    {
+      userId,
+    },
+    ENV.JWT_REFRESH_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  return {
+    access,
+    refresh,
+    accessToken: access,
+    refreshToken: refresh,
+  };
 }
 
-export function setAuthCookies(res: Response, accessToken: string, refreshToken?: string) {
-  res.cookie(ENV.AUTH_ACCESS_COOKIE_NAME, accessToken, {
-    maxAge: ENV.JWT_ACCESS_EXPIRES_IN * 1000,
+export function setAuthCookies(res: Response, access: string, refresh?: string) {
+  const isProd = ENV.NODE_ENV === 'production';
+
+  res.cookie(ENV.AUTH_ACCESS_COOKIE_NAME, access, {
     httpOnly: true,
-    secure: ENV.AUTH_COOKIE_SECURE,
-    sameSite: ENV.AUTH_COOKIE_SAMESITE,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    maxAge: 15 * 60 * 1000, // 15 minutes
     path: '/',
   });
 
-  if (refreshToken) {
-    res.cookie(ENV.AUTH_REFRESH_COOKIE_NAME, refreshToken, {
-      maxAge: ENV.JWT_REFRESH_EXPIRES_IN * 1000,
+  if (refresh) {
+    res.cookie(ENV.AUTH_REFRESH_COOKIE_NAME, refresh, {
       httpOnly: true,
-      secure: ENV.AUTH_COOKIE_SECURE,
-      sameSite: ENV.AUTH_COOKIE_SAMESITE,
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/',
     });
   }
 }
 
 export function clearAuthCookies(res: Response) {
+  const isProd = ENV.NODE_ENV === 'production';
+
   res.clearCookie(ENV.AUTH_ACCESS_COOKIE_NAME, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     path: '/',
-    sameSite: ENV.AUTH_COOKIE_SAMESITE,
   });
+
   res.clearCookie(ENV.AUTH_REFRESH_COOKIE_NAME, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     path: '/',
-    sameSite: ENV.AUTH_COOKIE_SAMESITE,
   });
 }
 
-export async function verifyGoogleToken(idToken: string) {
+export async function verifyGoogleToken(token: string) {
+  if (!ENV.GOOGLE_CLIENT_ID) {
+    throw new Error('Google OAuth is not configured on the server.');
+  }
+
   const ticket = await googleClient.verifyIdToken({
-    idToken,
+    idToken: token,
+    audience: ENV.GOOGLE_CLIENT_ID,
   });
+
   const payload = ticket.getPayload();
-  if (!payload || !payload.email || !payload.email_verified) {
-    throw new Error('Google account email is missing or unverified.');
+  if (!payload || !payload.email) {
+    throw new Error('Invalid Google token payload.');
   }
 
   return {
-    email: payload.email.trim().toLowerCase(),
+    email: payload.email,
     name: payload.name || payload.email.split('@')[0],
+    sub: payload.sub,
+    picture: payload.picture,
   };
 }

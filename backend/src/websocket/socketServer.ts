@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
 import url from 'url';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../prisma/client.js';
+import { Consultant, Project, ProjectDiscovery, ProjectActivity } from '../models/index.js';
 import { ENV } from '../config/env.js';
 import { unsignPortalAccessToken } from '../utils/crypto.js';
 import { logProjectActivity } from '../services/project.service.js';
@@ -112,22 +112,17 @@ function verifyConsultantToken(rawToken?: string): string | null {
  */
 export async function getLatestActiveHelp(projectId: string): Promise<ActiveHelpSession | null> {
   try {
-    const latestReq = await prisma.projectActivity.findFirst({
-      where: {
-        projectId,
-        action: 'client_help_requested',
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const latestReq = await ProjectActivity.findOne({
+      projectId,
+      action: 'client_help_requested',
+    }).sort({ createdAt: -1 });
 
     if (!latestReq) return null;
 
-    const latestResolved = await prisma.projectActivity.findFirst({
-      where: {
-        projectId,
-        action: 'client_help_resolved',
-        createdAt: { gt: latestReq.createdAt },
-      },
+    const latestResolved = await ProjectActivity.findOne({
+      projectId,
+      action: 'client_help_resolved',
+      createdAt: { $gt: latestReq.createdAt },
     });
 
     if (latestResolved) return null;
@@ -180,7 +175,7 @@ async function persistDraftField(projectId: string, fieldKey: string, value: any
       updateData.sliders = value;
     } else if (fieldKey.startsWith('slider.')) {
       const sliderKey = fieldKey.replace('slider.', '');
-      const discovery = await prisma.projectDiscovery.findUnique({ where: { projectId } });
+      const discovery = await ProjectDiscovery.findOne({ projectId });
       const sliders = ((discovery?.sliders as any[]) || []).map((s: any) => ({ ...s }));
       const idx = sliders.findIndex((s: any) => s.sliderKey === sliderKey || s.slider_key === sliderKey);
       if (idx >= 0) {
@@ -198,11 +193,11 @@ async function persistDraftField(projectId: string, fieldKey: string, value: any
     }
 
     if (Object.keys(updateData).length > 0) {
-      await prisma.projectDiscovery.upsert({
-        where: { projectId },
-        update: updateData,
-        create: { projectId, sliders: [], emotions: [], competitors: [], visualStyles: [], ...updateData },
-      });
+      await ProjectDiscovery.findOneAndUpdate(
+        { projectId },
+        { $set: updateData },
+        { upsert: true, new: true }
+      );
     }
   } catch (err) {
     console.error('Failed to persist draft field in FIELD_SYNC:', err);
@@ -332,9 +327,7 @@ export function setupWebSocketServer(server: Server) {
         return;
       }
 
-      const consultant = await prisma.consultant.findUnique({
-        where: { id: consultantId },
-      });
+      const consultant = await Consultant.findById(consultantId);
 
       if (!consultant || !consultant.isActive) {
         ws.send(
@@ -377,8 +370,10 @@ export function setupWebSocketServer(server: Server) {
             if (payloadStr.length > 65536) return;
 
             // Verify consultant owns this project
-            const project = await prisma.project.findFirst({
-              where: { id: projectId, consultantId: consultant.id, isArchived: false },
+            const project = await Project.findOne({
+              _id: projectId,
+              consultantId: consultant.id,
+              isArchived: false,
             });
             if (!project) return;
 
@@ -434,10 +429,10 @@ export function setupWebSocketServer(server: Server) {
       return;
     }
 
-    const project = await prisma.project.findFirst({
-      where: { portalToken, isArchived: false },
-      include: { client: true },
-    });
+    const project = await Project.findOne({
+      portalToken,
+      isArchived: false,
+    }).populate('client');
 
     if (!project) {
       ws.send(JSON.stringify({ type: 'ERROR', message: 'Project not found' }));
@@ -460,7 +455,8 @@ export function setupWebSocketServer(server: Server) {
     if (consultantToken) {
       consultantId = verifyConsultantToken(consultantToken);
       if (consultantId) {
-        if (consultantId !== project.consultantId) {
+        const ownerId = String(project.consultantId || '');
+        if (consultantId !== ownerId) {
           ws.send(JSON.stringify({ type: 'ERROR', message: 'Permission denied' }));
           ws.close(4003);
           return;
@@ -527,10 +523,10 @@ export function setupWebSocketServer(server: Server) {
         const currentProjectId = clientConn.projectId;
 
         // Verify project is still active (not archived)
-        const currentProject = await prisma.project.findFirst({
-          where: { id: currentProjectId, isArchived: false },
-          include: { client: true },
-        });
+        const currentProject = await Project.findOne({
+          _id: currentProjectId,
+          isArchived: false,
+        }).populate('client');
 
         if (!currentProject) {
           ws.send(JSON.stringify({ type: 'ERROR', message: 'Project not found' }));
@@ -561,9 +557,11 @@ export function setupWebSocketServer(server: Server) {
           const clientDisplayName =
             currentProject.client?.name || currentProject.companyName || 'Client';
 
+          const consId = String(currentProject.consultantId || '');
+
           await logProjectActivity({
             projectId: currentProjectId,
-            consultantId: currentProject.consultantId,
+            consultantId: consId,
             actorType: 'client',
             action: 'client_help_requested',
             description: `${clientDisplayName} requested help on ${pageId}: "${question}"`,
@@ -577,7 +575,7 @@ export function setupWebSocketServer(server: Server) {
             visibleToClient: true,
           });
 
-          broadcastHelpRequested(currentProjectId, currentProject.consultantId, {
+          broadcastHelpRequested(currentProjectId, consId, {
             project_id: currentProjectId,
             project_title: currentProject.title,
             client_name: clientDisplayName,
@@ -596,9 +594,11 @@ export function setupWebSocketServer(server: Server) {
             ACTIVE_HELP_SESSIONS[currentProjectId].is_active = false;
           }
 
+          const consId = String(currentProject.consultantId || '');
+
           await logProjectActivity({
             projectId: currentProjectId,
-            consultantId: currentProject.consultantId,
+            consultantId: consId,
             actorType: role === 'consultant' ? 'consultant' : 'client',
             action: 'client_help_resolved',
             description: `Help session on ${pageId || 'step'} resolved.`,
@@ -659,8 +659,8 @@ export function setupWebSocketServer(server: Server) {
                 (sessionPage && curPage.includes(sessionPage)) ||
                 [1, 2, 3, 4, 5, 6, 7, 8, 9].some(
                   (n) =>
-                    (sessionPage.includes(`step ${n}`) || sessionPage.includes(`frame_${n}`)) &&
-                    (curPage.includes(`step ${n}`) || curPage.includes(`frame_${n}`))
+                     (sessionPage.includes(`step ${n}`) || sessionPage.includes(`frame_${n}`)) &&
+                     (curPage.includes(`step ${n}`) || curPage.includes(`frame_${n}`))
                 ));
 
             if (!activeSession || !activeSession.is_active || !isMatch) {
@@ -717,7 +717,7 @@ export function setupWebSocketServer(server: Server) {
         else if (msgType === 'CONSULTANT_JOINED') {
           let consultantName = 'Consultant';
           if (role === 'consultant' && consultantId) {
-            const cons = await prisma.consultant.findUnique({ where: { id: consultantId } });
+            const cons = await Consultant.findById(consultantId);
             if (cons) consultantName = cons.name || cons.email;
           }
 
@@ -728,7 +728,7 @@ export function setupWebSocketServer(server: Server) {
           });
 
           projectSockets.get(currentProjectId)?.forEach((c) => {
-            if (c.ws.readyState === WebSocket.OPEN) {
+            if (c.ws !== ws && c.ws.readyState === WebSocket.OPEN) {
               c.ws.send(joinMsg);
             }
           });
@@ -765,7 +765,8 @@ export function setupWebSocketServer(server: Server) {
             role === 'client' &&
             ['call_initiate', 'call_end', 'call_reject', 'call_cancel'].includes(action)
           ) {
-            consultantSockets.get(currentProject.consultantId)?.forEach((cws) => {
+            const consId = String(currentProject.consultantId || '');
+            consultantSockets.get(consId)?.forEach((cws) => {
               if (cws.readyState === WebSocket.OPEN) {
                 cws.send(signalMsg);
               }

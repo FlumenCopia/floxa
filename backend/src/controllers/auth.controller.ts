@@ -1,13 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import type { Prisma } from '@prisma/client';
-import type { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../prisma/client.js';
+import { Consultant } from '../models/consultant.model.js';
 import { ENV } from '../config/env.js';
 import { hashPassword, verifyPassword } from '../utils/crypto.js';
 import { generateTokens, setAuthCookies, clearAuthCookies, verifyGoogleToken } from '../services/auth.service.js';
 import { generateCsrfToken, setCsrfCookie } from '../middleware/csrf.middleware.js';
 import { serializeConsultant } from '../utils/serializer.js';
+import type { AuthenticatedRequest } from '../types/express.js';
 
 export async function getCsrf(req: Request, res: Response) {
   const token = generateCsrfToken();
@@ -39,24 +38,19 @@ export async function register(req: Request, res: Response, next: NextFunction) 
       return;
     }
 
-    const existing = await prisma.consultant.findUnique({
-      where: { email: cleanEmail },
-    });
-
+    const existing = await Consultant.findOne({ email: cleanEmail });
     if (existing) {
       res.status(400).json({ email: ['A consultant with this email already exists.'] });
       return;
     }
 
     const passwordHash = await hashPassword(password);
-    const consultant = await prisma.consultant.create({
-      data: {
-        email: cleanEmail,
-        name: cleanName,
-        password: passwordHash,
-        company: (company || '').trim(),
-        phone: (phone || '').trim(),
-      },
+    const consultant = await Consultant.create({
+      email: cleanEmail,
+      name: cleanName,
+      password: passwordHash,
+      company: (company || '').trim(),
+      phone: (phone || '').trim(),
     });
 
     const { accessToken, refreshToken } = generateTokens(consultant.id);
@@ -87,10 +81,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       return;
     }
 
-    const consultant = await prisma.consultant.findUnique({
-      where: { email: cleanEmail },
-    });
-
+    const consultant = await Consultant.findOne({ email: cleanEmail });
     if (!consultant) {
       res.status(400).json({ detail: 'Invalid email or password.' });
       return;
@@ -135,9 +126,7 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
     }
 
     const googleUser = await verifyGoogleToken(credential);
-    let consultant = await prisma.consultant.findUnique({
-      where: { email: googleUser.email },
-    });
+    let consultant = await Consultant.findOne({ email: googleUser.email });
 
     if (consultant) {
       if (!consultant.isActive) {
@@ -145,12 +134,10 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
         return;
       }
     } else {
-      consultant = await prisma.consultant.create({
-        data: {
-          email: googleUser.email,
-          name: googleUser.name,
-          password: await hashPassword(Math.random().toString(36)),
-        },
+      consultant = await Consultant.create({
+        email: googleUser.email,
+        name: googleUser.name,
+        password: await hashPassword(Math.random().toString(36)),
       });
     }
 
@@ -198,10 +185,14 @@ export async function getMe(req: AuthenticatedRequest, res: Response) {
   res.json(serializeConsultant(req.user, baseUrl));
 }
 
-export async function updateMe(req: AuthenticatedRequest & { file?: Express.Multer.File }, res: Response, next: NextFunction) {
+export async function updateMe(
+  req: AuthenticatedRequest & { file?: Express.Multer.File },
+  res: Response,
+  next: NextFunction
+) {
   try {
     const { name, company, phone } = req.body as { name?: string; company?: string; phone?: string };
-    const data: Prisma.ConsultantUpdateInput = {};
+    const updateData: Record<string, any> = {};
 
     if (name !== undefined) {
       const clean = name.trim();
@@ -209,27 +200,24 @@ export async function updateMe(req: AuthenticatedRequest & { file?: Express.Mult
         res.status(400).json({ name: ['Name cannot be empty.'] });
         return;
       }
-      data.name = clean;
+      updateData.name = clean;
     }
 
-    if (company !== undefined) data.company = company.trim();
+    if (company !== undefined) updateData.company = company.trim();
     if (phone !== undefined) {
       const cleanPhone = phone.trim();
       if (cleanPhone && !/^[\d+\-\s()]{7,20}$/.test(cleanPhone)) {
         res.status(400).json({ phone: ['Please provide a valid phone number.'] });
         return;
       }
-      data.phone = cleanPhone;
+      updateData.phone = cleanPhone;
     }
 
     if (req.file) {
-      data.avatar = `/media/consultant_avatars/${req.file.filename}`;
+      updateData.avatar = `/media/consultant_avatars/${req.file.filename}`;
     }
 
-    const updated = await prisma.consultant.update({
-      where: { id: req.user!.id },
-      data,
-    });
+    const updated = await Consultant.findByIdAndUpdate(req.user!.id, updateData, { new: true });
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     res.json(serializeConsultant(updated, baseUrl));

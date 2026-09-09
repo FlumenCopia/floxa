@@ -1,13 +1,18 @@
-import { prisma } from '../prisma/client.js';
-import { Deliverable, PaymentMilestone, Project } from '@prisma/client';
+import mongoose, { ClientSession } from 'mongoose';
+import { Project, type IProject } from '../models/project.model.js';
+import { PaymentMilestone } from '../models/paymentMilestone.model.js';
+import { logProjectActivity, type LogActivityParams } from './activity.service.js';
 
-export type ProjectWithMilestones = Project & {
-  paymentMilestones?: PaymentMilestone[];
+export { logProjectActivity };
+export type { LogActivityParams };
+
+export type ProjectWithMilestones = IProject & {
+  paymentMilestones?: any[];
 };
 
 export function canClientDownloadDeliverable(
   project: ProjectWithMilestones | null | undefined,
-  deliverable: Deliverable | null | undefined
+  deliverable: any | null | undefined
 ): { canDownload: boolean; reason: string } {
   if (!project || !deliverable) {
     return { canDownload: false, reason: 'Deliverable unavailable.' };
@@ -17,7 +22,10 @@ export function canClientDownloadDeliverable(
     return { canDownload: false, reason: 'Project is archived.' };
   }
 
-  if (deliverable.projectId !== project.id) {
+  const projectId = project.id || (project as any)._id?.toString();
+  const deliverableProjectId = deliverable.projectId?.toString() || deliverable.projectId;
+
+  if (deliverableProjectId !== projectId) {
     return { canDownload: false, reason: 'Deliverable unavailable.' };
   }
 
@@ -26,7 +34,7 @@ export function canClientDownloadDeliverable(
   }
 
   const milestones = project.paymentMilestones || [];
-  const finalMilestone = milestones.find((m) => m.type === 'final');
+  const finalMilestone = milestones.find((m: any) => m.type === 'final');
 
   if (!finalMilestone) {
     return { canDownload: false, reason: 'Final files will be available after the required payment is confirmed.' };
@@ -194,25 +202,27 @@ export function calculateProjectWorkflowStatus(project: any): string {
   return 'created';
 }
 
-export async function recalculatePaymentMilestones(projectId: string, txClient?: any) {
-  const db = txClient || prisma;
-  const project = await db.project.findUnique({
-    where: { id: projectId },
-    include: {
-      paymentMilestones: true,
-      concepts: true,
-      deliverables: true,
-    },
-  });
+export async function recalculatePaymentMilestones(projectId: string, session?: ClientSession) {
+  const projectQuery = Project.findById(projectId).populate([
+    'paymentMilestones',
+    'concepts',
+    'deliverables',
+  ]);
+  if (session) projectQuery.session(session);
 
+  const project = await projectQuery.exec();
   if (!project) return;
 
-  const advance = project.paymentMilestones.find((m: any) => m.type === 'advance');
-  const mid = project.paymentMilestones.find((m: any) => m.type === 'mid');
-  const final = project.paymentMilestones.find((m: any) => m.type === 'final');
+  const milestones = (project as any).paymentMilestones || [];
+  const advance = milestones.find((m: any) => m.type === 'advance');
+  const mid = milestones.find((m: any) => m.type === 'mid');
+  const final = milestones.find((m: any) => m.type === 'final');
 
-  const hasApprovedConcept = project.concepts.some((c: any) => c.status === 'approved');
-  const hasSharedDeliverable = project.deliverables.some((d: any) => d.status === 'shared');
+  const concepts = (project as any).concepts || [];
+  const deliverables = (project as any).deliverables || [];
+
+  const hasApprovedConcept = concepts.some((c: any) => c.status === 'approved');
+  const hasSharedDeliverable = deliverables.some((d: any) => d.status === 'shared');
 
   const midUnlocked = Boolean(advance && advance.status === 'paid' && hasApprovedConcept);
   const finalUnlocked = Boolean(mid && mid.status === 'paid' && hasSharedDeliverable);
@@ -220,117 +230,44 @@ export async function recalculatePaymentMilestones(projectId: string, txClient?:
   if (mid && ['locked', 'ready'].includes(mid.status)) {
     const nextMidStatus = midUnlocked ? 'ready' : 'locked';
     if (mid.status !== nextMidStatus) {
-      await db.paymentMilestone.update({
-        where: { id: mid.id },
-        data: { status: nextMidStatus },
-      });
+      await PaymentMilestone.findByIdAndUpdate(
+        mid._id || mid.id,
+        { status: nextMidStatus },
+        { session }
+      );
     }
   }
 
   if (final && ['locked', 'ready'].includes(final.status)) {
     const nextFinalStatus = finalUnlocked ? 'ready' : 'locked';
     if (final.status !== nextFinalStatus) {
-      await db.paymentMilestone.update({
-        where: { id: final.id },
-        data: { status: nextFinalStatus },
-      });
+      await PaymentMilestone.findByIdAndUpdate(
+        final._id || final.id,
+        { status: nextFinalStatus },
+        { session }
+      );
     }
   }
 }
 
-export async function updateProjectProgress(projectId: string, txClient?: any) {
-  const db = txClient || prisma;
-  const project = await db.project.findUnique({
-    where: { id: projectId },
-    include: {
-      paymentMilestones: true,
-      concepts: true,
-      deliverables: true,
-      moodboards: true,
-      brandDNA: true,
-      projectAgreement: true,
-    },
-  });
+export async function updateProjectProgress(projectId: string, session?: ClientSession) {
+  const projectQuery = Project.findById(projectId).populate([
+    'clientProfile',
+    'discovery',
+    'brandDNA',
+    'moodboards',
+    'concepts',
+    'deliverables',
+    'projectAgreement',
+    'paymentMilestones',
+  ]);
+  if (session) projectQuery.session(session);
 
+  const project = await projectQuery.exec();
   if (project) {
     const newProgress = calculateProjectProgress(project);
     if (project.progress !== newProgress) {
-      await db.project.update({
-        where: { id: projectId },
-        data: { progress: newProgress },
-      });
+      await Project.findByIdAndUpdate(projectId, { progress: newProgress }, { session });
     }
   }
-}
-
-export async function logProjectActivity(
-  params: {
-    projectId: string;
-    consultantId: string;
-    actorType: 'client' | 'consultant' | 'system';
-    action: string;
-    description: string;
-    metadata?: Record<string, any>;
-    visibleToClient?: boolean;
-    clientIsRead?: boolean;
-  },
-  txClient?: any
-) {
-  const db = txClient || prisma;
-  return db.projectActivity.create({
-    data: {
-      projectId: params.projectId,
-      consultantId: params.consultantId,
-      actorType: params.actorType,
-      action: params.action,
-      description: params.description,
-      metadata: JSON.stringify(params.metadata || {}),
-      visibleToClient: params.visibleToClient ?? false,
-      clientIsRead: params.clientIsRead ?? false,
-    },
-  });
-}
-
-export function buildBrandDNAData(project: any, discovery: any) {
-  const profile = project.clientProfile;
-  const companyName = profile?.companyName || project.companyName;
-  const industry = profile?.industry || project.sector;
-
-  const emotions = (discovery.emotions || []).join(', ') || 'clear, confident, and trustworthy';
-  const visualStyles = (discovery.visualStyles || []).join(', ') || 'clean, intentional visual direction';
-  const competitors = (discovery.competitors || [])
-    .slice(0, 5)
-    .map((c: any) => `${c.name} (${c.rating})`)
-    .join(', ') || 'No competitor references submitted.';
-
-  // Calculate slider cluster
-  const sliders = discovery.sliders || [];
-  let cluster = 'Bold Challenger';
-  let cuesText = 'balanced, adaptable brand personality cues';
-
-  if (sliders.length > 0) {
-    const scores = sliders.map((s: any) => {
-      const score = ((s.value || 50) / 100) * 6 - 3;
-      return { score, distance: Math.abs(score) };
-    });
-    const avg = scores.reduce((sum: number, item: any) => sum + item.score, 0) / scores.length;
-    if (avg < -1.5) cluster = 'Soft Minimalist';
-    else if (avg < -0.4) cluster = 'Quiet Specialist';
-    else if (avg < 0.8) cluster = 'Balanced Clarity';
-    else if (avg < 2.1) cluster = 'Bold Challenger';
-    else cluster = 'Electric Leader';
-  }
-
-  const archetype = cluster || discovery.audienceArchetype || 'Quality-focused audience';
-
-  return {
-    brandPersonalityCluster: archetype,
-    businessSummary: `${companyName} should be presented as a focused ${industry} brand. The business is described as: ${discovery.whatBusinessDoes || 'Not submitted yet.'}`,
-    targetAudienceSummary: `The brand should speak to ${discovery.targetCustomer || 'the target customer'}. Messaging and visuals should make the offer feel relevant, credible, and easy to choose.`,
-    positioningSummary: `The core reason to choose this brand is: ${discovery.whyChooseUs || 'Not submitted yet.'} This should become the foundation for the brand's positioning and designer brief.`,
-    brandFeelingSummary: `The brand should make people feel ${discovery.brandFeeling || 'confident and clear'}. Emotional cues to preserve include ${emotions}.`,
-    visualDirectionSummary: `Recommended visual direction: ${visualStyles}. This should guide moodboards, typography, color, composition, and early concepts.`,
-    competitorSummary: `Competitor notes: ${competitors}. Use these references to understand the client's taste, then build a distinct direction.`,
-    generatedFromDiscovery: true,
-  };
 }

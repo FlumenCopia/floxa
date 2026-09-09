@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { prisma } from '../prisma/client.js';
+import { Project } from '../models/project.model.js';
+import { Client } from '../models/client.model.js';
+import { ClientProfile } from '../models/clientProfile.model.js';
+import { PaymentMilestone } from '../models/paymentMilestone.model.js';
+import { ProjectActivity } from '../models/activity.model.js';
 import {
   calculateProjectProgress,
   calculateProjectWorkflowStatus,
@@ -19,57 +23,61 @@ export async function getProjects(req: any, res: Response, next: NextFunction) {
     const pageSize = parseInt(page_size as string, 10) || 10;
     const skip = (pageNum - 1) * pageSize;
 
-    const where: any = {
+    const filter: any = {
       consultantId: req.user.id,
       isArchived: false,
     };
 
     if (status) {
-      where.status = status;
+      filter.status = status;
     }
 
     if (search) {
       const q = String(search).trim();
-      where.OR = [
-        { title: { contains: q, mode: 'insensitive' } },
-        { companyName: { contains: q, mode: 'insensitive' } },
-        { client: { name: { contains: q, mode: 'insensitive' } } },
+      const regex = new RegExp(q, 'i');
+
+      const matchingClients = await Client.find({ name: regex }).select('_id');
+      const matchingClientIds = matchingClients.map((c) => c._id);
+
+      filter.$or = [
+        { title: regex },
+        { companyName: regex },
+        { clientId: { $in: matchingClientIds } },
       ];
     }
 
-    let orderBy: any = { updatedAt: 'desc' };
-    if (ordering === 'created_at') orderBy = { createdAt: 'asc' };
-    else if (ordering === '-created_at') orderBy = { createdAt: 'desc' };
-    else if (ordering === 'title') orderBy = { title: 'asc' };
+    let sort: any = { updatedAt: -1 };
+    if (ordering === 'created_at') sort = { createdAt: 1 };
+    else if (ordering === '-created_at') sort = { createdAt: -1 };
+    else if (ordering === 'title') sort = { title: 1 };
 
     const [totalCount, projects] = await Promise.all([
-      prisma.project.count({ where }),
-      prisma.project.findMany({
-        where,
-        include: {
-          client: true,
-          clientProfile: true,
-          discovery: true,
-          brandDNA: true,
-          moodboards: true,
-          concepts: true,
-          deliverables: true,
-          projectAgreement: true,
-          paymentMilestones: true,
-        },
-        orderBy,
-        skip,
-        take: pageSize,
-      }),
+      Project.countDocuments(filter),
+      Project.find(filter)
+        .populate([
+          'client',
+          'clientProfile',
+          'discovery',
+          'brandDNA',
+          'moodboards',
+          'concepts',
+          'deliverables',
+          'projectAgreement',
+          'paymentMilestones',
+        ])
+        .sort(sort)
+        .skip(skip)
+        .limit(pageSize),
     ]);
 
     const results = projects.map((p) => {
       const progress = calculateProjectProgress(p);
       const workflowStatus = calculateProjectWorkflowStatus(p);
-      return serializeProject({ ...p, progress }, workflowStatus);
+      return serializeProject({ ...p.toObject(), progress }, workflowStatus);
     });
 
-    const nextUrl = skip + pageSize < totalCount ? `?page=${pageNum + 1}&page_size=${pageSize}` : null;
+    const nextUrl =
+      skip + pageSize < totalCount ? `?page=${pageNum + 1}&page_size=${pageSize}` : null;
     const prevUrl = pageNum > 1 ? `?page=${pageNum - 1}&page_size=${pageSize}` : null;
 
     res.json({
@@ -95,9 +103,18 @@ export async function createProject(req: any, res: Response, next: NextFunction)
     const rawValue = body.project_value !== undefined ? body.project_value : body.value;
     const projectValue = parseFloat(rawValue || '0');
 
-    const advancePercentage = parseInt(body.advance_percentage !== undefined ? body.advance_percentage : body.advance ?? '50', 10);
-    const midPercentage = parseInt(body.mid_percentage !== undefined ? body.mid_percentage : body.mid ?? '25', 10);
-    const finalPercentage = parseInt(body.final_percentage !== undefined ? body.final_percentage : body.final ?? '25', 10);
+    const advancePercentage = parseInt(
+      body.advance_percentage !== undefined ? body.advance_percentage : body.advance ?? '50',
+      10
+    );
+    const midPercentage = parseInt(
+      body.mid_percentage !== undefined ? body.mid_percentage : body.mid ?? '25',
+      10
+    );
+    const finalPercentage = parseInt(
+      body.final_percentage !== undefined ? body.final_percentage : body.final ?? '25',
+      10
+    );
     const revisionLimit = String(body.revision_limit || body.revisions || '3 revisions').trim();
     const portalPassword = (body.portal_password || '').trim();
     const sendInvite = Boolean(body.send_invite);
@@ -122,45 +139,38 @@ export async function createProject(req: any, res: Response, next: NextFunction)
       portalPasswordHash = await hashPassword(portalPassword);
     }
 
-    const client = await prisma.client.create({
-      data: {
-        name: clientName,
-        email: clientEmail,
-        companyName: companyName,
-        sector: sector,
-      },
+    const client = await Client.create({
+      name: clientName,
+      email: clientEmail,
+      companyName: companyName,
+      sector: sector,
     });
 
     const portalToken = crypto.randomUUID();
 
-    const project = await prisma.project.create({
-      data: {
-        consultantId: req.user.id,
-        clientId: client.id,
-        title: projectTitle,
-        companyName: companyName,
-        sector: sector,
-        projectValue: projectValue,
-        advancePercentage: advancePercentage,
-        midPercentage: midPercentage,
-        finalPercentage: finalPercentage,
-        revisionLimit: revisionLimit,
-        portalToken,
-        portalPasswordHash,
-        progress: 5,
-      },
-      include: { client: true },
+    const project = await Project.create({
+      consultantId: req.user.id,
+      clientId: client.id,
+      title: projectTitle,
+      companyName: companyName,
+      sector: sector,
+      projectValue: projectValue,
+      advancePercentage: advancePercentage,
+      midPercentage: midPercentage,
+      finalPercentage: finalPercentage,
+      revisionLimit: revisionLimit,
+      portalToken,
+      portalPasswordHash,
+      progress: 5,
     });
 
     // Create default client profile
-    await prisma.clientProfile.create({
-      data: {
-        projectId: project.id,
-        clientName: clientName,
-        companyName: companyName,
-        email: clientEmail,
-        industry: sector,
-      },
+    await ClientProfile.create({
+      projectId: project.id,
+      clientName: clientName,
+      companyName: companyName,
+      email: clientEmail,
+      industry: sector,
     });
 
     // Initialize payment milestones
@@ -168,31 +178,29 @@ export async function createProject(req: any, res: Response, next: NextFunction)
     const midAmount = (projectValue * midPercentage) / 100;
     const finalAmount = (projectValue * finalPercentage) / 100;
 
-    await prisma.paymentMilestone.createMany({
-      data: [
-        {
-          projectId: project.id,
-          type: 'advance',
-          percentage: advancePercentage,
-          amount: advanceAmount,
-          status: 'ready',
-        },
-        {
-          projectId: project.id,
-          type: 'mid',
-          percentage: midPercentage,
-          amount: midAmount,
-          status: 'locked',
-        },
-        {
-          projectId: project.id,
-          type: 'final',
-          percentage: finalPercentage,
-          amount: finalAmount,
-          status: 'locked',
-        },
-      ],
-    });
+    await PaymentMilestone.insertMany([
+      {
+        projectId: project.id,
+        type: 'advance',
+        percentage: advancePercentage,
+        amount: advanceAmount,
+        status: 'ready',
+      },
+      {
+        projectId: project.id,
+        type: 'mid',
+        percentage: midPercentage,
+        amount: midAmount,
+        status: 'locked',
+      },
+      {
+        projectId: project.id,
+        type: 'final',
+        percentage: finalPercentage,
+        amount: finalAmount,
+        status: 'locked',
+      },
+    ]);
 
     await logProjectActivity({
       projectId: project.id,
@@ -216,7 +224,8 @@ export async function createProject(req: any, res: Response, next: NextFunction)
       }
     }
 
-    const serialized = serializeProject(project, 'created');
+    const populatedProject = await Project.findById(project.id).populate('client');
+    const serialized = serializeProject(populatedProject, 'created');
     const responseData = {
       project: serialized,
       invite_email_sent: inviteEmailSent,
@@ -236,24 +245,21 @@ export async function createProject(req: any, res: Response, next: NextFunction)
 export async function getProject(req: any, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const project = await prisma.project.findFirst({
-      where: {
-        id,
-        consultantId: req.user.id,
-        isArchived: false,
-      },
-      include: {
-        client: true,
-        clientProfile: true,
-        discovery: true,
-        brandDNA: true,
-        moodboards: true,
-        concepts: true,
-        deliverables: true,
-        projectAgreement: true,
-        paymentMilestones: true,
-      },
-    });
+    const project = await Project.findOne({
+      _id: id,
+      consultantId: req.user.id,
+      isArchived: false,
+    }).populate([
+      'client',
+      'clientProfile',
+      'discovery',
+      'brandDNA',
+      'moodboards',
+      'concepts',
+      'deliverables',
+      'projectAgreement',
+      'paymentMilestones',
+    ]);
 
     if (!project) {
       res.status(404).json({ detail: 'Project not found.' });
@@ -263,7 +269,7 @@ export async function getProject(req: any, res: Response, next: NextFunction) {
     const progress = calculateProjectProgress(project);
     const workflowStatus = calculateProjectWorkflowStatus(project);
 
-    res.json(serializeProject({ ...project, progress }, workflowStatus));
+    res.json(serializeProject({ ...project.toObject(), progress }, workflowStatus));
   } catch (err) {
     next(err);
   }
@@ -281,11 +287,16 @@ export async function updateProject(req: any, res: Response, next: NextFunction)
     if (project_value !== undefined) data.projectValue = parseFloat(project_value);
     if (is_archived !== undefined) data.isArchived = Boolean(is_archived);
 
-    const updated = await prisma.project.update({
-      where: { id },
-      data,
-      include: { client: true },
-    });
+    const updated = await Project.findByIdAndUpdate(
+      id,
+      { $set: data },
+      { new: true }
+    ).populate('client');
+
+    if (!updated) {
+      res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
 
     res.json(serializeProject(updated));
   } catch (err) {
@@ -296,10 +307,7 @@ export async function updateProject(req: any, res: Response, next: NextFunction)
 export async function retryInvite(req: any, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const project = await prisma.project.findFirst({
-      where: { id, consultantId: req.user.id },
-      include: { client: true },
-    });
+    const project = await Project.findOne({ _id: id, consultantId: req.user.id }).populate('client');
 
     if (!project) {
       res.status(404).json({ detail: 'Project not found.' });
@@ -315,10 +323,10 @@ export async function retryInvite(req: any, res: Response, next: NextFunction) {
 
 export async function getAnalytics(req: any, res: Response, next: NextFunction) {
   try {
-    const projects = await prisma.project.findMany({
-      where: { consultantId: req.user.id, isArchived: false },
-      include: { paymentMilestones: true },
-    });
+    const projects = await Project.find({
+      consultantId: req.user.id,
+      isArchived: false,
+    }).populate('paymentMilestones');
 
     const activeProjects = projects.filter((p) => p.status !== 'delivered').length;
     const completedProjects = projects.filter((p) => p.status === 'delivered').length;
@@ -327,11 +335,11 @@ export async function getAnalytics(req: any, res: Response, next: NextFunction) 
     let pendingRevenue = 0;
 
     projects.forEach((p) => {
-      p.paymentMilestones.forEach((m) => {
+      (p.paymentMilestones || []).forEach((m: any) => {
         if (m.status === 'paid') {
-          totalRevenue += m.amount;
+          totalRevenue += Number(m.amount || 0);
         } else {
-          pendingRevenue += m.amount;
+          pendingRevenue += Number(m.amount || 0);
         }
       });
     });
@@ -350,15 +358,19 @@ export async function getAnalytics(req: any, res: Response, next: NextFunction) 
 
 export async function getConsultantActivities(req: any, res: Response, next: NextFunction) {
   try {
-    const activities = await prisma.projectActivity.findMany({
-      where: {
-        consultantId: req.user.id,
-        project: { isArchived: false },
-      },
-      include: { project: true },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+    const activeProjects = await Project.find({
+      consultantId: req.user.id,
+      isArchived: false,
+    }).select('_id');
+    const activeProjectIds = activeProjects.map((p) => p._id);
+
+    const activities = await ProjectActivity.find({
+      consultantId: req.user.id,
+      projectId: { $in: activeProjectIds },
+    })
+      .populate('project')
+      .sort({ createdAt: -1 })
+      .limit(50);
 
     res.json(activities.map(serializeProjectActivity));
   } catch (err) {
@@ -368,25 +380,27 @@ export async function getConsultantActivities(req: any, res: Response, next: Nex
 
 export async function markConsultantActivitiesRead(req: any, res: Response, next: NextFunction) {
   try {
-    const activeProjects = await prisma.project.findMany({
-      where: { consultantId: req.user.id, isArchived: false },
-      select: { id: true },
-    });
-    const activeProjectIds = activeProjects.map((p) => p.id);
+    const activeProjects = await Project.find({
+      consultantId: req.user.id,
+      isArchived: false,
+    }).select('_id');
+    const activeProjectIds = activeProjects.map((p) => p._id);
 
-    const result = await prisma.projectActivity.updateMany({
-      where: {
+    const result = await ProjectActivity.updateMany(
+      {
         consultantId: req.user.id,
-        projectId: { in: activeProjectIds },
+        projectId: { $in: activeProjectIds },
         isRead: false,
       },
-      data: {
-        isRead: true,
-        readAt: new Date(),
-      },
-    });
+      {
+        $set: {
+          isRead: true,
+          readAt: new Date(),
+        },
+      }
+    );
 
-    res.json({ detail: 'Activities marked as read.', updated_count: result.count });
+    res.json({ detail: 'Activities marked as read.', updated_count: result.modifiedCount });
   } catch (err) {
     next(err);
   }
@@ -395,12 +409,10 @@ export async function markConsultantActivitiesRead(req: any, res: Response, next
 export async function getProjectActivities(req: any, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const project = await prisma.project.findFirst({
-      where: {
-        id,
-        consultantId: req.user.id,
-        isArchived: false,
-      },
+    const project = await Project.findOne({
+      _id: id,
+      consultantId: req.user.id,
+      isArchived: false,
     });
 
     if (!project) {
@@ -408,12 +420,10 @@ export async function getProjectActivities(req: any, res: Response, next: NextFu
       return;
     }
 
-    const activities = await prisma.projectActivity.findMany({
-      where: { projectId: id },
-      include: { project: true },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+    const activities = await ProjectActivity.find({ projectId: id })
+      .populate('project')
+      .sort({ createdAt: -1 })
+      .limit(50);
 
     res.json(activities.map(serializeProjectActivity));
   } catch (err) {
@@ -424,12 +434,10 @@ export async function getProjectActivities(req: any, res: Response, next: NextFu
 export async function markProjectActivitiesRead(req: any, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const project = await prisma.project.findFirst({
-      where: {
-        id,
-        consultantId: req.user.id,
-        isArchived: false,
-      },
+    const project = await Project.findOne({
+      _id: id,
+      consultantId: req.user.id,
+      isArchived: false,
     });
 
     if (!project) {
@@ -437,7 +445,7 @@ export async function markProjectActivitiesRead(req: any, res: Response, next: N
       return;
     }
 
-    const whereClause: any = {
+    const filter: any = {
       projectId: id,
       isRead: false,
     };
@@ -450,13 +458,12 @@ export async function markProjectActivitiesRead(req: any, res: Response, next: N
       }
       if (actions.length > 0) {
         const cleanedActions = actions.map((a: any) => String(a).trim()).filter(Boolean);
-        whereClause.action = { in: cleanedActions };
+        filter.action = { $in: cleanedActions };
       }
     }
 
-    const result = await prisma.projectActivity.updateMany({
-      where: whereClause,
-      data: {
+    const result = await ProjectActivity.updateMany(filter, {
+      $set: {
         isRead: true,
         readAt: new Date(),
       },
@@ -464,13 +471,12 @@ export async function markProjectActivitiesRead(req: any, res: Response, next: N
 
     res.json({
       detail: 'Activities marked as read.',
-      updated_count: result.count,
+      updated_count: result.modifiedCount,
     });
   } catch (err) {
     next(err);
   }
 }
-
 
 export async function chatAssistant(req: any, res: Response, next: NextFunction) {
   try {

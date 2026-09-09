@@ -1,28 +1,8 @@
-import type { Prisma } from '@prisma/client';
+import type { IProject } from '../models/project.model.js';
 
-export type ConsultantProjectPayload = Prisma.ProjectGetPayload<{
-  include: {
-    client: true;
-    consultant: true;
-  };
-}>;
-
-export type PortalProjectPayload = Prisma.ProjectGetPayload<{
-  include: {
-    client: true;
-    consultant: true;
-    clientProfile: true;
-    discovery: true;
-    brandDNA: true;
-    moodboards: true;
-    concepts: true;
-    deliverables: true;
-    projectAgreement: true;
-    paymentMilestones: true;
-  };
-}>;
-
-export type ProjectPayload = PortalProjectPayload | ConsultantProjectPayload;
+export type ConsultantProjectPayload = IProject;
+export type PortalProjectPayload = IProject;
+export type ProjectPayload = IProject;
 
 export interface PortalTokenInfo {
   token: string;

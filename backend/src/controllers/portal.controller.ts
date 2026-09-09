@@ -1,33 +1,49 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import path from 'path';
-import { prisma } from '../prisma/client.js';
+import { Project } from '../models/project.model.js';
+import { BrandDNA } from '../models/brandDNA.model.js';
+import { ProjectDiscovery } from '../models/discovery.model.js';
+import { Moodboard } from '../models/moodboard.model.js';
+import { Concept } from '../models/concept.model.js';
+import { Deliverable } from '../models/deliverable.model.js';
+import { ProjectAgreement } from '../models/agreement.model.js';
+import { PaymentMilestone } from '../models/paymentMilestone.model.js';
+import { PaymentTransaction } from '../models/paymentTransaction.model.js';
+import { ProjectActivity } from '../models/activity.model.js';
 import { ENV } from '../config/env.js';
 import { verifyPassword, signPortalAccessToken } from '../utils/crypto.js';
 import {
   calculateProjectProgress,
   calculateProjectWorkflowStatus,
-  logProjectActivity,
-  recalculatePaymentMilestones,
   canClientDownloadDeliverable,
+  recalculatePaymentMilestones,
+  logProjectActivity,
 } from '../services/project.service.js';
-import { createRazorpayOrder, verifyPaymentSignature, fetchRazorpayPayment } from '../services/razorpay.service.js';
-import { completePaymentMilestone, PaymentCompletionError } from '../services/payment.service.js';
+import {
+  createRazorpayOrder,
+  verifyPaymentSignature,
+  fetchRazorpayPayment,
+} from '../services/razorpay.service.js';
+import {
+  completePaymentMilestone,
+  PaymentCompletionError,
+} from '../services/payment.service.js';
 import { generateSignedAgreementPdf } from '../services/pdf.service.js';
-import { maybeGenerateAgreementSnapshot } from '../services/generatedAgreement.service.js';
-import { saveFile, resolveSafeMediaPath, streamLocalFile } from '../services/storage.service.js';
+import { maybeGenerateAgreementSnapshot } from '../services/agreement.service.js';
+import {
+  saveFile,
+  resolveSafeMediaPath,
+  streamLocalFile,
+} from '../services/storage.service.js';
 import {
   serializeProject,
   serializeBrandDNA,
   serializeDiscovery,
-  serializeMoodboard,
   serializeClientPortalMoodboard,
-  serializeConcept,
   serializeClientPortalConcept,
-  serializeDeliverable,
   serializeClientPortalDeliverable,
   serializePaymentMilestone,
-  serializeProjectActivity,
   serializeClientPortalActivity,
 } from '../utils/serializer.js';
 import {
@@ -38,12 +54,10 @@ import {
 
 export async function getClientList(req: any, res: Response, next: NextFunction) {
   try {
-    const projects = await prisma.project.findMany({
-      where: { consultantId: req.user.id, isArchived: false },
-      include: { client: true },
-      orderBy: { updatedAt: 'desc' },
-      take: 50,
-    });
+    const projects = await Project.find({ consultantId: req.user.id, isArchived: false })
+      .populate('client')
+      .sort({ updatedAt: -1 })
+      .limit(50);
 
     const data = projects.map((p) => ({
       id: p.id,
@@ -66,13 +80,10 @@ export async function getPortalProject(req: any, res: Response, next: NextFuncti
     const workflowStatus = calculateProjectWorkflowStatus(project);
 
     if (project.id && project.progress !== progress) {
-      await prisma.project.update({
-        where: { id: project.id },
-        data: { progress },
-      });
+      await Project.findByIdAndUpdate(project.id, { progress });
     }
 
-    res.json(serializeProject({ ...project, progress }, workflowStatus));
+    res.json(serializeProject({ ...project.toObject(), progress }, workflowStatus));
   } catch (err) {
     next(err);
   }
@@ -83,9 +94,7 @@ export async function verifyPortalPassword(req: any, res: Response, next: NextFu
     const { portal_token } = req.params;
     const { password } = req.body;
 
-    const project = await prisma.project.findFirst({
-      where: { portalToken: portal_token, isArchived: false },
-    });
+    const project = await Project.findOne({ portalToken: portal_token, isArchived: false });
 
     if (!project) {
       res.status(404).json({ detail: 'Project not found.' });
@@ -93,7 +102,6 @@ export async function verifyPortalPassword(req: any, res: Response, next: NextFu
     }
 
     if (!project.portalPasswordHash) {
-      // No password required
       const signedToken = signPortalAccessToken(portal_token);
       res.cookie(ENV.PORTAL_ACCESS_COOKIE_NAME, signedToken, {
         maxAge: ENV.PORTAL_ACCESS_MAX_AGE * 1000,
@@ -137,9 +145,7 @@ export async function logoutPortal(req: any, res: Response) {
 
 export async function getPortalBrandDNA(req: any, res: Response, next: NextFunction) {
   try {
-    const brandDNA = await prisma.brandDNA.findUnique({
-      where: { projectId: req.project.id },
-    });
+    const brandDNA = await BrandDNA.findOne({ projectId: req.project.id });
 
     if (!brandDNA) {
       res.status(404).json({ detail: 'Brand DNA not generated yet.' });
@@ -154,13 +160,15 @@ export async function getPortalBrandDNA(req: any, res: Response, next: NextFunct
 
 export async function getPortalDiscovery(req: any, res: Response, next: NextFunction) {
   try {
-    let discovery = await prisma.projectDiscovery.findUnique({
-      where: { projectId: req.project.id },
-    });
+    let discovery = await ProjectDiscovery.findOne({ projectId: req.project.id });
 
     if (!discovery) {
-      discovery = await prisma.projectDiscovery.create({
-        data: { projectId: req.project.id, sliders: [], emotions: [], competitors: [], visualStyles: [] },
+      discovery = await ProjectDiscovery.create({
+        projectId: req.project.id,
+        sliders: [],
+        emotions: [],
+        competitors: [],
+        visualStyles: [],
       });
     }
 
@@ -176,7 +184,17 @@ export async function getPortalDiscovery(req: any, res: Response, next: NextFunc
 
 export async function savePortalDiscovery(req: any, res: Response, next: NextFunction) {
   try {
-    const { what_business_does, target_customer, why_choose_us, brand_feeling, audience_archetype, sliders, emotions, competitors, visual_styles } = req.body;
+    const {
+      what_business_does,
+      target_customer,
+      why_choose_us,
+      brand_feeling,
+      audience_archetype,
+      sliders,
+      emotions,
+      competitors,
+      visual_styles,
+    } = req.body;
 
     const data: any = {};
     if (what_business_does !== undefined) data.whatBusinessDoes = what_business_does;
@@ -195,7 +213,9 @@ export async function savePortalDiscovery(req: any, res: Response, next: NextFun
     }
 
     if (emotions && Array.isArray(emotions)) {
-      const unique = Array.from(new Set(emotions.map((e: any) => (typeof e === 'string' ? e : e.emotion).trim())));
+      const unique = Array.from(
+        new Set(emotions.map((e: any) => (typeof e === 'string' ? e : e.emotion).trim()))
+      );
       data.emotions = unique.slice(0, 8);
     }
 
@@ -208,26 +228,25 @@ export async function savePortalDiscovery(req: any, res: Response, next: NextFun
     }
 
     if (visual_styles && Array.isArray(visual_styles)) {
-      const unique = Array.from(new Set(visual_styles.map((v: any) => (typeof v === 'string' ? v : v.style).trim())));
+      const unique = Array.from(
+        new Set(visual_styles.map((v: any) => (typeof v === 'string' ? v : v.style).trim()))
+      );
       data.visualStyles = unique.slice(0, 3);
     }
 
     data.submittedAt = new Date();
 
-    const discovery = await prisma.projectDiscovery.upsert({
-      where: { projectId: req.project.id },
-      update: data,
-      create: { projectId: req.project.id, ...data },
-    });
+    const discovery = await ProjectDiscovery.findOneAndUpdate(
+      { projectId: req.project.id },
+      { $set: data },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
 
-    await prisma.project.update({
-      where: { id: req.project.id },
-      data: { status: 'discovery' },
-    });
+    await Project.findByIdAndUpdate(req.project.id, { status: 'discovery' });
 
     await logProjectActivity({
       projectId: req.project.id,
-      consultantId: req.project.consultantId,
+      consultantId: req.project.consultantId?.toString() || req.project.consultantId,
       actorType: 'client',
       action: 'discovery_submitted',
       description: 'Client submitted the discovery questionnaire via portal.',
@@ -244,10 +263,10 @@ export async function savePortalDiscovery(req: any, res: Response, next: NextFun
 
 export async function getPortalMoodboards(req: any, res: Response, next: NextFunction) {
   try {
-    const moodboards = await prisma.moodboard.findMany({
-      where: { projectId: req.project.id, isShared: true },
-      orderBy: { createdAt: 'desc' },
-    });
+    const moodboards = await Moodboard.find({
+      projectId: req.project.id,
+      isShared: true,
+    }).sort({ createdAt: -1 });
 
     res.json(moodboards.map((m) => serializeClientPortalMoodboard(m, req.project.portalToken)));
   } catch (err) {
@@ -259,20 +278,25 @@ export async function selectPortalMoodboard(req: any, res: Response, next: NextF
   try {
     const { moodboard_id } = req.params;
 
-    // Reset all moodboards for this project
-    await prisma.moodboard.updateMany({
-      where: { projectId: req.project.id },
-      data: { isSelected: false },
-    });
+    await Moodboard.updateMany(
+      { projectId: req.project.id },
+      { $set: { isSelected: false } }
+    );
 
-    const selected = await prisma.moodboard.update({
-      where: { id: moodboard_id },
-      data: { isSelected: true },
-    });
+    const selected = await Moodboard.findByIdAndUpdate(
+      moodboard_id,
+      { $set: { isSelected: true } },
+      { new: true }
+    );
+
+    if (!selected) {
+      res.status(404).json({ detail: 'Moodboard not found.' });
+      return;
+    }
 
     await logProjectActivity({
       projectId: req.project.id,
-      consultantId: req.project.consultantId,
+      consultantId: req.project.consultantId?.toString() || req.project.consultantId,
       actorType: 'client',
       action: 'moodboard_selected',
       description: `Client selected moodboard: ${selected.title}`,
@@ -290,13 +314,10 @@ export async function selectPortalMoodboard(req: any, res: Response, next: NextF
 
 export async function getPortalConcepts(req: any, res: Response, next: NextFunction) {
   try {
-    const concepts = await prisma.concept.findMany({
-      where: {
-        projectId: req.project.id,
-        status: { in: ['shared', 'approved', 'changes_requested'] },
-      },
-      orderBy: [{ version: 'desc' }, { createdAt: 'desc' }],
-    });
+    const concepts = await Concept.find({
+      projectId: req.project.id,
+      status: { $in: ['shared', 'approved', 'changes_requested'] },
+    }).sort({ version: -1, createdAt: -1 });
 
     res.json(concepts.map((c) => serializeClientPortalConcept(c, req.project.portalToken)));
   } catch (err) {
@@ -317,11 +338,9 @@ export async function submitConceptFeedback(req: any, res: Response, next: NextF
       return;
     }
 
-    const concept = await prisma.concept.findFirst({
-      where: {
-        id: concept_id,
-        projectId: req.project.id,
-      },
+    const concept = await Concept.findOne({
+      _id: concept_id,
+      projectId: req.project.id,
     });
 
     if (!concept) {
@@ -359,24 +378,27 @@ export async function submitConceptFeedback(req: any, res: Response, next: NextF
 
     const nextStatus = isApprove ? 'approved' : 'changes_requested';
     const trimmedFeedback = (feedback || '').trim();
-    const updated = await prisma.concept.update({
-      where: { id: concept.id },
-      data: {
-        status: nextStatus,
-        clientFeedback: isApprove ? '' : trimmedFeedback,
+    const updated = await Concept.findByIdAndUpdate(
+      concept.id,
+      {
+        $set: {
+          status: nextStatus,
+          clientFeedback: isApprove ? '' : trimmedFeedback,
+        },
       },
-    });
+      { new: true }
+    );
 
     await recalculatePaymentMilestones(req.project.id);
 
     const activityAction = isApprove ? 'concept_approved' : 'concept_changes_requested';
     const activityDescription = isApprove
-      ? `Client approved concept: ${updated.title}`
-      : `Client requested changes for concept: ${updated.title}`;
+      ? `Client approved concept: ${updated!.title}`
+      : `Client requested changes for concept: ${updated!.title}`;
     const activityMetadata: any = {
-      concept_id: updated.id,
-      concept_title: updated.title,
-      concept_version: updated.version,
+      concept_id: updated!.id,
+      concept_title: updated!.title,
+      concept_version: updated!.version,
       concept_status: nextStatus,
     };
     if (isChangesRequested) {
@@ -385,7 +407,7 @@ export async function submitConceptFeedback(req: any, res: Response, next: NextF
 
     await logProjectActivity({
       projectId: req.project.id,
-      consultantId: req.project.consultantId,
+      consultantId: req.project.consultantId?.toString() || req.project.consultantId,
       actorType: 'client',
       action: activityAction,
       description: activityDescription,
@@ -403,18 +425,12 @@ export async function submitConceptFeedback(req: any, res: Response, next: NextF
 
 export async function getPortalDeliverables(req: any, res: Response, next: NextFunction) {
   try {
-    const deliverables = await prisma.deliverable.findMany({
-      where: {
-        projectId: req.project.id,
-        status: 'shared',
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const deliverables = await Deliverable.find({
+      projectId: req.project.id,
+      status: 'shared',
+    }).sort({ createdAt: -1 });
 
-    const projectWithMilestones = await prisma.project.findUnique({
-      where: { id: req.project.id },
-      include: { paymentMilestones: true },
-    });
+    const projectWithMilestones = await Project.findById(req.project.id).populate('paymentMilestones');
 
     res.json(
       deliverables.map((d) =>
@@ -428,9 +444,7 @@ export async function getPortalDeliverables(req: any, res: Response, next: NextF
 
 export async function getPortalAgreement(req: any, res: Response, next: NextFunction) {
   try {
-    const agreement = await prisma.projectAgreement.findUnique({
-      where: { projectId: req.project.id },
-    });
+    const agreement = await ProjectAgreement.findOne({ projectId: req.project.id });
 
     if (!agreement || (agreement.status === 'draft' && !agreement.signatureRequestedAt)) {
       res.status(404).json({ detail: 'Agreement not available.' });
@@ -471,12 +485,10 @@ export async function getPortalAgreement(req: any, res: Response, next: NextFunc
 export async function downloadPortalMoodboardImage(req: any, res: Response, next: NextFunction) {
   try {
     const { asset_id } = req.params;
-    const moodboard = await prisma.moodboard.findFirst({
-      where: {
-        id: asset_id,
-        projectId: req.project.id,
-        isShared: true,
-      },
+    const moodboard = await Moodboard.findOne({
+      _id: asset_id,
+      projectId: req.project.id,
+      isShared: true,
     });
 
     if (!moodboard || !moodboard.image) {
@@ -499,12 +511,10 @@ export async function downloadPortalMoodboardImage(req: any, res: Response, next
 export async function downloadPortalConceptImage(req: any, res: Response, next: NextFunction) {
   try {
     const { asset_id } = req.params;
-    const concept = await prisma.concept.findFirst({
-      where: {
-        id: asset_id,
-        projectId: req.project.id,
-        status: { in: ['shared', 'approved', 'changes_requested'] },
-      },
+    const concept = await Concept.findOne({
+      _id: asset_id,
+      projectId: req.project.id,
+      status: { $in: ['shared', 'approved', 'changes_requested'] },
     });
 
     if (!concept || !concept.image) {
@@ -527,12 +537,10 @@ export async function downloadPortalConceptImage(req: any, res: Response, next: 
 export async function downloadPortalConceptFile(req: any, res: Response, next: NextFunction) {
   try {
     const { asset_id } = req.params;
-    const concept = await prisma.concept.findFirst({
-      where: {
-        id: asset_id,
-        projectId: req.project.id,
-        status: { in: ['shared', 'approved', 'changes_requested'] },
-      },
+    const concept = await Concept.findOne({
+      _id: asset_id,
+      projectId: req.project.id,
+      status: { $in: ['shared', 'approved', 'changes_requested'] },
     });
 
     if (!concept || !concept.file) {
@@ -558,11 +566,9 @@ export async function downloadPortalConceptFile(req: any, res: Response, next: N
 export async function downloadPortalDeliverableFile(req: any, res: Response, next: NextFunction) {
   try {
     const { asset_id } = req.params;
-    const deliverable = await prisma.deliverable.findFirst({
-      where: {
-        id: asset_id,
-        projectId: req.project.id,
-      },
+    const deliverable = await Deliverable.findOne({
+      _id: asset_id,
+      projectId: req.project.id,
     });
 
     if (!deliverable) {
@@ -570,10 +576,7 @@ export async function downloadPortalDeliverableFile(req: any, res: Response, nex
       return;
     }
 
-    const projectWithMilestones = await prisma.project.findUnique({
-      where: { id: req.project.id },
-      include: { paymentMilestones: true },
-    });
+    const projectWithMilestones = await Project.findById(req.project.id).populate('paymentMilestones');
 
     const { canDownload } = canClientDownloadDeliverable(
       (projectWithMilestones || req.project) as any,
@@ -598,10 +601,9 @@ export async function downloadPortalDeliverableFile(req: any, res: Response, nex
       return;
     }
 
-    // Match Django semantics: log activity once file availability is confirmed before stream begins
     await logProjectActivity({
       projectId: req.project.id,
-      consultantId: req.project.consultantId,
+      consultantId: req.project.consultantId?.toString() || req.project.consultantId,
       actorType: 'client',
       action: 'deliverable_downloaded',
       description: `Client downloaded deliverable: ${deliverable.title}`,
@@ -623,9 +625,7 @@ export async function downloadPortalDeliverableFile(req: any, res: Response, nex
 
 export async function downloadPortalAgreementPdf(req: any, res: Response, next: NextFunction) {
   try {
-    const agreement = await prisma.projectAgreement.findUnique({
-      where: { projectId: req.project.id },
-    });
+    const agreement = await ProjectAgreement.findOne({ projectId: req.project.id });
 
     if (!agreement || (agreement.status === 'draft' && !agreement.signatureRequestedAt)) {
       res.status(404).json({ detail: 'Agreement not found.' });
@@ -636,11 +636,11 @@ export async function downloadPortalAgreementPdf(req: any, res: Response, next: 
     let targetFile: string | null = null;
 
     if (type === 'basic') {
-      targetFile = agreement.basicPdfFile;
+      targetFile = agreement.basicPdfFile || null;
     } else if (type === 'signed') {
-      targetFile = agreement.signedPdfFile;
+      targetFile = agreement.signedPdfFile || null;
     } else {
-      targetFile = agreement.signedPdfFile || agreement.basicPdfFile;
+      targetFile = agreement.signedPdfFile || agreement.basicPdfFile || null;
     }
 
     if (!targetFile) {
@@ -676,9 +676,7 @@ export async function signPortalAgreement(req: any, res: Response, next: NextFun
       return;
     }
 
-    let agreement = await prisma.projectAgreement.findUnique({
-      where: { projectId: req.project.id },
-    });
+    let agreement = await ProjectAgreement.findOne({ projectId: req.project.id });
 
     if (!agreement) {
       res.status(404).json({ detail: 'Agreement not found.' });
@@ -698,7 +696,12 @@ export async function signPortalAgreement(req: any, res: Response, next: NextFun
 
     let signatureImagePath: string | undefined;
     if (signatureImageBuffer && req.file) {
-      signatureImagePath = await saveFile('project_agreements/signatures', req.file.originalname, signatureImageBuffer, req.file.mimetype);
+      signatureImagePath = await saveFile(
+        'project_agreements/signatures',
+        req.file.originalname,
+        signatureImageBuffer,
+        req.file.mimetype
+      );
     }
 
     const signedPdfPath = await saveFile(
@@ -708,40 +711,43 @@ export async function signPortalAgreement(req: any, res: Response, next: NextFun
       'application/pdf'
     );
 
-    const updated = await prisma.projectAgreement.update({
-      where: { id: agreement.id },
-      data: {
-        status: 'signed',
-        signerName: signer_name.trim(),
-        signatureMethod: signature_method,
-        signatureImage: signatureImagePath,
-        signedPdfFile: signedPdfPath,
-        signedAt,
-        signatureMetadata: JSON.stringify({
-          hash: sha256Hash,
-          ip: req.ip,
-          userAgent: req.headers['user-agent'],
-        }),
+    const updated = await ProjectAgreement.findByIdAndUpdate(
+      agreement.id,
+      {
+        $set: {
+          status: 'signed',
+          signerName: signer_name.trim(),
+          signatureMethod: signature_method,
+          signatureImage: signatureImagePath,
+          signedPdfFile: signedPdfPath,
+          signedAt,
+          signatureMetadata: JSON.stringify({
+            hash: sha256Hash,
+            ip: req.ip,
+            userAgent: req.headers['user-agent'],
+          }),
+        },
       },
-    });
+      { new: true }
+    );
 
     await logProjectActivity({
       projectId: req.project.id,
-      consultantId: req.project.consultantId,
+      consultantId: req.project.consultantId?.toString() || req.project.consultantId,
       actorType: 'client',
       action: 'agreement_signed',
-      description: `Client signed the project agreement (Digital Certificate generated).`,
+      description: 'Client signed the project agreement (Digital Certificate generated).',
       visibleToClient: true,
     });
 
     await recalculatePaymentMilestones(req.project.id);
 
     res.json({
-      id: updated.id,
-      status: updated.status,
-      signed_pdf_file: updated.signedPdfFile,
-      signer_name: updated.signerName,
-      signed_at: updated.signedAt,
+      id: updated!.id,
+      status: updated!.status,
+      signed_pdf_file: updated!.signedPdfFile,
+      signer_name: updated!.signerName,
+      signed_at: updated!.signedAt,
     });
   } catch (err) {
     next(err);
@@ -750,9 +756,7 @@ export async function signPortalAgreement(req: any, res: Response, next: NextFun
 
 export async function getPortalPayments(req: any, res: Response, next: NextFunction) {
   try {
-    const milestones = await prisma.paymentMilestone.findMany({
-      where: { projectId: req.project.id },
-    });
+    const milestones = await PaymentMilestone.find({ projectId: req.project.id });
 
     const order: Record<string, number> = { advance: 1, mid: 2, final: 3 };
     milestones.sort((a, b) => (order[a.type] || 99) - (order[b.type] || 99));
@@ -794,12 +798,10 @@ export async function createPortalPaymentOrder(req: any, res: Response, next: Ne
       return;
     }
 
-    const milestone = await prisma.paymentMilestone.findFirst({
-      where: { id: milestone_id, projectId: project.id },
-      include: {
-        transactions: true,
-      },
-    });
+    const milestone = await PaymentMilestone.findOne({
+      _id: milestone_id,
+      projectId: project.id,
+    }).populate('transactions');
 
     if (!milestone) {
       res.status(404).json({ detail: 'Payment milestone not found.' });
@@ -826,13 +828,14 @@ export async function createPortalPaymentOrder(req: any, res: Response, next: Ne
       return;
     }
 
-    const verifiedTransaction = milestone.transactions.find((tx: any) => tx.status === 'verified');
+    const transactions = milestone.transactions || [];
+    const verifiedTransaction = transactions.find((tx: any) => tx.status === 'verified');
     if (verifiedTransaction) {
       res.status(400).json({ detail: 'This payment milestone is already completed.' });
       return;
     }
 
-    const reusableTransaction = milestone.transactions
+    const reusableTransaction = transactions
       .filter((tx: any) => tx.status === 'created' && tx.razorpayOrderId && tx.razorpayOrderId.trim() !== '')
       .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
 
@@ -858,7 +861,7 @@ export async function createPortalPaymentOrder(req: any, res: Response, next: Ne
         receipt,
         notes,
       });
-    } catch (err: any) {
+    } catch {
       res.status(503).json({ detail: 'Unable to create payment order. Please try again later.' });
       return;
     }
@@ -869,15 +872,13 @@ export async function createPortalPaymentOrder(req: any, res: Response, next: Ne
       return;
     }
 
-    const transaction = await prisma.paymentTransaction.create({
-      data: {
-        projectId: project.id,
-        milestoneId: milestone.id,
-        razorpayOrderId,
-        amount: milestone.amount,
-        currency,
-        status: 'created',
-      },
+    const transaction = await PaymentTransaction.create({
+      projectId: project.id,
+      milestoneId: milestone.id,
+      razorpayOrderId,
+      amount: milestone.amount,
+      currency,
+      status: 'created',
     });
 
     res.status(201).json(buildCreateOrderPayload(transaction, milestone, false));
@@ -903,20 +904,10 @@ export async function verifyPortalPayment(req: any, res: Response, next: NextFun
       return;
     }
 
-    const transaction = await prisma.paymentTransaction.findFirst({
-      where: {
-        projectId: project.id,
-        razorpayOrderId,
-      },
-      include: {
-        milestone: true,
-        project: {
-          include: {
-            consultant: true,
-          },
-        },
-      },
-    });
+    const transaction = await PaymentTransaction.findOne({
+      projectId: project.id,
+      razorpayOrderId,
+    }).populate(['milestone', 'project']);
 
     if (!transaction) {
       res.status(404).json({ detail: 'Payment transaction not found.' });
@@ -924,7 +915,7 @@ export async function verifyPortalPayment(req: any, res: Response, next: NextFun
     }
 
     const milestone = transaction.milestone;
-    if (!milestone || milestone.projectId !== project.id) {
+    if (!milestone || milestone.projectId?.toString() !== project.id) {
       res.status(404).json({ detail: 'Payment transaction not found.' });
       return;
     }
@@ -973,7 +964,7 @@ export async function verifyPortalPayment(req: any, res: Response, next: NextFun
     let providerPayment: any;
     try {
       providerPayment = await fetchRazorpayPayment(razorpayPaymentId);
-    } catch (error: any) {
+    } catch {
       res.status(503).json({ detail: 'Unable to confirm payment with Razorpay.' });
       return;
     }
@@ -1035,11 +1026,9 @@ export async function portalSignOff(req: any, res: Response, next: NextFunction)
       return;
     }
 
-    const hasShared = await prisma.deliverable.findFirst({
-      where: {
-        projectId: req.project.id,
-        status: 'shared',
-      },
+    const hasShared = await Deliverable.findOne({
+      projectId: req.project.id,
+      status: 'shared',
     });
 
     if (!hasShared) {
@@ -1047,38 +1036,37 @@ export async function portalSignOff(req: any, res: Response, next: NextFunction)
       return;
     }
 
-    const milestones = await prisma.paymentMilestone.findMany({
-      where: { projectId: req.project.id },
-    });
-
+    const milestones = await PaymentMilestone.find({ projectId: req.project.id });
     const unpaid = milestones.filter((m) => m.status !== 'paid');
     if (unpaid.length > 0) {
       res.status(400).json({ detail: 'All payment milestones must be paid before sign-off.' });
       return;
     }
 
-    const updatedProject = await prisma.project.update({
-      where: { id: req.project.id },
-      data: {
-        clientSignedOff: true,
-        signedOffAt: new Date(),
-        status: 'delivered',
-        progress: 100,
+    const updatedProject = await Project.findByIdAndUpdate(
+      req.project.id,
+      {
+        $set: {
+          clientSignedOff: true,
+          signedOffAt: new Date(),
+          status: 'delivered',
+          progress: 100,
+        },
       },
-      include: { client: true },
-    });
+      { new: true }
+    ).populate('client');
 
     await logProjectActivity({
       projectId: req.project.id,
-      consultantId: req.project.consultantId,
+      consultantId: req.project.consultantId?.toString() || req.project.consultantId,
       actorType: 'client',
       action: 'project_signed_off',
       description: 'Client accepted the final delivery and completed the project.',
       visibleToClient: true,
       metadata: {
         project_id: req.project.id,
-        signed_off_at: updatedProject.signedOffAt?.toISOString(),
-        project_status: updatedProject.status,
+        signed_off_at: updatedProject!.signedOffAt?.toISOString(),
+        project_status: updatedProject!.status,
       },
     });
 
@@ -1090,14 +1078,12 @@ export async function portalSignOff(req: any, res: Response, next: NextFunction)
 
 export async function getPortalActivities(req: any, res: Response, next: NextFunction) {
   try {
-    const activities = await prisma.projectActivity.findMany({
-      where: {
-        projectId: req.project.id,
-        visibleToClient: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-    });
+    const activities = await ProjectActivity.find({
+      projectId: req.project.id,
+      visibleToClient: true,
+    })
+      .sort({ createdAt: -1 })
+      .limit(50);
 
     res.json(activities.map(serializeClientPortalActivity));
   } catch (err) {
@@ -1107,19 +1093,21 @@ export async function getPortalActivities(req: any, res: Response, next: NextFun
 
 export async function markPortalActivitiesRead(req: any, res: Response, next: NextFunction) {
   try {
-    const result = await prisma.projectActivity.updateMany({
-      where: {
+    const result = await ProjectActivity.updateMany(
+      {
         projectId: req.project.id,
         visibleToClient: true,
         clientIsRead: false,
       },
-      data: {
-        clientIsRead: true,
-        clientReadAt: new Date(),
-      },
-    });
+      {
+        $set: {
+          clientIsRead: true,
+          clientReadAt: new Date(),
+        },
+      }
+    );
 
-    res.json({ marked_read: result.count });
+    res.json({ marked_read: result.modifiedCount });
   } catch (err) {
     next(err);
   }
@@ -1146,9 +1134,12 @@ export async function requestPortalHelp(req: any, res: Response, next: NextFunct
     const clientName = req.project.client?.name || req.project.companyName || 'Client';
     const description = `${clientName} requested help on ${pageId}: "${q}"`;
 
+    const consultantId =
+      req.project.consultantId?.toString() || req.project.consultantId;
+
     const activity = await logProjectActivity({
       projectId: req.project.id,
-      consultantId: req.project.consultantId,
+      consultantId,
       actorType: 'client',
       action: 'client_help_requested',
       description,
@@ -1162,7 +1153,7 @@ export async function requestPortalHelp(req: any, res: Response, next: NextFunct
       visibleToClient: true,
     });
 
-    broadcastHelpRequested(req.project.id, req.project.consultantId, {
+    broadcastHelpRequested(req.project.id, consultantId, {
       project_id: req.project.id,
       project_title: req.project.title,
       client_name: clientName,
@@ -1189,9 +1180,12 @@ export async function resolvePortalHelp(req: any, res: Response, next: NextFunct
     const { page_id } = req.body;
     const pageId = String(page_id || '');
 
+    const consultantId =
+      req.project.consultantId?.toString() || req.project.consultantId;
+
     await logProjectActivity({
       projectId: req.project.id,
-      consultantId: req.project.consultantId,
+      consultantId,
       actorType: 'client',
       action: 'client_help_resolved',
       description: `Help session on ${pageId || 'step'} resolved.`,

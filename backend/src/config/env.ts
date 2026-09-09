@@ -57,6 +57,7 @@ export const ENV = {
   DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL || 'no-reply@floxa.local',
 
   BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN || '',
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
   MEDIA_ROOT: process.env.MEDIA_ROOT
     ? path.resolve(process.env.MEDIA_ROOT)
     : defaultMediaRoot,

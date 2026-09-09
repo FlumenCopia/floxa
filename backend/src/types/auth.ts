@@ -1,4 +1,4 @@
-import type { Consultant } from '@prisma/client';
+import type { IConsultant } from '../models/consultant.model.js';
 
 export interface JWTTokenPayload {
   userId: string;
@@ -12,4 +12,4 @@ export interface AuthTokens {
   refresh: string;
 }
 
-export type AuthUser = Consultant;
+export type AuthUser = IConsultant;

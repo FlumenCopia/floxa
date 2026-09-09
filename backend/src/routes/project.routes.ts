@@ -3,6 +3,7 @@ import multer from 'multer';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { requireProjectAccess } from '../middleware/portal.middleware.js';
 import * as projectController from '../controllers/project.controller.js';
+import * as clientController from '../controllers/client.controller.js';
 import * as discoveryController from '../controllers/discovery.controller.js';
 import * as creativeController from '../controllers/creative.controller.js';
 import * as agreementController from '../controllers/agreement.controller.js';
@@ -13,9 +14,9 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Dual-auth project routes (accessible via verified client portal token OR consultant credentials)
-router.get('/:id/client-profile/', requireProjectAccess, discoveryController.getClientProfile);
-router.post('/:id/client-profile/', requireProjectAccess, discoveryController.saveClientProfile);
-router.patch('/:id/client-profile/', requireProjectAccess, discoveryController.saveClientProfile);
+router.get('/:id/client-profile/', requireProjectAccess, clientController.getClientProfile);
+router.post('/:id/client-profile/', requireProjectAccess, clientController.saveClientProfile);
+router.patch('/:id/client-profile/', requireProjectAccess, clientController.saveClientProfile);
 router.get('/:id/discovery/', requireProjectAccess, discoveryController.getDiscovery);
 router.post('/:id/discovery/', requireProjectAccess, discoveryController.saveDiscovery);
 router.post('/:id/discovery/submit/', requireProjectAccess, discoveryController.submitDiscovery);
@@ -36,7 +37,6 @@ router.patch('/:id/', projectController.updateProject);
 router.post('/:id/invite/retry/', projectController.retryInvite);
 router.get('/:id/activities/', projectController.getProjectActivities);
 router.post('/:id/activities/mark-read/', projectController.markProjectActivitiesRead);
-
 
 // Discovery consultant-only summary
 router.get('/:id/discovery-summary/', discoveryController.getDiscoverySummary);

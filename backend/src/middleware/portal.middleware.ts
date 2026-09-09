@@ -1,16 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../prisma/client.js';
+import { Project, Consultant, type IConsultant, type IProject } from '../models/index.js';
 import { ENV } from '../config/env.js';
 import { unsignPortalAccessToken } from '../utils/crypto.js';
-import { optionalAuth } from './auth.middleware.js';
-
-import type { Consultant } from '@prisma/client';
-import type { ProjectPayload } from '../types/portal.js';
 
 export interface PortalRequest extends Request {
-  project?: ProjectPayload;
-  user?: Consultant;
+  project?: any;
+  user?: IConsultant;
   isSupportMode?: boolean;
   isPortalClient?: boolean;
 }
@@ -28,24 +24,20 @@ export async function clientPortalAccess(req: PortalRequest, res: Response, next
   }
 
   try {
-    const project = await prisma.project.findFirst({
-      where: {
-        portalToken: portalToken,
-        isArchived: false,
-      },
-      include: {
-        client: true,
-        consultant: true,
-        clientProfile: true,
-        discovery: true,
-        brandDNA: true,
-        moodboards: true,
-        concepts: true,
-        deliverables: true,
-        projectAgreement: true,
-        paymentMilestones: true,
-      },
-    });
+    const project = await Project.findOne({
+      portalToken,
+      isArchived: false,
+    })
+      .populate('client')
+      .populate('consultant')
+      .populate('clientProfile')
+      .populate('discovery')
+      .populate('brandDNA')
+      .populate('moodboards')
+      .populate('concepts')
+      .populate('deliverables')
+      .populate('projectAgreement')
+      .populate('paymentMilestones');
 
     if (!project) {
       res.status(404).json({ detail: 'Client portal link not found.' });
@@ -67,7 +59,8 @@ export async function clientPortalAccess(req: PortalRequest, res: Response, next
 
       const norm = supportHeader.trim().toLowerCase();
       if (['true', '1', 'yes', 'consultant'].includes(norm)) {
-        if (project.consultantId !== user.id) {
+        const ownerId = (project.consultantId as any)?._id?.toString() || project.consultantId?.toString();
+        if (ownerId !== user.id.toString()) {
           res.status(403).json({ detail: 'Permission denied: you are not the assigned consultant for this project.' });
           return;
         }
@@ -107,24 +100,20 @@ export async function requireProjectAccess(req: PortalRequest, res: Response, ne
 
   if (portalToken) {
     try {
-      const project = await prisma.project.findFirst({
-        where: {
-          id: projectId,
-          isArchived: false,
-        },
-        include: {
-          client: true,
-          consultant: true,
-          clientProfile: true,
-          discovery: true,
-          brandDNA: true,
-          moodboards: true,
-          concepts: true,
-          deliverables: true,
-          projectAgreement: true,
-          paymentMilestones: true,
-        },
-      });
+      const project = await Project.findOne({
+        _id: projectId,
+        isArchived: false,
+      })
+        .populate('client')
+        .populate('consultant')
+        .populate('clientProfile')
+        .populate('discovery')
+        .populate('brandDNA')
+        .populate('moodboards')
+        .populate('concepts')
+        .populate('deliverables')
+        .populate('projectAgreement')
+        .populate('paymentMilestones');
 
       if (!project || project.portalToken !== portalToken) {
         res.status(403).json({ detail: 'Portal password verification required.' });
@@ -146,8 +135,9 @@ export async function requireProjectAccess(req: PortalRequest, res: Response, ne
         try {
           const payload = jwt.verify(token, ENV.JWT_ACCESS_SECRET) as { userId: string };
           if (payload?.userId) {
-            const user = await prisma.consultant.findUnique({ where: { id: payload.userId } });
-            if (user && user.id === project.consultantId) {
+            const user = await Consultant.findById(payload.userId);
+            const ownerId = (project.consultantId as any)?._id?.toString() || project.consultantId?.toString();
+            if (user && ownerId === user.id.toString()) {
               const supportHeader =
                 (req.headers['x-support-mode'] as string) ||
                 (req.headers['x-consultant-support'] as string) ||
@@ -218,26 +208,20 @@ export async function requireProjectAccess(req: PortalRequest, res: Response, ne
       return;
     }
 
-    const user = await prisma.consultant.findUnique({
-      where: { id: payload.userId },
-    });
+    const user = await Consultant.findById(payload.userId);
 
     if (!user || !user.isActive) {
       res.status(401).json({ detail: 'User not found or inactive.' });
       return;
     }
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id: projectId,
-        consultantId: user.id,
-        isArchived: false,
-      },
-      include: {
-        client: true,
-        consultant: true,
-      },
-    });
+    const project = await Project.findOne({
+      _id: projectId,
+      consultantId: user.id,
+      isArchived: false,
+    })
+      .populate('client')
+      .populate('consultant');
 
     if (!project) {
       res.status(404).json({ detail: 'Project not found.' });
@@ -253,9 +237,6 @@ export async function requireProjectAccess(req: PortalRequest, res: Response, ne
   }
 }
 
-export function clientOnlyAction(req: PortalRequest, res: Response, next: NextFunction) {
-  // Support mode restrictions removed: allow payments and actions to proceed directly
+export function clientOnlyAction(_req: PortalRequest, _res: Response, next: NextFunction) {
   next();
 }
-
-

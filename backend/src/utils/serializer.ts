@@ -1,5 +1,5 @@
-import { Deliverable, Moodboard, Concept, PaymentMilestone, Project } from '@prisma/client';
-import { canClientDownloadDeliverable, ProjectWithMilestones } from '../services/project.service.js';
+import type { IDeliverable, IMoodboard, IConcept, IPaymentMilestone, IProject } from '../models/index.js';
+import { canClientDownloadDeliverable, type ProjectWithMilestones } from '../services/project.service.js';
 
 /**
  * Transforms MongoDB / Prisma documents into Django REST Framework-compatible
@@ -137,7 +137,7 @@ export function serializeBrandDNA(dna: any) {
   };
 }
 
-export function serializeClientPortalMoodboard(moodboard: Moodboard, portalToken: string) {
+export function serializeClientPortalMoodboard(moodboard: IMoodboard | any, portalToken: string) {
   if (!moodboard) return null;
   const imageUrl = moodboard.image
     ? `/api/client-portal/${portalToken}/moodboards/${moodboard.id}/image/`
@@ -174,7 +174,7 @@ export function serializeMoodboard(moodboard: any, baseUrl: string = '') {
   };
 }
 
-export function serializeClientPortalConcept(concept: Concept, portalToken: string) {
+export function serializeClientPortalConcept(concept: IConcept | any, portalToken: string) {
   if (!concept) return null;
   const imageUrl = concept.image
     ? `/api/client-portal/${portalToken}/concepts/${concept.id}/image/`
@@ -226,8 +226,8 @@ export function serializeConcept(concept: any, baseUrl: string = '') {
 }
 
 export function serializeClientPortalDeliverable(
-  deliverable: Deliverable,
-  project: ProjectWithMilestones
+  deliverable: IDeliverable | any,
+  project: ProjectWithMilestones | any
 ) {
   if (!deliverable) return null;
 

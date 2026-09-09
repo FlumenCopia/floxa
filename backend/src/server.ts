@@ -1,8 +1,8 @@
 import http from 'http';
 import { app } from './app.js';
 import { ENV } from './config/env.js';
+import { connectDatabase } from './config/database.js';
 import { setupWebSocketServer } from './websocket/socketServer.js';
-import { prisma } from './prisma/client.js';
 
 const server = http.createServer(app);
 
@@ -11,9 +11,8 @@ setupWebSocketServer(server);
 
 async function startServer() {
   try {
-    // Verify MongoDB connection
-    await prisma.$connect();
-    console.log('Connected to MongoDB via Prisma ORM');
+    // Verify MongoDB connection via Mongoose
+    await connectDatabase();
 
     server.listen(ENV.PORT, () => {
       console.log(`FLOXA Node.js Backend listening on port ${ENV.PORT}`);

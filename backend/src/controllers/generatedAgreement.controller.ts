@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import type { AuthenticatedRequest, PortalRequest } from '../types/express.js';
-import { prisma } from '../prisma/client.js';
+import { Project } from '../models/project.model.js';
+import { GeneratedAgreementSnapshot } from '../models/agreement.model.js';
 import { resolveSafeMediaPath, streamLocalFile } from '../services/storage.service.js';
 import {
   maybeGenerateAgreementSnapshot,
@@ -9,22 +10,24 @@ import {
   saveAgreementSnapshotPdf,
   generateAgreementSnapshotPdf,
   acceptGeneratedAgreement,
-} from '../services/generatedAgreement.service.js';
+} from '../services/agreement.service.js';
 import { logProjectActivity } from '../services/project.service.js';
 
 // ==========================================
 // Consultant Endpoints
 // ==========================================
 
-export async function getGeneratedAgreement(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
+export async function getGeneratedAgreement(
+  req: AuthenticatedRequest<{ id: string }>,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const { id } = req.params;
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id,
-        consultantId: req.user!.id,
-      },
+    const project = await Project.findOne({
+      _id: id,
+      consultantId: req.user!.id,
     });
 
     if (!project) {
@@ -32,13 +35,9 @@ export async function getGeneratedAgreement(req: AuthenticatedRequest<{ id: stri
       return;
     }
 
-    // Trigger snapshot generation if prerequisites are met and no draft exists
     await maybeGenerateAgreementSnapshot(id).catch(() => {});
 
-    const snapshot = await prisma.generatedAgreementSnapshot.findFirst({
-      where: { projectId: id },
-      orderBy: { version: 'desc' },
-    });
+    const snapshot = await GeneratedAgreementSnapshot.findOne({ projectId: id }).sort({ version: -1 });
 
     if (!snapshot) {
       res.status(404).json({ detail: 'Generated agreement not found.' });
@@ -54,15 +53,17 @@ export async function getGeneratedAgreement(req: AuthenticatedRequest<{ id: stri
   }
 }
 
-export async function downloadGeneratedAgreementPdf(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
+export async function downloadGeneratedAgreementPdf(
+  req: AuthenticatedRequest<{ id: string }>,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const { id } = req.params;
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id,
-        consultantId: req.user!.id,
-      },
+    const project = await Project.findOne({
+      _id: id,
+      consultantId: req.user!.id,
     });
 
     if (!project) {
@@ -70,10 +71,7 @@ export async function downloadGeneratedAgreementPdf(req: AuthenticatedRequest<{ 
       return;
     }
 
-    let snapshot = await prisma.generatedAgreementSnapshot.findFirst({
-      where: { projectId: id },
-      orderBy: { version: 'desc' },
-    });
+    let snapshot = await GeneratedAgreementSnapshot.findOne({ projectId: id }).sort({ version: -1 });
 
     if (!snapshot) {
       res.status(404).json({ detail: 'Generated agreement not found.' });
@@ -81,12 +79,14 @@ export async function downloadGeneratedAgreementPdf(req: AuthenticatedRequest<{ 
     }
 
     if (!snapshot.pdfFile && snapshot.status === 'draft') {
-      snapshot = await generateAgreementSnapshotPdf(snapshot);
+      const gen = await generateAgreementSnapshotPdf(snapshot);
+      if (gen) snapshot = gen;
     }
 
     let resolvedPath = snapshot.pdfFile ? resolveSafeMediaPath(snapshot.pdfFile) : null;
     if (!resolvedPath && snapshot.status === 'draft') {
-      snapshot = await saveAgreementSnapshotPdf(snapshot);
+      const sav = await saveAgreementSnapshotPdf(snapshot);
+      if (sav) snapshot = sav;
       resolvedPath = snapshot.pdfFile ? resolveSafeMediaPath(snapshot.pdfFile) : null;
     }
 
@@ -105,15 +105,17 @@ export async function downloadGeneratedAgreementPdf(req: AuthenticatedRequest<{ 
   }
 }
 
-export async function regenerateGeneratedAgreementPdf(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
+export async function regenerateGeneratedAgreementPdf(
+  req: AuthenticatedRequest<{ id: string }>,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const { id } = req.params;
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id,
-        consultantId: req.user!.id,
-      },
+    const project = await Project.findOne({
+      _id: id,
+      consultantId: req.user!.id,
     });
 
     if (!project) {
@@ -121,11 +123,9 @@ export async function regenerateGeneratedAgreementPdf(req: AuthenticatedRequest<
       return;
     }
 
-    const lockedOrAccepted = await prisma.generatedAgreementSnapshot.findFirst({
-      where: {
-        projectId: id,
-        status: { in: ['accepted', 'locked'] },
-      },
+    const lockedOrAccepted = await GeneratedAgreementSnapshot.findOne({
+      projectId: id,
+      status: { $in: ['accepted', 'locked'] },
     });
 
     if (lockedOrAccepted) {
@@ -133,24 +133,26 @@ export async function regenerateGeneratedAgreementPdf(req: AuthenticatedRequest<
       return;
     }
 
-    let snapshot = await prisma.generatedAgreementSnapshot.findFirst({
-      where: {
-        projectId: id,
-        status: 'draft',
-      },
-      orderBy: { version: 'desc' },
-    });
+    let snapshot = await GeneratedAgreementSnapshot.findOne({
+      projectId: id,
+      status: 'draft',
+    }).sort({ version: -1 });
 
     if (!snapshot) {
       res.status(404).json({ detail: 'Generated agreement draft not found.' });
       return;
     }
 
-    snapshot = await generateAgreementSnapshotPdf(snapshot);
+    const generated = await generateAgreementSnapshotPdf(snapshot);
+    if (!generated) {
+      res.status(500).json({ detail: 'Failed to generate agreement PDF.' });
+      return;
+    }
+    snapshot = generated;
 
     await logProjectActivity({
       projectId: project.id,
-      consultantId: project.consultantId,
+      consultantId: String(project.consultantId || ''),
       actorType: 'system',
       action: 'agreement_pdf_generated',
       description: `System generated agreement PDF for draft v${snapshot.version}.`,
@@ -174,15 +176,17 @@ export async function regenerateGeneratedAgreementPdf(req: AuthenticatedRequest<
   }
 }
 
-export async function shareGeneratedAgreement(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
+export async function shareGeneratedAgreement(
+  req: AuthenticatedRequest<{ id: string }>,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const { id } = req.params;
 
-    const project = await prisma.project.findFirst({
-      where: {
-        id,
-        consultantId: req.user!.id,
-      },
+    const project = await Project.findOne({
+      _id: id,
+      consultantId: req.user!.id,
     });
 
     if (!project) {
@@ -190,10 +194,7 @@ export async function shareGeneratedAgreement(req: AuthenticatedRequest<{ id: st
       return;
     }
 
-    let snapshot = await prisma.generatedAgreementSnapshot.findFirst({
-      where: { projectId: id },
-      orderBy: { version: 'desc' },
-    });
+    let snapshot = await GeneratedAgreementSnapshot.findOne({ projectId: id }).sort({ version: -1 });
 
     if (!snapshot) {
       res.status(404).json({ detail: 'Generated agreement not found.' });
@@ -201,13 +202,14 @@ export async function shareGeneratedAgreement(req: AuthenticatedRequest<{ id: st
     }
 
     if (!snapshot.pdfFile && snapshot.status === 'draft') {
-      snapshot = await saveAgreementSnapshotPdf(snapshot);
+      const saved = await saveAgreementSnapshotPdf(snapshot);
+      if (saved) snapshot = saved;
     }
 
     const sharedAt = new Date();
     await logProjectActivity({
       projectId: project.id,
-      consultantId: project.consultantId,
+      consultantId: String(project.consultantId || ''),
       actorType: 'consultant',
       action: 'agreement_shared',
       description: `Consultant shared generated agreement v${snapshot.version} with the client.`,
@@ -243,10 +245,7 @@ export async function getPortalGeneratedAgreement(req: PortalRequest, res: Respo
       return;
     }
 
-    let snapshot = await prisma.generatedAgreementSnapshot.findFirst({
-      where: { projectId: project.id },
-      orderBy: { version: 'desc' },
-    });
+    let snapshot = await GeneratedAgreementSnapshot.findOne({ projectId: project.id }).sort({ version: -1 });
 
     if (!snapshot) {
       res.status(404).json({ detail: 'Generated agreement not found.' });
@@ -283,10 +282,7 @@ export async function downloadPortalGeneratedAgreementPdf(req: PortalRequest, re
       return;
     }
 
-    let snapshot = await prisma.generatedAgreementSnapshot.findFirst({
-      where: { projectId: project.id },
-      orderBy: { version: 'desc' },
-    });
+    let snapshot = await GeneratedAgreementSnapshot.findOne({ projectId: project.id }).sort({ version: -1 });
 
     if (!snapshot) {
       res.status(404).json({ detail: 'Generated agreement not found.' });
@@ -302,12 +298,14 @@ export async function downloadPortalGeneratedAgreementPdf(req: PortalRequest, re
     }
 
     if (!snapshot.pdfFile && snapshot.status === 'draft') {
-      snapshot = await generateAgreementSnapshotPdf(snapshot);
+      const gen = await generateAgreementSnapshotPdf(snapshot);
+      if (gen) snapshot = gen;
     }
 
     let resolvedPath = snapshot.pdfFile ? resolveSafeMediaPath(snapshot.pdfFile) : null;
     if (!resolvedPath && snapshot.status === 'draft') {
-      snapshot = await saveAgreementSnapshotPdf(snapshot);
+      const sav = await saveAgreementSnapshotPdf(snapshot);
+      if (sav) snapshot = sav;
       resolvedPath = snapshot.pdfFile ? resolveSafeMediaPath(snapshot.pdfFile) : null;
     }
 
@@ -320,7 +318,7 @@ export async function downloadPortalGeneratedAgreementPdf(req: PortalRequest, re
       const downloadedAt = new Date();
       await logProjectActivity({
         projectId: project.id,
-        consultantId: project.consultantId,
+        consultantId: String(project.consultantId || ''),
         actorType: 'client',
         action: 'agreement_downloaded',
         description: `Client downloaded generated agreement v${snapshot.version}.`,
@@ -362,10 +360,7 @@ export async function acceptPortalGeneratedAgreement(req: PortalRequest, res: Re
       return;
     }
 
-    const snapshot = await prisma.generatedAgreementSnapshot.findFirst({
-      where: { projectId: project.id },
-      orderBy: { version: 'desc' },
-    });
+    const snapshot = await GeneratedAgreementSnapshot.findOne({ projectId: project.id }).sort({ version: -1 });
 
     if (!snapshot) {
       res.status(404).json({ detail: 'Generated agreement not found.' });
