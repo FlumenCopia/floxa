@@ -2,13 +2,15 @@
   "name": "floxa-backend",
   "version": "1.0.0",
   "description": "FLOXA Node.js Express Prisma MongoDB Backend",
+  "type": "module",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "mongo:rs": "mongod --port 27018 --dbpath C:/data/db --replSet rs0 --bind_ip 127.0.0.1"
   },
   "dependencies": {
     "@google/genai": "^2.11.0",
