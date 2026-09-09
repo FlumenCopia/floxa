@@ -1,4 +1,5 @@
 import express from 'express';
+import type http from 'http';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
@@ -39,7 +40,7 @@ app.use(
 app.use(
   express.json({
     limit: '25mb',
-    verify: (req: any, res, buf) => {
+    verify: (req: http.IncomingMessage & { rawBody?: Buffer }, res, buf) => {
       req.rawBody = buf;
     },
   })

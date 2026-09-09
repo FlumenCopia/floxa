@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import type { AuthenticatedRequest, PortalRequest } from '../types/express.js';
 import { prisma } from '../prisma/client.js';
 import { resolveSafeMediaPath, streamLocalFile } from '../services/storage.service.js';
 import {
@@ -15,14 +16,14 @@ import { logProjectActivity } from '../services/project.service.js';
 // Consultant Endpoints
 // ==========================================
 
-export async function getGeneratedAgreement(req: any, res: Response, next: NextFunction) {
+export async function getGeneratedAgreement(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
 
     const project = await prisma.project.findFirst({
       where: {
         id,
-        consultantId: req.user.id,
+        consultantId: req.user!.id,
       },
     });
 
@@ -48,19 +49,19 @@ export async function getGeneratedAgreement(req: any, res: Response, next: NextF
     const payload = await getGeneratedAgreementPayload(snapshot, pdfUrl);
 
     res.status(200).json(payload);
-  } catch (err) {
+  } catch (err: any) {
     next(err);
   }
 }
 
-export async function downloadGeneratedAgreementPdf(req: any, res: Response, next: NextFunction) {
+export async function downloadGeneratedAgreementPdf(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
 
     const project = await prisma.project.findFirst({
       where: {
         id,
-        consultantId: req.user.id,
+        consultantId: req.user!.id,
       },
     });
 
@@ -104,14 +105,14 @@ export async function downloadGeneratedAgreementPdf(req: any, res: Response, nex
   }
 }
 
-export async function regenerateGeneratedAgreementPdf(req: any, res: Response, next: NextFunction) {
+export async function regenerateGeneratedAgreementPdf(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
 
     const project = await prisma.project.findFirst({
       where: {
         id,
-        consultantId: req.user.id,
+        consultantId: req.user!.id,
       },
     });
 
@@ -173,14 +174,14 @@ export async function regenerateGeneratedAgreementPdf(req: any, res: Response, n
   }
 }
 
-export async function shareGeneratedAgreement(req: any, res: Response, next: NextFunction) {
+export async function shareGeneratedAgreement(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
 
     const project = await prisma.project.findFirst({
       where: {
         id,
-        consultantId: req.user.id,
+        consultantId: req.user!.id,
       },
     });
 
@@ -214,8 +215,8 @@ export async function shareGeneratedAgreement(req: any, res: Response, next: Nex
         generated_agreement_snapshot_id: snapshot.id,
         agreement_version: snapshot.version,
         shared_at: sharedAt.toISOString(),
-        consultant_id: req.user.id,
-        consultant_name: req.user.name,
+        consultant_id: req.user!.id,
+        consultant_name: req.user!.name,
       },
       visibleToClient: true,
     });
@@ -233,7 +234,7 @@ export async function shareGeneratedAgreement(req: any, res: Response, next: Nex
 // Client Portal Endpoints
 // ==========================================
 
-export async function getPortalGeneratedAgreement(req: any, res: Response, next: NextFunction) {
+export async function getPortalGeneratedAgreement(req: PortalRequest, res: Response, next: NextFunction) {
   try {
     const project = req.project;
 
@@ -273,7 +274,7 @@ export async function getPortalGeneratedAgreement(req: any, res: Response, next:
   }
 }
 
-export async function downloadPortalGeneratedAgreementPdf(req: any, res: Response, next: NextFunction) {
+export async function downloadPortalGeneratedAgreementPdf(req: PortalRequest, res: Response, next: NextFunction) {
   try {
     const project = req.project;
 
@@ -344,7 +345,7 @@ export async function downloadPortalGeneratedAgreementPdf(req: any, res: Respons
   }
 }
 
-export async function acceptPortalGeneratedAgreement(req: any, res: Response, next: NextFunction) {
+export async function acceptPortalGeneratedAgreement(req: PortalRequest, res: Response, next: NextFunction) {
   try {
     const project = req.project;
 

@@ -3,9 +3,9 @@ import jwt from 'jsonwebtoken';
 import { ENV } from '../config/env.js';
 import { prisma } from '../prisma/client.js';
 
-export interface AuthenticatedRequest extends Request {
-  user?: any;
-}
+import type { Consultant } from '@prisma/client';
+import type { AuthenticatedRequest } from '../types/express.js';
+export type { AuthenticatedRequest };
 
 export function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   let token: string | null = null;

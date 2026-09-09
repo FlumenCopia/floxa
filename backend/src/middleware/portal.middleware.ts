@@ -5,9 +5,12 @@ import { ENV } from '../config/env.js';
 import { unsignPortalAccessToken } from '../utils/crypto.js';
 import { optionalAuth } from './auth.middleware.js';
 
+import type { Consultant } from '@prisma/client';
+import type { ProjectPayload } from '../types/portal.js';
+
 export interface PortalRequest extends Request {
-  project?: any;
-  user?: any;
+  project?: ProjectPayload;
+  user?: Consultant;
   isSupportMode?: boolean;
   isPortalClient?: boolean;
 }

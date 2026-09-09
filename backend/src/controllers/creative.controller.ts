@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import type { Prisma } from '@prisma/client';
+import type { AuthenticatedRequest, FileUploadRequest } from '../types/express.js';
 import path from 'path';
 import { prisma } from '../prisma/client.js';
 import { saveFile, optimizeImageBuffer, validateUploadedFile, resolveSafeMediaPath, streamLocalFile } from '../services/storage.service.js';
@@ -8,7 +10,7 @@ import { generateBrandDeliverablesPdf } from '../services/pdf.service.js';
 
 // ==================== MOODBOARDS ====================
 
-export async function getMoodboards(req: any, res: Response, next: NextFunction) {
+export async function getMoodboards(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
     const moodboards = await prisma.moodboard.findMany({
@@ -23,10 +25,10 @@ export async function getMoodboards(req: any, res: Response, next: NextFunction)
   }
 }
 
-export async function createMoodboard(req: any, res: Response, next: NextFunction) {
+export async function createMoodboard(req: FileUploadRequest, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const { title, description } = req.body;
+    const { title, description } = req.body as { title?: any; description?: any };
 
     if (!title || !req.file) {
       res.status(400).json({ detail: 'Title and image file are required.' });
@@ -65,7 +67,7 @@ export async function createMoodboard(req: any, res: Response, next: NextFunctio
   }
 }
 
-export async function deleteMoodboard(req: any, res: Response, next: NextFunction) {
+export async function deleteMoodboard(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { id, moodboard_id } = req.params;
     await prisma.moodboard.delete({
@@ -79,7 +81,7 @@ export async function deleteMoodboard(req: any, res: Response, next: NextFunctio
 
 // ==================== CONCEPTS ====================
 
-export async function getConcepts(req: any, res: Response, next: NextFunction) {
+export async function getConcepts(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
     const concepts = await prisma.concept.findMany({
@@ -94,10 +96,10 @@ export async function getConcepts(req: any, res: Response, next: NextFunction) {
   }
 }
 
-export async function createConcept(req: any, res: Response, next: NextFunction) {
+export async function createConcept(req: FileUploadRequest, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const { title, description } = req.body;
+    const { title, description } = req.body as { title?: any; description?: any };
 
     const project = await prisma.project.findFirst({
       where: {
@@ -176,10 +178,10 @@ export async function createConcept(req: any, res: Response, next: NextFunction)
   }
 }
 
-export async function updateConcept(req: any, res: Response, next: NextFunction) {
+export async function updateConcept(req: FileUploadRequest, res: Response, next: NextFunction) {
   try {
     const { id, concept_id } = req.params;
-    const { title, description } = req.body;
+    const { title, description } = req.body as { title?: any; description?: any };
 
     const project = await prisma.project.findFirst({
       where: {
@@ -211,7 +213,7 @@ export async function updateConcept(req: any, res: Response, next: NextFunction)
       return;
     }
 
-    const data: any = {};
+    const data: Prisma.ConceptUpdateInput = {};
     if (title !== undefined) data.title = title.trim();
     if (description !== undefined) data.description = description.trim();
 
@@ -247,7 +249,7 @@ export async function updateConcept(req: any, res: Response, next: NextFunction)
   }
 }
 
-export async function deleteConcept(req: any, res: Response, next: NextFunction) {
+export async function deleteConcept(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { id, concept_id } = req.params;
 
@@ -305,7 +307,7 @@ export async function deleteConcept(req: any, res: Response, next: NextFunction)
   }
 }
 
-export async function shareConcept(req: any, res: Response, next: NextFunction) {
+export async function shareConcept(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { id, concept_id } = req.params;
 
@@ -422,13 +424,13 @@ export async function shareConcept(req: any, res: Response, next: NextFunction) 
 
 // ==================== DELIVERABLES ====================
 
-export async function getDeliverablesSummary(req: any, res: Response, next: NextFunction) {
+export async function getDeliverablesSummary(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const projectId = req.params.id || req.params.project_id;
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
-        consultantId: req.user.id,
+        consultantId: req.user!.id,
         isArchived: false,
       },
       include: {
@@ -476,7 +478,7 @@ export async function getDeliverablesSummary(req: any, res: Response, next: Next
   }
 }
 
-export async function getDeliverables(req: any, res: Response, next: NextFunction) {
+export async function getDeliverables(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
     const deliverables = await prisma.deliverable.findMany({
@@ -491,10 +493,10 @@ export async function getDeliverables(req: any, res: Response, next: NextFunctio
   }
 }
 
-export async function createDeliverable(req: any, res: Response, next: NextFunction) {
+export async function createDeliverable(req: FileUploadRequest, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const { title, description } = req.body;
+    const { title, description } = req.body as { title?: any; description?: any };
 
     if (!title || !req.file) {
       res.status(400).json({ detail: 'Title and file are required.' });
@@ -521,12 +523,12 @@ export async function createDeliverable(req: any, res: Response, next: NextFunct
   }
 }
 
-export async function updateDeliverable(req: any, res: Response, next: NextFunction) {
+export async function updateDeliverable(req: FileUploadRequest, res: Response, next: NextFunction) {
   try {
     const { deliverable_id } = req.params;
-    const { title, description } = req.body;
+    const { title, description } = req.body as { title?: any; description?: any };
 
-    const data: any = {};
+    const data: Prisma.DeliverableUpdateInput = {};
     if (title !== undefined) data.title = title.trim();
     if (description !== undefined) data.description = description.trim();
 
@@ -547,7 +549,7 @@ export async function updateDeliverable(req: any, res: Response, next: NextFunct
   }
 }
 
-export async function deleteDeliverable(req: any, res: Response, next: NextFunction) {
+export async function deleteDeliverable(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { id, deliverable_id } = req.params;
     await prisma.deliverable.delete({ where: { id: deliverable_id } });
@@ -558,7 +560,7 @@ export async function deleteDeliverable(req: any, res: Response, next: NextFunct
   }
 }
 
-export async function shareDeliverable(req: any, res: Response, next: NextFunction) {
+export async function shareDeliverable(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { id, deliverable_id } = req.params;
     const deliverable = await prisma.deliverable.update({
@@ -587,12 +589,12 @@ export async function shareDeliverable(req: any, res: Response, next: NextFuncti
   }
 }
 
-export async function autoGenerateDeliverables(req: any, res: Response, next: NextFunction) {
+export async function autoGenerateDeliverables(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
 
     const project = await prisma.project.findFirst({
-      where: { id, consultantId: req.user.id, isArchived: false },
+      where: { id, consultantId: req.user!.id, isArchived: false },
       include: {
         client: true,
         consultant: true,
@@ -692,13 +694,13 @@ export async function autoGenerateDeliverables(req: any, res: Response, next: Ne
   }
 }
 
-export async function downloadMoodboardImage(req: any, res: Response, next: NextFunction) {
+export async function downloadMoodboardImage(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const projectId = req.params.id || req.params.project_id;
     const moodboardId = req.params.moodboard_id;
 
     const project = await prisma.project.findFirst({
-      where: { id: projectId, consultantId: req.user.id, isArchived: false },
+      where: { id: projectId, consultantId: req.user!.id, isArchived: false },
     });
 
     if (!project) {
@@ -727,13 +729,13 @@ export async function downloadMoodboardImage(req: any, res: Response, next: Next
   }
 }
 
-export async function downloadConceptAsset(req: any, res: Response, next: NextFunction) {
+export async function downloadConceptAsset(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const projectId = req.params.id || req.params.project_id;
     const conceptId = req.params.concept_id;
 
     const project = await prisma.project.findFirst({
-      where: { id: projectId, consultantId: req.user.id, isArchived: false },
+      where: { id: projectId, consultantId: req.user!.id, isArchived: false },
     });
 
     if (!project) {
@@ -773,13 +775,13 @@ export async function downloadConceptAsset(req: any, res: Response, next: NextFu
   }
 }
 
-export async function downloadDeliverableFile(req: any, res: Response, next: NextFunction) {
+export async function downloadDeliverableFile(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const projectId = req.params.id || req.params.project_id;
     const deliverableId = req.params.deliverable_id;
 
     const project = await prisma.project.findFirst({
-      where: { id: projectId, consultantId: req.user.id, isArchived: false },
+      where: { id: projectId, consultantId: req.user!.id, isArchived: false },
     });
 
     if (!project) {

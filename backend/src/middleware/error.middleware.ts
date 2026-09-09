@@ -1,7 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 
-export function errorHandler(err: any, req: Request, res: Response, next: NextFunction) {
+export interface AppError extends Error {
+  statusCode?: number;
+  status?: number;
+  code?: string;
+}
+
+export function errorHandler(err: AppError | ZodError, req: Request, res: Response, next: NextFunction) {
   // Handle Zod validation errors to match DRF field error dictionary format
   if (err instanceof ZodError) {
     const formattedErrors: Record<string, string[]> = {};

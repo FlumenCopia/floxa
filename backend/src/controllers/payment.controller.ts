@@ -6,7 +6,7 @@ import { verifyWebhookSignature } from '../services/razorpay.service.js';
 import { serializePaymentMilestone } from '../utils/serializer.js';
 import { ENV } from '../config/env.js';
 
-export async function getMilestones(req: any, res: Response, next: NextFunction) {
+export async function getMilestones(req: Request<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
     const milestones = await prisma.paymentMilestone.findMany({
@@ -22,7 +22,7 @@ export async function getMilestones(req: any, res: Response, next: NextFunction)
   }
 }
 
-export async function createMilestones(req: any, res: Response, next: NextFunction) {
+export async function createMilestones(req: Request<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
     const project = await prisma.project.findUnique({ where: { id } });
@@ -61,7 +61,7 @@ export async function createMilestones(req: any, res: Response, next: NextFuncti
   }
 }
 
-export async function requestMilestone(req: any, res: Response, next: NextFunction) {
+export async function requestMilestone(req: Request<{ id: string; milestone_id: string }>, res: Response, next: NextFunction) {
   try {
     const { id, milestone_id } = req.params;
     const milestone = await prisma.paymentMilestone.findFirst({
@@ -113,7 +113,7 @@ export async function requestMilestone(req: any, res: Response, next: NextFuncti
   }
 }
 
-export async function markMilestonePaid(req: any, res: Response, next: NextFunction) {
+export async function markMilestonePaid(req: Request<{ id: string; milestone_id: string }>, res: Response, next: NextFunction) {
   try {
     const { id, milestone_id } = req.params;
     let completionResult;
@@ -138,7 +138,7 @@ export async function markMilestonePaid(req: any, res: Response, next: NextFunct
   }
 }
 
-export async function handleRazorpayWebhook(req: Request, res: Response) {
+export async function handleRazorpayWebhook(req: Request & { rawBody?: Buffer | string }, res: Response) {
   const signature = ((req.headers['x-razorpay-signature'] as string) || '').trim();
   const eventId = ((req.headers['x-razorpay-event-id'] as string) || (req.body?.event_id as string) || (req.body?.id as string) || '').trim();
 

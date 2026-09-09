@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import type { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import { prisma } from '../prisma/client.js';
 import { generateBasicAgreementPdf } from '../services/pdf.service.js';
 import { saveFile, resolveSafeMediaPath, streamLocalFile } from '../services/storage.service.js';
@@ -9,13 +10,13 @@ import { serializeProjectAgreement } from '../utils/serializer.js';
 // Map of in-flight retry promises keyed by agreement ID.
 // Note: This in-memory mechanism coalesces concurrent overlapping requests within this single Node.js process instance.
 // Multi-instance / clustered deployments would require a distributed lock/queue (such as Redis).
-const inFlightSignedEmailRetries = new Map<string, Promise<{ status: number; data: any }>>();
+const inFlightSignedEmailRetries = new Map<string, Promise<{ status: number; data: unknown }>>();
 
-export async function getAgreement(req: any, res: Response, next: NextFunction) {
+export async function getAgreement(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
     const project = await prisma.project.findFirst({
-      where: { id, consultantId: req.user.id, isArchived: false },
+      where: { id, consultantId: req.user!.id, isArchived: false },
     });
 
     if (!project) {
@@ -41,7 +42,7 @@ export async function getAgreement(req: any, res: Response, next: NextFunction) 
   }
 }
 
-export async function generateAgreement(req: any, res: Response, next: NextFunction) {
+export async function generateAgreement(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
     const project = await prisma.project.findUnique({
@@ -90,7 +91,7 @@ export async function generateAgreement(req: any, res: Response, next: NextFunct
   }
 }
 
-export async function shareAgreement(req: any, res: Response, next: NextFunction) {
+export async function shareAgreement(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
     const agreement = await prisma.projectAgreement.update({
@@ -117,7 +118,7 @@ export async function shareAgreement(req: any, res: Response, next: NextFunction
   }
 }
 
-export async function requestSignature(req: any, res: Response, next: NextFunction) {
+export async function requestSignature(req: AuthenticatedRequest<{ id: string }>, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
     const agreement = await prisma.projectAgreement.findUnique({
@@ -155,11 +156,15 @@ export async function requestSignature(req: any, res: Response, next: NextFuncti
   }
 }
 
-export async function downloadAgreementFile(req: any, res: Response, next: NextFunction) {
+export async function downloadAgreementFile(
+  req: AuthenticatedRequest<{ id?: string; project_id?: string }, unknown, unknown, { type?: string; download?: string }>,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const projectId = req.params.id || req.params.project_id;
     const project = await prisma.project.findFirst({
-      where: { id: projectId, consultantId: req.user.id, isArchived: false },
+      where: { id: projectId, consultantId: req.user!.id, isArchived: false },
     });
 
     if (!project) {
@@ -210,13 +215,17 @@ export async function downloadAgreementFile(req: any, res: Response, next: NextF
   }
 }
 
-export async function retrySignedEmail(req: any, res: Response, next: NextFunction) {
+export async function retrySignedEmail(
+  req: AuthenticatedRequest<{ id?: string; project_id?: string }>,
+  res: Response,
+  next: NextFunction
+) {
   try {
     const projectId = req.params.id || req.params.project_id;
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
-        consultantId: req.user.id,
+        consultantId: req.user!.id,
         isArchived: false,
       },
       include: {
@@ -288,7 +297,7 @@ export async function retrySignedEmail(req: any, res: Response, next: NextFuncti
             },
           };
         }
-      } catch (emailError: any) {
+      } catch (emailError: unknown) {
         const sanitizedError = sanitizeEmailError(emailError);
         try {
           await prisma.projectAgreement.update({

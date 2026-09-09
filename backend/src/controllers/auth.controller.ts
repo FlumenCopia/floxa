@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import type { Prisma } from '@prisma/client';
+import type { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma/client.js';
 import { ENV } from '../config/env.js';
@@ -191,15 +193,15 @@ export async function refreshToken(req: Request, res: Response) {
   }
 }
 
-export async function getMe(req: any, res: Response) {
+export async function getMe(req: AuthenticatedRequest, res: Response) {
   const baseUrl = `${req.protocol}://${req.get('host')}`;
   res.json(serializeConsultant(req.user, baseUrl));
 }
 
-export async function updateMe(req: any, res: Response, next: NextFunction) {
+export async function updateMe(req: AuthenticatedRequest & { file?: Express.Multer.File }, res: Response, next: NextFunction) {
   try {
-    const { name, company, phone } = req.body;
-    const data: any = {};
+    const { name, company, phone } = req.body as { name?: string; company?: string; phone?: string };
+    const data: Prisma.ConsultantUpdateInput = {};
 
     if (name !== undefined) {
       const clean = name.trim();
@@ -225,7 +227,7 @@ export async function updateMe(req: any, res: Response, next: NextFunction) {
     }
 
     const updated = await prisma.consultant.update({
-      where: { id: req.user.id },
+      where: { id: req.user!.id },
       data,
     });
 
