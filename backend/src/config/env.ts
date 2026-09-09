@@ -3,6 +3,8 @@ import path from 'path';
 
 dotenv.config();
 
+const defaultMediaRoot = path.resolve(__dirname, '../../media');
+
 export const ENV = {
   PORT: parseInt(process.env.PORT || '5000', 10),
   NODE_ENV: process.env.NODE_ENV || 'development',
@@ -55,5 +57,7 @@ export const ENV = {
   DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL || 'no-reply@floxa.local',
 
   BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN || '',
-  MEDIA_ROOT: path.resolve(process.cwd(), '../backend/media'),
+  MEDIA_ROOT: process.env.MEDIA_ROOT
+    ? path.resolve(process.env.MEDIA_ROOT)
+    : defaultMediaRoot,
 };

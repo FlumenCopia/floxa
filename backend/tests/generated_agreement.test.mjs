@@ -317,7 +317,7 @@ async function runGeneratedAgreementTests() {
     }
 
     // Save a copy of the generated PDF for visual inspection artifact
-    const samplePdfPath = path.resolve(process.cwd(), '../backend-node/sample_inspected_agreement.pdf');
+    const samplePdfPath = path.resolve(process.cwd(), '../backend/sample_inspected_agreement.pdf');
     fs.writeFileSync(samplePdfPath, pdfRes.buffer);
     createdFiles.push(samplePdfPath);
     console.log(`  ✓ Sample PDF saved locally for inspection: ${samplePdfPath}`);
