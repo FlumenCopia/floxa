@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getAnalytics } from "../../src/lib/projectApi";
-import { getStatusColorByLabel, getStatusLabel, statusOptions } from "../Allproject/ProjectSection";
+import { getAnalytics } from "@/lib/projectApi";
+import { getStatusColorByLabel, getStatusLabel, statusOptions } from "../all-projects/ProjectSection";
 
 import PillowyStatusChart from "./PillowyStatusChart";
 

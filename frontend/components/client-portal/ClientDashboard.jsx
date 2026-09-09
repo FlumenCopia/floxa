@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clientPortalService } from "../../services/clientPortalService";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
-import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/src/lib/api";
+import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/lib/api";
 import { Bell } from "lucide-react";
 
 const phaseLabels = [

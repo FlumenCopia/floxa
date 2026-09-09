@@ -1,6 +1,6 @@
 "use client";
 
-import { showInfo } from "../../src/lib/toast";
+import { showInfo } from "@/lib/toast";
 
 export default function Security() {
   const handleEnable2FA = () => {

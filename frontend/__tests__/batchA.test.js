@@ -46,8 +46,8 @@ global.fetch = async (url) => {
 };
 
 // Import actual production code modules
-const authApi = await import("../src/lib/authApi.js");
-const projectApi = await import("../src/lib/projectApi.js");
+const authApi = await import("../lib/authApi.js");
+const projectApi = await import("../lib/projectApi.js");
 
 describe("Batch A Production Module Unit Tests", () => {
   beforeEach(() => {

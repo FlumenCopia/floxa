@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { clientPortalService } from "../../services/clientPortalService";
 import { supportSocket } from "../../services/supportSocketService";
-import { showSuccess } from "../../src/lib/toast";
+import { showSuccess } from "@/lib/toast";
 
 const personalityClusters = [
   { min: -3, max: -1.5, name: "Soft Minimalist" },

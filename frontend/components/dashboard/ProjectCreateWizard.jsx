@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createProject, retryProjectInvite } from "../../src/lib/projectApi";
-import { showError, showSuccess } from "../../src/lib/toast";
+import { createProject, retryProjectInvite } from "@/lib/projectApi";
+import { showError, showSuccess } from "@/lib/toast";
 import { Check } from "lucide-react";
 
 const paymentFields = ["advance", "mid", "final"];

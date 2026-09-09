@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Floxaheader from "../commone/Floxaheader";
+import Floxaheader from "@/components/common/FloxaHeader";
 import Dashboardsection from "../components/dashboard/Dashboardsection.jsx";
 
 function HomePageContent() {

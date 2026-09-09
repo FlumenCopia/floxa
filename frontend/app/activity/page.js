@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Floxaheader from "../../commone/Floxaheader";
-import { getProject, getProjectActivities } from "../../src/lib/projectApi";
+import Floxaheader from "@/components/common/FloxaHeader";
+import { getProject, getProjectActivities } from "@/lib/projectApi";
 
 function formatActivityTime(value) {
   if (!value) {

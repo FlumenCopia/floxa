@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { registerConsultant } from "../../src/lib/authApi";
-import { showError, showSuccess } from "../../src/lib/toast";
+import { registerConsultant } from "@/lib/authApi";
+import { showError, showSuccess } from "@/lib/toast";
 import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
 import { ArrowRight, ArrowLeft, User, Mail, Lock } from "lucide-react";
 
