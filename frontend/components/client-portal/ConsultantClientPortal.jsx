@@ -1027,7 +1027,7 @@ export default function ConsultantClientPortal() {
             onClick={() => setEntered(true)}
             type="button"
           >
-            {"Enter portal ->"}
+            {"Enter portal"}
           </button>
           <small>Answers are shared only with your consultant and kept securely encrypted.</small>
         </section>

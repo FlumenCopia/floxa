@@ -275,10 +275,10 @@ export function ProfileScreen({
 
         <div className="client-form-actions">
           <button type="button" onClick={() => onNext("login")}>
-            &lt;- Back
+            Back
           </button>
           <button type="button" onClick={handleNext} disabled={saving}>
-            {saving ? "Saving..." : "Begin Discovery ->"}
+            {saving ? "Saving..." : "Begin Discovery"}
           </button>
         </div>
       </div>

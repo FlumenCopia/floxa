@@ -1036,17 +1036,17 @@ export function DiscoveryFlow({
         <div className="client-discovery-actions">
           {step > 1 ? (
             <button type="button" onClick={prevStep}>
-              &lt;- Back
+              Back
             </button>
           ) : (
             <button type="button" onClick={() => onNext("profile")}>
-              &lt;- Back
+              Back
             </button>
           )}
 
           {step < 6 ? (
             <button type="button" onClick={nextStep} disabled={saving}>
-              Next -&gt;
+              Next
             </button>
           ) : (
             <button type="button" className="client-review-pulse-btn" onClick={handleFinish} disabled={saving}>
