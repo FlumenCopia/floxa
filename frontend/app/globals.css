@@ -2055,14 +2055,16 @@ textarea {
 
 .project-payment-bar {
   display: flex;
-  gap: 2px;
+  gap: 0;
   height: 8px;
   margin: 16px 0 14px;
+  border-radius: 999px;
+  overflow: hidden;
 }
 
 .project-payment-segment {
   height: 100%;
-  border-radius: 999px;
+  border-radius: 0;
 }
 
 .project-payment-segment.advance {
