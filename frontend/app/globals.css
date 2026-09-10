@@ -8213,10 +8213,8 @@ textarea {
 }
 
 .settings-branding-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.95fr);
-  gap: 20px;
-  align-items: start;
+  display: block;
+  max-width: 580px;
 }
 
 .settings-upload-btn {

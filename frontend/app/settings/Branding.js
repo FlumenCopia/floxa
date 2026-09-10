@@ -11,11 +11,6 @@ export default function Branding() {
     showInfo("Custom white-label branding will be available in an upcoming release.");
   };
 
-  const previewOrbStyle = {
-    background: `radial-gradient(circle at 35% 35%, ${primaryColor}, #1c8050, #0a1912)`,
-    boxShadow: `0 0 28px ${primaryColor}73`,
-  };
-
   return (
     <div className="settings-branding-grid">
       <div className="card settings-card">
@@ -72,20 +67,6 @@ export default function Branding() {
         <button className="btn btn-primary settings-save-btn" type="button" onClick={handleBrandingAction}>
           Save branding
         </button>
-      </div>
-
-      <div className="settings-preview-wrap">
-        <div className="settings-preview-label">Live preview</div>
-        <div className="brand-preview">
-          <div className="brand-preview-heading">{heading || "Your Studio"}</div>
-          <div className="preview-portal">
-            <div className="preview-orb" style={previewOrbStyle} />
-            <div className="text-sm font-5 mb-2">Let&apos;s discover your brand.</div>
-            <div className="preview-cta" style={{ background: primaryColor }}>
-              Enter portal
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
