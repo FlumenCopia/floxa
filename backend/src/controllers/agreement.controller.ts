@@ -74,11 +74,7 @@ export async function generateAgreement(req: AuthenticatedRequest<{ id: string }
       description: 'Consultant generated project agreement PDF.',
     });
 
-    res.json({
-      id: agreement.id,
-      status: agreement.status,
-      basic_pdf_file: agreement.basicPdfFile,
-    });
+    res.json(serializeProjectAgreement(agreement, req));
   } catch (err) {
     next(err);
   }
@@ -115,7 +111,7 @@ export async function shareAgreement(req: AuthenticatedRequest<{ id: string }>, 
       });
     }
 
-    res.json({ id: agreement.id, status: agreement.status });
+    res.json(serializeProjectAgreement(agreement, req));
   } catch (err) {
     next(err);
   }
@@ -148,7 +144,18 @@ export async function requestSignature(req: AuthenticatedRequest<{ id: string }>
       { new: true }
     );
 
-    await sendAgreementSignatureRequestEmail(project, updated);
+    let emailError: string | null = null;
+    try {
+      await sendAgreementSignatureRequestEmail(project, updated);
+    } catch (mailErr: unknown) {
+      emailError = sanitizeEmailError(mailErr);
+      await ProjectAgreement.findByIdAndUpdate(agreement.id, {
+        $set: {
+          signatureRequestEmailFailedAt: new Date(),
+          signatureRequestEmailError: emailError,
+        },
+      });
+    }
 
     await logProjectActivity({
       projectId: id,
@@ -159,7 +166,12 @@ export async function requestSignature(req: AuthenticatedRequest<{ id: string }>
       visibleToClient: true,
     });
 
-    res.json({ id: updated!.id, status: updated!.status });
+    const serialized: any = serializeProjectAgreement(updated, req);
+    if (emailError && serialized) {
+      serialized.email_error = emailError;
+    }
+
+    res.json(serialized);
   } catch (err) {
     next(err);
   }

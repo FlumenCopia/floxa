@@ -84,7 +84,9 @@ function buildBrandSummary(project, data) {
 }
 
 function hasBackendProjectId(projectId) {
-  return Number.isInteger(Number(projectId)) && Number(projectId) > 0;
+  if (!projectId) return false;
+  const str = String(projectId).trim();
+  return /^[0-9a-fA-F]{24}$/.test(str) || (Number.isInteger(Number(str)) && Number(str) > 0);
 }
 
 function mapBackendProfileToClientData(profile) {
@@ -928,15 +930,31 @@ export const clientPortalService = {
   },
 
   async submitDiscovery(projectId, payload) {
-    if (hasBackendProjectId(projectId) && activeToken && activeToken !== "test-token") {
+    const token = activeToken && activeToken !== "test-token"
+      ? activeToken
+      : (readProject()?.portal_token || readProject()?.portalToken || "");
+    const targetProjectId = projectId || (readProject()?.id) || (readProject()?.project_id);
+
+    if (token && token !== "test-token") {
       try {
-        const discovery = await apiRequest(`/projects/${projectId}/discovery/submit/`, {
-          method: "POST",
-          headers: {
-            "X-Client-Portal-Token": activeToken,
-          },
-          body: JSON.stringify(payload),
-        });
+        let discovery;
+        if (hasBackendProjectId(targetProjectId)) {
+          discovery = await apiRequest(`/projects/${targetProjectId}/discovery/submit/`, {
+            method: "POST",
+            headers: {
+              "X-Client-Portal-Token": token,
+            },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          discovery = await apiRequest(`/client-portal/${token}/discovery/submit/`, {
+            method: "POST",
+            headers: {
+              "X-Client-Portal-Token": token,
+            },
+            body: JSON.stringify(payload),
+          });
+        }
         const project = readProject();
         const clientData = mapBackendDiscoveryToClientData(discovery);
         const updated = {
@@ -991,6 +1009,39 @@ export const clientPortalService = {
         is_selected: item.id === moodboardId,
       })),
       completionPct: Math.max(project.completionPct, 64),
+    };
+
+    writeProject(updated);
+    return { success: true, data: updated.moodboards.find((item) => item.id === moodboardId) };
+  },
+
+  async submitMoodboardFeedback(moodboardId, payload) {
+    if (activeToken && activeToken !== "test-token") {
+      const moodboard = await apiRequest(
+        `/client-portal/${activeToken}/moodboards/${moodboardId}/feedback/`,
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }
+      );
+
+      return { success: true, data: moodboard };
+    }
+
+    const project = readProject();
+    const updated = {
+      ...project,
+      moodboards: project.moodboards.map((item) =>
+        item.id === moodboardId
+          ? {
+              ...item,
+              clientFeedback: payload.feedback || "",
+              client_feedback: payload.feedback || "",
+              clientSelected: false,
+              is_selected: false,
+            }
+          : item
+      ),
     };
 
     writeProject(updated);

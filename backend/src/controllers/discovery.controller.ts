@@ -240,8 +240,8 @@ function extractDiscoveryData(body: any, existingDiscovery: any) {
   return { finalData, snapshot };
 }
 
-async function handleSaveDiscovery(req: any, res: Response, markSubmitted: boolean) {
-  const { id } = req.params;
+export async function handleSaveDiscovery(req: any, res: Response, markSubmitted: boolean) {
+  const id = req.params.id || req.project?.id;
   const project = req.project || (await Project.findById(id));
 
   if (!project) {
@@ -253,7 +253,13 @@ async function handleSaveDiscovery(req: any, res: Response, markSubmitted: boole
 
   if (existingDiscovery && existingDiscovery.submittedAt) {
     if (markSubmitted) {
-      res.status(200).json(serializeDiscovery(existingDiscovery));
+      const { finalData } = extractDiscoveryData(req.body, existingDiscovery);
+      const updated = await ProjectDiscovery.findOneAndUpdate(
+        { projectId: id },
+        { $set: finalData },
+        { new: true }
+      );
+      res.status(200).json(serializeDiscovery(updated || existingDiscovery));
       return;
     }
     res.status(409).json({
@@ -377,7 +383,16 @@ export async function getDiscoverySummary(req: any, res: Response, next: NextFun
       return;
     }
 
-    res.json(serializeDiscovery(discovery));
+    const project = await Project.findById(id).populate('clientProfile');
+    const serialized: any = serializeDiscovery(discovery);
+    if (project && serialized) {
+      const clientProfile = project.clientProfile as any;
+      serialized.client_name = clientProfile?.fullName || project.title || '';
+      serialized.company_name = clientProfile?.companyName || project.companyName || '';
+      serialized.industry = clientProfile?.industry || project.sector || '';
+    }
+
+    res.json(serialized);
   } catch (err) {
     next(err);
   }
@@ -432,6 +447,7 @@ export async function generateBrandDNA(req: any, res: Response, next: NextFuncti
         brand_dna_id: brandDNA.id,
         personality_cluster: brandDNA.brandPersonalityCluster,
       },
+      visibleToClient: true,
     });
 
     res.json(serializeBrandDNA(brandDNA));

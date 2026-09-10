@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clientPortalService } from "../../services/clientPortalService";
+import { supportSocket } from "../../services/supportSocketService";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/lib/api";
+import { showSuccess } from "@/lib/toast";
 import { Bell } from "lucide-react";
 
 const phaseLabels = [
@@ -227,6 +229,9 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const [moodboards, setMoodboards] = useState(project.moodboards || []);
   const [moodboardsLoading, setMoodboardsLoading] = useState(false);
   const [moodboardsError, setMoodboardsError] = useState("");
+  const [moodboardsMessage, setMoodboardsMessage] = useState("");
+  const [feedbackMoodboardId, setFeedbackMoodboardId] = useState(null);
+  const [moodboardFeedbackText, setMoodboardFeedbackText] = useState("");
   const [deliverables, setDeliverables] = useState(project.deliverables || []);
   const [deliverablesLoading, setDeliverablesLoading] = useState(false);
   const [deliverablesError, setDeliverablesError] = useState("");
@@ -237,6 +242,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const [signerName, setSignerName] = useState("");
   const [uploadedSignature, setUploadedSignature] = useState("");
   const [hasReadAgreement, setHasReadAgreement] = useState(false);
+  const [showInlineAgreement, setShowInlineAgreement] = useState(false);
   const signatureCanvasRef = useRef(null);
   const drawingRef = useRef(false);
   const [payments, setPayments] = useState([]);
@@ -409,6 +415,37 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   }, []);
 
   useEffect(() => {
+    const portalToken = project?.portal_token || project?.portalToken;
+    if (!portalToken) return;
+
+    supportSocket.connect({ portalToken });
+
+    const unsubscribeNotif = supportSocket.on("notification", (newActivity) => {
+      if (!newActivity) return;
+
+      setNotifications((current) => {
+        const exists = current.some((n) => n.id === newActivity.id);
+        if (exists) {
+          return current.map((n) => (n.id === newActivity.id ? newActivity : n));
+        }
+        return [newActivity, ...current];
+      });
+
+      if (newActivity.description) {
+        showSuccess(newActivity.description);
+      }
+
+      if (typeof onProjectRefresh === "function") {
+        onProjectRefresh();
+      }
+    });
+
+    return () => {
+      unsubscribeNotif();
+    };
+  }, [project?.portal_token, project?.portalToken, onProjectRefresh]);
+
+  useEffect(() => {
     if (!notificationsOpen) {
       return undefined;
     }
@@ -437,6 +474,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   async function selectMoodboard(id) {
     setWorking(id);
     setMoodboardsError("");
+    setMoodboardsMessage("");
 
     try {
       const response = await clientPortalService.selectMoodboard(id);
@@ -449,9 +487,54 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           is_selected: item.id === selectedId,
         }))
       );
+      setMoodboardsMessage("Visual direction selected.");
       await onProjectRefresh?.();
     } catch (error) {
       setMoodboardsError(error?.detail || "Unable to select moodboard. Please try again.");
+    } finally {
+      setWorking("");
+    }
+  }
+
+  function openMoodboardFeedback(id) {
+    setFeedbackMoodboardId(id);
+    setMoodboardFeedbackText("");
+    setMoodboardsError("");
+    setMoodboardsMessage("");
+  }
+
+  async function submitMoodboardChanges(id) {
+    const feedback = moodboardFeedbackText.trim();
+    if (!feedback) {
+      setMoodboardsError("Please enter feedback before requesting changes.");
+      return;
+    }
+
+    setWorking(id);
+    setMoodboardsError("");
+    setMoodboardsMessage("");
+
+    try {
+      await clientPortalService.submitMoodboardFeedback(id, { feedback });
+      setMoodboards((currentMoodboards) =>
+        currentMoodboards.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                clientFeedback: feedback,
+                client_feedback: feedback,
+                clientSelected: false,
+                is_selected: false,
+              }
+            : item
+        )
+      );
+      await onProjectRefresh?.();
+      setFeedbackMoodboardId(null);
+      setMoodboardFeedbackText("");
+      setMoodboardsMessage("Change request sent to consultant.");
+    } catch (error) {
+      setMoodboardsError(error?.detail || "Unable to send feedback. Please try again.");
     } finally {
       setWorking("");
     }
@@ -889,6 +972,9 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     if (nextPanel === "moodboards") {
       setMoodboardsLoading(true);
       setMoodboardsError("");
+      setMoodboardsMessage("");
+      setFeedbackMoodboardId(null);
+      setMoodboardFeedbackText("");
 
       try {
         const response = await clientPortalService.getMoodboards();
@@ -1321,78 +1407,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       </div>
                     ) : null}
                   </div>
-
-                  {discoveryReport ? (
-                    <div style={{ marginTop: "2rem", paddingTop: "1.5rem", borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-                      <div className="client-discovery-report-header" style={{ marginBottom: "1rem" }}>
-                        <span>Submitted Discovery Answers</span>
-                        <h4>{discoveryReport?.what_business_does || "Client Discovery Questionnaire"}</h4>
-                      </div>
-
-                      <div className="client-discovery-details-grid">
-                        {discoveryReport?.target_customer ? (
-                          <div className="client-discovery-detail-item">
-                            <strong>Target Customer</strong>
-                            <p>{discoveryReport.target_customer}</p>
-                          </div>
-                        ) : null}
-
-                        {discoveryReport?.why_choose_us ? (
-                          <div className="client-discovery-detail-item">
-                            <strong>Why Choose Us</strong>
-                            <p>{discoveryReport.why_choose_us}</p>
-                          </div>
-                        ) : null}
-
-                        {discoveryReport?.brand_feeling ? (
-                          <div className="client-discovery-detail-item">
-                            <strong>Brand Feeling</strong>
-                            <p>{discoveryReport.brand_feeling}</p>
-                          </div>
-                        ) : null}
-
-                        {discoveryReport?.audience_archetype ? (
-                          <div className="client-discovery-detail-item">
-                            <strong>Audience Archetype</strong>
-                            <p>{discoveryReport.audience_archetype}</p>
-                          </div>
-                        ) : null}
-
-                        {discoveryReport?.emotions?.length > 0 ? (
-                          <div className="client-discovery-detail-item">
-                            <strong>Emotions & Keywords</strong>
-                            <p>
-                              {discoveryReport.emotions.map((e) => e.emotion || e).join(", ")}
-                            </p>
-                          </div>
-                        ) : null}
-
-                        {discoveryReport?.visual_styles?.length > 0 ? (
-                          <div className="client-discovery-detail-item">
-                            <strong>Visual Styles</strong>
-                            <p>
-                              {discoveryReport.visual_styles.map((s) => s.style || s).join(", ")}
-                            </p>
-                          </div>
-                        ) : null}
-
-                        {discoveryReport?.competitors?.length > 0 ? (
-                          <div className="client-discovery-detail-item full-width">
-                            <strong>Competitor References</strong>
-                            <div className="client-competitor-list">
-                              {discoveryReport.competitors.map((comp, idx) => (
-                                <div key={comp.id || idx} className="client-competitor-card">
-                                  <strong>{comp.name}</strong>
-                                  {comp.rating ? <span>Rating: {comp.rating}</span> : null}
-                                  {comp.reason ? <p>{comp.reason}</p> : null}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
                 </>
               ) : (
                 <div style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
@@ -1422,6 +1436,16 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                 <article>
                   <h3>Loading moodboards...</h3>
                   <p>Your consultant&apos;s visual directions are being fetched.</p>
+                </article>
+              ) : null}
+              {!moodboardsLoading && moodboardsMessage ? (
+                <article style={{ gridColumn: "1 / -1", padding: "12px 16px", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "10px", color: "var(--emerald-400, #34d399)" }}>
+                  <p style={{ margin: 0, fontWeight: 600 }}>{moodboardsMessage}</p>
+                </article>
+              ) : null}
+              {!moodboardsLoading && moodboardsError && moodboards.length > 0 ? (
+                <article style={{ gridColumn: "1 / -1", padding: "12px 16px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "10px", color: "var(--red-400, #f87171)" }}>
+                  <p style={{ margin: 0 }}>{moodboardsError}</p>
                 </article>
               ) : null}
               {!moodboardsLoading && moodboards.length === 0 ? (
@@ -1461,22 +1485,81 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                           style={{ userSelect: "none", WebkitUserDrag: "none" }}
                           fallbackText="No image preview"
                         />
-                        <h3>{item.name || item.title}</h3>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: "8px" }}>
+                          <h3 style={{ margin: 0 }}>{item.name || item.title}</h3>
+                          {isThisSelected ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "999px", background: "rgba(16, 185, 129, 0.18)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#34d399", fontSize: "11px", fontWeight: 700 }}>✓ Selected</span>
+                          ) : null}
+                        </div>
                         {item.description ? <p>{item.description}</p> : null}
-                        <button
-                          type="button"
-                          disabled={hasSelectedMoodboard || isThisSelected || working === item.id}
-                          onClick={() => selectMoodboard(item.id)}
-                          className="client-panel-action"
-                        >
-                          {isThisSelected
-                            ? "Selected & Locked"
-                            : hasSelectedMoodboard
-                              ? "Locked"
-                              : working === item.id
+                        {item.client_feedback ? (
+                          <div className="client-feedback-badge">
+                            <span style={{ fontWeight: 600, color: "#fbbf24" }}>Requested changes:</span> {item.client_feedback}
+                          </div>
+                        ) : null}
+
+                        <div style={{ display: "flex", gap: "8px", width: "100%", marginTop: "auto" }}>
+                          {isThisSelected ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="client-panel-action"
+                              style={{ flex: 1 }}
+                            >
+                              Selected
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={hasSelectedMoodboard || working === item.id}
+                              onClick={() => selectMoodboard(item.id)}
+                              className="client-panel-action"
+                              style={{ flex: 1 }}
+                            >
+                              {working === item.id
                                 ? "Saving..."
                                 : "Select direction"}
-                        </button>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={working === item.id}
+                            onClick={() => openMoodboardFeedback(item.id)}
+                            className="client-panel-action secondary"
+                            style={{ flex: 1 }}
+                          >
+                            Request changes
+                          </button>
+                        </div>
+
+                        {feedbackMoodboardId === item.id ? (
+                          <div className="client-concept-feedback-box" style={{ width: "100%", marginTop: "12px" }}>
+                            <textarea
+                              value={moodboardFeedbackText}
+                              onChange={(event) => setMoodboardFeedbackText(event.target.value)}
+                              placeholder="Tell your consultant what to refine or change in this visual direction..."
+                              rows={3}
+                            />
+                            <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                              <button
+                                type="button"
+                                disabled={working === item.id}
+                                onClick={() => submitMoodboardChanges(item.id)}
+                                className="client-panel-action"
+                              >
+                                {working === item.id ? "Sending..." : "Send feedback"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={working === item.id}
+                                onClick={() => setFeedbackMoodboardId(null)}
+                                className="client-panel-action secondary"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
                       </article>
                     );
                   });
@@ -1774,7 +1857,132 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                   <p>{agreementError}</p>
                 </article>
               ) : null}
-              {!agreementLoading && agreement ? (
+              {!agreementLoading && agreement && agreement.status === "signed" ? (
+                <div className="client-agreement-verified-card">
+                  <div className="client-verified-card-header">
+                    <div className="client-verified-badge">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span>Executed & Legally Binding</span>
+                    </div>
+                    <span className="client-verified-version">Version v{agreement.current_version || 1}.0</span>
+                  </div>
+
+                  <div className="client-verified-body">
+                    <div className="client-audit-info">
+                      <h3 className="client-verified-title">{agreement.title || "Service Agreement"}</h3>
+                      <p className="client-verified-subtitle">This contract has been digitally executed and recorded on Floxa eSign.</p>
+
+                      <div className="client-audit-grid">
+                        <div className="client-audit-item">
+                          <span className="client-audit-label">Signed by</span>
+                          <strong className="client-audit-value">{agreement.signer_name || "Authorized Client"}</strong>
+                        </div>
+                        <div className="client-audit-item">
+                          <span className="client-audit-label">Signed Timestamp</span>
+                          <strong className="client-audit-value">
+                            {agreement.signed_at ? new Date(agreement.signed_at).toLocaleString(undefined, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            }) : "Completed"}
+                          </strong>
+                        </div>
+                        <div className="client-audit-item">
+                          <span className="client-audit-label">Signing Method</span>
+                          <strong className="client-audit-value">
+                            {agreement.signature_method === "drawn" ? "Drawn Signature" : agreement.signature_method === "uploaded" ? "Uploaded Image" : "Digitally Typed"}
+                          </strong>
+                        </div>
+                        <div className="client-audit-item">
+                          <span className="client-audit-label">Digital Audit</span>
+                          <strong className="client-audit-value audit-hash" title={agreement.signature_metadata?.hash || "SHA-256 Verified"}>
+                            {agreement.signature_metadata?.hash ? `${agreement.signature_metadata.hash.slice(0, 14)}...` : "SHA-256 Verified"}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="client-signature-stamp-box">
+                      <span className="client-stamp-label">Digital Signature</span>
+                      <div className="client-stamp-display">
+                        {agreement.signature_image ? (
+                          <img src={agreement.signature_image} alt="Signature Stamp" className="client-stamp-img" />
+                        ) : (
+                          <span className="client-stamp-typed">{agreement.signer_name || "Signed"}</span>
+                        )}
+                      </div>
+                      <div className="client-stamp-footer">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+                        </svg>
+                        <span>Verified eSign Certificate</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="client-verified-actions-bar">
+                    <div className="client-verified-btn-group">
+                      <button
+                        type="button"
+                        disabled={!agreement.file_url || working === "agreement"}
+                        onClick={previewAgreement}
+                        className="client-panel-action"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Preview Agreement
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!agreement.file_url || working === "agreement"}
+                        onClick={downloadAgreement}
+                        className="client-panel-action secondary"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="7 10 12 15 17 10"/>
+                          <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        {working === "agreement" ? "Downloading..." : "Download PDF"}
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="client-inline-toggle-btn"
+                      onClick={() => setShowInlineAgreement((prev) => !prev)}
+                    >
+                      {showInlineAgreement ? "Hide Document" : "View on Page"}
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        style={{ transform: showInlineAgreement ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }}
+                      >
+                        <polyline points="6 9 12 15 18 9"/>
+                      </svg>
+                    </button>
+                  </div>
+
+                  {showInlineAgreement && agreement.file_url ? (
+                    <div className="client-inline-preview-container">
+                      <iframe
+                        className="client-agreement-preview-frame"
+                        src={agreement.file_url}
+                        title="Signed Agreement Document"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {!agreementLoading && agreement && agreement.status !== "signed" ? (
                 <article className="client-delivery-row">
                   <div>
                     {agreement.isProjectAgreement && agreement.status === "signature_requested" ? (
@@ -1795,9 +2003,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       <p>Last Updated - {new Date(agreement.last_updated_at).toLocaleString()}</p>
                     ) : null}
                     <p>Status - {getAgreementStatusLabel(agreement)}</p>
-                    {agreement.signed_at ? (
-                      <p>Signed - {new Date(agreement.signed_at).toLocaleString()}</p>
-                    ) : null}
                   </div>
                   <div className="client-agreement-workspace">
                     <div className="client-agreement-actions">

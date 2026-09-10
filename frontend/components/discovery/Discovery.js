@@ -9,7 +9,7 @@ import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset } from "@/lib/api";
 import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
 import { showError, showSuccess } from "@/lib/toast";
-import { FileText, X, Send, Sparkles, Trash2 } from "lucide-react";
+import { FileText, X, Send, Sparkles, Trash2, Lock, Share2, Pencil, AlertCircle } from "lucide-react";
 import {
   askProjectAssistant,
   generateAgreement,
@@ -38,8 +38,10 @@ import {
   shareAgreement,
   shareConcept,
   shareDeliverable,
+  shareMoodboard,
   updateConcept,
   updateDeliverable,
+  updateMoodboard,
   uploadConcept,
   uploadDeliverable,
   uploadMoodboard,
@@ -153,6 +155,20 @@ function getConceptStatusClass(status) {
   };
 
   return classes[status] || "badge-muted";
+}
+
+function getMoodboardStatusLabel(item) {
+  if (item?.is_selected) return "Approved";
+  if (item?.client_feedback) return "Changes Requested";
+  if (item?.is_shared) return "Shared";
+  return "Draft";
+}
+
+function getMoodboardStatusClass(item) {
+  if (item?.is_selected) return "badge-green";
+  if (item?.client_feedback) return "badge-amber";
+  if (item?.is_shared) return "badge-blue";
+  return "badge-muted";
 }
 
 function getDeliverableStatusLabel(status) {
@@ -575,7 +591,11 @@ function OverviewPanel({
 }
 
 function formatBriefList(items) {
-  return items?.length ? items.join(", ") : "Not submitted yet.";
+  if (!items?.length) return "Not submitted yet.";
+  const values = items
+    .map((item) => (typeof item === "string" ? item : item?.emotion || item?.style || item?.name || ""))
+    .filter(Boolean);
+  return values.length ? values.join(", ") : "Not submitted yet.";
 }
 
 function formatBriefCompetitors(competitors) {
@@ -662,7 +682,7 @@ function buildClientBriefText(summary) {
     formatBriefList(summary.visual_styles),
     "",
     "Competitors",
-    formatBriefCompetitors(summary.top_competitors),
+    formatBriefCompetitors(summary.top_competitors || summary.competitors),
   ].join("\n");
 }
 
@@ -677,7 +697,7 @@ function buildEnhancedBrief(summary) {
   const emotions = formatBriefList(summary.emotions).toLowerCase();
   const styles = formatBriefList(summary.visual_styles).toLowerCase();
   const sliders = formatBriefSliders(summary.sliders).toLowerCase();
-  const competitors = formatBriefCompetitors(summary.top_competitors);
+  const competitors = formatBriefCompetitors(summary.top_competitors || summary.competitors);
 
   return {
     business: `${company} should be framed as a refined ${industry} brand with a clear, confident explanation of its work: ${business}. The designer should make the offer feel immediate, credible, and easy to understand at first glance.`,
@@ -753,7 +773,7 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
     audienceArchetype: summary?.audience_archetype,
     emotions: formatBriefList(summary?.emotions),
     visualDirection: formatBriefList(summary?.visual_styles),
-    competitors: formatBriefCompetitors(summary?.top_competitors),
+    competitors: formatBriefCompetitors(summary?.top_competitors || summary?.competitors),
   };
   const brief = showEnhancedBrief ? enhancedBrief : savedBrief;
 
@@ -844,7 +864,16 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
             </div>
           ) : null}
         </section>
-      ) : null}
+      ) : (
+        <section className="discovery-card discovery-form-card">
+          <div className="discovery-form-block">
+            <div className="discovery-form-label">Brand DNA</div>
+            <p className="discovery-form-value">
+              Waiting for client discovery submission. Once the client reviews and submits their complete discovery questionnaire, you will be able to generate and review the Brand DNA here.
+            </p>
+          </div>
+        </section>
+      )}
 
       <div className="discovery-inline-actions">
         <button
@@ -868,22 +897,12 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
 }
 
 function hasDiscoverySummary(summary) {
+  if (!summary) return false;
   return Boolean(
-    summary &&
-    (
-      summary.client_name ||
-      summary.company_name ||
-      summary.industry ||
-      summary.what_business_does ||
-      summary.target_customer ||
-      summary.why_choose_us ||
-      summary.brand_feeling ||
-      summary.audience_archetype ||
-      summary.sliders?.length ||
-      summary.emotions?.length ||
-      summary.visual_styles?.length ||
-      summary.top_competitors?.length
-    )
+    summary.submitted_at ||
+    summary.submittedAt ||
+    summary.is_submitted ||
+    summary.isSubmitted
   );
 }
 
@@ -892,9 +911,17 @@ function DiscoveryListValue({ items, emptyText }) {
     return <p className="discovery-form-value">{emptyText}</p>;
   }
 
+  const values = items
+    .map((item) => (typeof item === "string" ? item : item?.emotion || item?.style || item?.name || ""))
+    .filter(Boolean);
+
+  if (!values.length) {
+    return <p className="discovery-form-value">{emptyText}</p>;
+  }
+
   return (
     <p className="discovery-form-value">
-      {items.join(", ")}
+      {values.join(", ")}
     </p>
   );
 }
@@ -953,7 +980,9 @@ function DiscoveryAnswersPanel({ summary, loading }) {
       <section className="discovery-card discovery-form-card">
         <div className="discovery-form-block">
           <div className="discovery-form-label">Discovery answers</div>
-          <p className="discovery-form-value">Client discovery answers are not connected yet.</p>
+          <p className="discovery-form-value">
+            Waiting for client discovery submission. Once the client reviews and submits their complete discovery questionnaire, their submitted details will appear here.
+          </p>
         </div>
       </section>
     );
@@ -1010,7 +1039,7 @@ function DiscoveryAnswersPanel({ summary, loading }) {
 
       <div className="discovery-form-block">
         <div className="discovery-form-label">Top competitors</div>
-        <DiscoveryCompetitorValue competitors={summary.top_competitors} />
+        <DiscoveryCompetitorValue competitors={summary.top_competitors || summary.competitors} />
       </div>
     </section>
   );
@@ -1021,6 +1050,7 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [sharingMoodboardId, setSharingMoodboardId] = useState(null);
   const [moodboardToDelete, setMoodboardToDelete] = useState(null);
   const [statusText, setStatusText] = useState("");
   const [error, setError] = useState("");
@@ -1059,6 +1089,95 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
       showError(message);
     } finally {
       setDeletingId(null);
+    }
+  }
+
+  async function handleShareMoodboard(moodboardId) {
+    if (!projectId || !moodboardId) return;
+    setSharingMoodboardId(moodboardId);
+    setError("");
+    try {
+      await shareMoodboard(projectId, moodboardId);
+      setMoodboards((current) =>
+        current.map((item) =>
+          item.id === moodboardId ? { ...item, is_shared: true, isShared: true } : item
+        )
+      );
+      showSuccess("Moodboard shared with client.");
+      await onProjectRefresh?.();
+    } catch (shareErr) {
+      console.error("Failed to share moodboard:", shareErr);
+      const message = getApiErrorMessage(shareErr, "Unable to share moodboard. Please try again.");
+      setError(message);
+      showError(message);
+    } finally {
+      setSharingMoodboardId(null);
+    }
+  }
+
+  const [editingMoodboardId, setEditingMoodboardId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    image: null,
+    clearFeedback: false,
+  });
+  const [updatingMoodboard, setUpdatingMoodboard] = useState(false);
+  const editImageInputRef = useRef(null);
+
+  function handleStartEdit(item) {
+    setEditingMoodboardId(item.id);
+    setEditForm({
+      title: item.title || "",
+      description: item.description || "",
+      image: null,
+      clearFeedback: false,
+    });
+    setError("");
+  }
+
+  function handleCancelEdit() {
+    setEditingMoodboardId(null);
+    setEditForm({ title: "", description: "", image: null, clearFeedback: false });
+    if (editImageInputRef.current) {
+      editImageInputRef.current.value = "";
+    }
+  }
+
+  async function handleSaveEdit(moodboardId) {
+    if (!projectId || !moodboardId) return;
+    if (!editForm.title.trim()) {
+      showError("Moodboard title cannot be empty.");
+      return;
+    }
+
+    setUpdatingMoodboard(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("title", editForm.title.trim());
+      formData.append("description", editForm.description.trim());
+      if (editForm.image) {
+        formData.append("image", editForm.image);
+      }
+      if (editForm.clearFeedback) {
+        formData.append("clear_feedback", "true");
+      }
+
+      const updated = await updateMoodboard(projectId, moodboardId, formData);
+      setMoodboards((current) =>
+        current.map((item) => (item.id === moodboardId ? { ...item, ...updated } : item))
+      );
+      showSuccess("Moodboard updated.");
+      setEditingMoodboardId(null);
+      await onProjectRefresh?.();
+    } catch (updateErr) {
+      console.error("Failed to update moodboard:", updateErr);
+      const message = getApiErrorMessage(updateErr, "Unable to update moodboard. Please try again.");
+      setError(message);
+      showError(message);
+    } finally {
+      setUpdatingMoodboard(false);
     }
   }
 
@@ -1256,46 +1375,154 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
               <span>Upload the first visual direction to begin moodboard review.</span>
             </div>
           ) : null}
-          {moodboards.map((item) => (
-            <div className={`discovery-moodboard-list-card ${item.is_selected ? "selected" : ""}`} key={item.id}>
-              <ProtectedAssetImage
-                src={item.image_url}
-                asBackground
-                className="discovery-moodboard-preview"
-                fallbackText="No image"
-              >
-                {item.is_selected ? <strong>Selected</strong> : null}
-              </ProtectedAssetImage>
-              <div className="discovery-moodboard-content">
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.description || "No description added."}</p>
-                </div>
-                <div className="discovery-moodboard-actions-group">
-                  {item.image_url ? (
-                    <button
-                      type="button"
-                      className="discovery-moodboard-link"
-                      onClick={() => downloadProtectedAsset(item.image_url, `moodboard-${item.id}.jpg`)}
-                    >
-                      View image
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="discovery-moodboard-delete-btn"
-                    onClick={() => setMoodboardToDelete(item)}
-                    disabled={deletingId === item.id}
-                    title="Delete moodboard"
-                    aria-label={`Delete ${item.title}`}
-                  >
-                    <Trash2 size={13} style={{ display: "inline-block", verticalAlign: "-1px", marginRight: "4px" }} />
-                    {deletingId === item.id ? "Deleting..." : "Delete"}
-                  </button>
-                </div>
-              </div>
+          {moodboards.length > 0 ? (
+            <div className="discovery-concept-grid">
+              {moodboards.map((item) => (
+                <article className="discovery-concept-card" key={item.id}>
+                  <ProtectedAssetImage
+                    src={item.image_url}
+                    asBackground
+                    className="discovery-concept-preview"
+                    fallbackText="No preview"
+                  />
+
+                  <div className="discovery-concept-body">
+                    <div className="discovery-concept-heading">
+                      <div>
+                        <h3>{item.title}</h3>
+                        <p>{item.description || "No description"}</p>
+                      </div>
+                      <span className={`badge ${getMoodboardStatusClass(item)}`}>
+                        {getMoodboardStatusLabel(item)}
+                      </span>
+                    </div>
+
+                    <div className="discovery-concept-meta">
+                      <span>{item.created_at ? formatActivityDate(item.created_at) : ""}</span>
+                    </div>
+
+                    {item.client_feedback ? (
+                      <div className="discovery-concept-feedback">
+                        <span>Client Feedback</span>
+                        <p>{item.client_feedback}</p>
+                      </div>
+                    ) : null}
+
+                    {editingMoodboardId === item.id ? (
+                      <form
+                        className="discovery-concept-edit"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          handleSaveEdit(item.id);
+                        }}
+                      >
+                        <label>
+                          <span>Title</span>
+                          <input
+                            type="text"
+                            value={editForm.title}
+                            onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))}
+                            required
+                          />
+                        </label>
+                        <label>
+                          <span>Description</span>
+                          <textarea
+                            value={editForm.description}
+                            onChange={(event) => setEditForm((current) => ({ ...current, description: event.target.value }))}
+                          />
+                        </label>
+                        <label>
+                          <span>Replace image</span>
+                          <input
+                            ref={editImageInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={(event) => setEditForm((current) => ({ ...current, image: event.target.files?.[0] || null }))}
+                          />
+                        </label>
+                        {item.client_feedback ? (
+                          <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "8px", cursor: "pointer", marginTop: "4px" }}>
+                            <input
+                              type="checkbox"
+                              checked={editForm.clearFeedback}
+                              onChange={(event) => setEditForm((current) => ({ ...current, clearFeedback: event.target.checked }))}
+                            />
+                            <span style={{ fontSize: "12px", color: "var(--accent-gold, #c5a059)" }}>Clear client feedback</span>
+                          </label>
+                        ) : null}
+                        <div className="discovery-concept-actions">
+                          <button
+                            className="btn btn-secondary discovery-upload-btn"
+                            type="submit"
+                            disabled={updatingMoodboard}
+                          >
+                            {updatingMoodboard ? "Saving..." : "Save changes"}
+                          </button>
+                          <button
+                            className="btn btn-secondary discovery-upload-btn"
+                            type="button"
+                            disabled={updatingMoodboard}
+                            onClick={handleCancelEdit}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : null}
+
+                    <div className="discovery-concept-actions">
+                      {!item.is_shared && !item.is_selected ? (
+                        <button
+                          className="btn btn-secondary discovery-upload-btn"
+                          type="button"
+                          disabled={sharingMoodboardId === item.id}
+                          onClick={() => handleShareMoodboard(item.id)}
+                        >
+                          {sharingMoodboardId === item.id ? "Sharing..." : "Share with Client"}
+                        </button>
+                      ) : item.is_shared && !item.is_selected ? (
+                        <span className="badge badge-green">Shared</span>
+                      ) : null}
+
+                      {item.is_selected ? (
+                        <span className="badge badge-green">Locked</span>
+                      ) : (
+                        <>
+                          <button
+                            className="btn btn-secondary discovery-upload-btn"
+                            type="button"
+                            disabled={editingMoodboardId === item.id || updatingMoodboard || deletingId === item.id}
+                            onClick={() => handleStartEdit(item)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-secondary discovery-upload-btn"
+                            type="button"
+                            disabled={editingMoodboardId === item.id || deletingId === item.id || updatingMoodboard}
+                            onClick={() => setMoodboardToDelete(item)}
+                          >
+                            {deletingId === item.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </>
+                      )}
+
+                      {item.image_url ? (
+                        <button
+                          type="button"
+                          className="btn btn-secondary discovery-upload-btn"
+                          onClick={() => downloadProtectedAsset(item.image_url, `moodboard-${item.id}.jpg`)}
+                        >
+                          View image
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
-          ))}
+          ) : null}
         </div>
       </section>
 
@@ -2112,20 +2339,8 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
             </p>
           </div>
           <button
-            className="btn btn-secondary"
+            className="btn btn-secondary discovery-upload-btn"
             type="button"
-            style={{
-              background: "#10b981",
-              color: "#02231c",
-              border: "none",
-              fontWeight: "700",
-              fontSize: "0.92rem",
-              padding: "11px 24px",
-              borderRadius: "8px",
-              cursor: generatingPdf ? "not-allowed" : "pointer",
-              boxShadow: "0 4px 14px rgba(16, 185, 129, 0.3)",
-              transition: "all 0.2s ease",
-            }}
             disabled={generatingPdf}
             onClick={handleAutoGenerate}
           >
@@ -2221,19 +2436,9 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
 
           <div>
             <button
-              className="btn btn-secondary"
+              className="btn btn-secondary discovery-upload-btn"
               type="submit"
               disabled={saving}
-              style={{
-                background: "rgba(255, 255, 255, 0.08)",
-                color: "#ffffff",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
-                borderRadius: "8px",
-                padding: "10px 20px",
-                fontSize: "0.9rem",
-                fontWeight: "600",
-                cursor: saving ? "not-allowed" : "pointer",
-              }}
             >
               {saving ? "Uploading..." : "+ Upload Deliverable"}
             </button>
@@ -2291,19 +2496,8 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
                     <h3 style={{ fontSize: "1.05rem", fontWeight: "700", color: "#f8fafc", margin: 0, wordBreak: "break-word" }}>
                       {item.title}
                     </h3>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: "700",
-                        padding: "3px 8px",
-                        borderRadius: "999px",
-                        background: item.status === "shared" ? "rgba(16, 185, 129, 0.18)" : "rgba(255, 255, 255, 0.08)",
-                        color: item.status === "shared" ? "#34d399" : "#94a3b8",
-                        border: item.status === "shared" ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(255, 255, 255, 0.12)",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {item.status === "shared" ? "Shared with Client" : "Draft"}
+                    <span className={`badge ${getDeliverableStatusClass(item.status)}`}>
+                      {getDeliverableStatusLabel(item.status)}
                     </span>
                   </div>
 
@@ -2318,82 +2512,47 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
                   </div>
                 </div>
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", paddingTop: "10px", borderTop: "1px solid rgba(16, 185, 129, 0.15)" }}>
+                <div className="discovery-concept-actions">
                   {item.status === "draft" ? (
                     <button
-                      className="btn btn-secondary"
+                      className="btn btn-secondary discovery-upload-btn"
                       type="button"
                       disabled={sharingId === item.id}
                       onClick={() => handleShare(item.id)}
-                      style={{
-                        background: "#10b981",
-                        color: "#02231c",
-                        fontWeight: "700",
-                        border: "none",
-                        fontSize: "0.82rem",
-                        padding: "7px 14px",
-                        borderRadius: "6px",
-                        cursor: sharingId === item.id ? "not-allowed" : "pointer",
-                      }}
                     >
                       {sharingId === item.id ? "Sharing..." : "Share with Client"}
                     </button>
-                  ) : null}
-
-                  {item.file_url ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => downloadProtectedAsset(item.file_url, item.file_name || `deliverable-${item.id}.pdf`)}
-                      style={{
-                        background: "rgba(16, 185, 129, 0.12)",
-                        color: "#34d399",
-                        border: "1px solid rgba(16, 185, 129, 0.3)",
-                        fontSize: "0.82rem",
-                        padding: "7px 14px",
-                        borderRadius: "6px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Download PDF
-                    </button>
+                  ) : item.status === "shared" ? (
+                    <span className="badge badge-green">Shared</span>
                   ) : null}
 
                   <button
-                    className="btn btn-secondary"
+                    className="btn btn-secondary discovery-upload-btn"
                     type="button"
                     disabled={editingId === item.id || savingEditId === item.id || deletingId === item.id}
                     onClick={() => startEditDeliverable(item)}
-                    style={{
-                      background: "rgba(255, 255, 255, 0.06)",
-                      color: "#e2e8f0",
-                      border: "1px solid rgba(255, 255, 255, 0.15)",
-                      fontSize: "0.82rem",
-                      padding: "7px 14px",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                    }}
                   >
                     Edit
                   </button>
 
                   <button
-                    className="btn btn-secondary"
+                    className="btn btn-secondary discovery-upload-btn"
                     type="button"
                     disabled={editingId === item.id || deletingId === item.id || savingEditId === item.id}
                     onClick={() => handleDeleteDeliverable(item)}
-                    style={{
-                      background: "rgba(239, 68, 68, 0.08)",
-                      color: "#f87171",
-                      border: "1px solid rgba(239, 68, 68, 0.2)",
-                      fontSize: "0.82rem",
-                      padding: "7px 14px",
-                      borderRadius: "6px",
-                      cursor: deletingId === item.id ? "not-allowed" : "pointer",
-                    }}
                   >
                     {deletingId === item.id ? "Deleting..." : "Delete"}
                   </button>
+
+                  {item.file_url ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary discovery-upload-btn"
+                      onClick={() => downloadProtectedAsset(item.file_url, item.file_name || `deliverable-${item.id}.pdf`)}
+                    >
+                      Download PDF
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ))}
@@ -2529,37 +2688,18 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
                 </div>
               ) : null}
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" }}>
+              <div className="discovery-concept-actions" style={{ justifyContent: "flex-end", marginTop: "6px" }}>
                 <button
-                  className="btn btn-secondary"
+                  className="btn btn-secondary discovery-upload-btn"
                   type="button"
                   onClick={cancelEditDeliverable}
-                  style={{
-                    background: "rgba(255, 255, 255, 0.08)",
-                    color: "#ffffff",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    padding: "9px 18px",
-                    borderRadius: "8px",
-                    fontSize: "0.9rem",
-                    cursor: "pointer",
-                  }}
                 >
                   Cancel
                 </button>
                 <button
-                  className="btn btn-secondary"
+                  className="btn btn-secondary discovery-upload-btn"
                   type="submit"
                   disabled={savingEditId === editingId}
-                  style={{
-                    background: "#10b981",
-                    color: "#02231c",
-                    fontWeight: "700",
-                    border: "none",
-                    padding: "9px 20px",
-                    borderRadius: "8px",
-                    fontSize: "0.9rem",
-                    cursor: savingEditId === editingId ? "not-allowed" : "pointer",
-                  }}
                 >
                   {savingEditId === editingId ? "Saving..." : "Save Changes"}
                 </button>

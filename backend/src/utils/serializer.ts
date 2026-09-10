@@ -110,9 +110,11 @@ export function serializeDiscovery(discovery: any) {
     brand_feeling: discovery.brandFeeling || '',
     audience_archetype: discovery.audienceArchetype || '',
     submitted_at: discovery.submittedAt ? new Date(discovery.submittedAt).toISOString() : null,
+    is_submitted: Boolean(discovery.submittedAt),
     sliders,
     emotions,
     competitors,
+    top_competitors: competitors,
     visual_styles: visualStyles,
     created_at: discovery.createdAt ? new Date(discovery.createdAt).toISOString() : null,
     updated_at: discovery.updatedAt ? new Date(discovery.updatedAt).toISOString() : null,
@@ -150,6 +152,7 @@ export function serializeClientPortalMoodboard(moodboard: IMoodboard | any, port
     image_url: imageUrl,
     is_selected: Boolean(moodboard.isSelected),
     is_shared: Boolean(moodboard.isShared),
+    client_feedback: moodboard.clientFeedback || '',
     created_at: moodboard.createdAt ? new Date(moodboard.createdAt).toISOString() : null,
   };
 }
@@ -169,6 +172,7 @@ export function serializeMoodboard(moodboard: any, baseUrl: string = '') {
     image_url: imageUrl,
     is_selected: Boolean(moodboard.isSelected),
     is_shared: Boolean(moodboard.isShared),
+    client_feedback: moodboard.clientFeedback || '',
     created_at: moodboard.createdAt ? new Date(moodboard.createdAt).toISOString() : null,
     updated_at: moodboard.updatedAt ? new Date(moodboard.updatedAt).toISOString() : null,
   };

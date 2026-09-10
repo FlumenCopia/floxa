@@ -1,10 +1,10 @@
 import mongoose, { ClientSession } from 'mongoose';
 import { Project, type IProject } from '../models/project.model.js';
 import { PaymentMilestone } from '../models/paymentMilestone.model.js';
-import { logProjectActivity, type LogActivityParams } from './activity.service.js';
+import { logProjectActivity, onActivityCreated, type LogActivityParams, type ActivityNotificationListener } from './activity.service.js';
 
-export { logProjectActivity };
-export type { LogActivityParams };
+export { logProjectActivity, onActivityCreated };
+export type { LogActivityParams, ActivityNotificationListener };
 
 export type ProjectWithMilestones = IProject & {
   paymentMilestones?: any[];

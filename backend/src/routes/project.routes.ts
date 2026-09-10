@@ -49,7 +49,11 @@ router.post('/:id/brand-dna/generate/', discoveryController.generateBrandDNA);
 router.get('/:id/moodboards/', creativeController.getMoodboards);
 router.get('/:id/moodboards/:moodboard_id/image/', creativeController.downloadMoodboardImage);
 router.post('/:id/moodboards/', upload.single('image'), creativeController.createMoodboard);
+router.patch('/:id/moodboards/:moodboard_id/', upload.single('image'), creativeController.updateMoodboard);
+router.put('/:id/moodboards/:moodboard_id/', upload.single('image'), creativeController.updateMoodboard);
 router.delete('/:id/moodboards/:moodboard_id/', creativeController.deleteMoodboard);
+router.patch('/:id/moodboards/:moodboard_id/share/', creativeController.shareMoodboard);
+router.post('/:id/moodboards/:moodboard_id/share/', creativeController.shareMoodboard);
 
 // Concepts
 router.get('/:id/concepts/', creativeController.getConcepts);

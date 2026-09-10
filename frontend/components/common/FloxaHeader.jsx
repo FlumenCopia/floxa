@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentConsultant, logoutConsultant, subscribeToConsultantChange, clearCurrentConsultantCache } from "@/lib/authApi";
-import { getConsultantActivities, markConsultantActivitiesRead } from "@/lib/projectApi";
+import { getConsultantActivities, markConsultantActivitiesRead, markProjectActivitiesRead, invalidateConsultantActivitiesCache } from "@/lib/projectApi";
 import { showError, showSuccess } from "@/lib/toast";
 import {
   LayoutDashboard,
@@ -211,9 +211,9 @@ export default function Floxaheader({
   notifications = [],
   notificationsLoading = false,
   readActivityIds = [],
-  onNotificationClick = () => { },
-  onNotificationsOpen = () => { },
-  onMarkNotificationsRead = () => { },
+  onNotificationClick,
+  onNotificationsOpen,
+  onMarkNotificationsRead,
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -259,8 +259,8 @@ export default function Floxaheader({
           localStorage.getItem("floxa_token") ||
           "active"
         : "";
-    if (token) {
-      supportSocket.connectConsultantNotifications({ consultantToken: token });
+    if (token || consultant?.id) {
+      supportSocket.connectConsultantNotifications({ consultantToken: token, consultantId: consultant?.id });
     }
 
     return webRTCService.on("state_change", (state) => {
@@ -406,7 +406,7 @@ export default function Floxaheader({
 
     // Connect consultant global WebSocket notification listener
     const consultantJwt = typeof window !== "undefined" ? (localStorage.getItem("floxa_jwt") || localStorage.getItem("access") || "active") : "";
-    supportSocket.connectConsultantNotifications({ consultantToken: consultantJwt });
+    supportSocket.connectConsultantNotifications({ consultantToken: consultantJwt, consultantId: consultant?.id });
 
     const initialLoadId = window.setTimeout(() => {
       if (isMounted) {
@@ -445,11 +445,30 @@ export default function Floxaheader({
       showSuccess(`💬 ${clientName} needs help on ${stepLabel}${questionText}`);
     });
 
+    const unsubscribeLiveNotif = supportSocket.on("notification", (activity) => {
+      if (!isMounted || !activity) return;
+
+      invalidateConsultantActivitiesCache();
+
+      setHeaderNotifications((current) => {
+        const exists = current.some((n) => n.id === activity.id);
+        if (exists) {
+          return current.map((n) => (n.id === activity.id ? activity : n));
+        }
+        return [activity, ...current];
+      });
+
+      if (!activity.is_read && activity.actor_type !== "consultant") {
+        showSuccess(activity.description || "New project activity");
+      }
+    });
+
     return () => {
       isMounted = false;
       window.clearTimeout(initialLoadId);
       window.clearInterval(intervalId);
       unsubscribeLiveHelp();
+      unsubscribeLiveNotif();
     };
   }, [isAuthChecked, loadHeaderNotifications]);
 
@@ -533,8 +552,21 @@ export default function Floxaheader({
     }
   };
 
-  const handleNotificationItemClick = (notification) => {
+  const handleNotificationItemClick = async (notification) => {
     setIsNotificationOpen(false);
+
+    if (notification?.id) {
+      setHeaderNotifications((current) =>
+        current.map((n) =>
+          n.id === notification.id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
+        )
+      );
+
+      const projectId = getNotificationProjectId(notification);
+      if (projectId) {
+        markProjectActivitiesRead(projectId, notification.action ? [notification.action] : undefined).catch(() => {});
+      }
+    }
 
     if (notification?.action === "client_help_requested" && (notification?.portal_token || notification?.metadata?.portal_token)) {
       const token = notification.portal_token || notification.metadata.portal_token;
@@ -559,25 +591,11 @@ export default function Floxaheader({
     const nextOpen = !isNotificationOpen;
     setIsNotificationOpen(nextOpen);
 
-    if (nextOpen) {
-      if (onNotificationsOpen) {
-        markHeaderNotificationsRead();
-
-        try {
-          await onNotificationsOpen();
-        } catch (error) {
-          console.error("Failed to mark consultant notifications as read:", error);
-          await loadHeaderNotifications();
-        }
-      } else {
-        markHeaderNotificationsRead();
-
-        try {
-          await markConsultantActivitiesRead();
-        } catch (error) {
-          console.error("Failed to mark consultant notifications as read:", error);
-          await loadHeaderNotifications();
-        }
+    if (nextOpen && onNotificationsOpen && typeof onNotificationsOpen === "function") {
+      try {
+        await onNotificationsOpen();
+      } catch (error) {
+        console.error("Failed to call onNotificationsOpen:", error);
       }
     }
   };
@@ -585,21 +603,20 @@ export default function Floxaheader({
   const handleMarkAllRead = async () => {
     markHeaderNotificationsRead();
 
-    if (onMarkNotificationsRead) {
-      try {
-        await onMarkNotificationsRead();
-      } catch (error) {
-        console.error("Failed to mark consultant notifications as read:", error);
-        await loadHeaderNotifications();
-      }
-      return;
-    }
-
     try {
       await markConsultantActivitiesRead();
+      invalidateConsultantActivitiesCache();
     } catch (error) {
       console.error("Failed to mark consultant notifications as read:", error);
       await loadHeaderNotifications();
+    }
+
+    if (onMarkNotificationsRead && typeof onMarkNotificationsRead === "function") {
+      try {
+        await onMarkNotificationsRead();
+      } catch (error) {
+        console.error("Failed in custom onMarkNotificationsRead:", error);
+      }
     }
   };
 
@@ -782,8 +799,34 @@ export default function Floxaheader({
               aria-label={visibleNotificationCount ? `${visibleNotificationCount} notifications` : "No notifications"}
               aria-expanded={isNotificationOpen}
               onClick={handleNotificationToggle}
+              style={{ position: "relative" }}
             >
               <Icon type="bell" size={24} strokeWidth={2} />
+              {visibleNotificationCount > 0 ? (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "3px",
+                    right: "3px",
+                    minWidth: "16px",
+                    height: "16px",
+                    padding: "0 4px",
+                    borderRadius: "999px",
+                    background: "#10b981",
+                    color: "#02231c",
+                    fontSize: "10px",
+                    fontWeight: "800",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    lineHeight: 1,
+                    boxShadow: "0 0 8px rgba(16, 185, 129, 0.6)",
+                    pointerEvents: "none",
+                  }}
+                >
+                  {visibleNotificationCount > 10 ? "10+" : visibleNotificationCount}
+                </span>
+              ) : null}
             </button>
             {isNotificationOpen ? (
               <div className="notification-dropdown">

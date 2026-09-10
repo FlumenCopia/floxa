@@ -22,10 +22,12 @@ router.get('/:portal_token/', portalController.getPortalProject);
 router.get('/:portal_token/brand-dna/', portalController.getPortalBrandDNA);
 router.get('/:portal_token/discovery/', portalController.getPortalDiscovery);
 router.post('/:portal_token/discovery/', portalController.savePortalDiscovery);
+router.post('/:portal_token/discovery/submit/', portalController.submitPortalDiscovery);
 
 router.get('/:portal_token/moodboards/', portalController.getPortalMoodboards);
 router.get('/:portal_token/moodboards/:asset_id/image/', portalController.downloadPortalMoodboardImage);
 router.post('/:portal_token/moodboards/:moodboard_id/select/', portalController.selectPortalMoodboard);
+router.post('/:portal_token/moodboards/:moodboard_id/feedback/', portalController.submitMoodboardFeedback);
 
 router.get('/:portal_token/concepts/', portalController.getPortalConcepts);
 router.get('/:portal_token/concepts/:asset_id/image/', portalController.downloadPortalConceptImage);

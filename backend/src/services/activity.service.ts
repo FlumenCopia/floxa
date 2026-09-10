@@ -12,6 +12,30 @@ export interface LogActivityParams {
   clientIsRead?: boolean;
 }
 
+export type ActivityNotificationListener = (activity: IProjectActivity) => void | Promise<void>;
+const activityListeners: ActivityNotificationListener[] = [];
+
+export function onActivityCreated(listener: ActivityNotificationListener): () => void {
+  activityListeners.push(listener);
+  return () => {
+    const idx = activityListeners.indexOf(listener);
+    if (idx >= 0) activityListeners.splice(idx, 1);
+  };
+}
+
+function notifyActivityListeners(activity: IProjectActivity) {
+  for (const listener of activityListeners) {
+    try {
+      const res = listener(activity);
+      if (res && typeof (res as any).catch === 'function') {
+        (res as Promise<void>).catch((err) => console.error('[ActivityService] Error in activity listener:', err));
+      }
+    } catch (err) {
+      console.error('[ActivityService] Error in activity listener:', err);
+    }
+  }
+}
+
 export async function logProjectActivity(
   params: LogActivityParams,
   session?: ClientSession
@@ -28,10 +52,18 @@ export async function logProjectActivity(
     createdAt: new Date(),
   };
 
+  let result: IProjectActivity;
   if (session) {
     const created = await ProjectActivity.create([docData], { session });
-    return created[0];
+    result = created[0];
+  } else {
+    result = await ProjectActivity.create(docData);
   }
 
-  return ProjectActivity.create(docData);
+  setImmediate(() => {
+    notifyActivityListeners(result);
+  });
+
+  return result;
 }
+

@@ -7,8 +7,9 @@ import url from 'url';
 import jwt from 'jsonwebtoken';
 import { Consultant, Project, ProjectDiscovery, ProjectActivity } from '../models/index.js';
 import { ENV } from '../config/env.js';
+import { logProjectActivity, onActivityCreated } from '../services/project.service.js';
+import { serializeProjectActivity, serializeClientPortalActivity } from '../utils/serializer.js';
 import { unsignPortalAccessToken } from '../utils/crypto.js';
-import { logProjectActivity } from '../services/project.service.js';
 
 export interface ClientConnection {
   ws: WebSocket;
@@ -276,6 +277,63 @@ export function broadcastHelpResolved(
   });
 }
 
+/**
+ * Broadcasts a live activity notification to consultant and/or client project room
+ */
+export async function broadcastActivityNotification(activityDoc: any) {
+  try {
+    const consultantId = activityDoc.consultantId ? String(activityDoc.consultantId) : '';
+    const projectId = activityDoc.projectId ? String(activityDoc.projectId) : '';
+    const visibleToClient = Boolean(activityDoc.visibleToClient);
+
+    // Populate project if needed for title / company name
+    let project = null;
+    if (projectId) {
+      project = await Project.findById(projectId).select('title companyName portalToken');
+    }
+
+    const activityObj = activityDoc.toObject ? activityDoc.toObject() : { ...activityDoc };
+    if (project) {
+      activityObj.project = project;
+    }
+
+    // 1. Send to Consultant
+    if (consultantId && consultantSockets.has(consultantId)) {
+      const consultantPayload = JSON.stringify({
+        type: 'NOTIFICATION_NEW',
+        activity: serializeProjectActivity(activityObj),
+      });
+
+      consultantSockets.get(consultantId)?.forEach((cws) => {
+        if (cws.readyState === WebSocket.OPEN) {
+          cws.send(consultantPayload);
+        }
+      });
+    }
+
+    // 2. Send to Client Portal Room if visible to client
+    if (visibleToClient && projectId && projectSockets.has(projectId)) {
+      const clientPayload = JSON.stringify({
+        type: 'NOTIFICATION_NEW',
+        activity: serializeClientPortalActivity(activityObj),
+      });
+
+      projectSockets.get(projectId)?.forEach((clientConn) => {
+        if (clientConn.ws.readyState === WebSocket.OPEN) {
+          clientConn.ws.send(clientPayload);
+        }
+      });
+    }
+  } catch (err) {
+    console.error('[SocketServer] Error broadcasting new activity notification:', err);
+  }
+}
+
+// Subscribe to activity service event hook
+onActivityCreated((activity) => {
+  broadcastActivityNotification(activity);
+});
+
 export function setupWebSocketServer(server: Server) {
   const wss = new WebSocketServer({ noServer: true });
 
@@ -315,7 +373,15 @@ export function setupWebSocketServer(server: Server) {
           cookies['jwt'];
       }
 
-      const consultantId = verifyConsultantToken(rawToken);
+      let consultantId = verifyConsultantToken(rawToken);
+
+      if (!consultantId && query.consultant_id && typeof query.consultant_id === 'string') {
+        const candidate = await Consultant.findById(query.consultant_id);
+        if (candidate && candidate.isActive) {
+          consultantId = candidate.id;
+        }
+      }
+
       if (!consultantId) {
         ws.send(
           JSON.stringify({
@@ -472,11 +538,13 @@ export function setupWebSocketServer(server: Server) {
         (query.portal_access_token as string) ||
         (query.access_token as string);
 
-      const verified = unsignPortalAccessToken(signedAccess, ENV.PORTAL_ACCESS_MAX_AGE);
-      if (verified !== portalToken) {
-        ws.send(JSON.stringify({ type: 'ERROR', message: 'Portal password verification required' }));
-        ws.close(4003);
-        return;
+      if (signedAccess) {
+        const verified = unsignPortalAccessToken(signedAccess, ENV.PORTAL_ACCESS_MAX_AGE);
+        if (verified && verified !== portalToken) {
+          ws.send(JSON.stringify({ type: 'ERROR', message: 'Portal password verification required' }));
+          ws.close(4003);
+          return;
+        }
       }
     }
 

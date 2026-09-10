@@ -9,6 +9,7 @@ export interface IMoodboard {
   image: string;
   isSelected: boolean;
   isShared: boolean;
+  clientFeedback?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -26,6 +27,7 @@ const moodboardSchema = new Schema<IMoodboard>(
     image: { type: String, required: true },
     isSelected: { type: Boolean, default: false },
     isShared: { type: Boolean, default: true },
+    clientFeedback: { type: String, default: '', trim: true },
   },
   {
     collection: 'moodboards',

@@ -326,6 +326,11 @@ export async function uploadMoodboard(projectId, formData) {
   return uploadProjectFormData(`/projects/${projectId}/moodboards/`, formData);
 }
 
+export async function updateMoodboard(projectId, moodboardId, formData) {
+  invalidateConsultantActivitiesCache();
+  return uploadProjectFormData(`/projects/${projectId}/moodboards/${moodboardId}/`, formData, "PATCH");
+}
+
 export async function uploadConcept(projectId, formData) {
   invalidateConsultantActivitiesCache();
   return uploadProjectFormData(`/projects/${projectId}/concepts/`, formData);
@@ -482,6 +487,13 @@ export async function deleteAgreement(projectId) {
   }
 
   return parseApiResponse(response);
+}
+
+export async function shareMoodboard(projectId, moodboardId) {
+  invalidateConsultantActivitiesCache();
+  return apiRequest(`/projects/${projectId}/moodboards/${moodboardId}/share/`, {
+    method: "PATCH",
+  });
 }
 
 export async function shareConcept(projectId, conceptId) {

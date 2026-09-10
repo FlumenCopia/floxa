@@ -29,14 +29,17 @@ class SupportSocketService {
     return window.location.protocol === "https:" ? "wss:" : "ws:";
   }
 
-  connectConsultantNotifications({ consultantToken }) {
-    if (!consultantToken) return;
+  connectConsultantNotifications({ consultantToken, consultantId } = {}) {
+    if (!consultantToken && !consultantId) return;
 
     if (this.consultantWs && (this.consultantWs.readyState === WebSocket.OPEN || this.consultantWs.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
-    const wsUrl = `${this.getProtocol()}//${this.getHost()}/ws/support/consultant/?token=${encodeURIComponent(consultantToken)}`;
+    let wsUrl = `${this.getProtocol()}//${this.getHost()}/ws/support/consultant/?token=${encodeURIComponent(consultantToken || "active")}`;
+    if (consultantId) {
+      wsUrl += `&consultant_id=${encodeURIComponent(consultantId)}`;
+    }
     console.log("[SupportSocket] Connecting consultant notifications to:", wsUrl);
 
     try {
@@ -160,6 +163,8 @@ class SupportSocketService {
       this.emit("step_navigate", data);
     } else if (type === "WEBRTC_SIGNAL") {
       this.emit("webrtc_signal", data);
+    } else if (type === "NOTIFICATION_NEW") {
+      this.emit("notification", data.activity);
     } else if (type === "ERROR") {
       this.emit("server_error", data);
     }

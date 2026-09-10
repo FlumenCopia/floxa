@@ -51,10 +51,10 @@ export const ENV = {
 
   EMAIL_HOST: process.env.EMAIL_HOST || 'smtp.gmail.com',
   EMAIL_PORT: parseInt(process.env.EMAIL_PORT || '587', 10),
-  EMAIL_HOST_USER: process.env.EMAIL_HOST_USER || '',
-  EMAIL_HOST_PASSWORD: process.env.EMAIL_HOST_PASSWORD || '',
+  EMAIL_HOST_USER: (process.env.EMAIL_HOST_USER || '').trim(),
+  EMAIL_HOST_PASSWORD: (process.env.EMAIL_HOST_PASSWORD || '').replace(/\s+/g, ''),
   EMAIL_USE_TLS: process.env.EMAIL_USE_TLS !== 'false',
-  DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL || 'no-reply@floxa.local',
+  DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL || 'FLOXA',
 
   BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN || '',
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',

@@ -54,12 +54,14 @@ export async function createMoodboard(req: FileUploadRequest, res: Response, nex
     const { buffer, filename } = await optimizeImageBuffer(req.file.buffer, req.file.originalname);
     const savedPath = await saveFile('moodboards', filename, buffer, req.file.mimetype);
 
+    const isShared = req.body.is_shared === 'true' || req.body.is_shared === true || false;
+
     const moodboard = await Moodboard.create({
       projectId: id,
       title: title.trim(),
       description: (description || '').trim(),
       image: savedPath,
-      isShared: true,
+      isShared,
     });
 
     const project = await Project.findById(id);
@@ -76,6 +78,93 @@ export async function createMoodboard(req: FileUploadRequest, res: Response, nex
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     res.status(201).json(serializeMoodboard(moodboard, baseUrl));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function shareMoodboard(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const { id, moodboard_id } = req.params;
+
+    const moodboard = await Moodboard.findOneAndUpdate(
+      { _id: moodboard_id, projectId: id },
+      { $set: { isShared: true } },
+      { new: true }
+    );
+
+    if (!moodboard) {
+      res.status(404).json({ detail: 'Moodboard not found.' });
+      return;
+    }
+
+    const project = await Project.findById(id);
+    if (project) {
+      await logProjectActivity({
+        projectId: id,
+        consultantId: String(project.consultantId),
+        actorType: 'consultant',
+        action: 'moodboard_shared',
+        description: `Consultant shared moodboard: ${moodboard.title}`,
+        visibleToClient: true,
+      });
+      await updateProjectProgress(id);
+    }
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    res.json(serializeMoodboard(moodboard, baseUrl));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateMoodboard(req: FileUploadRequest, res: Response, next: NextFunction) {
+  try {
+    const { id, moodboard_id } = req.params;
+
+    const existing = await Moodboard.findOne({ _id: moodboard_id, projectId: id });
+    if (!existing) {
+      res.status(404).json({ detail: 'Moodboard not found.' });
+      return;
+    }
+
+    const { title, description, clear_feedback } = req.body as {
+      title?: any;
+      description?: any;
+      clear_feedback?: any;
+    };
+    const updateData: any = {};
+    if (title !== undefined && String(title).trim()) {
+      updateData.title = String(title).trim();
+    }
+    if (description !== undefined) {
+      updateData.description = String(description).trim();
+    }
+    if (clear_feedback === 'true' || clear_feedback === true) {
+      updateData.clientFeedback = '';
+    }
+
+    if (req.file) {
+      validateUploadedFile(req.file, 'moodboard_image');
+      const { buffer, filename } = await optimizeImageBuffer(req.file.buffer, req.file.originalname);
+      updateData.image = await saveFile('moodboards', filename, buffer, req.file.mimetype);
+    }
+
+    const updated = await Moodboard.findByIdAndUpdate(moodboard_id, { $set: updateData }, { new: true });
+
+    const project = await Project.findById(id);
+    if (project) {
+      await logProjectActivity({
+        projectId: id,
+        consultantId: String(project.consultantId),
+        actorType: 'consultant',
+        action: 'moodboard_updated',
+        description: `Consultant updated moodboard: ${updated?.title || existing.title}`,
+      });
+    }
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    res.json(serializeMoodboard(updated, baseUrl));
   } catch (err) {
     next(err);
   }

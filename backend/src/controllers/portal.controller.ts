@@ -51,6 +51,7 @@ import {
   broadcastHelpRequested,
   broadcastHelpResolved,
 } from '../websocket/socketServer.js';
+import { handleSaveDiscovery } from './discovery.controller.js';
 
 export async function getClientList(req: any, res: Response, next: NextFunction) {
   try {
@@ -207,7 +208,7 @@ export async function savePortalDiscovery(req: any, res: Response, next: NextFun
       data.sliders = sliders.map((s: any) => ({
         sliderKey: s.slider_key || s.sliderKey,
         leftLabel: s.left_label || s.leftLabel || '',
-        rightLabel: s.rightLabel || s.rightLabel || '',
+        rightLabel: s.right_label || s.rightLabel || '',
         value: Number(s.value ?? 50),
       }));
     }
@@ -234,28 +235,23 @@ export async function savePortalDiscovery(req: any, res: Response, next: NextFun
       data.visualStyles = unique.slice(0, 3);
     }
 
-    data.submittedAt = new Date();
-
     const discovery = await ProjectDiscovery.findOneAndUpdate(
       { projectId: req.project.id },
       { $set: data },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
-    await Project.findByIdAndUpdate(req.project.id, { status: 'discovery' });
-
-    await logProjectActivity({
-      projectId: req.project.id,
-      consultantId: req.project.consultantId?.toString() || req.project.consultantId,
-      actorType: 'client',
-      action: 'discovery_submitted',
-      description: 'Client submitted the discovery questionnaire via portal.',
-      metadata: { discovery_id: discovery.id },
-    });
-
-    await maybeGenerateAgreementSnapshot(req.project.id).catch(() => {});
-
     res.json(serializeDiscovery(discovery));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function submitPortalDiscovery(req: any, res: Response, next: NextFunction) {
+  try {
+    req.params.id = req.project.id;
+    req.isPortalClient = true;
+    await handleSaveDiscovery(req, res, true);
   } catch (err) {
     next(err);
   }
@@ -307,6 +303,48 @@ export async function selectPortalMoodboard(req: any, res: Response, next: NextF
     await maybeGenerateAgreementSnapshot(req.project.id).catch(() => {});
 
     res.json(serializeClientPortalMoodboard(selected, req.project.portalToken));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function submitMoodboardFeedback(req: any, res: Response, next: NextFunction) {
+  try {
+    const { moodboard_id } = req.params;
+    const { feedback } = req.body;
+
+    if (!feedback || !String(feedback).trim()) {
+      res.status(400).json({ detail: 'Feedback is required when requesting changes.' });
+      return;
+    }
+
+    const moodboard = await Moodboard.findOneAndUpdate(
+      { _id: moodboard_id, projectId: req.project.id },
+      {
+        $set: {
+          clientFeedback: String(feedback).trim(),
+          isSelected: false,
+        },
+      },
+      { new: true }
+    );
+
+    if (!moodboard) {
+      res.status(404).json({ detail: 'Moodboard not found.' });
+      return;
+    }
+
+    await logProjectActivity({
+      projectId: req.project.id,
+      consultantId: req.project.consultantId?.toString() || req.project.consultantId,
+      actorType: 'client',
+      action: 'moodboard_changes_requested',
+      description: `Client requested changes on moodboard: ${moodboard.title}`,
+      metadata: { moodboard_id: moodboard.id, feedback: String(feedback).trim() },
+      visibleToClient: true,
+    });
+
+    res.json(serializeClientPortalMoodboard(moodboard, req.project.portalToken));
   } catch (err) {
     next(err);
   }
@@ -461,6 +499,17 @@ export async function getPortalAgreement(req: any, res: Response, next: NextFunc
       : '';
     const downloadUrl = `/api/client-portal/${portalToken}/agreement/pdf/?download=1`;
 
+    let signatureMetadata: any = {};
+    if (agreement.signatureMetadata) {
+      try {
+        signatureMetadata = typeof agreement.signatureMetadata === 'string'
+          ? JSON.parse(agreement.signatureMetadata)
+          : agreement.signatureMetadata;
+      } catch {
+        signatureMetadata = {};
+      }
+    }
+
     res.json({
       id: agreement.id,
       project: agreement.projectId,
@@ -475,7 +524,12 @@ export async function getPortalAgreement(req: any, res: Response, next: NextFunc
       signer_name: agreement.signerName,
       signed_at: agreement.signedAt,
       signature_method: agreement.signatureMethod,
+      signature_image: agreement.signatureImage || null,
+      signature_metadata: signatureMetadata,
       signature_requested_at: agreement.signatureRequestedAt,
+      current_version: Array.isArray(agreement.appendices) && agreement.appendices.length > 0
+        ? (agreement.signedAt ? 2 + agreement.appendices.length - 1 : 1 + agreement.appendices.length)
+        : 1,
     });
   } catch (err) {
     next(err);
@@ -742,12 +796,28 @@ export async function signPortalAgreement(req: any, res: Response, next: NextFun
 
     await recalculatePaymentMilestones(req.project.id);
 
+    const portalToken = req.project.portalToken;
+    const fileUrl = `/api/client-portal/${portalToken}/agreement/pdf/`;
+    const downloadUrl = `/api/client-portal/${portalToken}/agreement/pdf/?download=1`;
+
     res.json({
       id: updated!.id,
+      project: updated!.projectId,
       status: updated!.status,
+      title: 'Basic Agreement',
+      file_url: fileUrl,
+      download_url: downloadUrl,
       signed_pdf_file: updated!.signedPdfFile,
       signer_name: updated!.signerName,
       signed_at: updated!.signedAt,
+      signature_method: updated!.signatureMethod,
+      signature_image: updated!.signatureImage || null,
+      signature_metadata: {
+        hash: sha256Hash,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+      current_version: 1,
     });
   } catch (err) {
     next(err);

@@ -380,16 +380,9 @@ export async function getConsultantActivities(req: any, res: Response, next: Nex
 
 export async function markConsultantActivitiesRead(req: any, res: Response, next: NextFunction) {
   try {
-    const activeProjects = await Project.find({
-      consultantId: req.user.id,
-      isArchived: false,
-    }).select('_id');
-    const activeProjectIds = activeProjects.map((p) => p._id);
-
     const result = await ProjectActivity.updateMany(
       {
         consultantId: req.user.id,
-        projectId: { $in: activeProjectIds },
         isRead: false,
       },
       {
