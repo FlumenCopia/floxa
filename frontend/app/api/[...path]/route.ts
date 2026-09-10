@@ -105,6 +105,9 @@ async function proxyRequest(
       "accept",
       "user-agent",
       "x-client-portal-token",
+      "x-portal-access-token",
+      "x-support-mode",
+      "x-consultant-support",
     ];
 
     for (const headerName of headersToForward) {

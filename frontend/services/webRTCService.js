@@ -30,13 +30,39 @@ class WebRTCService {
 
     // Bind socket listener
     this.setupSocketListener();
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("beforeunload", () => {
+        if (this.callState !== "idle") {
+          this.endCall();
+        }
+      });
+    }
   }
 
   setupSocketListener() {
+    supportSocket.on("connection_status", ({ isConnected }) => {
+      if (!isConnected && this.callState !== "idle") {
+        this.cleanUpCall();
+        this.setCallState("idle");
+        this.emit("call_disconnected", { message: "Call disconnected. Network connection lost." });
+      }
+    });
+
     supportSocket.on("webrtc_signal", async (payload) => {
       const { action, sender_role, data, project_id, client_name, project_title } = payload;
 
       if (action === "call_initiate") {
+        // Prevent call collision if already busy
+        if (this.callState !== "idle") {
+          supportSocket.sendWebRTCSignal({
+            action: "call_reject",
+            data: { reason: "Participant is currently busy on another call." },
+            projectId: project_id,
+          });
+          return;
+        }
+
         this.currentCallInfo = {
           projectId: project_id,
           clientName: client_name || "Client",
@@ -51,6 +77,7 @@ class WebRTCService {
           if (this.callState === "incoming_ringing") {
             this.cleanUpCall();
             this.setCallState("idle");
+            this.emit("call_timeout", { message: "Incoming call timed out." });
           }
         }, 40000);
       } else if (action === "call_accept") {
@@ -71,11 +98,11 @@ class WebRTCService {
         this.setCallState("ended");
         setTimeout(() => this.setCallState("idle"), 1200);
       } else if (action === "offer") {
-        await this.handleRemoteOffer(data.sdp);
+        if (data?.sdp) await this.handleRemoteOffer(data.sdp);
       } else if (action === "answer") {
-        await this.handleRemoteAnswer(data.sdp);
+        if (data?.sdp) await this.handleRemoteAnswer(data.sdp);
       } else if (action === "ice_candidate") {
-        await this.handleRemoteCandidate(data.candidate);
+        if (data?.candidate) await this.handleRemoteCandidate(data.candidate);
       }
     });
   }
@@ -107,6 +134,13 @@ class WebRTCService {
 
   async acquireLocalMedia() {
     if (this.localStream) return this.localStream;
+    if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.emit("media_error", {
+        type: "unsupported",
+        message: "Your browser does not support audio/video calling.",
+      });
+      return null;
+    }
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -128,6 +162,22 @@ class WebRTCService {
       this.emit("local_stream", this.localStream);
       return this.localStream;
     } catch (err) {
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        this.emit("media_error", {
+          type: "permission_denied",
+          message: "Camera and microphone access was denied. Please allow permissions in browser settings.",
+        });
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        this.emit("media_error", {
+          type: "no_device",
+          message: "No camera or microphone found on this device.",
+        });
+      } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+        this.emit("media_error", {
+          type: "device_busy",
+          message: "Camera or microphone is already in use by another application.",
+        });
+      }
       console.warn("Could not acquire video & audio, trying audio with fallback video track:", err);
       let audioTrack = null;
       try {
@@ -210,7 +260,11 @@ class WebRTCService {
       const state = this.peerConnection?.connectionState;
       if (state === "connected") {
         this.setCallState("connected");
-      } else if (state === "disconnected" || state === "failed" || state === "closed") {
+      } else if (state === "failed") {
+        this.cleanUpCall();
+        this.setCallState("idle");
+        this.emit("call_failed", { message: "Call connection failed. Please try again." });
+      } else if (state === "disconnected" || state === "closed") {
         if (this.callState === "connected") {
           this.endCall();
         }
@@ -221,8 +275,27 @@ class WebRTCService {
   }
 
   async initiateCall({ projectId, clientName, projectTitle, role, portalToken }) {
+    if (!projectId) {
+      this.emit("call_error", { message: "Cannot initiate call: No project selected." });
+      return;
+    }
+    if (this.callState !== "idle") {
+      this.emit("call_error", { message: "A call is already in progress." });
+      return;
+    }
     this.currentCallInfo = { projectId, clientName, projectTitle, role, portalToken };
     this.setCallState("outgoing_ringing");
+
+    // Timeout for outgoing ringing (40 seconds)
+    clearTimeout(this.ringingTimeout);
+    this.ringingTimeout = setTimeout(() => {
+      if (this.callState === "outgoing_ringing") {
+        this.cleanUpCall();
+        this.setCallState("idle");
+        this.emit("call_timeout", { message: "Call timed out. No answer." });
+      }
+    }, 40000);
+
     try {
       await this.acquireLocalMedia();
     } catch (err) {
@@ -539,6 +612,9 @@ class WebRTCService {
       this.remoteStream = null;
     }
     if (this.peerConnection) {
+      this.peerConnection.onicecandidate = null;
+      this.peerConnection.ontrack = null;
+      this.peerConnection.onconnectionstatechange = null;
       this.peerConnection.close();
       this.peerConnection = null;
     }

@@ -10,7 +10,15 @@ import { ArrowRight, ArrowLeft, Mail, Lock } from "lucide-react";
 
 export default function Login() {
   const router = useRouter();
-  const [stage, setStage] = useState("splash");
+  const [stage, setStage] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("mode") === "login") {
+        return "login";
+      }
+    }
+    return "splash";
+  });
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -50,13 +58,6 @@ export default function Login() {
     }
 
     checkExistingSession();
-
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("mode") === "login") {
-        setStage("login");
-      }
-    }
 
     return () => {
       isMounted = false;

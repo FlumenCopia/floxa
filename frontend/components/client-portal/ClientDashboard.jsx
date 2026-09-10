@@ -1202,6 +1202,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
+  const hasSelectedMoodboard = moodboards.some((m) => m.clientSelected || m.is_selected);
+
   return (
     <div className="client-dashboard-screen">
       <header className="client-dashboard-header">
@@ -1455,115 +1457,111 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                 </article>
               ) : null}
               {!moodboardsLoading &&
-                (() => {
-                  const hasSelectedMoodboard = moodboards.some((m) => m.clientSelected || m.is_selected);
+                moodboards.map((item) => {
+                  const isThisSelected = item.clientSelected || item.is_selected;
 
-                  return moodboards.map((item) => {
-                    const isThisSelected = item.clientSelected || item.is_selected;
-
-                    return (
-                      <article key={item.id} className={isThisSelected ? "selected" : ""}>
-                        <ProtectedAssetImage
-                          src={item.image_url}
-                          asBackground
-                          className={`client-panel-image ${item.image_url ? "clickable" : ""}`.trim()}
-                          role={item.image_url ? "button" : undefined}
-                          tabIndex={item.image_url ? 0 : undefined}
-                          aria-label={item.image_url ? `Enlarge preview for ${item.name || item.title || "moodboard"}` : undefined}
-                          onClick={item.image_url ? (event) => openPreview(item, "moodboard", event) : undefined}
-                          onKeyDown={
-                            item.image_url
-                              ? (event) => {
-                                  if (event.key === "Enter" || event.key === " ") {
-                                    event.preventDefault();
-                                    openPreview(item, "moodboard", event);
-                                  }
-                                }
-                              : undefined
+                  return (
+                    <article key={item.id} className={isThisSelected ? "selected" : ""}>
+                      <ProtectedAssetImage
+                        src={item.image_url}
+                        asBackground
+                        className={`client-panel-image ${item.image_url ? "clickable" : ""}`.trim()}
+                        role={item.image_url ? "button" : undefined}
+                        tabIndex={item.image_url ? 0 : undefined}
+                        aria-label={item.image_url ? `Enlarge preview for ${item.name || item.title || "moodboard"}` : undefined}
+                        onClick={(event) => {
+                          if (item.image_url) {
+                            openPreview(item, "moodboard", event);
                           }
-                          onContextMenu={(event) => event.preventDefault()}
-                          style={{ userSelect: "none", WebkitUserDrag: "none" }}
-                          fallbackText="No image preview"
-                        />
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: "8px" }}>
-                          <h3 style={{ margin: 0 }}>{item.name || item.title}</h3>
-                          {isThisSelected ? (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "999px", background: "rgba(16, 185, 129, 0.18)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#34d399", fontSize: "11px", fontWeight: 700 }}>✓ Selected</span>
-                          ) : null}
-                        </div>
-                        {item.description ? <p>{item.description}</p> : null}
-                        {item.client_feedback ? (
-                          <div className="client-feedback-badge">
-                            <span style={{ fontWeight: 600, color: "#fbbf24" }}>Requested changes:</span> {item.client_feedback}
-                          </div>
+                        }}
+                        onKeyDown={(event) => {
+                          if (item.image_url && (event.key === "Enter" || event.key === " ")) {
+                            event.preventDefault();
+                            openPreview(item, "moodboard", event);
+                          }
+                        }}
+                        onContextMenu={(event) => event.preventDefault()}
+                        style={{ userSelect: "none", WebkitUserDrag: "none" }}
+                        fallbackText="No image preview"
+                      />
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: "8px" }}>
+                        <h3 style={{ margin: 0 }}>{item.name || item.title}</h3>
+                        {isThisSelected ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "999px", background: "rgba(16, 185, 129, 0.18)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#34d399", fontSize: "11px", fontWeight: 700 }}>✓ Selected</span>
                         ) : null}
+                      </div>
+                      {item.description ? <p>{item.description}</p> : null}
+                      {item.client_feedback ? (
+                        <div className="client-feedback-badge">
+                          <span style={{ fontWeight: 600, color: "#fbbf24" }}>Requested changes:</span> {item.client_feedback}
+                        </div>
+                      ) : null}
 
-                        <div style={{ display: "flex", gap: "8px", width: "100%", marginTop: "auto" }}>
-                          {isThisSelected ? (
-                            <button
-                              type="button"
-                              disabled
-                              className="client-panel-action"
-                              style={{ flex: 1 }}
-                            >
-                              Selected
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={hasSelectedMoodboard || working === item.id}
-                              onClick={() => selectMoodboard(item.id)}
-                              className="client-panel-action"
-                              style={{ flex: 1 }}
-                            >
-                              {working === item.id
-                                ? "Saving..."
-                                : "Select direction"}
-                            </button>
-                          )}
+                      <div style={{ display: "flex", gap: "8px", width: "100%", marginTop: "auto" }}>
+                        {isThisSelected ? (
                           <button
                             type="button"
-                            disabled={working === item.id}
-                            onClick={() => openMoodboardFeedback(item.id)}
-                            className="client-panel-action secondary"
+                            disabled
+                            className="client-panel-action"
                             style={{ flex: 1 }}
                           >
-                            Request changes
+                            Selected
                           </button>
-                        </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={hasSelectedMoodboard || working === item.id}
+                            onClick={() => selectMoodboard(item.id)}
+                            className="client-panel-action"
+                            style={{ flex: 1 }}
+                          >
+                            {working === item.id
+                              ? "Saving..."
+                              : "Select direction"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={working === item.id}
+                          onClick={() => openMoodboardFeedback(item.id)}
+                          className="client-panel-action secondary"
+                          style={{ flex: 1 }}
+                        >
+                          Request changes
+                        </button>
+                      </div>
 
-                        {feedbackMoodboardId === item.id ? (
-                          <div className="client-concept-feedback-box" style={{ width: "100%", marginTop: "12px" }}>
-                            <textarea
-                              value={moodboardFeedbackText}
-                              onChange={(event) => setMoodboardFeedbackText(event.target.value)}
-                              placeholder="Tell your consultant what to refine or change in this visual direction..."
-                              rows={3}
-                            />
-                            <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                              <button
-                                type="button"
-                                disabled={working === item.id}
-                                onClick={() => submitMoodboardChanges(item.id)}
-                                className="client-panel-action"
-                              >
-                                {working === item.id ? "Sending..." : "Send feedback"}
-                              </button>
-                              <button
-                                type="button"
-                                disabled={working === item.id}
-                                onClick={() => setFeedbackMoodboardId(null)}
-                                className="client-panel-action secondary"
-                              >
-                                Cancel
-                              </button>
-                            </div>
+                      {feedbackMoodboardId === item.id ? (
+                        <div className="client-concept-feedback-box" style={{ width: "100%", marginTop: "12px" }}>
+                          <textarea
+                            value={moodboardFeedbackText}
+                            onChange={(event) => setMoodboardFeedbackText(event.target.value)}
+                            placeholder="Tell your consultant what to refine or change in this visual direction..."
+                            rows={3}
+                          />
+                          <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                            <button
+                              type="button"
+                              disabled={working === item.id}
+                              onClick={() => submitMoodboardChanges(item.id)}
+                              className="client-panel-action"
+                            >
+                              {working === item.id ? "Sending..." : "Send feedback"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={working === item.id}
+                              onClick={() => setFeedbackMoodboardId(null)}
+                              className="client-panel-action secondary"
+                            >
+                              Cancel
+                            </button>
                           </div>
-                        ) : null}
-                      </article>
-                    );
-                  });
-                })()}
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
             </div>
           ) : null}
 

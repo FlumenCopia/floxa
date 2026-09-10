@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword } from '../utils/crypto.js';
 import { generateTokens, setAuthCookies, clearAuthCookies, verifyGoogleToken } from '../services/auth.service.js';
 import { generateCsrfToken, setCsrfCookie } from '../middleware/csrf.middleware.js';
 import { serializeConsultant } from '../utils/serializer.js';
+import { validateAndProcessAvatar, saveFile, deleteStoredFile } from '../services/storage.service.js';
 import type { AuthenticatedRequest } from '../types/express.js';
 
 export async function getCsrf(req: Request, res: Response) {
@@ -213,11 +214,29 @@ export async function updateMe(
       updateData.phone = cleanPhone;
     }
 
+    let newlySavedAvatar: string | null = null;
+    const oldAvatar = req.user?.avatar;
+
     if (req.file) {
-      updateData.avatar = `/media/consultant_avatars/${req.file.filename}`;
+      const { buffer, filename, contentType } = await validateAndProcessAvatar(req.file);
+      newlySavedAvatar = await saveFile('consultant_avatars', filename, buffer, contentType);
+      updateData.avatar = newlySavedAvatar;
     }
 
-    const updated = await Consultant.findByIdAndUpdate(req.user!.id, updateData, { new: true });
+    let updated: any;
+    try {
+      updated = await Consultant.findByIdAndUpdate(req.user!.id, updateData, { new: true });
+    } catch (dbErr) {
+      if (newlySavedAvatar) {
+        await deleteStoredFile(newlySavedAvatar);
+      }
+      throw dbErr;
+    }
+
+    // Only delete previous avatar if replacement succeeded
+    if (newlySavedAvatar && oldAvatar && oldAvatar !== newlySavedAvatar) {
+      await deleteStoredFile(oldAvatar);
+    }
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     res.json(serializeConsultant(updated, baseUrl));

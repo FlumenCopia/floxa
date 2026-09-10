@@ -18,14 +18,6 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
   const minimizedVideoRef = useRef(null);
 
   useEffect(() => {
-    // Sync current service state immediately
-    if (webRTCService.callState) {
-      setCallState(webRTCService.callState);
-    }
-    if (webRTCService.currentCallInfo) {
-      setCallInfo(webRTCService.currentCallInfo);
-    }
-
     const unsubState = webRTCService.on("state_change", (state) => {
       setCallState(state);
       setCallInfo(webRTCService.currentCallInfo);

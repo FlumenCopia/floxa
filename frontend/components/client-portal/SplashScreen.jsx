@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight, ArrowLeft, Mail, Lock } from "lucide-react";
 
 export function WelcomeStage({
@@ -13,22 +13,25 @@ export function WelcomeStage({
   initialMode = "splash",
 }) {
   const [mode, setMode] = useState(initialMode);
+  const [prevInitialMode, setPrevInitialMode] = useState(initialMode);
+  if (initialMode && initialMode !== prevInitialMode) {
+    setPrevInitialMode(initialMode);
+    setMode(initialMode);
+  }
+
   const [emailOrName, setEmailOrName] = useState(project?.clientEmail || project?.name || "");
+  const [prevProject, setPrevProject] = useState(project);
+  if (project !== prevProject) {
+    setPrevProject(project);
+    const candidate = project?.clientEmail || project?.name || "";
+    if (candidate && !emailOrName) {
+      setEmailOrName(candidate);
+    }
+  }
+
   const [password, setPassword] = useState("");
   const [accessError, setAccessError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
-
-  useEffect(() => {
-    if (initialMode) {
-      setMode(initialMode);
-    }
-  }, [initialMode]);
-
-  useEffect(() => {
-    if (project?.clientEmail || project?.name) {
-      setEmailOrName((prev) => prev || project?.clientEmail || project?.name || "");
-    }
-  }, [project]);
 
   const handleBeginClick = () => {
     setMode("login");

@@ -9,33 +9,32 @@ The project consists of two clean application roots:
 ```text
 floxa/
 ├── backend/
-│   ├── prisma/schema.prisma     # Prisma ORM schema for MongoDB
 │   ├── media/                   # Local uploaded media storage (gitignored)
 │   ├── data/db/                 # Local MongoDB WiredTiger storage (gitignored)
-│   ├── scripts/                 # Developer testing utilities (scripts/diagnostics/)
 │   ├── src/                     # Express application source code (TypeScript)
-│   │   ├── config/              # Centralized environment configuration (env.ts)
+│   │   ├── config/              # Centralized environment configuration (env.ts) and Mongoose database connection
 │   │   ├── controllers/         # Request handling and HTTP response dispatch
 │   │   ├── middleware/          # JWT auth, CSRF, portal token, error handlers
-│   │   ├── prisma/              # PrismaClient singleton instance
+│   │   ├── models/              # Mongoose data schemas and models (Project, Client, Consultant, etc.)
 │   │   ├── routes/              # Express API route declarations
-│   │   ├── services/            # Core business logic (PDF, email, storage, payments)
-│   │   ├── utils/               # Crypto utilities and DRF contract serializer
+│   │   ├── services/            # Core business logic (PDF, email, storage, payments, AI)
+│   │   ├── types/               # TypeScript interfaces and shared type declarations
+│   │   ├── utils/               # Crypto utilities and snake_case contract serializer
 │   │   ├── websocket/           # WebRTC signaling and consultant support WS
 │   │   ├── app.ts               # Express application initialization
 │   │   └── server.ts            # HTTP server & WebSocket listener entrypoint
-│   ├── tests/                   # Backend integration test suites (tests/integration/)
+│   ├── tests/                   # Permanent automated regression test suites
 │   ├── .env.example             # Backend environment configuration template
 │   ├── package.json             # Backend dependencies and scripts
 │   └── tsconfig.json            # TypeScript NodeNext configuration
 ├── frontend/
 │   ├── app/                     # Next.js App Router (pages & API proxy)
-│   │   ├── api/[...path]/       # Next.js API edge proxy forwarding to backend
+│   │   ├── api/[...path]/       # Next.js API proxy forwarding to backend
 │   │   ├── client/[token]/      # Client Portal dynamic route
 │   │   └── ...                  # Application route pages
-│   ├── components/              # UI components (dashboard, client-portal, etc.)
+│   ├── components/              # UI components (dashboard, client-portal, discovery, etc.)
 │   ├── services/                # Frontend API client and WebSocket services
-│   ├── __tests__/               # Isolated mock-based unit tests
+│   ├── tests/                   # Lightweight contract, proxy allowlist, and WebRTC tests
 │   ├── .env.example             # Frontend environment configuration template
 │   ├── package.json             # Frontend dependencies and scripts
 │   └── tsconfig.json            # Next.js TypeScript configuration
@@ -45,10 +44,10 @@ floxa/
 
 ### Technology Stack
 * **Frontend**: Next.js 16 (App Router), React 19, TypeScript
-* **Backend**: Node.js, Express, TypeScript
-* **ORM**: Prisma Client (provider: `mongodb`)
-* **Database**: MongoDB (Replica Set required for multi-document transactions)
-* **Realtime**: WebSockets (`ws`) and WebRTC voice signaling
+* **Backend**: Node.js (v20.x or v22.x LTS), Express 4.x, TypeScript 5.7
+* **ODM**: Mongoose 9.x (MongoDB Object Document Mapper)
+* **Database**: MongoDB 6.0+ / 7.0+ (Replica Set supported for multi-document ACID transactions)
+* **Realtime**: WebSockets (`ws`) with WebRTC voice/video signaling support
 
 ---
 
@@ -56,8 +55,8 @@ floxa/
 
 ### Prerequisites
 * **Node.js**: v20.x or v22.x LTS
-* **MongoDB**: v6.0+ or v7.0+ running as a **Replica Set** (required by Prisma MongoDB for transactions).
-  * Example local connection string: `mongodb://127.0.0.1:27017/floxa_db?replicaSet=rs0`
+* **MongoDB**: v6.0+ or v7.0+ (Local standalone or Replica Set `rs0`).
+  * Example local connection string placeholder: `mongodb://127.0.0.1:27017/floxa_db` (or `mongodb://127.0.0.1:27018/floxa_db?replicaSet=rs0`)
 
 ---
 
@@ -72,23 +71,28 @@ floxa/
    ```bash
    cp .env.example .env
    ```
-   *Configure `DATABASE_URL`, secrets, and optional service keys as needed.*
+   *Configure `DATABASE_URL`, secrets (`JWT_ACCESS_SECRET`, `SECRET_KEY`), CORS origins, and optional service keys as needed.*
 
-3. Generate the Prisma client:
-   ```bash
-   npm run prisma:generate
-   ```
-
-4. Start the backend development server (defaults to port `5000`):
+3. Start the backend development server (defaults to port `5000`):
    ```bash
    npm run dev
    ```
-   *The HTTP API will listen on `http://localhost:5000` and WebSockets on `ws://localhost:5000/ws/support/`.*
+   *The HTTP API listens on `http://localhost:5000` and WebSockets on `ws://localhost:5000/ws/support/`.*
 
-5. Validate TypeScript and build for production:
+4. Run automated backend regression tests:
+   ```bash
+   npm test
+   ```
+
+5. Validate TypeScript and compile for production:
    ```bash
    npx tsc --noEmit
    npm run build
+   ```
+
+6. Start the compiled production server:
+   ```bash
+   npm start
    ```
 
 ---
@@ -111,36 +115,32 @@ floxa/
    npm run dev
    ```
 
-4. Run safe, isolated frontend unit tests (zero database dependency):
+4. Run automated frontend regression tests:
    ```bash
-   node --test __tests__/*.test.js
+   npm test
    ```
 
-5. Validate TypeScript and build for production:
+5. Lint, validate TypeScript, and build for production:
    ```bash
+   npm run lint
    npx tsc --noEmit
    npm run build
    ```
 
----
-
-## Safety Warning: Backend Integration Tests
-
-> [!CAUTION]
-> **Database Safety Notice**:
-> The test scripts located in `backend/tests/integration/` (e.g., `activities.test.mjs`, `payment_concurrency.test.mjs`, `deliverables_autogen_signoff.test.mjs`) are **database-connected integration/E2E test suites**.
-> When executed, they connect directly to the MongoDB instance specified in `DATABASE_URL` and execute data mutations, document creations, and `deleteMany` cleanup operations.
->
-> * **NEVER** run backend tests against production or shared staging databases.
-> * Always configure a dedicated, isolated test database before executing backend test suites.
+6. Start the production frontend server:
+   ```bash
+   npm start
+   ```
 
 ---
 
-## Project Conventions
+## Project Conventions & Architecture
 
-* **Routes (`backend/src/routes/`)**: Define route URLs and attach relevant middleware (auth, portal access, CSRF).
-* **Controllers (`backend/src/controllers/`)**: Parse request parameters, validate payloads, and coordinate with services to dispatch HTTP responses.
+* **Database & ODM (`backend/src/models/`, `backend/src/config/database.ts`)**: Pure Mongoose models and schema definitions. Database connection lifecycle managed via `connectDatabase()` with automatic index synchronization.
+* **Routes (`backend/src/routes/`)**: Define route URLs and attach relevant middleware (authentication, portal access, CSRF).
+* **Controllers (`backend/src/controllers/`)**: Parse request parameters, validate payloads, enforce resource ownership, and coordinate with services.
 * **Services (`backend/src/services/`)**: Encapsulate business logic, PDF document generation (PDFKit), email dispatch (Nodemailer), payment processing (Razorpay), AI generation (Google Gemini), and file storage.
-* **Storage & Media (`backend/media/`)**: Centralized in `backend/src/services/storage.service.ts`. All uploaded assets (avatars, concepts, deliverables, moodboards, signed PDFs) are saved to and resolved from `ENV.MEDIA_ROOT` (defaults to `backend/media/`).
-* **Contract Compatibility (`backend/src/utils/serializer.ts`)**: Normalizes MongoDB/Prisma documents into snake_case JSON schemas expected by existing frontend clients.
-* **Realtime Communication (`backend/src/websocket/`)**: Manages consultant-client support rooms and WebRTC peer-to-peer audio calls.
+* **Storage & Media (`backend/media/`)**: Centralized in `backend/src/services/storage.service.ts`. Uploaded assets (avatars, concepts, deliverables, moodboards) are saved to `ENV.MEDIA_ROOT` (defaults to `backend/media/`) with public avatar streaming through `/media/consultant_avatars/`.
+* **API Contract Compatibility (`backend/src/utils/serializer.ts`)**: Serializes Mongoose documents into snake_case JSON schemas expected by the Next.js frontend (originally modeled after Django REST Framework API contracts for seamless frontend migration).
+* **Realtime Communication (`backend/src/websocket/`)**: Manages consultant-client support rooms, field synchronization, live activity notifications, and WebRTC peer-to-peer audio/video call signaling.
+* **Manual Testing Requirement (WebRTC Media)**: Automated suites thoroughly verify signaling handshakes, offer/answer message schemas, role isolation, and room transitions. Physical audio and video streaming requires manual local hardware verification with active camera and microphone devices.

@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentConsultant, logoutConsultant, subscribeToConsultantChange, clearCurrentConsultantCache } from "@/lib/authApi";
 import { getConsultantActivities, markConsultantActivitiesRead, markProjectActivitiesRead, invalidateConsultantActivitiesCache } from "@/lib/projectApi";
-import { showError, showSuccess } from "@/lib/toast";
+import { showError, showSuccess, showInfo, showWarning } from "@/lib/toast";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -203,17 +203,34 @@ function MobileTabItem({ item, onClick }) {
   );
 }
 
+/**
+ * @param {Object} [props]
+ * @param {import("react").ReactNode} [props.children]
+ * @param {string} [props.title]
+ * @param {string} [props.activeNav]
+ * @param {any} [props.project]
+ * @param {string} [props.projectId]
+ * @param {number} [props.notificationCount]
+ * @param {any[]} [props.notifications]
+ * @param {boolean} [props.notificationsLoading]
+ * @param {any[]} [props.readActivityIds]
+ * @param {((notification?: any) => void)} [props.onNotificationClick]
+ * @param {(() => void | Promise<void>)} [props.onNotificationsOpen]
+ * @param {(() => void | Promise<void>)} [props.onMarkNotificationsRead]
+ */
 export default function Floxaheader({
   children,
   title = "Dashboard",
   activeNav = "Dashboard",
+  project = null,
+  projectId = null,
   notificationCount = 0,
   notifications = [],
   notificationsLoading = false,
   readActivityIds = [],
-  onNotificationClick,
-  onNotificationsOpen,
-  onMarkNotificationsRead,
+  onNotificationClick = undefined,
+  onNotificationsOpen = undefined,
+  onMarkNotificationsRead = undefined,
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -263,38 +280,126 @@ export default function Floxaheader({
       supportSocket.connectConsultantNotifications({ consultantToken: token, consultantId: consultant?.id });
     }
 
-    return webRTCService.on("state_change", (state) => {
+    const unsubState = webRTCService.on("state_change", (state) => {
       setCallState(state);
     });
+
+    const unsubReject = webRTCService.on("call_rejected", ({ reason }) => {
+      showInfo(reason || "Call was declined.");
+    });
+
+    const unsubTimeout = webRTCService.on("call_timeout", ({ message }) => {
+      showWarning(message || "Call timed out.");
+    });
+
+    const unsubMediaErr = webRTCService.on("media_error", ({ message }) => {
+      showError(message || "Media device error.");
+    });
+
+    const unsubDisc = webRTCService.on("call_disconnected", ({ message }) => {
+      showInfo(message || "Call disconnected.");
+    });
+
+    const unsubFailed = webRTCService.on("call_failed", ({ message }) => {
+      showError(message || "Call connection failed.");
+    });
+
+    const unsubCallErr = webRTCService.on("call_error", ({ message }) => {
+      showError(message || "Call error occurred.");
+    });
+
+    return () => {
+      unsubState();
+      unsubReject();
+      unsubTimeout();
+      unsubMediaErr();
+      unsubDisc();
+      unsubFailed();
+      unsubCallErr();
+    };
   }, []);
 
   const handleNavbarVideoClick = () => {
     if (callState === "incoming_ringing") {
       webRTCService.acceptCall();
-    } else if (callState === "connected") {
-      // active
-    } else {
-      const targetNotif = visibleNotifications.find(
-        (n) => n.project_id || n.metadata?.project_id
-      );
-      const targetProjectId =
-        targetNotif?.project_id || targetNotif?.metadata?.project_id;
-      if (targetProjectId) {
-        webRTCService.initiateCall({
-          projectId: targetProjectId,
-          clientName:
-            targetNotif?.client_name ||
-            targetNotif?.metadata?.client_name ||
-            "Client",
-          projectTitle:
-            targetNotif?.project_title ||
-            targetNotif?.metadata?.project_title ||
-            "Project",
-          role: "consultant",
-        });
+      return;
+    }
+    if (callState === "connected" || callState === "outgoing_ringing") {
+      return;
+    }
+
+    // AUDIT-004: Camera-button project selection resolution order:
+    // 1. Active project ID from the current route/query/context
+    const routeProjectId =
+      searchParams.get("projectId") ||
+      searchParams.get("id") ||
+      searchParams.get("project_id");
+
+    // 2. Selected project maintained by the component / props
+    const selectedProjectId = project?.id || project?._id || projectId;
+
+    // 3. Relevant notification project as fallback
+    const targetNotif = visibleNotifications.find(
+      (n) => n.project_id || n.metadata?.project_id
+    );
+    const notifProjectId =
+      targetNotif?.project_id || targetNotif?.metadata?.project_id;
+
+    const targetProjectId = routeProjectId || selectedProjectId || notifProjectId;
+
+    if (targetProjectId) {
+      let clientName = "Client";
+      let projectTitle = "Project";
+
+      if (project && (project.id === targetProjectId || project._id === targetProjectId)) {
+        clientName =
+          project.client_name ||
+          project.client?.name ||
+          project.company_name ||
+          "Client";
+        projectTitle =
+          project.company_name ||
+          project.title ||
+          "Project";
+      } else if (
+        targetNotif &&
+        (targetNotif.project_id === targetProjectId || targetNotif.metadata?.project_id === targetProjectId)
+      ) {
+        clientName =
+          targetNotif.client_name ||
+          targetNotif.metadata?.client_name ||
+          "Client";
+        projectTitle =
+          targetNotif.project_title ||
+          targetNotif.metadata?.project_title ||
+          "Project";
       } else {
-        router.push("/client-portal");
+        const matchingNotif = visibleNotifications.find(
+          (n) => (n.project_id || n.metadata?.project_id) === targetProjectId
+        );
+        if (matchingNotif) {
+          clientName =
+            matchingNotif.client_name ||
+            matchingNotif.metadata?.client_name ||
+            "Client";
+          projectTitle =
+            matchingNotif.project_title ||
+            matchingNotif.metadata?.project_title ||
+            "Project";
+        } else if (title && title !== "Dashboard" && title !== "Projects") {
+          projectTitle = title;
+        }
       }
+
+      webRTCService.initiateCall({
+        projectId: targetProjectId,
+        clientName,
+        projectTitle,
+        role: "consultant",
+      });
+    } else {
+      // 4. Safe fallback to the consultant client-portal/project-selection page
+      router.push("/client-portal");
     }
   };
 
@@ -884,7 +989,7 @@ export default function Floxaheader({
         </div>
       </div>
 
-      <VideoCallModal currentRole="consultant" />
+      <VideoCallModal currentRole="consultant" project={project} />
 
       {isLogoutModalOpen ? (
         <div

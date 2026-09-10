@@ -69,17 +69,70 @@ function isRealPortalToken(token) {
   return Boolean(token && token !== "test-token");
 }
 
-function getBackendResumeScreen(savedProfile, savedDiscovery) {
+function isClientProfileComplete(savedProfile) {
   if (!savedProfile) {
-    return "profile";
+    return false;
   }
 
+  if (savedProfile.isCompleted || savedProfile.is_completed) {
+    return true;
+  }
+
+  return Boolean(
+    savedProfile.clientYearStart ||
+    savedProfile.year_started ||
+    savedProfile.yearStarted ||
+    (typeof savedProfile.clientLocation === "string" && savedProfile.clientLocation.trim()) ||
+    (typeof savedProfile.location === "string" && savedProfile.location.trim()) ||
+    (typeof savedProfile.clientPhone === "string" && savedProfile.clientPhone.trim()) ||
+    (typeof savedProfile.phone === "string" && savedProfile.phone.trim()) ||
+    (typeof savedProfile.clientWebsite === "string" && savedProfile.clientWebsite.trim()) ||
+    (typeof savedProfile.website === "string" && savedProfile.website.trim())
+  );
+}
+
+function hasDiscoveryAnswers(savedDiscovery) {
+  if (!savedDiscovery) return false;
+  if (savedDiscovery.isSubmitted || savedDiscovery.is_submitted) return true;
+  if (savedDiscovery.isComplete || savedDiscovery.is_complete) return true;
+
+  const draft = savedDiscovery.draft || savedDiscovery;
+  const whatDo = draft.whatDo || draft.what_business_does || draft.whatDoYouDo || "";
+  const targetCustomer = draft.targetCustomer || draft.target_customer || "";
+  const whyChooseUs = draft.whyChooseUs || draft.why_choose_us || "";
+  const brandFeeling = draft.brandFeeling || draft.brand_feeling || "";
+  const persona = draft.persona || draft.audience_archetype || "";
+  const emotions = draft.emotions || savedDiscovery.emotions || [];
+  const competitors = draft.competitors || savedDiscovery.competitors || [];
+  const visualStyles = draft.visualStyles || draft.visual_styles || savedDiscovery.visualStyles || savedDiscovery.visual_styles || [];
+
+  return Boolean(
+    whatDo.trim() ||
+    targetCustomer.trim() ||
+    whyChooseUs.trim() ||
+    brandFeeling.trim() ||
+    persona.trim() ||
+    (Array.isArray(emotions) && emotions.length > 0) ||
+    (Array.isArray(competitors) && competitors.length > 0) ||
+    (Array.isArray(visualStyles) && visualStyles.length > 0)
+  );
+}
+
+function getBackendResumeScreen(savedProfile, savedDiscovery) {
   if (savedDiscovery?.isSubmitted || savedDiscovery?.is_submitted) {
     return "dashboard";
   }
 
   if (savedDiscovery?.isComplete || savedDiscovery?.is_complete) {
     return "review";
+  }
+
+  if (hasDiscoveryAnswers(savedDiscovery)) {
+    return "discovery";
+  }
+
+  if (!isClientProfileComplete(savedProfile)) {
+    return "profile";
   }
 
   return "discovery";
@@ -290,7 +343,12 @@ export function ClientPortal({ token, isConsultant = false }) {
               const nextScreen = await loadSavedPortalProgress(verifiedProject);
               setResumeTargetScreen(nextScreen);
               const stored = readStoredScreen(token);
-              const finalScreen = (stored && !["splash", "login"].includes(stored)) ? stored : nextScreen;
+              const finalScreen =
+                stored &&
+                !["splash", "login"].includes(stored) &&
+                (nextScreen !== "profile" || stored === "profile")
+                  ? stored
+                  : nextScreen;
               writeStoredScreen(token, finalScreen);
               setScreen(finalScreen);
             } catch {

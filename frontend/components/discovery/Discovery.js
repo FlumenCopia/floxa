@@ -1047,7 +1047,14 @@ function DiscoveryAnswersPanel({ summary, loading }) {
 
 function MoodboardsPanel({ projectId, onProjectRefresh }) {
   const [moodboards, setMoodboards] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(projectId));
+  const [prevProjectId, setPrevProjectId] = useState(projectId);
+  if (projectId !== prevProjectId) {
+    setPrevProjectId(projectId);
+    if (projectId) {
+      setLoading(true);
+    }
+  }
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [sharingMoodboardId, setSharingMoodboardId] = useState(null);
@@ -1204,7 +1211,6 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
   useEffect(() => {
     let isMounted = true;
     if (projectId) {
-      setLoading(true);
       getMoodboards(projectId)
         .then((data) => {
           if (isMounted) {
@@ -3955,6 +3961,7 @@ export default function Discovery() {
       <Floxaheader
         title={project?.company_name || "Discovery"}
         activeNav="Discovery"
+        project={project}
         notificationCount={unreadActivities.length}
         notifications={projectActivities.slice(0, 5)}
         notificationsLoading={projectActivitiesLoading}

@@ -287,8 +287,8 @@ export async function updateProject(req: any, res: Response, next: NextFunction)
     if (project_value !== undefined) data.projectValue = parseFloat(project_value);
     if (is_archived !== undefined) data.isArchived = Boolean(is_archived);
 
-    const updated = await Project.findByIdAndUpdate(
-      id,
+    const updated = await Project.findOneAndUpdate(
+      { _id: id, consultantId: req.user.id },
       { $set: data },
       { new: true }
     ).populate('client');
