@@ -115,7 +115,7 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
   const portalUrl = `${ENV.FRONTEND_BASE_URL.replace(/\/+$/, '')}/client/${project.portalToken}`;
 
   const html = `
-    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+    <div style=" max-width: 600px; margin: auto; padding: 20px;">
       <h2>Welcome to your FLOXA Project Portal</h2>
       <p>Hello ${clientName},</p>
       <p>Your consultant has invited you to collaborate on <strong>${project.title}</strong>.</p>
@@ -124,11 +124,10 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
           Access Client Portal
         </a>
       </p>
-      ${
-        rawPortalPassword
-          ? `<p><strong>Portal Password:</strong> <code>${rawPortalPassword}</code></p>`
-          : ''
-      }
+      ${rawPortalPassword
+      ? `<p><strong>Portal Password:</strong> <code>${rawPortalPassword}</code></p>`
+      : ''
+    }
       <p>If the button doesn't work, copy this link into your browser:<br/><a href="${portalUrl}">${portalUrl}</a></p>
     </div>
   `;
@@ -147,7 +146,7 @@ export async function sendAgreementSignatureRequestEmail(project: any, agreement
   const signingUrl = `${ENV.FRONTEND_BASE_URL.replace(/\/+$/, '')}/client/${project.portalToken}?agreement=1`;
 
   const html = `
-    <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px;">
+    <div style=" max-width: 600px; margin: auto; padding: 20px;">
       <h2>Action Required: Sign Your Project Agreement</h2>
       <p>Hello,</p>
       <p>Your project agreement for <strong>${project.title}</strong> is ready for signature.</p>

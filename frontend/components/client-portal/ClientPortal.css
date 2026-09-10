@@ -1,15 +1,3 @@
-@font-face {
-  font-family: "Pavelt";
-  src: url("/client-design/Pavelt.ttf") format("truetype");
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Orlean";
-  src: url("/client-design/Orlean.ttf") format("truetype");
-  font-display: swap;
-}
-
 :root,
 .client-portal-shell,
 .cp-screen {
@@ -31,7 +19,6 @@
   overflow-y: auto;
   color: var(--floxa-text);
   background: #000704;
-  font-family: "Jost", Arial, sans-serif;
 }
 
 .client-dashboard-project h1,
@@ -283,7 +270,6 @@
 .client-dashboard-wordmark,
 .client-small-logo {
   color: #fff;
-  font-family: "Pavelt", "Jost", Arial, sans-serif;
   letter-spacing: 0.08em;
 }
 
@@ -449,7 +435,6 @@
   background: transparent;
   color: #f3faf6;
   font-size: 15px;
-  font-family: inherit;
   font-weight: 500;
 }
 
@@ -2341,7 +2326,6 @@
 }
 
 .client-audit-value.audit-hash {
-  font-family: monospace;
   font-size: 12px;
   color: var(--floxa-neon, #4dffa0);
 }
@@ -2377,9 +2361,7 @@
 }
 
 .client-stamp-typed {
-  font-family: "Caveat", "Dancing Script", "Brush Script MT", "Segoe Script", cursive;
-  font-size: 34px;
-  font-style: italic;
+  font-size: 28px;
   color: var(--floxa-neon, #4dffa0);
   letter-spacing: 1.5px;
   text-shadow: 0 0 14px rgba(77, 255, 160, 0.45);
@@ -3348,7 +3330,6 @@ td {
   border-radius: 12px;
   background: rgba(48, 209, 88, 0.12);
   color: #30d158;
-  font-family: monospace;
   font-size: 11px;
   font-weight: 600;
 }
@@ -3628,7 +3609,6 @@ td {
   background: rgba(0, 0, 0, 0.6);
   color: #4dffa0;
   font-size: 10px;
-  font-family: monospace;
 }
 
 .floxa-expand-btn {
