@@ -419,10 +419,10 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
 
             <div className="project-wizard-actions">
               <button className="project-text-btn" type="button" onClick={() => setWizardStep(1)}>
-                {"<- Back"}
+                Back
               </button>
               <button className="btn btn-primary project-wizard-btn" type="button" onClick={handleContinueFromPayments} disabled={!isPaymentValid}>
-                {"Review ->"}
+                Review
               </button>
             </div>
           </>
@@ -464,7 +464,7 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
               {!isEmailFailed ? (
                 <>
                   <button className="project-text-btn" type="button" onClick={() => setWizardStep(2)}>
-                    {"<- Back"}
+                    Back
                   </button>
                   <button className="btn btn-primary project-wizard-btn" type="button" onClick={handleCreateProject} disabled={isCreatingProject}>
                     {isCreatingProject ? "Creating..." : "Create & send link"}
