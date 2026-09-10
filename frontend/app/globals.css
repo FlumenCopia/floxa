@@ -1237,14 +1237,16 @@ textarea {
   border: none;
   border-top: 1px solid rgba(77, 255, 160, 0.12);
   background: rgba(77, 255, 160, 0.08);
-  color: var(--neon);
+  color: #ffffff;
   padding: 13px 16px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .notification-view-all:hover {
   background: rgba(77, 255, 160, 0.13);
+  color: #ffffff;
 }
 
 .mobile-tab-item {
