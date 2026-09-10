@@ -379,7 +379,7 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
 
             <div className="project-wizard-actions project-wizard-actions-end">
               <button className="btn btn-primary project-wizard-btn" type="button" onClick={handleContinueFromClientInfo}>
-                {"Continue ->"}
+                Continue
               </button>
             </div>
           </>
