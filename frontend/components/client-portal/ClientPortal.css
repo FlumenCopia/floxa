@@ -60,6 +60,7 @@
     opacity: 0;
     transform: scale(0.97);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -67,6 +68,7 @@
 }
 
 @keyframes floxa-breathe {
+
   0%,
   100% {
     transform: scale(1);
@@ -240,6 +242,7 @@
     opacity: 0;
     transform: translateX(70px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -251,6 +254,7 @@
     opacity: 0;
     transform: translateX(-50px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -535,16 +539,16 @@
     grid-template-columns: 1fr;
     gap: 28px;
   }
-  
+
   .client-access-intro {
     align-items: center;
     text-align: center;
   }
-  
+
   .client-access-intro .client-welcome-subtitle {
     text-align: center;
   }
-  
+
   .client-wordmark-left {
     justify-content: center;
     text-align: center;
@@ -568,7 +572,7 @@
 .client-back-button,
 .client-form-actions button:first-child,
 .client-discovery-actions button:first-child,
-.client-discovery-actions > div button {
+.client-discovery-actions>div button {
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -748,7 +752,7 @@
 }
 
 .client-profile-form-panel p,
-.client-discovery-content > p {
+.client-discovery-content>p {
   margin: 0 0 28px;
   color: rgba(137, 172, 160, 0.56);
   font-size: 13px;
@@ -817,7 +821,7 @@
   opacity: 0.65;
 }
 
-.client-discovery-actions > div {
+.client-discovery-actions>div {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -829,6 +833,7 @@
 }
 
 @keyframes client-review-pulse {
+
   0%,
   72%,
   100% {
@@ -1021,7 +1026,7 @@
   padding: 13px 18px;
   border: 0;
   border-radius: 999px;
-  color: #06140e;
+  color: #fff;
   background: var(--floxa-neon);
   cursor: pointer;
   font-weight: 800;
@@ -1045,8 +1050,8 @@
   animation: floxa-breathe 3.5s ease-in-out infinite;
 }
 
-.client-profile-orb > div,
-.client-mini-orb > div {
+.client-profile-orb>div,
+.client-mini-orb>div {
   position: absolute;
   inset: 0;
   display: grid;
@@ -1114,7 +1119,7 @@
   margin-bottom: 24px;
 }
 
-.client-discovery-topbar > div:last-child {
+.client-discovery-topbar>div:last-child {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1248,13 +1253,11 @@
 .client-ticks-slider::-webkit-slider-runnable-track {
   width: 100%;
   height: 14px;
-  background: repeating-linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0.38) 0px,
-    rgba(255, 255, 255, 0.38) 2px,
-    transparent 2px,
-    transparent 7px
-  );
+  background: repeating-linear-gradient(to right,
+      rgba(255, 255, 255, 0.38) 0px,
+      rgba(255, 255, 255, 0.38) 2px,
+      transparent 2px,
+      transparent 7px);
   border: none;
   border-radius: 1px;
 }
@@ -1287,13 +1290,11 @@
 .client-ticks-slider::-moz-range-track {
   width: 100%;
   height: 14px;
-  background: repeating-linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0.38) 0px,
-    rgba(255, 255, 255, 0.38) 2px,
-    transparent 2px,
-    transparent 7px
-  );
+  background: repeating-linear-gradient(to right,
+      rgba(255, 255, 255, 0.38) 0px,
+      rgba(255, 255, 255, 0.38) 2px,
+      transparent 2px,
+      transparent 7px);
   border: none;
   border-radius: 1px;
 }
@@ -1410,7 +1411,7 @@
   background: transparent;
 }
 
-.client-competitor-card > input:last-child {
+.client-competitor-card>input:last-child {
   grid-column: 1 / -1;
   padding-top: 8px;
   border-top: 1px solid rgba(137, 172, 160, 0.08);
@@ -1466,7 +1467,7 @@
   animation: floxa-breathe 3.5s ease-in-out infinite;
 }
 
-.client-mini-orb > div {
+.client-mini-orb>div {
   color: var(--floxa-neon);
   font-size: 24px;
 }
@@ -1746,7 +1747,7 @@
     rgba(5, 14, 10, 0.85);
 }
 
-.client-dashboard-orb > div {
+.client-dashboard-orb>div {
   width: 78%;
   aspect-ratio: 1;
   display: grid;
@@ -2067,7 +2068,7 @@
   gap: 12px;
 }
 
-.client-panel-stack article > div {
+.client-panel-stack article>div {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
@@ -2113,7 +2114,7 @@
   accent-color: var(--floxa-neon);
 }
 
-.client-panel-stack article > .client-concept-feedback-box {
+.client-panel-stack article>.client-concept-feedback-box {
   display: block;
   margin-top: 14px;
 }
@@ -2135,7 +2136,7 @@
   color: rgba(190, 221, 209, 0.46);
 }
 
-.client-concept-feedback-box > div {
+.client-concept-feedback-box>div {
   display: flex;
   gap: 8px;
   margin-top: 10px;
@@ -2161,7 +2162,7 @@
   min-width: 0;
 }
 
-.client-delivery-row > * {
+.client-delivery-row>* {
   min-width: 0;
 }
 
@@ -2172,7 +2173,7 @@
   gap: 24px;
 }
 
-.client-panel-stack article.client-agreement-card > div {
+.client-panel-stack article.client-agreement-card>div {
   display: block;
   margin-top: 0;
 }
@@ -2181,7 +2182,7 @@
   min-width: 0;
 }
 
-.client-agreement-summary > p:first-child {
+.client-agreement-summary>p:first-child {
   display: inline-flex;
   width: fit-content;
   margin-bottom: 10px;
@@ -2200,7 +2201,7 @@
   font-size: 22px;
 }
 
-.client-agreement-summary p + p {
+.client-agreement-summary p+p {
   margin-top: 5px;
 }
 
@@ -2512,6 +2513,7 @@
   .client-verified-body {
     grid-template-columns: 1fr;
   }
+
   .client-audit-grid {
     grid-template-columns: 1fr;
     margin-top: 14px;
@@ -2748,13 +2750,13 @@
   .client-discovery-actions,
   .client-form-actions,
   .client-delivery-row,
-  .client-panel-stack article > div {
+  .client-panel-stack article>div {
     align-items: stretch;
     flex-direction: column;
   }
 
   .client-delivery-row .client-panel-action,
-  .client-panel-stack article > div .client-panel-action {
+  .client-panel-stack article>div .client-panel-action {
     width: 100%;
   }
 
@@ -2767,7 +2769,7 @@
     max-height: 42vh;
   }
 
-  .client-discovery-actions > div {
+  .client-discovery-actions>div {
     flex-direction: column;
   }
 
@@ -2875,6 +2877,7 @@
 }
 
 @media (max-width: 359px) {
+
   .client-discovery-content,
   .client-profile-form-panel {
     padding: 18px 12px;
@@ -3007,13 +3010,29 @@ td {
 }
 
 @keyframes pulseDot {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.35); opacity: 0.6; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.35);
+    opacity: 0.6;
+  }
 }
 
 @keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .client-help-trigger-btn {
@@ -3185,8 +3204,15 @@ td {
 }
 
 @keyframes floxaCardPop {
-  0% { transform: scale(0.92); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .floxa-concentric-ring {
@@ -3206,10 +3232,12 @@ td {
     box-shadow: 0 0 0 0 rgba(77, 255, 160, 0.25);
     border-color: #1a4d3a;
   }
+
   50% {
     box-shadow: 0 0 0 10px rgba(77, 255, 160, 0);
     border-color: #2e7d5e;
   }
+
   100% {
     box-shadow: 0 0 0 0 rgba(77, 255, 160, 0);
     border-color: #1a4d3a;
@@ -3314,8 +3342,15 @@ td {
 }
 
 @keyframes floxaModalScaleIn {
-  0% { transform: scale(0.94); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .floxa-video-connected-modal.floxa-video-expanded {
@@ -3524,8 +3559,17 @@ td {
 }
 
 @keyframes floxaPulseIcon {
-  0%, 100% { transform: scale(1); opacity: 0.9; }
-  50% { transform: scale(1.08); opacity: 1; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
 }
 
 .floxa-viewport-hint-text {
@@ -3753,8 +3797,17 @@ td {
 }
 
 @keyframes floxaPulseIcon {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.18); opacity: 0.6; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.18);
+    opacity: 0.6;
+  }
 }
 
 /* NAVBAR INCOMING CALL ACTIONS GROUP (CONSULTANT) */
@@ -3850,4 +3903,3 @@ td {
   color: #ffffff;
   border-color: rgba(77, 255, 160, 0.4);
 }
-
