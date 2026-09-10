@@ -873,31 +873,31 @@ textarea {
 }
 
 .nav-item:hover {
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
   color: #ffffff;
-  border-color: rgba(77, 255, 160, 0.2);
+  border-color: rgba(255, 255, 255, 0.28);
   backdrop-filter: blur(12px);
-  box-shadow: 0 0 16px rgba(77, 255, 160, 0.1);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.1);
 }
 
 .nav-item.active {
-  border-radius: 0;
+  border-radius: 5px;
   color: #ffffff;
   font-weight: 600;
-  background: linear-gradient(135deg, rgba(77, 255, 160, 0.18) 0%, rgba(14, 48, 30, 0.45) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(77, 255, 160, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow:
-    0 4px 24px rgba(77, 255, 160, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 4px 24px rgba(255, 255, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
     inset 0 -1px 0 rgba(0, 0, 0, 0.3);
 }
 
 .nav-item.active .nav-icon {
-  color: #4dffa0;
-  filter: drop-shadow(0 0 10px rgba(77, 255, 160, 0.7));
+  color: #ffffff;
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.6));
 }
 
 .nav-item:focus {
@@ -911,7 +911,7 @@ textarea {
 }
 
 .nav-item:focus-visible {
-  outline: 2px solid rgba(77, 255, 160, 0.75);
+  outline: 2px solid rgba(255, 255, 255, 0.75);
   outline-offset: -2px;
 }
 
@@ -8104,26 +8104,29 @@ textarea {
   min-height: 46px;
   padding: 0 15px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 5px;
   background: transparent;
-  color: #9fd1bd;
+  color: #c5d4cd;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
   text-align: left;
-  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .settings-nav-item:hover {
-  background: rgba(77, 255, 160, 0.06);
-  color: #effbf4;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.12);
 }
 
 .settings-nav-item.active {
-  background: #082416;
-  border-color: rgba(255, 255, 255, 0.92);
-  color: var(--neon);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 100%);
+  border-color: rgba(255, 255, 255, 0.65);
+  color: #ffffff;
   font-weight: 700;
+  box-shadow: 0 4px 24px rgba(255, 255, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .settings-panel {
@@ -8404,9 +8407,9 @@ textarea {
   }
 
   .settings-nav-item.active {
-    border-color: rgba(77, 255, 160, 0.16);
-    background: #0d2b1a;
-    color: var(--neon);
+    border-color: rgba(255, 255, 255, 0.65);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 100%);
+    color: #ffffff;
   }
 
   .settings-card {
