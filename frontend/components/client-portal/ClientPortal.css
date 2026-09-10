@@ -1118,11 +1118,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
-  border: 1px solid rgba(137, 172, 160, 0.15);
-  border-radius: 20px;
+  padding: 6px 0;
+  border: none;
+  outline: none;
   color: var(--floxa-muted);
-  background: rgba(10, 25, 18, 0.5);
+  background: transparent;
   font-size: 12px;
 }
 
