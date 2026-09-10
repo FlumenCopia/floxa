@@ -874,9 +874,10 @@ export function DiscoveryFlow({
               to be perceived?
             </h2>
             <p>Move each slider to describe your brand&apos;s character.</p>
-            {slidersOne.map(({ key, ...slider }) => (
+            {slidersOne.map(({ key, ...slider }, index) => (
               <SliderRow
                 key={key}
+                index={index}
                 {...slider}
                 disabled={isReadOnly}
                 value={sliders[key] ?? 0}
@@ -894,9 +895,10 @@ export function DiscoveryFlow({
               look and feel like?
             </h2>
             <p>Define the visual and structural identity.</p>
-            {slidersTwo.map(({ key, ...slider }) => (
+            {slidersTwo.map(({ key, ...slider }, index) => (
               <SliderRow
                 key={key}
+                index={index}
                 {...slider}
                 disabled={isReadOnly}
                 value={sliders[key] ?? 0}
@@ -1146,26 +1148,39 @@ export function DiscoveryFlow({
   );
 }
 
-function SliderRow({ left, right, value, onChange }) {
-  const pct = ((value + 3) / 6) * 100;
-  const fillStyle = `linear-gradient(to right, rgba(77,255,160,0.45) 0%, rgba(77,255,160,0.6) ${pct}%, rgba(137,172,160,0.12) ${pct}%, rgba(137,172,160,0.12) 100%)`;
+const SLIDER_THUMB_COLORS = [
+  { thumb: "#FACC15", glow: "rgba(250, 204, 21, 0.7)" }, // Yellow
+  { thumb: "#4ADE80", glow: "rgba(74, 222, 128, 0.7)" }, // Green
+  { thumb: "#F472B6", glow: "rgba(244, 114, 182, 0.7)" }, // Pink
+  { thumb: "#F87171", glow: "rgba(248, 113, 113, 0.7)" }, // Coral Red
+  { thumb: "#38BDF8", glow: "rgba(56, 189, 248, 0.7)" }, // Blue
+  { thumb: "#A78BFA", glow: "rgba(167, 139, 250, 0.7)" }, // Purple
+];
+
+function SliderRow({ left, right, value, onChange, disabled, index = 0 }) {
+  const color = SLIDER_THUMB_COLORS[index % SLIDER_THUMB_COLORS.length];
 
   return (
-    <div className="client-slider-row">
-      <div>
-        <span>{left}</span>
-        <strong>{value > 0 ? `+${value}` : value}</strong>
-        <span>{right}</span>
+    <div
+      className="client-slider-row"
+      style={{
+        "--slider-thumb-color": color.thumb,
+        "--slider-thumb-glow": color.glow,
+      }}
+    >
+      <div className="client-slider-labels">
+        <span className="client-slider-label-left">{left}</span>
+        <span className="client-slider-label-right">{right}</span>
       </div>
       <input
         type="range"
         min="-3"
         max="3"
         step="1"
+        disabled={disabled}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="floxa-slider"
-        style={{ background: fillStyle }}
+        className="client-ticks-slider"
       />
     </div>
   );

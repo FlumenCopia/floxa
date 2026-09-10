@@ -314,15 +314,35 @@ function PortalCard({
 
 
 
+const SLIDER_THUMB_COLORS = [
+  { thumb: "#FACC15", glow: "rgba(250, 204, 21, 0.75)" }, // Yellow
+  { thumb: "#22C55E", glow: "rgba(34, 197, 94, 0.75)" },  // Green
+  { thumb: "#F472B6", glow: "rgba(244, 114, 182, 0.75)" }, // Pink
+  { thumb: "#F87171", glow: "rgba(248, 113, 113, 0.75)" }, // Coral Red
+  { thumb: "#38BDF8", glow: "rgba(56, 189, 248, 0.75)" }, // Blue
+  { thumb: "#A78BFA", glow: "rgba(167, 139, 250, 0.75)" }, // Purple
+];
+
 function SliderRows({ pairs, values, setValues, isReadOnly, onSync }) {
   return (
     <div className="cp-slider-list">
-      {pairs.map(([left, right]) => {
+      {pairs.map(([left, right], index) => {
         const key = `${left}-${right}`;
         const val = values[key] ?? 0;
+        const color = SLIDER_THUMB_COLORS[index % SLIDER_THUMB_COLORS.length];
         return (
-          <label className="cp-slider-row" key={key}>
-            <span>{left}</span>
+          <div
+            className="client-slider-row"
+            key={key}
+            style={{
+              "--slider-thumb-color": color.thumb,
+              "--slider-thumb-glow": color.glow,
+            }}
+          >
+            <div className="client-slider-labels">
+              <span className="client-slider-label-left">{left}</span>
+              <span className="client-slider-label-right">{right}</span>
+            </div>
             <input
               aria-label={`${left} to ${right}`}
               disabled={isReadOnly}
@@ -339,10 +359,9 @@ function SliderRows({ pairs, values, setValues, isReadOnly, onSync }) {
               step="1"
               type="range"
               value={val}
+              className="client-ticks-slider"
             />
-            <span>{right}</span>
-            <strong>{val > 0 ? `+${val}` : val}</strong>
-          </label>
+          </div>
         );
       })}
     </div>
