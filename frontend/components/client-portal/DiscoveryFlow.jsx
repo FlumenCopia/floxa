@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { MessageSquare, Eye } from "lucide-react";
 import { clientPortalService } from "../../services/clientPortalService";
 import { supportSocket } from "../../services/supportSocketService";
 import { showSuccess } from "@/lib/toast";
@@ -765,14 +766,14 @@ export function DiscoveryFlow({
           isReadOnly ? (
             <div className="consultant-mode-banner read-only">
               <div>
-                <strong>👁️ View Mode:</strong> Client has not requested help on Step {step}. Inputs are locked.
+                <strong><Eye size={13} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "5px" }} />View Mode:</strong> Client has not requested help on Step {step}. Inputs are locked.
               </div>
               <div className="consultant-mode-banner-badge">Read Only</div>
             </div>
           ) : (
             <div className="consultant-mode-banner live-edit">
               <div>
-                <strong>🟢 Live Assistance Active:</strong> Co-editing Step {step} with client in real-time.
+                <strong><span className="banner-pulse-dot" style={{ display: "inline-block", marginRight: "6px" }} />Live Assistance Active:</strong> Co-editing Step {step} with client in real-time.
                 {activeHelpSession?.question ? <span style={{ display: "block", fontSize: "12px", opacity: 0.9 }}>Client Doubt: &quot;{activeHelpSession.question}&quot;</span> : null}
               </div>
               <div className="consultant-mode-banner-badge">
@@ -794,7 +795,7 @@ export function DiscoveryFlow({
                 </button>
               ) : (
                 <button type="button" className="client-help-trigger-btn" onClick={() => setShowHelpModal(true)}>
-                  💬 Need Help on Step {step}?
+                  <MessageSquare size={13} /> Need Help on Step {step}?
                 </button>
               )
             ) : null}
@@ -1061,7 +1062,7 @@ export function DiscoveryFlow({
       {showHelpModal ? (
         <div className="client-help-modal-overlay" onClick={() => setShowHelpModal(false)}>
           <div className="client-help-modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>💬 Ask Consultant for Assistance</h3>
+            <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><MessageSquare size={18} /> Ask Consultant for Assistance</h3>
             <p>
               Stuck or confused on <strong>Step {step}</strong>? Your consultant will be notified instantly and can assist you live on this screen.
             </p>

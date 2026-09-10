@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShoppingCart, Gem, Globe, Sparkles, Sprout, Building2, X, ArrowLeft, ArrowRight, Video } from "lucide-react";
+import { ShoppingCart, Gem, Globe, Sparkles, Sprout, Building2, X, ArrowLeft, ArrowRight, Video, MessageSquare, Eye } from "lucide-react";
 import { supportSocket } from "../../services/supportSocketService";
 import { clientPortalService } from "../../services/clientPortalService";
 import { getProjects } from "@/lib/projectApi";
@@ -224,14 +224,14 @@ function PortalCard({
         isReadOnly ? (
           <div className="consultant-mode-banner read-only">
             <div>
-              <strong>👁️ View Mode:</strong> Client has not requested help on Frame {step}. Inputs are locked.
+              <strong><Eye size={13} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "5px" }} />View Mode:</strong> Client has not requested help on Frame {step}. Inputs are locked.
             </div>
             <div className="consultant-mode-banner-badge">Read Only</div>
           </div>
         ) : (
           <div className="consultant-mode-banner live-edit">
             <div>
-              <strong>🟢 Live Assistance Active:</strong> Assisting client on Frame {step} in real-time.
+              <strong><span className="banner-pulse-dot" style={{ display: "inline-block", marginRight: "6px" }} />Live Assistance Active:</strong> Assisting client on Frame {step} in real-time.
               {activeHelpSession?.question ? (
                 <span style={{ display: "block", fontSize: "12px", opacity: 0.9 }}>
                   Client Doubt: &quot;{activeHelpSession.question}&quot;
@@ -263,7 +263,7 @@ function PortalCard({
                 className="client-help-trigger-btn"
                 onClick={onOpenHelp}
               >
-                💬 Need Help on Frame {step}?
+                <MessageSquare size={13} /> Need Help on Frame {step}?
               </button>
             )
           ) : null}
@@ -1278,7 +1278,7 @@ export default function ConsultantClientPortal() {
       {showHelpModal ? (
         <div className="client-help-modal-overlay" onClick={() => setShowHelpModal(false)}>
           <div className="client-help-modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>💬 Ask Consultant for Assistance</h3>
+            <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><MessageSquare size={18} /> Ask Consultant for Assistance</h3>
             <p>
               Stuck or confused on <strong>Frame {step}</strong>? Your consultant will be notified instantly and can assist you live on this screen.
             </p>
