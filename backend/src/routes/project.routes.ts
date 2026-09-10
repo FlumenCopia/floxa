@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, requireProjectOwnership } from '../middleware/auth.middleware.js';
 import { requireProjectAccess } from '../middleware/portal.middleware.js';
 import * as projectController from '../controllers/project.controller.js';
 import * as clientController from '../controllers/client.controller.js';
@@ -30,6 +30,9 @@ router.post('/', projectController.createProject);
 router.get('/analytics/', projectController.getAnalytics);
 router.get('/activities/', projectController.getConsultantActivities);
 router.post('/activities/mark-read/', projectController.markConsultantActivitiesRead);
+
+// Enforce project ownership on all single-project and sub-resource routes
+router.use('/:id', requireProjectOwnership);
 
 // Single project
 router.get('/:id/', projectController.getProject);

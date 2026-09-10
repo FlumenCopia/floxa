@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import path from 'path';
 import { Moodboard } from '../models/moodboard.model.js';
 import { Concept } from '../models/concept.model.js';
@@ -11,6 +12,7 @@ import {
   validateUploadedFile,
   resolveSafeMediaPath,
   streamLocalFile,
+  deleteStoredFile,
 } from '../services/storage.service.js';
 import {
   logProjectActivity,
@@ -122,6 +124,11 @@ export async function updateMoodboard(req: FileUploadRequest, res: Response, nex
   try {
     const { id, moodboard_id } = req.params;
 
+    if (!mongoose.Types.ObjectId.isValid(moodboard_id)) {
+      res.status(404).json({ detail: 'Moodboard not found.' });
+      return;
+    }
+
     const existing = await Moodboard.findOne({ _id: moodboard_id, projectId: id });
     if (!existing) {
       res.status(404).json({ detail: 'Moodboard not found.' });
@@ -144,13 +151,32 @@ export async function updateMoodboard(req: FileUploadRequest, res: Response, nex
       updateData.clientFeedback = '';
     }
 
+    let newlySavedImage: string | null = null;
     if (req.file) {
       validateUploadedFile(req.file, 'moodboard_image');
       const { buffer, filename } = await optimizeImageBuffer(req.file.buffer, req.file.originalname);
-      updateData.image = await saveFile('moodboards', filename, buffer, req.file.mimetype);
+      newlySavedImage = await saveFile('moodboards', filename, buffer, req.file.mimetype);
+      updateData.image = newlySavedImage;
     }
 
-    const updated = await Moodboard.findByIdAndUpdate(moodboard_id, { $set: updateData }, { new: true });
+    let updated: any;
+    try {
+      updated = await Moodboard.findOneAndUpdate(
+        { _id: moodboard_id, projectId: id },
+        { $set: updateData },
+        { new: true }
+      );
+    } catch (dbErr) {
+      if (newlySavedImage) {
+        await deleteStoredFile(newlySavedImage);
+      }
+      throw dbErr;
+    }
+
+    // Safely clean up old image if replacement succeeded
+    if (newlySavedImage && existing.image && existing.image !== newlySavedImage) {
+      await deleteStoredFile(existing.image);
+    }
 
     const project = await Project.findById(id);
     if (project) {
@@ -299,6 +325,12 @@ export async function createConcept(req: AuthenticatedRequest, res: Response, ne
 export async function updateConcept(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
     const { id, concept_id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(concept_id)) {
+      res.status(404).json({ detail: 'Concept not found.' });
+      return;
+    }
+
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const imageFile = files?.['image']?.[0];
     const assetFile = files?.['file']?.[0];
@@ -314,18 +346,41 @@ export async function updateConcept(req: AuthenticatedRequest, res: Response, ne
     if (title !== undefined) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description.trim();
 
+    let newlySavedImage: string | null = null;
+    let newlySavedAsset: string | null = null;
+
     if (imageFile) {
       validateUploadedFile(imageFile, 'concept_image');
       const { buffer, filename } = await optimizeImageBuffer(imageFile.buffer, imageFile.originalname);
-      updateData.image = await saveFile('concepts', filename, buffer, imageFile.mimetype);
+      newlySavedImage = await saveFile('concepts', filename, buffer, imageFile.mimetype);
+      updateData.image = newlySavedImage;
     }
 
     if (assetFile) {
       validateUploadedFile(assetFile, 'concept_file');
-      updateData.file = await saveFile('concepts', assetFile.originalname, assetFile.buffer, assetFile.mimetype);
+      newlySavedAsset = await saveFile('concepts', assetFile.originalname, assetFile.buffer, assetFile.mimetype);
+      updateData.file = newlySavedAsset;
     }
 
-    const updated = await Concept.findByIdAndUpdate(concept_id, { $set: updateData }, { new: true });
+    let updated: any;
+    try {
+      updated = await Concept.findOneAndUpdate(
+        { _id: concept_id, projectId: id },
+        { $set: updateData },
+        { new: true }
+      );
+    } catch (dbErr) {
+      if (newlySavedImage) await deleteStoredFile(newlySavedImage);
+      if (newlySavedAsset) await deleteStoredFile(newlySavedAsset);
+      throw dbErr;
+    }
+
+    if (newlySavedImage && existing.image && existing.image !== newlySavedImage) {
+      await deleteStoredFile(existing.image);
+    }
+    if (newlySavedAsset && existing.file && existing.file !== newlySavedAsset) {
+      await deleteStoredFile(existing.file);
+    }
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     res.json(serializeConcept(updated, baseUrl));
@@ -488,6 +543,12 @@ export async function createDeliverable(req: FileUploadRequest, res: Response, n
 export async function updateDeliverable(req: FileUploadRequest, res: Response, next: NextFunction) {
   try {
     const { id, deliverable_id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(deliverable_id)) {
+      res.status(404).json({ detail: 'Deliverable not found.' });
+      return;
+    }
+
     const { title, description } = req.body as { title?: any; description?: any };
 
     const existing = await Deliverable.findOne({ _id: deliverable_id, projectId: id });
@@ -500,12 +561,30 @@ export async function updateDeliverable(req: FileUploadRequest, res: Response, n
     if (title !== undefined) updateData.title = title.trim();
     if (description !== undefined) updateData.description = description.trim();
 
+    let newlySavedFile: string | null = null;
     if (req.file) {
       validateUploadedFile(req.file, 'deliverable_file');
-      updateData.file = await saveFile('deliverables', req.file.originalname, req.file.buffer, req.file.mimetype);
+      newlySavedFile = await saveFile('deliverables', req.file.originalname, req.file.buffer, req.file.mimetype);
+      updateData.file = newlySavedFile;
     }
 
-    const updated = await Deliverable.findByIdAndUpdate(deliverable_id, { $set: updateData }, { new: true });
+    let updated: any;
+    try {
+      updated = await Deliverable.findOneAndUpdate(
+        { _id: deliverable_id, projectId: id },
+        { $set: updateData },
+        { new: true }
+      );
+    } catch (dbErr) {
+      if (newlySavedFile) {
+        await deleteStoredFile(newlySavedFile);
+      }
+      throw dbErr;
+    }
+
+    if (newlySavedFile && existing.file && existing.file !== newlySavedFile) {
+      await deleteStoredFile(existing.file);
+    }
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     res.json(serializeDeliverable(updated, baseUrl));

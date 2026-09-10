@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FLOXA Frontend
+
+The Next.js client application for the FLOXA platform, providing the consultant creative dashboard, client collaboration portal, and WebRTC video/audio calling.
+
+---
+
+## Technology Stack
+
+* **Framework**: Next.js 16.2 (App Router)
+* **Library**: React 19.2
+* **Language**: TypeScript 5.x
+* **Styling**: TailwindCSS 4
+* **Realtime**: WebSockets and WebRTC
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+* **Node.js**: v20.x or v22.x LTS
+* **Active Backend**: FLOXA Node.js/Express Backend running on port `5000`
+
+### Environment Configuration
+Copy `.env.example` to `.env.local`:
+
+```bash
+cp .env.example .env.local
+```
+
+### Development Server
+Run the Next.js development server on port `3000`:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Testing & Quality Verification
 
-## Learn More
+| Command | Purpose |
+| :--- | :--- |
+| `npm test` | Run lightweight regression and contract tests via `node:test` |
+| `npm run lint` | Check ESLint and React Hook rules |
+| `npx tsc --noEmit` | Type-check TypeScript files |
+| `npm run build` | Build optimized production bundle |
+| `npm start` | Start production server on port `3000` |
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API Proxy Architecture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+All frontend requests to `/api/*` are processed by the Next.js edge route handler in `app/api/[...path]/route.ts`. The proxy:
+* Forwards requests to `BACKEND_API_URL` (default `http://localhost:5000/api`).
+* Validates incoming `Origin` and `Referer` against the allowed origins (`http://localhost:3000`, `http://127.0.0.1:3000`, `https://floxa.flumenx.in`).
+* Forwards essential authentication and collaboration headers: `x-portal-access-token`, `x-support-mode`, `x-consultant-support`, `cookie`, `authorization`, and CSRF tokens.
+* Strips forbidden hop-by-hop headers.

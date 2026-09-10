@@ -25,6 +25,10 @@ export const UPLOAD_RULES = {
     maxSize: 20 * 1024 * 1024,
     allowedExts: ['.doc', '.docx', '.jpg', '.jpeg', '.pdf', '.png', '.ppt', '.pptx', '.webp', '.zip'],
   },
+  consultant_avatar: {
+    maxSize: 5 * 1024 * 1024,
+    allowedExts: ['.jpg', '.jpeg', '.png', '.webp'],
+  },
 };
 
 export function validateUploadedFile(
@@ -35,13 +39,70 @@ export function validateUploadedFile(
   if (!rule) return;
 
   if (file.size > rule.maxSize) {
-    throw new Error(`File too large. Maximum size is ${rule.maxSize / (1024 * 1024)}MB.`);
+    const err: any = new Error(`File too large. Maximum size is ${rule.maxSize / (1024 * 1024)}MB.`);
+    err.statusCode = 413;
+    throw err;
   }
 
   const ext = path.extname(file.originalname).toLowerCase();
   if (!rule.allowedExts.includes(ext)) {
-    throw new Error(`Unsupported file type: ${ext}`);
+    const err: any = new Error(`Unsupported file type: ${ext}`);
+    err.statusCode = 400;
+    throw err;
   }
+}
+
+export async function validateAndProcessAvatar(
+  file: Express.Multer.File
+): Promise<{ buffer: Buffer; filename: string; contentType: string }> {
+  if (!file || !file.buffer || file.buffer.length === 0) {
+    const err: any = new Error('File is empty.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const maxSize = 5 * 1024 * 1024;
+  if (file.size > maxSize || file.buffer.length > maxSize) {
+    const err: any = new Error('File too large. Maximum size is 5MB.');
+    err.statusCode = 413;
+    throw err;
+  }
+
+  const ext = path.extname(file.originalname).toLowerCase();
+  const allowedExts = ['.jpg', '.jpeg', '.png', '.webp'];
+  if (!allowedExts.includes(ext)) {
+    const err: any = new Error(`Unsupported file type: ${ext || 'unknown'}. Allowed formats: JPG, PNG, WebP.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (file.mimetype && !allowedMimes.includes(file.mimetype.toLowerCase())) {
+    const err: any = new Error(`Unsupported MIME type: ${file.mimetype}. Allowed formats: JPG, PNG, WebP.`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Validate image integrity with Sharp to detect corrupted images
+  let metadata: sharp.Metadata;
+  try {
+    metadata = await sharp(file.buffer).metadata();
+  } catch {
+    const err: any = new Error('Invalid or corrupted image file.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!metadata.format || !['jpeg', 'png', 'webp'].includes(metadata.format)) {
+    const err: any = new Error('Invalid image format detected.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const { buffer, filename } = await optimizeImageBuffer(file.buffer, file.originalname);
+  const contentType =
+    metadata.format === 'jpeg' ? 'image/jpeg' : metadata.format === 'png' ? 'image/png' : 'image/webp';
+  return { buffer, filename, contentType };
 }
 
 export async function optimizeImageBuffer(
@@ -213,5 +274,27 @@ export function streamLocalFile(
     if (!res.headersSent) {
       res.status(500).json({ detail: 'Error preparing file stream.' });
     }
+  }
+}
+
+export async function deleteStoredFile(storedPath?: string | null): Promise<void> {
+  if (!storedPath || typeof storedPath !== 'string') return;
+  if (storedPath.startsWith('http')) {
+    if (ENV.BLOB_READ_WRITE_TOKEN) {
+      try {
+        await del(storedPath, { token: ENV.BLOB_READ_WRITE_TOKEN });
+      } catch (err) {
+        console.warn('Failed to delete blob file:', err);
+      }
+    }
+    return;
+  }
+  try {
+    const safePath = resolveSafeMediaPath(storedPath);
+    if (safePath && fs.existsSync(safePath)) {
+      fs.unlinkSync(safePath);
+    }
+  } catch (err) {
+    console.warn('Failed to delete local file:', err);
   }
 }

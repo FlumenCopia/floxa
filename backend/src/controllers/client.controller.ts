@@ -37,7 +37,20 @@ export async function getClientProfile(req: any, res: Response, next: NextFuncti
       return;
     }
 
-    res.json(serializeClientProfile(profile));
+    const hasSubmission = await ProjectActivity.findOne({
+      projectId: id,
+      action: { $in: ['client_profile_submitted', 'client_profile_updated'] },
+    });
+
+    const isSubmitted = Boolean(
+      hasSubmission ||
+      profile.yearStarted ||
+      profile.location ||
+      profile.phone ||
+      profile.website
+    );
+
+    res.json(serializeClientProfile(profile, isSubmitted));
   } catch (err) {
     next(err);
   }

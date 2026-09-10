@@ -11,17 +11,33 @@ import routes from './routes/index.js';
 
 export const app = express();
 
+const TRUSTED_CORS_ORIGINS = new Set(
+  [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://floxa.flumenx.in',
+    ...ENV.CORS_ALLOWED_ORIGINS,
+    ...(ENV.FRONTEND_BASE_URL ? [ENV.FRONTEND_BASE_URL] : []),
+  ]
+    .map((o) => (o ? o.trim().replace(/\/+$/, '') : ''))
+    .filter(Boolean)
+);
+
 // 1. CORS
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (ENV.CORS_ALLOWED_ORIGINS.includes(origin)) {
+      if (!origin) {
         return callback(null, true);
       }
-      return callback(null, true); // Permissive in dev to avoid CORS blocking
+      const cleanOrigin = origin.trim().replace(/\/+$/, '');
+      if (TRUSTED_CORS_ORIGINS.has(cleanOrigin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'content-type',
       'authorization',

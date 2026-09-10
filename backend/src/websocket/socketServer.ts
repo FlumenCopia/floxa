@@ -5,6 +5,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
 import url from 'url';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import { Consultant, Project, ProjectDiscovery, ProjectActivity } from '../models/index.js';
 import { ENV } from '../config/env.js';
 import { logProjectActivity, onActivityCreated } from '../services/project.service.js';
@@ -101,7 +102,8 @@ function parseCookies(cookieHeader?: string): Record<string, string> {
 function verifyConsultantToken(rawToken?: string): string | null {
   if (!rawToken || rawToken === 'active') return null;
   try {
-    const payload = jwt.verify(rawToken, ENV.JWT_ACCESS_SECRET) as { userId?: string; id?: string };
+    const cleanToken = rawToken.startsWith('Bearer ') ? rawToken.slice(7).trim() : rawToken;
+    const payload = jwt.verify(cleanToken, ENV.JWT_ACCESS_SECRET) as { userId?: string; id?: string };
     return payload.userId || payload.id || null;
   } catch {
     return null;
@@ -373,14 +375,7 @@ export function setupWebSocketServer(server: Server) {
           cookies['jwt'];
       }
 
-      let consultantId = verifyConsultantToken(rawToken);
-
-      if (!consultantId && query.consultant_id && typeof query.consultant_id === 'string') {
-        const candidate = await Consultant.findById(query.consultant_id);
-        if (candidate && candidate.isActive) {
-          consultantId = candidate.id;
-        }
-      }
+      const consultantId = verifyConsultantToken(rawToken);
 
       if (!consultantId) {
         ws.send(
@@ -391,6 +386,23 @@ export function setupWebSocketServer(server: Server) {
         );
         ws.close(4001);
         return;
+      }
+
+      // If a consultant_id was explicitly supplied in query, ensure it matches the verified token identity
+      if (query.consultant_id) {
+        const requestedId = Array.isArray(query.consultant_id)
+          ? query.consultant_id[0]
+          : String(query.consultant_id);
+        if (requestedId !== String(consultantId)) {
+          ws.send(
+            JSON.stringify({
+              type: 'ERROR',
+              message: 'Authentication credentials required. Connection rejected.',
+            })
+          );
+          ws.close(4001);
+          return;
+        }
       }
 
       const consultant = await Consultant.findById(consultantId);
@@ -429,7 +441,7 @@ export function setupWebSocketServer(server: Server) {
             if (!VALID_WEBRTC_ACTIONS.has(action)) return;
 
             const projectId = content.project_id;
-            if (!projectId) return;
+            if (!projectId || !mongoose.isValidObjectId(projectId)) return;
 
             // Drop oversized payloads (> 64KB)
             const payloadStr = JSON.stringify(content.data || {});
@@ -440,8 +452,30 @@ export function setupWebSocketServer(server: Server) {
               _id: projectId,
               consultantId: consultant.id,
               isArchived: false,
-            });
+            }).populate('client');
             if (!project) return;
+
+            // Check if client is online when consultant initiates a call
+            if (action === 'call_initiate') {
+              const clientConns = projectSockets.get(project.id);
+              const hasConnectedClient =
+                clientConns &&
+                Array.from(clientConns).some(
+                  (c) => c.role === 'client' && c.ws.readyState === WebSocket.OPEN
+                );
+
+              if (!hasConnectedClient) {
+                ws.send(
+                  JSON.stringify({
+                    type: 'WEBRTC_SIGNAL',
+                    action: 'call_reject',
+                    project_id: project.id,
+                    data: { reason: 'Client is currently offline.' },
+                  })
+                );
+                return;
+              }
+            }
 
             const signalPayload = JSON.stringify({
               type: 'WEBRTC_SIGNAL',
@@ -449,6 +483,8 @@ export function setupWebSocketServer(server: Server) {
               sender_role: 'consultant',
               project_id: project.id,
               portal_token: project.portalToken,
+              client_name: (project.client as any)?.name || project.companyName || 'Client',
+              project_title: project.title,
               data: content.data || {},
             });
 
@@ -810,6 +846,28 @@ export function setupWebSocketServer(server: Server) {
           const dataPayload = content.data || {};
           if (JSON.stringify(dataPayload).length > 65536) return;
 
+          // If client is calling consultant, check if consultant is online
+          if (role === 'client' && action === 'call_initiate') {
+            const consId = String(currentProject.consultantId || '');
+            const consSockets = consultantSockets.get(consId);
+            const hasConnectedConsultant =
+              consSockets &&
+              Array.from(consSockets).some((cws) => cws.readyState === WebSocket.OPEN);
+
+            if (!hasConnectedConsultant) {
+              ws.send(
+                JSON.stringify({
+                  type: 'WEBRTC_SIGNAL',
+                  action: 'call_reject',
+                  project_id: currentProjectId,
+                  portal_token: currentProject.portalToken,
+                  data: { reason: 'Consultant is currently offline.' },
+                })
+              );
+              return;
+            }
+          }
+
           const signalMsg = JSON.stringify({
             type: 'WEBRTC_SIGNAL',
             action,
@@ -822,20 +880,32 @@ export function setupWebSocketServer(server: Server) {
           });
 
           // Peer media signals send to project room
+          const projectRoomWs = new Set<WebSocket>();
           projectSockets.get(currentProjectId)?.forEach((c) => {
             if (c.ws !== ws && c.ws.readyState === WebSocket.OPEN) {
               c.ws.send(signalMsg);
+              projectRoomWs.add(c.ws);
             }
           });
 
-          // Call lifecycle events notify the consultant globally
-          if (
-            role === 'client' &&
-            ['call_initiate', 'call_end', 'call_reject', 'call_cancel'].includes(action)
-          ) {
+          // Route all WebRTC actions from client to assigned consultant
+          if (role === 'client') {
             const consId = String(currentProject.consultantId || '');
             consultantSockets.get(consId)?.forEach((cws) => {
-              if (cws.readyState === WebSocket.OPEN) {
+              if (cws.readyState === WebSocket.OPEN && !projectRoomWs.has(cws)) {
+                cws.send(signalMsg);
+              }
+            });
+          }
+
+          // If consultant acted inside the project room, update other consultant tabs on lifecycle changes
+          if (
+            role === 'consultant' &&
+            consultantId &&
+            ['call_accept', 'call_reject', 'call_end', 'call_cancel'].includes(action)
+          ) {
+            consultantSockets.get(consultantId)?.forEach((cws) => {
+              if (cws !== ws && cws.readyState === WebSocket.OPEN && !projectRoomWs.has(cws)) {
                 cws.send(signalMsg);
               }
             });

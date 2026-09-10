@@ -40,7 +40,7 @@ class SupportSocketService {
     if (consultantId) {
       wsUrl += `&consultant_id=${encodeURIComponent(consultantId)}`;
     }
-    console.log("[SupportSocket] Connecting consultant notifications to:", wsUrl);
+    console.log("[SupportSocket] Connecting consultant notifications");
 
     try {
       this.consultantWs = new WebSocket(wsUrl);
@@ -48,11 +48,13 @@ class SupportSocketService {
       this.consultantWs.onopen = () => {
         console.log("[SupportSocket] Consultant notification WebSocket OPEN");
         this.isConsultantConnected = true;
+        this.emit("connection_status", { isConnected: true });
       };
 
       this.consultantWs.onclose = (event) => {
         console.warn("[SupportSocket] Consultant WS closed with code:", event.code);
         this.isConsultantConnected = false;
+        this.emit("connection_status", { isConnected: false, code: event.code });
         if (event.code !== 4003) {
           clearTimeout(this.consultantReconnectTimer);
           this.consultantReconnectTimer = setTimeout(() => {
@@ -95,7 +97,7 @@ class SupportSocketService {
     if (consultantToken) {
       url += `?consultant_token=${encodeURIComponent(consultantToken)}`;
     }
-    console.log("[SupportSocket] Connecting project WS to:", url);
+    console.log("[SupportSocket] Connecting project WS");
 
     try {
       this.ws = new WebSocket(url);
@@ -224,7 +226,7 @@ class SupportSocketService {
       ...(projectId ? { project_id: projectId } : {}),
     };
 
-    console.log("[SupportSocket] Sending WebRTC signal:", action, "payload:", payload);
+    console.log("[SupportSocket] Sending WebRTC signal:", action);
 
     const targetSocket =
       this.ws && this.ws.readyState === WebSocket.OPEN

@@ -108,16 +108,20 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
   const requestIdRef = useRef(0);
   const loadMoreSentinelRef = useRef(null);
 
+  const [prevFilters, setPrevFilters] = useState({ search: projectSearch, status: selectedStatus });
+  if (prevFilters.search !== projectSearch || prevFilters.status !== selectedStatus) {
+    setPrevFilters({ search: projectSearch, status: selectedStatus });
+    setIsLoadingInitial(true);
+    setIsLoadingMore(false);
+    setProjectError("");
+    setCurrentPage(1);
+  }
+
   // Load Initial Page (Page 1) on Search or Status Filter Change
   useEffect(() => {
     let isMounted = true;
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
-
-    setIsLoadingInitial(true);
-    setIsLoadingMore(false);
-    setProjectError("");
-    setCurrentPage(1);
 
     async function loadFirstPage() {
       try {

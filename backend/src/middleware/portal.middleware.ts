@@ -71,6 +71,9 @@ export async function clientPortalAccess(req: PortalRequest, res: Response, next
 
     // 2. If project has NO password set, access is public
     if (!project.portalPasswordHash) {
+      if (!user) {
+        req.isPortalClient = true;
+      }
       return next();
     }
 
@@ -84,6 +87,7 @@ export async function clientPortalAccess(req: PortalRequest, res: Response, next
     if (signedValue) {
       const unsigned = unsignPortalAccessToken(signedValue, ENV.PORTAL_ACCESS_MAX_AGE);
       if (unsigned === portalToken) {
+        req.isPortalClient = true;
         return next();
       }
     }
@@ -237,6 +241,30 @@ export async function requireProjectAccess(req: PortalRequest, res: Response, ne
   }
 }
 
-export function clientOnlyAction(_req: PortalRequest, _res: Response, next: NextFunction) {
+export function clientOnlyAction(req: PortalRequest, res: Response, next: NextFunction) {
+  if (req.isSupportMode) {
+    res.status(403).json({
+      detail: 'This action is reserved for the client and cannot be performed in consultant support mode.',
+    });
+    return;
+  }
+
+  if (req.user && !req.isPortalClient) {
+    res.status(403).json({
+      detail: 'This action is reserved for the client and cannot be performed in consultant support mode.',
+    });
+    return;
+  }
+
+  if (!req.project) {
+    res.status(404).json({ detail: 'Client portal link not found.' });
+    return;
+  }
+
+  if (!req.isPortalClient) {
+    res.status(403).json({ detail: 'Portal password verification required.' });
+    return;
+  }
+
   next();
 }

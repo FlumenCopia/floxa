@@ -201,6 +201,12 @@ export async function downloadAgreementFile(
       return;
     }
 
+    const requestedAgreementId = (req.params as any).agreement_id;
+    if (requestedAgreementId && String(agreement._id) !== String(requestedAgreementId)) {
+      res.status(404).json({ detail: 'Agreement not found.' });
+      return;
+    }
+
     const type = req.query.type;
     let targetFile: string | null = null;
     if (type === 'basic') {

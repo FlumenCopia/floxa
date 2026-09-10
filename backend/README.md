@@ -9,15 +9,15 @@ The active backend service for the FLOXA platform, providing REST APIs, authenti
 * **Runtime**: Node.js (v20.x or v22.x LTS)
 * **Framework**: Express 4.x
 * **Language**: TypeScript 5.7 (NodeNext module resolution)
-* **ORM**: Prisma Client 6.4 (provider: `mongodb`)
-* **Database**: MongoDB 6.0+ / 7.0+ / 8.0+ (Replica Set required for multi-document ACID transactions)
-* **Realtime**: WebSockets (`ws`) with WebRTC voice signaling support
+* **ODM**: Mongoose 9.x (MongoDB Object Document Mapper)
+* **Database**: MongoDB 6.0+ / 7.0+ / 8.0+ (Local standalone or Replica Set `rs0` for multi-document ACID transactions)
+* **Realtime**: WebSockets (`ws`) with WebRTC voice/video signaling support
 
 ---
 
 ## Entry Points
 
-* **`src/server.ts`**: Main process entry point. Creates the Node HTTP server wrapping the Express app, attaches the WebSocket server (`/ws/support/`), and binds to `ENV.PORT` (default `5000`).
+* **`src/server.ts`**: Main process entry point. Creates the Node HTTP server wrapping the Express app, attaches the WebSocket server (`/ws/support/`), connects to MongoDB via Mongoose, and binds to `ENV.PORT` (default `5000`).
 * **`src/app.ts`**: Express application factory. Configures middleware (CORS, cookies, JSON/URL-encoded parsing), public static media streaming route (`/media/`), CSRF protection, `/api/` route mounting, `/health` endpoint, and global error handling.
 
 ---
@@ -26,24 +26,24 @@ The active backend service for the FLOXA platform, providing REST APIs, authenti
 
 ```text
 backend/
-├── prisma/
-│   └── schema.prisma         # Prisma data models, relations, and enums for MongoDB
-├── media/                     # Uploaded media storage (avatars, concepts, signed PDFs) [gitignored]
+├── media/                     # Uploaded media storage (avatars, concepts, deliverables) [gitignored]
 ├── data/db/                   # Local MongoDB WiredTiger database files [gitignored]
-├── scripts/
-│   ├── README.md              # Documentation for diagnostic utilities
-│   └── diagnostics/           # Manual diagnostic scripts (Prisma query, WS client)
-├── tests/
-│   ├── README.md              # Database safety rules and testing guidelines
-│   └── integration/           # Database-connected integration test suites
+├── tests/                     # Permanent automated regression test suites
+│   ├── helpers.cjs            # Test server lifecycle, token signers, fixture creators
+│   ├── phase1-auth-ws.test.cjs         # Phase 1: WebSocket auth and client-only protection
+│   ├── phase2-ownership.test.cjs       # Phase 2: Project/resource ownership IDOR protection
+│   ├── phase3-header-contract.test.cjs # Phase 3: FloxaHeader contract compatibility
+│   ├── phase4-webrtc.test.cjs          # Phase 4: WebRTC signaling & room isolation
+│   └── phase5-security-uploads.test.cjs# Phase 5: CORS, avatar uploads & orphan prevention
 ├── src/
-│   ├── config/                # Environment configuration and defaults (env.ts)
+│   ├── config/                # Environment configuration (env.ts) and Mongoose setup (database.ts)
 │   ├── controllers/           # HTTP request handlers and response dispatchers
 │   ├── middleware/            # Auth, portal token, CSRF, and error handling middleware
-│   ├── prisma/                # PrismaClient singleton instance (client.ts)
+│   ├── models/                # Mongoose data schemas and models (Project, Client, Consultant, etc.)
 │   ├── routes/                # Express router declarations (/api/auth, /api/projects, etc.)
-│   ├── services/              # Business logic (PDF generation, email, payments, storage)
-│   ├── utils/                 # Cryptographic helpers and DRF response serializer
+│   ├── services/              # Business logic (PDF generation, email, payments, storage, Gemini AI)
+│   ├── types/                 # Shared TypeScript interfaces and model types
+│   ├── utils/                 # Cryptographic helpers and snake_case contract serializer
 │   ├── websocket/             # WebSocket server and WebRTC peer signaling handler
 │   ├── app.ts                 # Express application initialization
 │   └── server.ts              # HTTP & WebSocket server bootstrap
@@ -54,10 +54,10 @@ backend/
 
 ### Folder Responsibilities
 
-* **`src/config/`**: Centralized configuration loaded via `dotenv`. Exports the immutable `ENV` object containing port, secrets, cookie parameters, CORS origins, and media paths.
-* **`src/controllers/`**: Extracts parameters from incoming requests, validates input, invokes service logic or performs direct Prisma queries, and sends HTTP responses.
+* **`src/config/`**: Centralized configuration loaded via `dotenv`. Exports the immutable `ENV` object and Mongoose connection helpers (`connectDatabase()`, `disconnectDatabase()`).
+* **`src/controllers/`**: Extracts parameters from incoming requests, validates input, verifies consultant ownership, invokes service logic, and sends sanitized HTTP responses.
 * **`src/middleware/`**: Request interceptors including JWT authentication (`auth.middleware.ts`), client portal token verification (`portal.middleware.ts`), CSRF cookie validation (`csrf.middleware.ts`), and global error handling (`error.middleware.ts`).
-* **`src/prisma/`**: Exports the shared `PrismaClient` singleton instance (`client.ts`), ensuring connection reuse across the process lifecycle.
+* **`src/models/`**: Defines Mongoose schemas, relationships, virtuals, and indexes for all domain entities.
 * **`src/routes/`**: Declares API route paths and attaches appropriate middleware before delegating to controller functions.
 * **`src/services/`**: Encapsulates external integrations and core domain logic:
   * `auth.service.ts`: JWT token creation, password hashing/verification.
@@ -70,11 +70,10 @@ backend/
   * `razorpay.service.ts`: Razorpay order creation and HMAC SHA-256 webhook signature verification.
   * `storage.service.ts`: Local disk file writes and optional cloud blob fallback.
 * **`src/utils/`**:
-  * `crypto.ts`: Portal token signing/verification and hash helpers.
-  * `serializer.ts`: Django REST Framework (DRF) compatibility layer that transforms MongoDB/Prisma documents into snake_case API contracts expected by frontend components.
-* **`src/websocket/`**: Manages real-time consultant-client support rooms (`ACTIVE_HELP_SESSIONS`), field synchronization (`FIELD_SYNC`), and WebRTC audio signaling (`OFFER`, `ANSWER`, `ICE_CANDIDATE`).
-* **`scripts/`**: Developer diagnostic scripts for inspecting Prisma data or testing WebSocket connectivity.
-* **`tests/`**: Database-connected integration and E2E test suites (located in `tests/integration/`).
+  * `crypto.ts`: Portal token signing/verification and password hash helpers.
+  * `serializer.ts`: Response serializer that transforms Mongoose documents into snake_case API contracts expected by frontend components (originally based on Django REST Framework contract schemas for frontend compatibility).
+* **`src/websocket/`**: Manages real-time consultant-client support rooms (`ACTIVE_HELP_SESSIONS`), field synchronization, activity notifications, and WebRTC peer signaling (`OFFER`, `ANSWER`, `ICE_CANDIDATE`, `CALL_INITIATE`, `CALL_ACCEPT`, etc.).
+* **`tests/`**: Permanent automated regression test suites executed via Node.js built-in `node:test` runner.
 * **`media/`**: Local runtime storage for user uploads and generated documents (excluded from Git).
 * **`data/`**: Local MongoDB runtime storage (excluded from Git).
 
@@ -94,11 +93,9 @@ Middleware (`src/middleware/`) ────► [Auth / Portal Token / CSRF Check
        ▼
 Controller (`src/controllers/`)
        │
-       ├───────────────────────────────┐
-       ▼                               ▼
-Business Service (`src/services/`)   Direct Prisma Access (`prisma.*`)
-       │                               │
-       ├───────────────────────────────┘
+       ▼
+Business Service (`src/services/`) / Mongoose Models (`src/models/`)
+       │
        ▼
 Serializer (`src/utils/serializer.ts`) ──► [Transforms to snake_case contract]
        │
@@ -106,49 +103,38 @@ Serializer (`src/utils/serializer.ts`) ──► [Transforms to snake_case contr
 HTTP JSON Response
 ```
 
-*Note: In accordance with the verified architecture, some controllers perform direct Prisma queries where specialized service encapsulation is not required.*
-
 ---
 
-## Prisma and MongoDB
+## Mongoose and MongoDB
 
-* **Schema Location**: `backend/prisma/schema.prisma`
-* **Datasource Provider**: `mongodb`
-* **Client Singleton**: `backend/src/prisma/client.ts`
-* **Replica Set Requirement**: MongoDB **must** run as a replica set (e.g. `rs0`). Prisma's MongoDB connector relies on transactions for multi-document operations and nested relation mutations.
-* **Safe Generate Command**:
-  ```bash
-  npm run prisma:generate
-  ```
-* **Database Commands Notice**:
-  * `prisma db push` synchronizes Prisma schema indexes with MongoDB. Do not execute casually against populated databases without verification.
-  * Never run seeds or migrations against production databases.
-* **Local Database Status**: Local database data resides in `backend/data/db/` and is strictly excluded from Git.
-* **Test Database Requirement**: All integration testing must use a dedicated, disposable test database.
+* **Models Location**: `backend/src/models/`
+* **Connection Lifecycle**: `backend/src/config/database.ts` (`connectDatabase()`, `disconnectDatabase()`)
+* **Connection String**: Configured via `DATABASE_URL` environment variable.
+* **Replica Set Support**: Multi-document transactions and oplog listening are supported when connected to a replica set (e.g. `rs0`).
+* **Local Database Storage**: Local WiredTiger database files reside in `backend/data/db/` and are strictly excluded from Git.
 
 ---
 
 ## Media Storage
 
-* **Physical Storage Root**: `backend/media/`
-* **Public URL Prefix**: `/media/` (e.g., `http://localhost:5000/media/avatars/image.png`)
-* **Resolution**: Configured in `src/config/env.ts` as `ENV.MEDIA_ROOT` (defaults to `path.resolve(__dirname, '../../media')`).
+* **Physical Storage Root**: `backend/media/` (defaults to `ENV.MEDIA_ROOT`)
+* **Public URL Prefix**: `/media/` (e.g., `/media/consultant_avatars/filename.png`)
+* **Access Control**: Static `/media/` serving is strictly restricted to whitelisted public directories (`consultant_avatars`, `public`). Private project deliverables, moodboards, and concepts are access-controlled through authenticated API endpoints.
 * **Git Excluded**: All files under `media/` are runtime data and excluded from Git tracking.
 
 ---
 
-## Development Commands
+## Development & Test Commands
 
 All commands should be executed from the `backend/` directory:
 
 | Command | Purpose |
 | :--- | :--- |
 | `npm run dev` | Start development server with hot-reload via `tsx watch src/server.ts` |
+| `npm test` | Run permanent automated regression test suites via `node:test` |
 | `npx tsc --noEmit` | Type-check TypeScript source files without producing build output |
 | `npm run build` | Compile TypeScript into `dist/` using `tsc` |
 | `npm start` | Run compiled production server (`node dist/server.js`) |
-| `npm run prisma:generate` | Regenerate `@prisma/client` from `prisma/schema.prisma` |
-| `npm run prisma:push` | Push Prisma schema state to MongoDB (development only) |
 
 ---
 
@@ -160,11 +146,11 @@ Copy `.env.example` to `.env` to configure the backend:
 cp .env.example .env
 ```
 
-### Environment Variables Reference
+### Environment Variables Reference (Placeholders Only)
 
 * `PORT`: HTTP server listening port (default `5000`).
 * `NODE_ENV`: Runtime environment (`development` or `production`).
-* `DATABASE_URL`: MongoDB connection string with replica set query parameter.
+* `DATABASE_URL`: MongoDB connection string (e.g. `mongodb://127.0.0.1:27017/floxa_db`).
 * `SECRET_KEY`: Application secret for cryptographic signing.
 * `JWT_ACCESS_SECRET`: Secret key for signing JWT access tokens.
 * `JWT_REFRESH_SECRET`: Secret key for signing JWT refresh tokens.
@@ -180,7 +166,7 @@ cp .env.example .env
 * `AUTH_COOKIE_SAMESITE`: SameSite attribute for auth cookies (`lax`, `strict`, `none`).
 * `CSRF_COOKIE_SECURE`: Enable secure cookie flag for CSRF.
 * `CSRF_COOKIE_SAMESITE`: SameSite attribute for CSRF cookie.
-* `CORS_ALLOWED_ORIGINS`: Comma-separated allowed frontend origins.
+* `CORS_ALLOWED_ORIGINS`: Comma-separated allowed frontend origins (e.g. `http://localhost:3000,https://floxa.flumenx.in`).
 * `FRONTEND_BASE_URL`: Base URL of the frontend application.
 * `RAZORPAY_KEY_ID`: Razorpay API Key ID.
 * `RAZORPAY_KEY_SECRET`: Razorpay API Key Secret.
@@ -198,3 +184,11 @@ cp .env.example .env
 * `DEFAULT_FROM_EMAIL`: Sender address for outgoing emails.
 * `BLOB_READ_WRITE_TOKEN`: Optional cloud blob storage token.
 * `MEDIA_ROOT`: Optional override path for uploaded media files.
+
+---
+
+## WebRTC Audio & Video Testing
+
+* The WebSocket server on `/ws/support/` handles real-time signaling for WebRTC peer-to-peer calls.
+* Automated regression tests verify all 8 signaling action types (`call_initiate`, `call_accept`, `call_reject`, `call_cancel`, `call_end`, `offer`, `answer`, `ice_candidate`), payload boundaries, and consultant/project room isolation.
+* Physical audio and video streaming requires manual local hardware verification with active camera and microphone devices.

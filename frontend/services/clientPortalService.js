@@ -99,6 +99,13 @@ function mapBackendProfileToClientData(profile) {
     clientPhone: profile.phone || "",
     clientEmail: profile.email || "",
     clientWebsite: profile.website || "",
+    isCompleted: Boolean(
+      profile.is_completed ||
+      profile.year_started ||
+      profile.location ||
+      profile.phone ||
+      profile.website
+    ),
   };
 }
 

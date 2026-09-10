@@ -25,18 +25,23 @@ export function errorHandler(err: AppError | ZodError, req: Request, res: Respon
   // Handle Multer upload errors
   if (err.name === 'MulterError') {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      res.status(400).json({ detail: 'File too large.' });
+      res.status(413).json({ detail: 'File too large.' });
       return;
     }
     res.status(400).json({ detail: err.message || 'File upload error.' });
     return;
   }
 
+  // Handle Mongoose CastError (e.g. invalid ObjectId) safely as 404
+  if (err.name === 'CastError') {
+    res.status(404).json({ detail: 'Resource not found.' });
+    return;
+  }
+
   const statusCode = err.statusCode || err.status || 500;
-  const message = err.message || 'An unexpected server error occurred.';
+  const message = statusCode >= 500 ? 'An unexpected server error occurred.' : (err.message || 'An error occurred.');
 
   res.status(statusCode).json({
     detail: message,
-    ...(process.env.NODE_ENV === 'development' && err.stack ? { stack: err.stack } : {}),
   });
 }

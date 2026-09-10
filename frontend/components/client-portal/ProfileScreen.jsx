@@ -109,14 +109,14 @@ export function ProfileScreen({
   profileReturnScreen,
 }) {
   const [fields, setFields] = useState({
-    name: clientData.clientName ?? "",
-    company: clientData.clientCompany ?? "",
-    industry: clientData.clientIndustry ?? "",
-    yearStart: clientData.clientYearStart?.toString() ?? "",
-    location: clientData.clientLocation ?? "",
-    phone: clientData.clientPhone ?? "",
-    email: clientData.clientEmail ?? project.clientEmail ?? "",
-    website: clientData.clientWebsite ?? "",
+    name: clientData?.clientName ?? "",
+    company: clientData?.clientCompany ?? "",
+    industry: clientData?.clientIndustry ?? "",
+    yearStart: clientData?.clientYearStart?.toString() ?? "",
+    location: clientData?.clientLocation ?? "",
+    phone: clientData?.clientPhone ?? "",
+    email: clientData?.clientEmail ?? project?.clientEmail ?? "",
+    website: clientData?.clientWebsite ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -172,7 +172,8 @@ export function ProfileScreen({
     setError("");
 
     try {
-      const response = await clientPortalService.saveClientProfile(project.id, profilePayload);
+      const projectId = project?.id || project?.project_id;
+      const response = await clientPortalService.saveClientProfile(projectId, profilePayload);
 
       if (!response.success || !response.data) {
         throw new Error(response.error ?? "Unable to save your profile.");

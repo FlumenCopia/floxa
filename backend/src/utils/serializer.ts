@@ -59,8 +59,19 @@ export function serializeProject(project: any, workflowStatus?: string) {
   };
 }
 
-export function serializeClientProfile(profile: any) {
+export function serializeClientProfile(profile: any, isSubmitted?: boolean) {
   if (!profile) return null;
+  const isCompleted =
+    isSubmitted !== undefined
+      ? Boolean(isSubmitted)
+      : Boolean(
+          profile.isCompleted ||
+          profile.is_completed ||
+          profile.yearStarted ||
+          profile.location ||
+          profile.phone ||
+          profile.website
+        );
   return {
     id: profile.id,
     project: profile.projectId,
@@ -72,6 +83,7 @@ export function serializeClientProfile(profile: any) {
     phone: profile.phone || '',
     email: profile.email || '',
     website: profile.website || '',
+    is_completed: isCompleted,
     created_at: profile.createdAt ? new Date(profile.createdAt).toISOString() : null,
     updated_at: profile.updatedAt ? new Date(profile.updatedAt).toISOString() : null,
   };
