@@ -608,10 +608,10 @@ export default function ConsultantClientPortal() {
           }
           if (disc.is_submitted || disc.isSubmitted) {
             setFinished(true);
-            setEntered(true);
+            if (urlToken) setEntered(true);
           } else if (typeof disc.step === "number" && disc.step >= 1 && disc.step <= 6) {
             setStep(disc.step);
-            setEntered(true);
+            if (urlToken) setEntered(true);
           }
         }
       } catch (err) {
@@ -771,8 +771,22 @@ export default function ConsultantClientPortal() {
     supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
   }
 
+  const handleClosePortal = useCallback(() => {
+    setEntered(false);
+    setStep(1);
+    setFinished(false);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(`floxa-portal-entered-${urlToken || "default"}`, "false");
+      window.sessionStorage.setItem(`floxa-portal-finished-${urlToken || "default"}`, "false");
+      window.sessionStorage.setItem(`floxa-portal-step-${urlToken || "default"}`, "1");
+    }
+  }, [urlToken]);
+
   function goBack() {
-    if (step <= 1) return;
+    if (step <= 1) {
+      handleClosePortal();
+      return;
+    }
     const prev = Math.max(step - 1, 1);
     setStep(prev);
     supportSocket.navigateStep({ step: prev, pageId: `frame_${prev}` });
@@ -833,7 +847,7 @@ export default function ConsultantClientPortal() {
   if (finished) {
     return (
       <main className="cp-screen">
-        <PortalHeader onClose={() => router.push("/")} />
+        <PortalHeader onClose={handleClosePortal} />
         <section className="cp-result-card">
           <div className="cp-frame">Your brand personality</div>
           <h1>Balanced</h1>
@@ -1024,7 +1038,7 @@ export default function ConsultantClientPortal() {
   return (
     <main className="cp-screen">
       <PortalHeader
-        onClose={() => router.push("/")}
+        onClose={handleClosePortal}
         onVideoCall={isConsultantMode ? handleConsultantVideoCall : undefined}
         callState={callState}
       />
