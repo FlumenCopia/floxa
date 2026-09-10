@@ -1992,13 +1992,21 @@ textarea {
 }
 
 .project-step-chip.active {
-  background: var(--neon);
+  background: #ffffff;
   color: #041008;
-  border-color: var(--neon);
+  border-color: #ffffff;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.35);
 }
 
 .project-step-chip.done {
-  color: var(--neon);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.project-step-chip.done.active {
+  background: #ffffff;
+  color: #041008;
+  border-color: #ffffff;
 }
 
 .project-step-label {
