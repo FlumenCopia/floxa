@@ -15,8 +15,8 @@
   --danger: #ff6b6b;
   --amber: #f0b429;
   --cobalt: #4a9eff;
-  --r: 0px;
-  --r-sm: 0px;
+  --r: 5px;
+  --r-sm: 5px;
   --r-full: 999px;
   --sidebar: 268px;
   --topbar: 60px;
@@ -1062,7 +1062,7 @@ textarea {
   gap: 8px;
   background: rgba(6, 39, 24, 0.8);
   border: 1px solid rgba(77, 255, 160, 0.12);
-  border-radius: 0;
+  border-radius: 5px;
   padding: 0 15px;
   height: 39px;
 }
@@ -1086,13 +1086,24 @@ textarea {
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: var(--muted);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   cursor: pointer;
   flex-shrink: 0;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-btn:hover {
+  color: #ffffff;
+  opacity: 0.85;
+}
+
+.topbar .floxa-nav-video-btn,
+.topbar .icon-btn {
+  color: #ffffff !important;
 }
 
 .notification-wrap {
@@ -1513,7 +1524,7 @@ textarea {
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid rgba(77, 255, 160, 0.2) !important;
-  border-radius: 0 !important;
+  border-radius: 5px !important;
   padding: 24px 28px;
   box-shadow:
     0 20px 50px rgba(0, 0, 0, 0.5),
@@ -8708,7 +8719,7 @@ textarea {
 }
 
 /* ============================================================
-   ZERO BORDER RADIUS FOR ALL SECTIONS, CARDS, AND TABLES
+   5PX BORDER RADIUS FOR ALL SECTIONS, CARDS, AND TABLES
    ============================================================ */
 section:not(.client-welcome-stage),
 [class*="-section"],
@@ -8776,7 +8787,7 @@ section:not(.client-welcome-stage)::after,
 [class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card)::after,
 .table-wrap::before,
 .table-wrap::after {
-  border-radius: 0 !important;
+  border-radius: 5px !important;
 }
 
 /* ==========================================================================
@@ -9041,7 +9052,7 @@ section:not(.client-welcome-stage)::after,
 .card2,
 [class*="-card"]:not(.login-card):not(.client-welcome-glass):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]),
 [class*="card-"]:not(.login-card):not(.client-welcome-glass):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]) {
-  border-radius: 0 !important;
+  border-radius: 5px !important;
   border: 1px solid rgba(77, 255, 160, 0.28) !important;
   background: linear-gradient(145deg, rgba(77, 255, 160, 0.16) 0%, rgba(14, 52, 32, 0.72) 45%, rgba(4, 20, 12, 0.85) 100%) !important;
   backdrop-filter: blur(28px) saturate(160%) brightness(1.1) !important;
