@@ -4966,6 +4966,7 @@ textarea {
 }
 
 .ai-chat-empty-icon {
+  display: none !important;
   width: 48px;
   height: 48px;
   border-radius: 16px;
@@ -5211,24 +5212,30 @@ textarea {
 }
 
 .ai-chat-input-shell button {
-  min-width: 76px;
+  width: 40px;
+  min-width: 40px;
   height: 40px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 5px !important;
   background: linear-gradient(135deg, #4dffa0, #22ca74);
   color: #03140a;
-  font-size: 12.5px;
-  font-weight: 800;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  padding: 0;
   cursor: pointer;
   transition: transform 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
 }
 
 .ai-chat-input-shell button .send-btn-icon {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 180ms ease;
+}
+
+.ai-chat-input-shell button:hover:not(:disabled) .send-btn-icon {
+  transform: translateX(2px);
 }
 
 .ai-chat-input-shell button:hover {
@@ -5330,11 +5337,11 @@ textarea {
   justify-content: center;
   flex: 0 0 auto;
   color: #03140a;
-  background: linear-gradient(135deg, #4dffa0, #20ca73);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.9);
   font-size: 16px;
   line-height: 1;
-  box-shadow: 0 8px 22px rgba(77, 255, 160, 0.2);
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.25);
 }
 
 .project-ai-floating-label {

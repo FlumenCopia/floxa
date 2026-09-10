@@ -9,7 +9,7 @@ import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset } from "@/lib/api";
 import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
 import { showError, showSuccess } from "@/lib/toast";
-import { FileText, X, Send, Sparkles, Trash2, Lock, Share2, Pencil, AlertCircle } from "lucide-react";
+import { FileText, X, ArrowRight, Trash2, Lock, Share2, Pencil, AlertCircle } from "lucide-react";
 import {
   askProjectAssistant,
   generateAgreement,
@@ -3436,9 +3436,6 @@ function AIChatbotPanel({ project, onClose }) {
         <div className="ai-chat-scroll-area project-ai-chat-scroll">
           {messages.length === 0 && !isSending ? (
             <div className="ai-chat-empty-state">
-              <div className="ai-chat-empty-icon">
-                <Sparkles size={22} strokeWidth={1.8} />
-              </div>
               <h3>Ask about this project</h3>
               <p>
                 Ask about Discovery, Brand DNA, moodboards, concepts, agreements, payments, deliverables, or the next
@@ -3523,8 +3520,7 @@ function AIChatbotPanel({ project, onClose }) {
               maxLength={700}
             />
             <button type="button" onClick={() => submitMessage()} disabled={!canSend} aria-label="Send message">
-              <span className="send-btn-label">Send</span>
-              <Send className="send-btn-icon" size={16} strokeWidth={2.5} />
+              <ArrowRight className="send-btn-icon" size={16} strokeWidth={2.5} />
             </button>
 
           </div>
