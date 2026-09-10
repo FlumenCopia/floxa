@@ -9497,3 +9497,33 @@ section:not(.client-welcome-stage)::after,
     transform: scale(1) translateY(0);
   }
 }
+
+/* ============================================================
+   GLOBAL FILE INPUT STYLING
+   ============================================================ */
+input[type="file"] {
+  cursor: pointer;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+input[type="file"]::file-selector-button,
+input[type="file"]::-webkit-file-upload-button {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 5px !important;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 12px;
+  transition: all 0.2s ease;
+}
+
+input[type="file"]:hover::file-selector-button,
+input[type="file"]:hover::-webkit-file-upload-button {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.6);
+  color: #ffffff;
+}

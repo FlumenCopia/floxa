@@ -1892,7 +1892,7 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
           ) : null}
           <div className="discovery-moodboard-actions">
             <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
-              {saving ? "Uploading..." : "+ Upload concept"}
+              {saving ? "Uploading..." : "Upload concept"}
             </button>
           </div>
         </form>
@@ -2377,11 +2377,12 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
                 placeholder="e.g. Master Logo Vector Package.zip"
                 style={{
                   width: "100%",
+                  height: "42px",
                   background: "rgba(0, 0, 0, 0.3)",
                   border: "1px solid rgba(255, 255, 255, 0.12)",
-                  borderRadius: "8px",
+                  borderRadius: "5px",
                   color: "#ffffff",
-                  padding: "10px 14px",
+                  padding: "0 14px",
                   fontSize: "0.9rem",
                   outline: "none",
                 }}
@@ -2398,12 +2399,15 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
                 onChange={(event) => setForm((current) => ({ ...current, file: event.target.files?.[0] || null }))}
                 style={{
                   width: "100%",
+                  height: "42px",
                   background: "rgba(0, 0, 0, 0.3)",
                   border: "1px solid rgba(255, 255, 255, 0.12)",
-                  borderRadius: "8px",
+                  borderRadius: "5px",
                   color: "#ffffff",
-                  padding: "8px 12px",
+                  padding: "4px 10px",
                   fontSize: "0.85rem",
+                  display: "flex",
+                  alignItems: "center",
                 }}
               />
             </div>
@@ -2422,7 +2426,7 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
                 width: "100%",
                 background: "rgba(0, 0, 0, 0.3)",
                 border: "1px solid rgba(255, 255, 255, 0.12)",
-                borderRadius: "8px",
+                borderRadius: "5px",
                 color: "#ffffff",
                 padding: "10px 14px",
                 fontSize: "0.9rem",
@@ -2446,7 +2450,7 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
               type="submit"
               disabled={saving}
             >
-              {saving ? "Uploading..." : "+ Upload Deliverable"}
+              {saving ? "Uploading..." : "Upload Deliverable"}
             </button>
           </div>
         </form>
