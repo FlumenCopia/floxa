@@ -488,7 +488,6 @@ function OverviewPanel({
           {!projectActivitiesLoading
             ? timelineActivities.map((activity) => (
               <div className="discovery-timeline-item" key={activity.id}>
-                <div className="discovery-timeline-dot" />
                 <div className="discovery-timeline-copy">
                   <div className="discovery-timeline-text">{activity.description || activity.action}</div>
                   <div className="discovery-timeline-date">

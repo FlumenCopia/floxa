@@ -2508,20 +2508,7 @@ textarea {
 }
 
 .discovery-timeline-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  margin-top: 7px;
-  flex-shrink: 0;
-  background: #4dffa0;
-}
-
-.discovery-timeline-item.pending .discovery-timeline-dot {
-  background: #f0b429;
-}
-
-.discovery-timeline-item.idle .discovery-timeline-dot {
-  background: rgba(77, 255, 160, 0.24);
+  display: none !important;
 }
 
 .discovery-timeline-text {
