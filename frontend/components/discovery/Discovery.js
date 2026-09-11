@@ -504,18 +504,6 @@ function OverviewPanel({
         <h2 className="discovery-panel-title">Payment schedule</h2>
         {paymentItems.length > 0 ? (
           <>
-            <div className="discovery-payment-bar" style={{ gridTemplateColumns: getPaymentGridColumns(paymentItems) }} aria-hidden="true">
-              {paymentItems.map((item, idx) => {
-                const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
-                return (
-                  <span
-                    key={item.label || typeClass}
-                    className={`discovery-payment-segment ${typeClass}`}
-                    title={`${item.label}: ${item.split}%`}
-                  />
-                );
-              })}
-            </div>
             <div className="discovery-payment-legend">
               {paymentItems.map((item, idx) => {
                 const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
@@ -3116,22 +3104,6 @@ function PaymentsPanel({ project, onProjectRefresh }) {
         ) : null}
         {paymentItems.length > 0 ? (
           <>
-            <div
-              className="discovery-payment-bar discovery-payment-bar-large"
-              style={{ gridTemplateColumns: getPaymentGridColumns(paymentItems) }}
-              aria-hidden="true"
-            >
-              {paymentItems.map((item, idx) => {
-                const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
-                return (
-                  <span
-                    key={item.label || typeClass}
-                    className={`discovery-payment-segment ${typeClass}`}
-                    title={`${item.label}: ${item.split}%`}
-                  />
-                );
-              })}
-            </div>
             <div className="discovery-payment-list">
               {paymentItems.map((item) => (
                 <div className="discovery-payment-item discovery-payment-item-rich" key={item.id || item.label}>
