@@ -392,6 +392,7 @@ function formatRevisionLimit(value) {
   return revisionText.toLowerCase().includes("revision") ? revisionText : `${revisionText} revisions`;
 }
 
+/*
 function SummaryHeader({ project }) {
   const progress = Number(project?.progress ?? 0);
   const title = project?.company_name || "No project selected";
@@ -441,6 +442,7 @@ function SummaryHeader({ project }) {
     </section>
   );
 }
+*/
 
 function OverviewPanel({
   gateDeliverables,
@@ -4015,7 +4017,7 @@ export default function Discovery() {
         <div className="content">
           <div className="screen">
             <div className="discovery-shell">
-              <SummaryHeader project={project} />
+              {/* <SummaryHeader project={project} /> */}
 
               <div
                 ref={tabsRef}
