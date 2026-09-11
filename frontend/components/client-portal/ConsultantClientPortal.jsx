@@ -864,10 +864,24 @@ export default function ConsultantClientPortal() {
   };
 
   if (finished) {
+    const closeFinished = () => {
+      handleClosePortal();
+      router.push("/");
+    };
+
     return (
-      <main className="cp-screen">
-        <PortalHeader onClose={handleClosePortal} />
-        <section className="cp-result-card">
+      <main className="cp-screen" onClick={closeFinished}>
+        <PortalHeader onClose={closeFinished} />
+        <section className="cp-result-card" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="cp-entry-card-close"
+            onClick={closeFinished}
+            aria-label="Close"
+          >
+            <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+            Close
+          </button>
           <div className="cp-frame">Your brand personality</div>
           <h1>Balanced</h1>
           {/* <div className="cp-archetype">* The Harmonist Archetype</div> */}
