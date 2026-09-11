@@ -289,60 +289,60 @@ export default function PillowyStatusChart({
               <radialGradient id="grad-blue" cx="55%" cy="45%" r="65%" fx="42%" fy="35%">
                 <stop offset="0%" stopColor="#0284c7" />
                 <stop offset="42%" stopColor="#0284c7" />
-                <stop offset="76%" stopColor="#0369a1" />
-                <stop offset="92%" stopColor="#38bdf8" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0.25" />
+                <stop offset="76%" stopColor="#0284c7" />
+                <stop offset="92%" stopColor="#0284c7" />
+                <stop offset="100%" stopColor="#0284c7" />
               </radialGradient>
 
               <linearGradient id="wash-blue" x1="0%" y1="0%" x2="70%" y2="80%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.92" />
-                <stop offset="30%" stopColor="#e0f2fe" stopOpacity="0.45" />
+                <stop offset="0%" stopColor="#0284c7" stopOpacity="0.92" />
+                <stop offset="30%" stopColor="#0284c7" stopOpacity="0.45" />
                 <stop offset="65%" stopColor="#0284c7" stopOpacity="0" />
               </linearGradient>
 
               {/* 2. Bottom-Right Pink Wedge (Created 12%) */}
               <radialGradient id="grad-pink" cx="48%" cy="48%" r="65%" fx="42%" fy="42%">
                 <stop offset="0%" stopColor="#f472b6" />
-                <stop offset="46%" stopColor="#ec4899" />
-                <stop offset="80%" stopColor="#f43f5e" />
-                <stop offset="94%" stopColor="#fb7185" stopOpacity="0.85" />
-                <stop offset="100%" stopColor="#ffe4e6" stopOpacity="0.25" />
+                <stop offset="46%" stopColor="#f472b6" />
+                <stop offset="80%" stopColor="#f472b6" />
+                <stop offset="94%" stopColor="#f472b6" />
+                <stop offset="100%" stopColor="#f472b6"  />
               </radialGradient>
 
               <linearGradient id="wash-pink" x1="0%" y1="0%" x2="80%" y2="80%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
-                <stop offset="28%" stopColor="#fce7f3" stopOpacity="0.38" />
-                <stop offset="65%" stopColor="#ec4899" stopOpacity="0" />
+                <stop offset="0%" stopColor="#f472b6" stopOpacity="0.85" />
+                <stop offset="28%" stopColor="#f472b6" stopOpacity="0.38" />
+                <stop offset="65%" stopColor="#f472b6" stopOpacity="0" />
               </linearGradient>
 
               {/* 3. Bottom-Left Yellow Wedge (Delivered 48%) */}
               <radialGradient id="grad-yellow" cx="46%" cy="46%" r="65%" fx="40%" fy="40%">
                 <stop offset="0%" stopColor="#fbbf24" />
-                <stop offset="44%" stopColor="#f59e0b" />
-                <stop offset="78%" stopColor="#eab308" />
-                <stop offset="92%" stopColor="#fde047" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#fef08a" stopOpacity="0.25" />
+                <stop offset="44%" stopColor="#fbbf24" />
+                <stop offset="78%" stopColor="#fbbf24" />
+                <stop offset="92%" stopColor="#fbbf24" />
+                <stop offset="100%" stopColor="#fbbf24"  />
               </radialGradient>
 
               <linearGradient id="wash-yellow" x1="30%" y1="0%" x2="70%" y2="90%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
-                <stop offset="30%" stopColor="#fef9c3" stopOpacity="0.4" />
-                <stop offset="70%" stopColor="#f59e0b" stopOpacity="0" />
+                <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.85" />
+                <stop offset="30%" stopColor="#fbbf24" stopOpacity="0.4" />
+                <stop offset="70%" stopColor="#fbbf24" stopOpacity="0" />
               </linearGradient>
 
               {/* 4. Top-Left Green Wedge (In Progress 18%) */}
               <radialGradient id="grad-green" cx="50%" cy="48%" r="65%" fx="44%" fy="40%">
                 <stop offset="0%" stopColor="#22c55e" />
-                <stop offset="44%" stopColor="#16a34a" />
-                <stop offset="78%" stopColor="#15803d" />
-                <stop offset="92%" stopColor="#4ade80" stopOpacity="0.9" />
-                <stop offset="100%" stopColor="#86efac" stopOpacity="0.25" />
+                <stop offset="44%" stopColor="#22c55e" />
+                <stop offset="78%" stopColor="#22c55e" />
+                <stop offset="92%" stopColor="#22c55e" />
+                <stop offset="100%" stopColor="#22c55e"  />
               </radialGradient>
 
               <linearGradient id="wash-green" x1="100%" y1="0%" x2="30%" y2="80%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.88" />
-                <stop offset="30%" stopColor="#dcfce7" stopOpacity="0.45" />
-                <stop offset="65%" stopColor="#16a34a" stopOpacity="0" />
+                <stop offset="0%" stopColor="#22c55e" stopOpacity="0.88" />
+                <stop offset="30%" stopColor="#22c55e" stopOpacity="0.45" />
+                <stop offset="65%" stopColor="#22c55e" stopOpacity="1" />
               </linearGradient>
             </defs>
 
