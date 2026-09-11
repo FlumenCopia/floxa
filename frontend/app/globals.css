@@ -8867,9 +8867,9 @@ section:not(.client-welcome-stage)::after,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 16px;
-  border-radius: 12px;
-  margin-bottom: 20px;
+  padding: 8px 14px;
+  border-radius: 5px;
+  margin-bottom: 14px;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
@@ -8903,8 +8903,8 @@ section:not(.client-welcome-stage)::after,
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
+  padding: 3px 8px;
+  border-radius: 4px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
