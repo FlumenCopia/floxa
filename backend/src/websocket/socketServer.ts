@@ -1,16 +1,18 @@
 // Note: Single-instance in-memory connection registry for local parity.
 // In a multi-instance deployment, use a shared pub/sub adapter (such as Redis).
 
+import fs from 'fs';
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
 import url from 'url';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { Consultant, Project, ProjectDiscovery, ProjectActivity } from '../models/index.js';
+import { Consultant, Project, ProjectDiscovery, ProjectActivity, Moodboard, Concept } from '../models/index.js';
 import { ENV } from '../config/env.js';
 import { logProjectActivity, onActivityCreated } from '../services/project.service.js';
 import { serializeProjectActivity, serializeClientPortalActivity } from '../utils/serializer.js';
 import { unsignPortalAccessToken } from '../utils/crypto.js';
+import { resolveSafeMediaPath, getMimeType } from '../services/storage.service.js';
 
 export interface ClientConnection {
   ws: WebSocket;
@@ -720,6 +722,84 @@ export function setupWebSocketServer(server: Server) {
         if (!currentProject || currentProject.isArchived) {
           ws.send(JSON.stringify({ type: 'ERROR', message: 'Project not found' }));
           ws.close(4004);
+          return;
+        }
+
+        // 0. CLIENT REQUESTS PROTECTED ASSET STREAM (Concealed from Network tab, zero HTTP requests)
+        if (msgType === 'GET_PROTECTED_ASSET') {
+          const assetType = String(content.asset_type || content.assetType || '');
+          const assetId = String(content.asset_id || content.assetId || '');
+
+          let targetFilePath: string | null = null;
+          if (assetType === 'moodboard') {
+            const mb = await Moodboard.findOne({
+              _id: assetId,
+              projectId: currentProjectId,
+              isShared: true,
+            });
+            if (mb) {
+              targetFilePath = mb.watermarkImage || mb.image;
+            }
+          } else if (assetType === 'concept') {
+            const cp = await Concept.findOne({
+              _id: assetId,
+              projectId: currentProjectId,
+              status: { $in: ['shared', 'approved', 'changes_requested'] },
+            });
+            if (cp) {
+              targetFilePath = cp.watermarkImage || cp.image;
+            }
+          }
+
+          if (!targetFilePath) {
+            ws.send(JSON.stringify({
+              type: 'ASSET_STREAM_ERROR',
+              asset_id: assetId,
+              error: 'Asset not found',
+            }));
+            return;
+          }
+
+          try {
+            let fileBuffer: Buffer | null = null;
+            let mimeType = 'image/jpeg';
+
+            if (targetFilePath.startsWith('http://') || targetFilePath.startsWith('https://')) {
+              const resp = await fetch(targetFilePath);
+              if (!resp.ok) throw new Error('Blob fetch failed');
+              const arr = await resp.arrayBuffer();
+              fileBuffer = Buffer.from(arr);
+              mimeType = resp.headers.get('content-type') || 'image/jpeg';
+            } else {
+              const safePath = resolveSafeMediaPath(targetFilePath);
+              if (!safePath || !fs.existsSync(safePath)) {
+                ws.send(JSON.stringify({
+                  type: 'ASSET_STREAM_ERROR',
+                  asset_id: assetId,
+                  error: 'Asset file not found',
+                }));
+                return;
+              }
+              fileBuffer = await fs.promises.readFile(safePath);
+              mimeType = getMimeType(safePath);
+            }
+
+            const base64Data = fileBuffer.toString('base64');
+            ws.send(JSON.stringify({
+              type: 'ASSET_STREAM_DATA',
+              asset_id: assetId,
+              asset_type: assetType,
+              mime_type: mimeType,
+              data: `data:${mimeType};base64,${base64Data}`,
+            }));
+          } catch (err) {
+            console.error('[SocketServer] Error streaming protected asset:', err);
+            ws.send(JSON.stringify({
+              type: 'ASSET_STREAM_ERROR',
+              asset_id: assetId,
+              error: 'Failed to stream asset',
+            }));
+          }
           return;
         }
 

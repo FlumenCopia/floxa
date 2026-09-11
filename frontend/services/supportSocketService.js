@@ -167,6 +167,11 @@ class SupportSocketService {
       this.emit("webrtc_signal", data);
     } else if (type === "NOTIFICATION_NEW") {
       this.emit("notification", data.activity);
+    } else if (type === "ASSET_STREAM_DATA") {
+      this.emit(`asset_stream_${data.asset_id}`, data);
+      this.emit("asset_stream", data);
+    } else if (type === "ASSET_STREAM_ERROR") {
+      this.emit(`asset_stream_error_${data.asset_id}`, data);
     } else if (type === "ERROR") {
       this.emit("server_error", data);
     }
@@ -176,6 +181,14 @@ class SupportSocketService {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
     }
+  }
+
+  requestProtectedAsset({ assetType, assetId }) {
+    this.send({
+      type: "GET_PROTECTED_ASSET",
+      asset_type: assetType,
+      asset_id: assetId,
+    });
   }
 
   requestHelp({ pageId, fieldKey = "", question = "I need assistance on this step." }) {

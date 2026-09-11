@@ -2042,7 +2042,8 @@
   background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.03), transparent 70%);
 }
 
-.client-preview-body img {
+.client-preview-body img,
+.client-preview-body canvas {
   display: block;
   max-width: 88vw;
   max-height: 72vh;
@@ -3996,4 +3997,21 @@ td {
   background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
   border-color: rgba(77, 255, 160, 0.4);
+}
+
+/* Client Portal Asset Protection & Anti-Extraction */
+.client-panel-image,
+.client-preview-body canvas,
+.client-preview-body img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+@media print {
+  html, body, .client-portal-shell {
+    display: none !important;
+    visibility: hidden !important;
+  }
 }

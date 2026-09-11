@@ -9,6 +9,7 @@ export interface IConcept {
   title: string;
   description: string;
   image: string | null;
+  watermarkImage?: string | null;
   file: string | null;
   version: number;
   status: ConceptStatus;
@@ -28,6 +29,7 @@ const conceptSchema = new Schema<IConcept>(
     title: { type: String, required: true, trim: true },
     description: { type: String, default: '', trim: true },
     image: { type: String, default: null },
+    watermarkImage: { type: String, default: null },
     file: { type: String, default: null },
     version: { type: Number, default: 1 },
     status: {

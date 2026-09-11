@@ -9,6 +9,7 @@ import { PaymentMilestone } from '../models/paymentMilestone.model.js';
 import {
   saveFile,
   optimizeImageBuffer,
+  generateWatermarkedImage,
   validateUploadedFile,
   resolveSafeMediaPath,
   streamLocalFile,
@@ -56,6 +57,14 @@ export async function createMoodboard(req: FileUploadRequest, res: Response, nex
     const { buffer, filename } = await optimizeImageBuffer(req.file.buffer, req.file.originalname);
     const savedPath = await saveFile('moodboards', filename, buffer, req.file.mimetype);
 
+    let savedWmPath: string | null = null;
+    try {
+      const { buffer: wmBuffer, filename: wmFilename } = await generateWatermarkedImage(buffer, filename);
+      savedWmPath = await saveFile('moodboards/watermarked', wmFilename, wmBuffer, 'image/jpeg');
+    } catch (wmErr) {
+      console.error('[Moodboard] Watermark generation failed:', wmErr);
+    }
+
     const isShared = req.body.is_shared === 'true' || req.body.is_shared === true || false;
 
     const moodboard = await Moodboard.create({
@@ -63,6 +72,7 @@ export async function createMoodboard(req: FileUploadRequest, res: Response, nex
       title: title.trim(),
       description: (description || '').trim(),
       image: savedPath,
+      watermarkImage: savedWmPath,
       isShared,
     });
 
@@ -152,11 +162,20 @@ export async function updateMoodboard(req: FileUploadRequest, res: Response, nex
     }
 
     let newlySavedImage: string | null = null;
+    let newlySavedWmImage: string | null = null;
     if (req.file) {
       validateUploadedFile(req.file, 'moodboard_image');
       const { buffer, filename } = await optimizeImageBuffer(req.file.buffer, req.file.originalname);
       newlySavedImage = await saveFile('moodboards', filename, buffer, req.file.mimetype);
       updateData.image = newlySavedImage;
+
+      try {
+        const { buffer: wmBuffer, filename: wmFilename } = await generateWatermarkedImage(buffer, filename);
+        newlySavedWmImage = await saveFile('moodboards/watermarked', wmFilename, wmBuffer, 'image/jpeg');
+        updateData.watermarkImage = newlySavedWmImage;
+      } catch (wmErr) {
+        console.error('[Moodboard] Watermark generation failed during update:', wmErr);
+      }
     }
 
     let updated: any;
@@ -170,12 +189,18 @@ export async function updateMoodboard(req: FileUploadRequest, res: Response, nex
       if (newlySavedImage) {
         await deleteStoredFile(newlySavedImage);
       }
+      if (newlySavedWmImage) {
+        await deleteStoredFile(newlySavedWmImage);
+      }
       throw dbErr;
     }
 
-    // Safely clean up old image if replacement succeeded
+    // Safely clean up old images if replacement succeeded
     if (newlySavedImage && existing.image && existing.image !== newlySavedImage) {
       await deleteStoredFile(existing.image);
+    }
+    if (newlySavedWmImage && existing.watermarkImage && existing.watermarkImage !== newlySavedWmImage) {
+      await deleteStoredFile(existing.watermarkImage);
     }
 
     const project = await Project.findById(id);
@@ -204,6 +229,13 @@ export async function deleteMoodboard(req: AuthenticatedRequest, res: Response, 
     if (!moodboard) {
       res.status(404).json({ detail: 'Moodboard not found.' });
       return;
+    }
+
+    if (moodboard.image) {
+      await deleteStoredFile(moodboard.image).catch(() => {});
+    }
+    if (moodboard.watermarkImage) {
+      await deleteStoredFile(moodboard.watermarkImage).catch(() => {});
     }
 
     await updateProjectProgress(id);
@@ -276,12 +308,20 @@ export async function createConcept(req: AuthenticatedRequest, res: Response, ne
     }
 
     let savedImagePath: string | null = null;
+    let savedWmImagePath: string | null = null;
     let savedFilePath: string | null = null;
 
     if (imageFile) {
       validateUploadedFile(imageFile, 'concept_image');
       const { buffer, filename } = await optimizeImageBuffer(imageFile.buffer, imageFile.originalname);
       savedImagePath = await saveFile('concepts', filename, buffer, imageFile.mimetype);
+
+      try {
+        const { buffer: wmBuffer, filename: wmFilename } = await generateWatermarkedImage(buffer, filename);
+        savedWmImagePath = await saveFile('concepts/watermarked', wmFilename, wmBuffer, 'image/jpeg');
+      } catch (wmErr) {
+        console.error('[Concept] Watermark generation failed:', wmErr);
+      }
     }
 
     if (assetFile) {
@@ -298,6 +338,7 @@ export async function createConcept(req: AuthenticatedRequest, res: Response, ne
       title: title.trim(),
       description: (description || '').trim(),
       image: savedImagePath,
+      watermarkImage: savedWmImagePath,
       file: savedFilePath,
       version: nextVersion,
       status: 'draft',
@@ -347,6 +388,7 @@ export async function updateConcept(req: AuthenticatedRequest, res: Response, ne
     if (description !== undefined) updateData.description = description.trim();
 
     let newlySavedImage: string | null = null;
+    let newlySavedWmImage: string | null = null;
     let newlySavedAsset: string | null = null;
 
     if (imageFile) {
@@ -354,6 +396,14 @@ export async function updateConcept(req: AuthenticatedRequest, res: Response, ne
       const { buffer, filename } = await optimizeImageBuffer(imageFile.buffer, imageFile.originalname);
       newlySavedImage = await saveFile('concepts', filename, buffer, imageFile.mimetype);
       updateData.image = newlySavedImage;
+
+      try {
+        const { buffer: wmBuffer, filename: wmFilename } = await generateWatermarkedImage(buffer, filename);
+        newlySavedWmImage = await saveFile('concepts/watermarked', wmFilename, wmBuffer, 'image/jpeg');
+        updateData.watermarkImage = newlySavedWmImage;
+      } catch (wmErr) {
+        console.error('[Concept] Watermark generation failed during update:', wmErr);
+      }
     }
 
     if (assetFile) {
@@ -371,12 +421,16 @@ export async function updateConcept(req: AuthenticatedRequest, res: Response, ne
       );
     } catch (dbErr) {
       if (newlySavedImage) await deleteStoredFile(newlySavedImage);
+      if (newlySavedWmImage) await deleteStoredFile(newlySavedWmImage);
       if (newlySavedAsset) await deleteStoredFile(newlySavedAsset);
       throw dbErr;
     }
 
     if (newlySavedImage && existing.image && existing.image !== newlySavedImage) {
       await deleteStoredFile(existing.image);
+    }
+    if (newlySavedWmImage && existing.watermarkImage && existing.watermarkImage !== newlySavedWmImage) {
+      await deleteStoredFile(existing.watermarkImage);
     }
     if (newlySavedAsset && existing.file && existing.file !== newlySavedAsset) {
       await deleteStoredFile(existing.file);
@@ -397,6 +451,16 @@ export async function deleteConcept(req: AuthenticatedRequest, res: Response, ne
     if (!concept) {
       res.status(404).json({ detail: 'Concept not found.' });
       return;
+    }
+
+    if (concept.image) {
+      await deleteStoredFile(concept.image).catch(() => {});
+    }
+    if (concept.watermarkImage) {
+      await deleteStoredFile(concept.watermarkImage).catch(() => {});
+    }
+    if (concept.file) {
+      await deleteStoredFile(concept.file).catch(() => {});
     }
 
     await updateProjectProgress(id);

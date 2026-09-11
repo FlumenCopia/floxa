@@ -31,8 +31,10 @@ import {
 } from '../services/payment.service.js';
 import { generateSignedAgreementPdf } from '../services/pdf.service.js';
 import { maybeGenerateAgreementSnapshot } from '../services/agreement.service.js';
+import fs from 'fs';
 import {
   saveFile,
+  generateWatermarkedImage,
   resolveSafeMediaPath,
   streamLocalFile,
 } from '../services/storage.service.js';
@@ -538,6 +540,14 @@ export async function getPortalAgreement(req: any, res: Response, next: NextFunc
 
 export async function downloadPortalMoodboardImage(req: any, res: Response, next: NextFunction) {
   try {
+    // Strictly block direct browser address-bar download / document navigation
+    const secFetchDest = req.headers['sec-fetch-dest'];
+    const secFetchMode = req.headers['sec-fetch-mode'];
+    if (secFetchDest === 'document' || secFetchMode === 'navigate') {
+      res.status(403).json({ detail: 'Direct browser access to protected assets is strictly prohibited.' });
+      return;
+    }
+
     const { asset_id } = req.params;
     const moodboard = await Moodboard.findOne({
       _id: asset_id,
@@ -545,12 +555,36 @@ export async function downloadPortalMoodboardImage(req: any, res: Response, next
       isShared: true,
     });
 
-    if (!moodboard || !moodboard.image) {
+    if (!moodboard || (!moodboard.image && !moodboard.watermarkImage)) {
       res.status(404).json({ detail: 'Asset not found.' });
       return;
     }
 
-    const safePath = resolveSafeMediaPath(moodboard.image);
+    let targetFile = moodboard.watermarkImage;
+    if (!targetFile && moodboard.image) {
+      // Generate watermarked version on-the-fly for legacy uploads
+      const origSafePath = resolveSafeMediaPath(moodboard.image);
+      if (origSafePath && fs.existsSync(origSafePath)) {
+        try {
+          const origBuffer = await fs.promises.readFile(origSafePath);
+          const { buffer: wmBuffer, filename: wmFilename } = await generateWatermarkedImage(
+            origBuffer,
+            path.basename(moodboard.image)
+          );
+          targetFile = await saveFile('moodboards/watermarked', wmFilename, wmBuffer, 'image/jpeg');
+          await Moodboard.findByIdAndUpdate(moodboard._id, { $set: { watermarkImage: targetFile } });
+        } catch (genErr) {
+          console.error('[Portal] Error generating watermark for moodboard on-the-fly:', genErr);
+        }
+      }
+    }
+
+    if (!targetFile) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    const safePath = resolveSafeMediaPath(targetFile);
     if (!safePath) {
       res.status(404).json({ detail: 'Asset not found.' });
       return;
@@ -564,6 +598,14 @@ export async function downloadPortalMoodboardImage(req: any, res: Response, next
 
 export async function downloadPortalConceptImage(req: any, res: Response, next: NextFunction) {
   try {
+    // Strictly block direct browser address-bar download / document navigation
+    const secFetchDest = req.headers['sec-fetch-dest'];
+    const secFetchMode = req.headers['sec-fetch-mode'];
+    if (secFetchDest === 'document' || secFetchMode === 'navigate') {
+      res.status(403).json({ detail: 'Direct browser access to protected assets is strictly prohibited.' });
+      return;
+    }
+
     const { asset_id } = req.params;
     const concept = await Concept.findOne({
       _id: asset_id,
@@ -571,12 +613,36 @@ export async function downloadPortalConceptImage(req: any, res: Response, next: 
       status: { $in: ['shared', 'approved', 'changes_requested'] },
     });
 
-    if (!concept || !concept.image) {
+    if (!concept || (!concept.image && !concept.watermarkImage)) {
       res.status(404).json({ detail: 'Asset not found.' });
       return;
     }
 
-    const safePath = resolveSafeMediaPath(concept.image);
+    let targetFile = concept.watermarkImage;
+    if (!targetFile && concept.image) {
+      // Generate watermarked version on-the-fly for legacy uploads
+      const origSafePath = resolveSafeMediaPath(concept.image);
+      if (origSafePath && fs.existsSync(origSafePath)) {
+        try {
+          const origBuffer = await fs.promises.readFile(origSafePath);
+          const { buffer: wmBuffer, filename: wmFilename } = await generateWatermarkedImage(
+            origBuffer,
+            path.basename(concept.image)
+          );
+          targetFile = await saveFile('concepts/watermarked', wmFilename, wmBuffer, 'image/jpeg');
+          await Concept.findByIdAndUpdate(concept._id, { $set: { watermarkImage: targetFile } });
+        } catch (genErr) {
+          console.error('[Portal] Error generating watermark for concept on-the-fly:', genErr);
+        }
+      }
+    }
+
+    if (!targetFile) {
+      res.status(404).json({ detail: 'Asset not found.' });
+      return;
+    }
+
+    const safePath = resolveSafeMediaPath(targetFile);
     if (!safePath) {
       res.status(404).json({ detail: 'Asset not found.' });
       return;

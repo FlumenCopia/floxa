@@ -7,6 +7,7 @@ export interface IMoodboard {
   title: string;
   description: string;
   image: string;
+  watermarkImage?: string | null;
   isSelected: boolean;
   isShared: boolean;
   clientFeedback?: string;
@@ -25,6 +26,7 @@ const moodboardSchema = new Schema<IMoodboard>(
     title: { type: String, required: true, trim: true },
     description: { type: String, default: '', trim: true },
     image: { type: String, required: true },
+    watermarkImage: { type: String, default: null },
     isSelected: { type: Boolean, default: false },
     isShared: { type: Boolean, default: true },
     clientFeedback: { type: String, default: '', trim: true },

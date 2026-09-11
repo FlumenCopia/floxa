@@ -145,6 +145,81 @@ export async function optimizeImageBuffer(
   }
 }
 
+export async function generateWatermarkedImage(
+  buffer: Buffer,
+  filename: string
+): Promise<{ buffer: Buffer; filename: string }> {
+  try {
+    const ext = path.extname(filename).toLowerCase();
+    const baseName = path.basename(filename, ext);
+    const wmFilename = `${baseName}_watermarked${ext || '.jpg'}`;
+
+    const image = sharp(buffer).rotate();
+    const metadata = await image.metadata();
+    const width = metadata.width || 1200;
+    const height = metadata.height || 800;
+
+    const diagonal = Math.sqrt(width * width + height * height);
+    const patternFontSize = Math.max(22, Math.round(diagonal * 0.026));
+    const subFontSize = Math.max(12, Math.round(patternFontSize * 0.52));
+
+    const svgWatermark = `
+      <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          .tiled-text {
+            fill: rgba(255, 255, 255, 0.52);
+            stroke: rgba(0, 0, 0, 0.55);
+            stroke-width: 1.5px;
+            paint-order: stroke fill;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: ${patternFontSize}px;
+            font-weight: 900;
+            letter-spacing: 3.5px;
+          }
+          .tiled-sub {
+            fill: rgba(255, 255, 255, 0.42);
+            stroke: rgba(0, 0, 0, 0.48);
+            stroke-width: 1.2px;
+            paint-order: stroke fill;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: ${subFontSize}px;
+            font-weight: 700;
+            letter-spacing: 2.2px;
+          }
+          .lattice-line-light {
+            stroke: rgba(255, 255, 255, 0.28);
+            stroke-width: 1.2px;
+            stroke-dasharray: 10, 4;
+          }
+          .lattice-line-dark {
+            stroke: rgba(0, 0, 0, 0.28);
+            stroke-width: 1.2px;
+            stroke-dasharray: 10, 4;
+          }
+        </style>
+        <pattern id="wm-pattern" width="240" height="140" patternTransform="rotate(-30 0 0)" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="0" x2="240" y2="140" class="lattice-line-light" />
+          <line x1="0" y1="140" x2="240" y2="0" class="lattice-line-dark" />
+          <text x="15" y="55" class="tiled-text">FLOXA</text>
+          <text x="15" y="95" class="tiled-sub">DO NOT COPY</text>
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#wm-pattern)" />
+      </svg>
+    `;
+
+    const watermarkedBuffer = await sharp(buffer)
+      .rotate()
+      .composite([{ input: Buffer.from(svgWatermark), blend: 'over' }])
+      .jpeg({ quality: 84 })
+      .toBuffer();
+
+    return { buffer: watermarkedBuffer, filename: wmFilename };
+  } catch (err) {
+    console.error('Failed to generate watermark, falling back to original buffer:', err);
+    return { buffer, filename };
+  }
+}
+
 export async function saveFile(
   folder: string,
   filename: string,

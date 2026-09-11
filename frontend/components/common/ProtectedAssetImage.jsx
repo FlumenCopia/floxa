@@ -1,12 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { fetchProtectedAssetBlob } from "@/lib/api";
+import { supportSocket } from "../../services/supportSocketService";
 
 /**
- * Reusable ProtectedAssetImage component for fetching and rendering protected private Blob images.
- * Uses authenticated fetch with credentials: "include", converts binary response to a Blob object URL,
- * renders that object URL, and revokes it on unmount or URL change.
+ * Enhanced ProtectedAssetImage component:
+ * 1. Streams protected assets directly through WebSocket (supportSocket) when available,
+ *    preventing any HTTP image URLs from appearing in the browser's Network tab.
+ * 2. Renders via HTML5 <canvas> to ensure no <img src="..."> element is exposed in the DOM.
+ * 3. Prevents context menus, text selection, and image drag-and-drop.
+ * 4. Gracefully falls back to authenticated fetch if WebSocket is still connecting.
  */
 export default function ProtectedAssetImage({
   src,
@@ -26,6 +30,49 @@ export default function ProtectedAssetImage({
   const [objectUrl, setObjectUrl] = useState(null);
   const [loading, setLoading] = useState(Boolean(src));
   const [error, setError] = useState(null);
+  const [isSilentBlank, setIsSilentBlank] = useState(false);
+  const canvasRef = useRef(null);
+  const loadedImageRef = useRef(null);
+
+  // Silent canvas blankout on screenshot hotkeys (zero visible banners or popups)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let blankTimer = null;
+    const triggerSilentBlank = () => {
+      setIsSilentBlank(true);
+      if (blankTimer) clearTimeout(blankTimer);
+      blankTimer = setTimeout(() => {
+        setIsSilentBlank(false);
+      }, 1500);
+    };
+
+    const handleKeyDown = (e) => {
+      const key = (e.key || "").toLowerCase();
+      const code = e.code || "";
+      const keyCode = e.keyCode || e.which;
+
+      if (
+        key === "printscreen" ||
+        code === "PrintScreen" ||
+        keyCode === 44 ||
+        key === "meta" ||
+        code === "MetaLeft" ||
+        code === "MetaRight" ||
+        (e.altKey && keyCode === 44) ||
+        (e.shiftKey && (e.metaKey || e.ctrlKey) && key === "s")
+      ) {
+        triggerSilentBlank();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+
+    return () => {
+      if (blankTimer) clearTimeout(blankTimer);
+      window.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, []);
 
   useEffect(() => {
     if (!src) {
@@ -34,32 +81,64 @@ export default function ProtectedAssetImage({
 
     let isMounted = true;
     let createdUrl = null;
+    let unsubscribeWs = null;
+    let unsubscribeErr = null;
+    let fallbackTimer = null;
 
-    Promise.resolve().then(() => {
-      if (isMounted) {
-        setLoading(true);
-        setError(null);
-      }
-    });
+    setLoading(true);
+    setError(null);
 
-    fetchProtectedAssetBlob(src)
-      .then(({ blob }) => {
+    const portalMatch = String(src).match(/\/client-portal\/[^/]+\/(moodboards|concepts)\/([^/]+)\/image/i);
+
+    const loadViaHttpFallback = () => {
+      fetchProtectedAssetBlob(src)
+        .then(({ blob }) => {
+          if (!isMounted) return;
+          createdUrl = URL.createObjectURL(blob);
+          setObjectUrl(createdUrl);
+          setLoading(false);
+        })
+        .catch((err) => {
+          if (!isMounted) return;
+          setError(err.detail || "Failed to load image");
+          setLoading(false);
+        });
+    };
+
+    if (portalMatch && supportSocket && supportSocket.ws && supportSocket.ws.readyState === WebSocket.OPEN) {
+      const assetType = portalMatch[1].toLowerCase() === "moodboards" ? "moodboard" : "concept";
+      const assetId = portalMatch[2];
+
+      unsubscribeWs = supportSocket.on(`asset_stream_${assetId}`, (payload) => {
         if (!isMounted) return;
-        createdUrl = URL.createObjectURL(blob);
-        setObjectUrl(createdUrl);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[ProtectedAssetImage] Failed to load protected image:", err);
-        }
-        setError(err.detail || "Failed to load image");
+        if (fallbackTimer) clearTimeout(fallbackTimer);
+        setObjectUrl(payload.data);
         setLoading(false);
       });
 
+      unsubscribeErr = supportSocket.on(`asset_stream_error_${assetId}`, () => {
+        if (!isMounted) return;
+        loadViaHttpFallback();
+      });
+
+      // Request over WebSocket
+      supportSocket.requestProtectedAsset({ assetType, assetId });
+
+      // Fallback timer if socket payload is delayed
+      fallbackTimer = setTimeout(() => {
+        if (isMounted && loading) {
+          loadViaHttpFallback();
+        }
+      }, 2000);
+    } else {
+      loadViaHttpFallback();
+    }
+
     return () => {
       isMounted = false;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      if (unsubscribeWs) unsubscribeWs();
+      if (unsubscribeErr) unsubscribeErr();
       if (createdUrl) {
         URL.revokeObjectURL(createdUrl);
       }
@@ -68,6 +147,31 @@ export default function ProtectedAssetImage({
       setError(null);
     };
   }, [src]);
+
+  // Draw to canvas when not asBackground
+  useEffect(() => {
+    if (!asBackground && objectUrl && canvasRef.current) {
+      const img = new window.Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        loadedImageRef.current = img;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          if (isSilentBlank) {
+            ctx.fillStyle = "#0a1912";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          } else {
+            ctx.drawImage(img, 0, 0);
+          }
+        }
+      };
+      img.src = objectUrl;
+    }
+  }, [asBackground, objectUrl, isSilentBlank]);
 
   if (!src || error) {
     if (asBackground) {
@@ -80,6 +184,7 @@ export default function ProtectedAssetImage({
           role={role}
           tabIndex={tabIndex}
           aria-label={ariaLabel}
+          onContextMenu={(e) => e.preventDefault()}
           {...props}
         >
           <span>{fallbackText}</span>
@@ -89,7 +194,12 @@ export default function ProtectedAssetImage({
     }
 
     return (
-      <div className={`protected-image-placeholder error ${className}`.trim()} style={style} {...props}>
+      <div
+        className={`protected-image-placeholder error ${className}`.trim()}
+        style={style}
+        onContextMenu={(e) => e.preventDefault()}
+        {...props}
+      >
         <span>{fallbackText}</span>
       </div>
     );
@@ -106,6 +216,7 @@ export default function ProtectedAssetImage({
           role={role}
           tabIndex={tabIndex}
           aria-label={ariaLabel}
+          onContextMenu={(e) => e.preventDefault()}
           {...props}
         >
           <span>Loading image...</span>
@@ -115,7 +226,12 @@ export default function ProtectedAssetImage({
     }
 
     return (
-      <div className={`protected-image-placeholder loading ${className}`.trim()} style={style} {...props}>
+      <div
+        className={`protected-image-placeholder loading ${className}`.trim()}
+        style={style}
+        onContextMenu={(e) => e.preventDefault()}
+        {...props}
+      >
         <span>Loading image...</span>
       </div>
     );
@@ -127,13 +243,17 @@ export default function ProtectedAssetImage({
         className={className}
         style={{
           ...style,
-          backgroundImage: `url(${objectUrl})`,
+          backgroundImage: isSilentBlank ? "none" : `url(${objectUrl})`,
+          backgroundColor: isSilentBlank ? "#0a1912" : undefined,
+          userSelect: "none",
+          WebkitUserSelect: "none",
         }}
         onClick={onClick}
         onKeyDown={onKeyDown}
         role={role}
         tabIndex={tabIndex}
         aria-label={ariaLabel}
+        onContextMenu={(e) => e.preventDefault()}
         {...props}
       >
         {children}
@@ -142,17 +262,24 @@ export default function ProtectedAssetImage({
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={objectUrl}
-      alt={alt}
+    <canvas
+      ref={canvasRef}
       className={className}
-      style={style}
+      style={{
+        ...style,
+        maxWidth: "100%",
+        maxHeight: "100%",
+        display: "block",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        pointerEvents: onClick ? "auto" : "none",
+      }}
       onClick={onClick}
       onKeyDown={onKeyDown}
       role={role}
       tabIndex={tabIndex}
-      aria-label={ariaLabel}
+      aria-label={ariaLabel || alt}
+      onContextMenu={(e) => e.preventDefault()}
       {...props}
     />
   );

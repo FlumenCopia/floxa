@@ -13,6 +13,7 @@ import { LoginScreen, SplashScreen, WelcomeStage } from "./SplashScreen";
 import { VideoCallModal } from "./VideoCallModal";
 import { webRTCService } from "../../services/webRTCService";
 import { supportSocket } from "../../services/supportSocketService";
+import { ClientSecurityShield } from "./ClientSecurityShield";
 
 function getResumeScreen(status) {
   const normalizedStatus = String(status || "").toLowerCase();
@@ -444,6 +445,7 @@ export function ClientPortal({ token, isConsultant = false }) {
 
   return (
     <main className="client-portal-shell">
+      <ClientSecurityShield isConsultant={isConsultantMode} />
       {screen === "splash" || screen === "login" ? (
         <WelcomeStage
           {...screenProps}
