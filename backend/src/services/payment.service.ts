@@ -89,11 +89,17 @@ async function executeAtomicPaymentCompletion(
   params: CompletePaymentMilestoneParams
 ): Promise<CompletePaymentMilestoneResult> {
   let session: ClientSession | null = null;
-  try {
-    session = await mongoose.startSession();
-    session.startTransaction();
-  } catch {
-    session = null;
+  const topologyType = (mongoose.connection as any)?.client?.topology?.description?.type;
+  const isReplicaSet =
+    topologyType === 'ReplicaSetWithPrimary' || topologyType === 'Sharded';
+
+  if (isReplicaSet) {
+    try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+    } catch {
+      session = null;
+    }
   }
 
   try {
@@ -102,14 +108,22 @@ async function executeAtomicPaymentCompletion(
       await session.commitTransaction();
     }
     return result;
-  } catch (error) {
+  } catch (error: any) {
     if (session) {
-      await session.abortTransaction();
+      try {
+        await session.abortTransaction();
+      } catch {}
+    }
+    const errMsg = (error?.message || '').toLowerCase();
+    if (session && errMsg.includes('transaction numbers are only allowed')) {
+      return await runPaymentCompletion(params, null);
     }
     throw error;
   } finally {
     if (session) {
-      session.endSession();
+      try {
+        await session.endSession();
+      } catch {}
     }
   }
 }
