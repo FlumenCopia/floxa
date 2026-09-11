@@ -2323,23 +2323,6 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1.25rem" }}>
           <div>
-            <span
-              style={{
-                display: "inline-block",
-                padding: "3px 8px",
-                borderRadius: "999px",
-                background: "rgba(16, 185, 129, 0.12)",
-                color: "#34d399",
-                border: "1px solid rgba(16, 185, 129, 0.25)",
-                fontSize: "11px",
-                fontWeight: "700",
-                letterSpacing: "0.5px",
-                textTransform: "uppercase",
-                marginBottom: "6px",
-              }}
-            >
-              One-Click Brand Delivery Package
-            </span>
             <h2 style={{ fontSize: "1.25rem", fontWeight: "700", color: "#f8fafc", margin: "0 0 4px" }}>
               Automated Brand Guidelines & Delivery Proposal
             </h2>
