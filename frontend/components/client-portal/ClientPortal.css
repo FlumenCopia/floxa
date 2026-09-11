@@ -1794,14 +1794,14 @@
   height: 5px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(137, 172, 160, 0.12);
 }
 
 .client-dashboard-progress span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #ffffff;
+  background: var(--floxa-neon);
 }
 
 .client-dashboard-stage-list {

@@ -1814,10 +1814,9 @@ textarea {
 }
 
 .badge-muted {
-  background: transparent;
+  background: rgba(129, 160, 149, 0.12);
   color: #7ea092;
-  border: none;
-  outline: none;
+  border: 1px solid rgba(129, 160, 149, 0.16);
 }
 
 .project-page-head {
