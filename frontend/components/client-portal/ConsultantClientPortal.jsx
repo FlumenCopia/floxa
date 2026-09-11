@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShoppingCart, Gem, Globe, Sparkles, Sprout, Building2, X, ArrowLeft, ArrowRight, Video } from "lucide-react";
+import { ShoppingCart, Gem, Globe, Sparkles, Sprout, Building2, X, ArrowLeft, ArrowRight, Video, MessageSquare, Eye } from "lucide-react";
 import { supportSocket } from "../../services/supportSocketService";
 import { clientPortalService } from "../../services/clientPortalService";
 import { getProjects } from "@/lib/projectApi";
@@ -224,14 +224,14 @@ function PortalCard({
         isReadOnly ? (
           <div className="consultant-mode-banner read-only">
             <div>
-              <strong>👁️ View Mode:</strong> Client has not requested help on Frame {step}. Inputs are locked.
+              <strong><Eye size={13} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "5px" }} />View Mode:</strong> Client has not requested help on Frame {step}. Inputs are locked.
             </div>
             <div className="consultant-mode-banner-badge">Read Only</div>
           </div>
         ) : (
           <div className="consultant-mode-banner live-edit">
             <div>
-              <strong>🟢 Live Assistance Active:</strong> Assisting client on Frame {step} in real-time.
+              <strong><span className="banner-pulse-dot" style={{ display: "inline-block", marginRight: "6px" }} />Live Assistance Active:</strong> Assisting client on Frame {step} in real-time.
               {activeHelpSession?.question ? (
                 <span style={{ display: "block", fontSize: "12px", opacity: 0.9 }}>
                   Client Doubt: &quot;{activeHelpSession.question}&quot;
@@ -263,7 +263,7 @@ function PortalCard({
                 className="client-help-trigger-btn"
                 onClick={onOpenHelp}
               >
-                💬 Need Help on Frame {step}?
+                <MessageSquare size={13} /> Need Help on Frame {step}?
               </button>
             )
           ) : null}
@@ -314,15 +314,35 @@ function PortalCard({
 
 
 
+const SLIDER_THUMB_COLORS = [
+  { thumb: "#FACC15", glow: "rgba(250, 204, 21, 0.75)" }, // Yellow
+  { thumb: "#22C55E", glow: "rgba(34, 197, 94, 0.75)" },  // Green
+  { thumb: "#F472B6", glow: "rgba(244, 114, 182, 0.75)" }, // Pink
+  { thumb: "#F87171", glow: "rgba(248, 113, 113, 0.75)" }, // Coral Red
+  { thumb: "#38BDF8", glow: "rgba(56, 189, 248, 0.75)" }, // Blue
+  { thumb: "#A78BFA", glow: "rgba(167, 139, 250, 0.75)" }, // Purple
+];
+
 function SliderRows({ pairs, values, setValues, isReadOnly, onSync }) {
   return (
     <div className="cp-slider-list">
-      {pairs.map(([left, right]) => {
+      {pairs.map(([left, right], index) => {
         const key = `${left}-${right}`;
         const val = values[key] ?? 0;
+        const color = SLIDER_THUMB_COLORS[index % SLIDER_THUMB_COLORS.length];
         return (
-          <label className="cp-slider-row" key={key}>
-            <span>{left}</span>
+          <div
+            className="client-slider-row"
+            key={key}
+            style={{
+              "--slider-thumb-color": color.thumb,
+              "--slider-thumb-glow": color.glow,
+            }}
+          >
+            <div className="client-slider-labels">
+              <span className="client-slider-label-left">{left}</span>
+              <span className="client-slider-label-right">{right}</span>
+            </div>
             <input
               aria-label={`${left} to ${right}`}
               disabled={isReadOnly}
@@ -339,10 +359,9 @@ function SliderRows({ pairs, values, setValues, isReadOnly, onSync }) {
               step="1"
               type="range"
               value={val}
+              className="client-ticks-slider"
             />
-            <span>{right}</span>
-            <strong>{val > 0 ? `+${val}` : val}</strong>
-          </label>
+          </div>
         );
       })}
     </div>
@@ -845,13 +864,27 @@ export default function ConsultantClientPortal() {
   };
 
   if (finished) {
+    const closeFinished = () => {
+      handleClosePortal();
+      router.push("/");
+    };
+
     return (
-      <main className="cp-screen">
-        <PortalHeader onClose={handleClosePortal} />
-        <section className="cp-result-card">
+      <main className="cp-screen" onClick={closeFinished}>
+        <PortalHeader onClose={closeFinished} />
+        <section className="cp-result-card" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="cp-entry-card-close"
+            onClick={closeFinished}
+            aria-label="Close"
+          >
+            <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+            Close
+          </button>
           <div className="cp-frame">Your brand personality</div>
           <h1>Balanced</h1>
-          <div className="cp-archetype">* The Harmonist Archetype</div>
+          {/* <div className="cp-archetype">* The Harmonist Archetype</div> */}
           <p>{resultLine}</p>
           <div className="cp-result-grid">
             <div>
@@ -889,7 +922,6 @@ export default function ConsultantClientPortal() {
             <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
             Close
           </button>
-          <div className="cp-orb" aria-hidden="true" />
           <h1>{"Let's discover your brand."}</h1>
           <p>
             {"You've"} been invited to complete a 12-minute brand discovery session. Your answers
@@ -1027,7 +1059,7 @@ export default function ConsultantClientPortal() {
             onClick={() => setEntered(true)}
             type="button"
           >
-            {"Enter portal ->"}
+            {"Enter portal"}
           </button>
           <small>Answers are shared only with your consultant and kept securely encrypted.</small>
         </section>
@@ -1259,7 +1291,7 @@ export default function ConsultantClientPortal() {
       {showHelpModal ? (
         <div className="client-help-modal-overlay" onClick={() => setShowHelpModal(false)}>
           <div className="client-help-modal-card" onClick={(e) => e.stopPropagation()}>
-            <h3>💬 Ask Consultant for Assistance</h3>
+            <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><MessageSquare size={18} /> Ask Consultant for Assistance</h3>
             <p>
               Stuck or confused on <strong>Frame {step}</strong>? Your consultant will be notified instantly and can assist you live on this screen.
             </p>
