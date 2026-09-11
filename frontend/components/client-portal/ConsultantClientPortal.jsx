@@ -870,7 +870,7 @@ export default function ConsultantClientPortal() {
         <section className="cp-result-card">
           <div className="cp-frame">Your brand personality</div>
           <h1>Balanced</h1>
-          <div className="cp-archetype">* The Harmonist Archetype</div>
+          {/* <div className="cp-archetype">* The Harmonist Archetype</div> */}
           <p>{resultLine}</p>
           <div className="cp-result-grid">
             <div>
