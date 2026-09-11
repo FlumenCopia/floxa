@@ -908,7 +908,6 @@ export default function ConsultantClientPortal() {
             <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
             Close
           </button>
-          <div className="cp-orb" aria-hidden="true" />
           <h1>{"Let's discover your brand."}</h1>
           <p>
             {"You've"} been invited to complete a 12-minute brand discovery session. Your answers

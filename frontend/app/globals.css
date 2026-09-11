@@ -6470,8 +6470,8 @@ textarea {
   min-height: 43px;
   border: 0;
   border-radius: 8px;
-  background: #4dffa0;
-  color: #020806;
+  background: #fff;
+  color: #000;
   cursor: pointer;
   font-size: 15px;
   font-weight: 800;
