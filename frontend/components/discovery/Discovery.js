@@ -393,6 +393,10 @@ function formatRevisionLimit(value) {
 }
 
 function SummaryHeader({ project }) {
+  if (!project?.id) {
+    return null;
+  }
+
   const progress = Number(project?.progress ?? 0);
   const title = project?.company_name || "No project selected";
   const email = project?.client_email || "No email available";
@@ -4015,7 +4019,7 @@ export default function Discovery() {
         <div className="content">
           <div className="screen">
             <div className="discovery-shell">
-              <SummaryHeader project={project} />
+              {project?.id ? <SummaryHeader project={project} /> : null}
 
               <div
                 ref={tabsRef}
