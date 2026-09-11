@@ -80,51 +80,38 @@ textarea {
 .floxa-ambient-bg,
 #login-screen,
 .client-portal-shell,
+.cp-screen,
 .shell {
   position: relative;
   isolation: isolate;
   background: #000704;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 .floxa-ambient-bg::before,
 #login-screen::before,
 .client-portal-shell::before,
+.cp-screen::before,
 .shell::before {
   content: "";
   position: fixed;
-  top: 50%;
-  left: 50%;
-  width: 170vmax;
-  height: 170vmax;
-  margin-top: -85vmax;
-  margin-left: -85vmax;
-  z-index: -2;
-  background: url("/client-design/banner1.png") center;
-  opacity: 1;
-  filter: brightness(1.35) contrast(1.12) saturate(1.35);
-  animation: floxa-background-spin 90s linear infinite;
-  will-change: transform;
-  pointer-events: none;
-}
-
-.shell::before {
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
   margin: 0;
-  animation: none;
-  transform: none;
+  z-index: -2;
   background: url("/client-design/banner3.png") center / cover no-repeat;
   background-attachment: fixed;
   opacity: 0.95;
   filter: brightness(1.1) contrast(1.12) saturate(1.2);
+  pointer-events: none;
 }
 
 .floxa-ambient-bg::after,
 #login-screen::after,
 .client-portal-shell::after,
+.cp-screen::after,
 .shell::after {
   content: "";
   position: fixed;
@@ -6300,7 +6287,7 @@ textarea {
   background:
     linear-gradient(rgba(77, 255, 160, 0.018) 1px, transparent 1px),
     radial-gradient(circle at 50% 0%, rgba(77, 255, 160, 0.055), transparent 34%),
-    #020806;
+    transparent;
   background-size: 100% 68px, auto, auto;
   color: #effbf4;
 }

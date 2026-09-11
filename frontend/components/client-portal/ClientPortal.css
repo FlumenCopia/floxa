@@ -18,7 +18,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   color: var(--floxa-text);
-  background: #000704;
+  background: transparent;
 }
 
 .client-dashboard-project h1,
