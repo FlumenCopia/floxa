@@ -2976,9 +2976,19 @@ td {
 }
 
 .consultant-mode-banner.read-only {
-  background: rgba(255, 179, 0, 0.08);
-  border: 1px solid rgba(255, 179, 0, 0.25);
-  color: #ffb300;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.consultant-mode-banner.read-only strong {
+  color: #ffffff;
+}
+
+.consultant-mode-banner.read-only .consultant-mode-banner-badge {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .consultant-mode-banner.live-edit {
