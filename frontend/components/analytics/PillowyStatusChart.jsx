@@ -257,19 +257,26 @@ export default function PillowyStatusChart({
 
         {/* Hover Tooltip matching reference */}
         <div
-          className={`airbrush-tooltip-card ${tooltipPos.show ? "show" : ""}`}
+          className={`airbrush-tooltip-card airbrush-tooltip-popover ${tooltipPos.show ? "show" : ""}`}
           style={{
             left: `${tooltipPos.x}px`,
             top: `${tooltipPos.y}px`,
+            backgroundColor: "#ffffff",
+            background: "#ffffff",
+            border: "1px solid rgba(255, 255, 255, 0.95)",
+            backdropFilter: "none",
+            WebkitBackdropFilter: "none",
+            boxShadow: "0 10px 25px rgba(0, 0, 0, 0.35)",
+            borderRadius: "10px",
           }}
         >
           <span
             className="airbrush-tt-label"
-            style={{ color: activeSector?.info.color || "inherit" }}
+            style={{ color: activeSector?.info.color || "#111827" }}
           >
             {activeSector ? activeSector.badgeSub : "Status"}
           </span>
-          <span className="airbrush-tt-val">
+          <span className="airbrush-tt-val" style={{ color: "#1f2937" }}>
             {activeSector
               ? `${Math.round(activeSector.pct)}% • ${activeSector.count} projects`
               : "Share"}

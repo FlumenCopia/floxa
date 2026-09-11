@@ -6012,13 +6012,16 @@ textarea {
 }
 
 /* Tooltip */
-.airbrush-tooltip-card {
+.airbrush-tooltip-card,
+.airbrush-tooltip-popover {
   position: absolute;
-  background: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
-  padding: 8px 14px;
-  border-radius: 10px;
+  background: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35) !important;
+  padding: 8px 14px !important;
+  border-radius: 10px !important;
   pointer-events: none;
   opacity: 0;
   transform: translate(-50%, -125%) scale(0.95);
@@ -6031,7 +6034,8 @@ textarea {
   text-align: center;
 }
 
-.airbrush-tooltip-card.show {
+.airbrush-tooltip-card.show,
+.airbrush-tooltip-popover.show {
   opacity: 1;
   transform: translate(-50%, -140%) scale(1);
 }
@@ -6046,7 +6050,7 @@ textarea {
 .airbrush-tt-val {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #4b5563;
+  color: #1f2937 !important;
 }
 
 @media (max-width: 600px) {
@@ -8794,8 +8798,8 @@ section:not(.client-welcome-stage),
 .section,
 .card:not(.dashboard-card):not(.kpi-card),
 .card2,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card),
-[class*="card-"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card),
+[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover),
+[class*="card-"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover),
 .settings-card,
 .settings-danger-card,
 .project-table-card,
@@ -8850,8 +8854,8 @@ section:not(.client-welcome-stage)::before,
 section:not(.client-welcome-stage)::after,
 .card:not(.dashboard-card):not(.kpi-card)::before,
 .card:not(.dashboard-card):not(.kpi-card)::after,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card)::before,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card)::after,
+[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover)::before,
+[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.kpi-card):not(.dashboard-card):not(.dashboard-projects-card):not(.activity-card):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover)::after,
 .table-wrap::before,
 .table-wrap::after {
   border-radius: 5px !important;
@@ -9117,8 +9121,8 @@ section:not(.client-welcome-stage)::after,
 .client-agreement-card,
 .card:not(.login-card):not(.client-welcome-glass),
 .card2,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]),
-[class*="card-"]:not(.login-card):not(.client-welcome-glass):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]) {
+[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]),
+[class*="card-"]:not(.login-card):not(.client-welcome-glass):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]) {
   border-radius: 5px !important;
   border: 1px solid rgba(77, 255, 160, 0.28) !important;
   background: linear-gradient(145deg, rgba(77, 255, 160, 0.16) 0%, rgba(14, 52, 32, 0.72) 45%, rgba(4, 20, 12, 0.85) 100%) !important;
