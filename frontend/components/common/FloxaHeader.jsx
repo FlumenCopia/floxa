@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCurrentConsultant, logoutConsultant, subscribeToConsultantChange, clearCurrentConsultantCache } from "@/lib/authApi";
-import { getConsultantActivities, markConsultantActivitiesRead, markProjectActivitiesRead, invalidateConsultantActivitiesCache } from "@/lib/projectApi";
+import { getProjects, getConsultantActivities, markConsultantActivitiesRead, markProjectActivitiesRead, invalidateConsultantActivitiesCache } from "@/lib/projectApi";
 import { showError, showSuccess, showInfo, showWarning } from "@/lib/toast";
 import {
   LayoutDashboard,
@@ -268,6 +268,10 @@ export default function Floxaheader({
   const [callState, setCallState] = useState("idle");
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isCallPickerOpen, setIsCallPickerOpen] = useState(false);
+  const [callPickerProjects, setCallPickerProjects] = useState([]);
+  const [callPickerLoading, setCallPickerLoading] = useState(false);
+  const [callPickerSearch, setCallPickerSearch] = useState("");
 
   useEffect(() => {
     const token =
@@ -319,6 +323,18 @@ export default function Floxaheader({
     };
   }, []);
 
+  const loadCallPickerProjects = async () => {
+    setCallPickerLoading(true);
+    try {
+      const data = await getProjects({ pageSize: 50 });
+      setCallPickerProjects(Array.isArray(data.results) ? data.results : []);
+    } catch (err) {
+      console.error("Failed to load projects for call picker:", err);
+    } finally {
+      setCallPickerLoading(false);
+    }
+  };
+
   const handleNavbarVideoClick = () => {
     if (callState === "incoming_ringing") {
       webRTCService.acceptCall();
@@ -328,30 +344,20 @@ export default function Floxaheader({
       return;
     }
 
-    // AUDIT-004: Camera-button project selection resolution order:
-    // 1. Active project ID from the current route/query/context
+    // 1. Check if there is an active project in current page context
     const routeProjectId =
       searchParams.get("projectId") ||
       searchParams.get("id") ||
       searchParams.get("project_id");
 
-    // 2. Selected project maintained by the component / props
     const selectedProjectId = project?.id || project?._id || projectId;
+    const explicitProjectId = routeProjectId || selectedProjectId;
 
-    // 3. Relevant notification project as fallback
-    const targetNotif = visibleNotifications.find(
-      (n) => n.project_id || n.metadata?.project_id
-    );
-    const notifProjectId =
-      targetNotif?.project_id || targetNotif?.metadata?.project_id;
-
-    const targetProjectId = routeProjectId || selectedProjectId || notifProjectId;
-
-    if (targetProjectId) {
+    if (explicitProjectId) {
       let clientName = "Client";
       let projectTitle = "Project";
 
-      if (project && (project.id === targetProjectId || project._id === targetProjectId)) {
+      if (project && (project.id === explicitProjectId || project._id === explicitProjectId)) {
         clientName =
           project.client_name ||
           project.client?.name ||
@@ -361,21 +367,9 @@ export default function Floxaheader({
           project.company_name ||
           project.title ||
           "Project";
-      } else if (
-        targetNotif &&
-        (targetNotif.project_id === targetProjectId || targetNotif.metadata?.project_id === targetProjectId)
-      ) {
-        clientName =
-          targetNotif.client_name ||
-          targetNotif.metadata?.client_name ||
-          "Client";
-        projectTitle =
-          targetNotif.project_title ||
-          targetNotif.metadata?.project_title ||
-          "Project";
       } else {
         const matchingNotif = visibleNotifications.find(
-          (n) => (n.project_id || n.metadata?.project_id) === targetProjectId
+          (n) => (n.project_id || n.metadata?.project_id) === explicitProjectId
         );
         if (matchingNotif) {
           clientName =
@@ -392,14 +386,15 @@ export default function Floxaheader({
       }
 
       webRTCService.initiateCall({
-        projectId: targetProjectId,
+        projectId: explicitProjectId,
         clientName,
         projectTitle,
         role: "consultant",
       });
     } else {
-      // 4. Safe fallback to the consultant client-portal/project-selection page
-      router.push("/client-portal");
+      // 2. On overview pages (/project, /dashboard), open the Client Call Picker modal
+      setIsCallPickerOpen(true);
+      loadCallPickerProjects();
     }
   };
 
@@ -453,7 +448,7 @@ export default function Floxaheader({
       const data = await getConsultantActivities();
       setHeaderNotifications(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Failed to load consultant notifications:", error);
+      console.warn("Failed to load consultant notifications:", error);
     } finally {
       notificationsRequestRef.current = false;
 
@@ -564,7 +559,8 @@ export default function Floxaheader({
       });
 
       if (!activity.is_read && activity.actor_type !== "consultant") {
-        showSuccess(activity.description || "New project activity");
+        const notifId = activity.id || activity._id || activity.description;
+        showSuccess(activity.description || "New project activity", { toastId: `notif-${notifId}` });
       }
     });
 
@@ -990,6 +986,114 @@ export default function Floxaheader({
       </div>
 
       <VideoCallModal currentRole="consultant" project={project} />
+
+      {/* Client Call Picker Modal */}
+      {isCallPickerOpen ? (
+        <div
+          className="floxa-picker-overlay"
+          onClick={() => setIsCallPickerOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="floxa-call-picker-title"
+        >
+          <div className="floxa-picker-card" onClick={(e) => e.stopPropagation()}>
+            <div className="floxa-picker-header">
+              <div className="floxa-picker-title-wrap">
+                <div className="floxa-picker-icon-wrap" aria-hidden="true">
+                  <Video size={20} strokeWidth={2.2} color="#10b981" />
+                </div>
+                <div>
+                  <h3 id="floxa-call-picker-title" className="floxa-picker-title">
+                    Video Call a Client
+                  </h3>
+                  <p className="floxa-picker-subtitle">
+                    Select which client you would like to connect with:
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="floxa-picker-close-btn"
+                onClick={() => setIsCallPickerOpen(false)}
+                aria-label="Close"
+              >
+                <X size={18} strokeWidth={2.2} />
+              </button>
+            </div>
+
+            <div className="floxa-picker-search-wrap">
+              <Search size={15} className="floxa-picker-search-icon" />
+              <input
+                type="text"
+                placeholder="Search client or company name..."
+                value={callPickerSearch}
+                onChange={(e) => setCallPickerSearch(e.target.value)}
+                className="floxa-picker-search-input"
+                autoFocus
+              />
+            </div>
+
+            <div className="floxa-picker-list">
+              {callPickerLoading ? (
+                <div className="floxa-picker-empty">Loading clients...</div>
+              ) : callPickerProjects.filter((p) => {
+                  if (!callPickerSearch.trim()) return true;
+                  const q = callPickerSearch.toLowerCase();
+                  const name = String(p.client_name || p.company_name || "").toLowerCase();
+                  const email = String(p.client_email || "").toLowerCase();
+                  return name.includes(q) || email.includes(q);
+                }).length === 0 ? (
+                <div className="floxa-picker-empty">
+                  {callPickerSearch ? "No matching clients found." : "No active projects found."}
+                </div>
+              ) : (
+                callPickerProjects
+                  .filter((p) => {
+                    if (!callPickerSearch.trim()) return true;
+                    const q = callPickerSearch.toLowerCase();
+                    const name = String(p.client_name || p.company_name || "").toLowerCase();
+                    const email = String(p.client_email || "").toLowerCase();
+                    return name.includes(q) || email.includes(q);
+                  })
+                  .map((p) => {
+                    const clientDisplayName = p.client_name || p.company_name || "Client";
+                    const initials = clientDisplayName.slice(0, 2).toUpperCase();
+                    return (
+                      <div key={p.id} className="floxa-picker-item">
+                        <div className="floxa-picker-item-info">
+                          <div className="floxa-picker-item-avatar">{initials}</div>
+                          <div className="floxa-picker-item-text">
+                            <div className="floxa-picker-item-name">{clientDisplayName}</div>
+                            <div className="floxa-picker-item-sub">
+                              {p.company_name ? `${p.company_name} • ` : ""}
+                              {p.client_email || p.sector || "Project"}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="floxa-picker-call-btn"
+                          onClick={() => {
+                            setIsCallPickerOpen(false);
+                            webRTCService.initiateCall({
+                              projectId: p.id,
+                              clientName: clientDisplayName,
+                              projectTitle: p.title || p.company_name || "Project",
+                              role: "consultant",
+                            });
+                          }}
+                        >
+                          <Video size={14} strokeWidth={2.2} />
+                          <span>Call</span>
+                        </button>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isLogoutModalOpen ? (
         <div

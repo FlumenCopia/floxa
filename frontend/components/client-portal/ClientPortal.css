@@ -3358,100 +3358,118 @@ td {
   height: 94vh;
 }
 
-/* macOS Window Header */
-.floxa-mac-window-header {
+/* STANDARD PROFESSIONAL ENTERPRISE VIDEO CALL UI */
+.floxa-pro-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px;
-  background: rgba(18, 24, 21, 0.95);
+  padding: 12px 20px;
+  background: rgba(11, 17, 32, 0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: #f0f7f4;
+  color: #f1f5f9;
   z-index: 10;
+  gap: 12px;
 }
 
-.floxa-mac-traffic-lights {
+.floxa-pro-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 80px;
+  gap: 12px;
+  min-width: 0;
 }
 
-.floxa-traffic-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  padding: 0;
-  cursor: pointer;
-  transition: opacity 0.15s, transform 0.15s;
-}
-
-.floxa-traffic-dot:hover {
-  transform: scale(1.15);
-  opacity: 0.85;
-}
-
-.floxa-dot-red {
-  background: #ff5f56;
-}
-
-.floxa-dot-yellow {
-  background: #ffbd2e;
-}
-
-.floxa-dot-green {
-  background: #27c93f;
-}
-
-.floxa-mac-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.floxa-apple-live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #30d158;
-  box-shadow: 0 0 10px #30d158;
-  animation: floxaBlink 1.4s infinite;
-}
-
-.floxa-mac-title {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #ffffff;
-  letter-spacing: -0.2px;
-}
-
-.floxa-apple-duration-pill {
-  padding: 2px 8px;
-  border-radius: 12px;
-  background: rgba(48, 209, 88, 0.12);
-  color: #30d158;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.floxa-mac-header-actions {
+.floxa-pro-live-tag {
   display: flex;
   align-items: center;
   gap: 6px;
-  width: 80px;
-  justify-content: flex-end;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
-.floxa-apple-header-btn {
+.floxa-live-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: floxaBlink 1.4s infinite;
+}
+
+.floxa-pro-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.floxa-pro-call-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.2px;
+}
+
+.floxa-pro-call-subtitle {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+}
+
+/* Real-Time Ultra-Low Latency Badge */
+.floxa-pro-header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floxa-latency-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #6ee7b7;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.floxa-latency-icon {
+  color: #10b981;
+  animation: floxaPulseIcon 2s infinite ease-in-out;
+}
+
+.floxa-latency-value {
+  font-weight: 700;
+  color: #34d399;
+  font-variant-numeric: tabular-nums;
+}
+
+.floxa-pro-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.floxa-pro-window-btn {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  color: rgba(255, 255, 255, 0.7);
-  width: 28px;
-  height: 28px;
+  color: rgba(255, 255, 255, 0.75);
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3459,8 +3477,14 @@ td {
   transition: all 0.15s ease;
 }
 
-.floxa-apple-header-btn:hover {
+.floxa-pro-window-btn:hover {
   background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.floxa-pro-window-btn.floxa-btn-close-call:hover {
+  background: rgba(239, 68, 68, 0.85);
+  border-color: rgba(239, 68, 68, 0.9);
   color: #ffffff;
 }
 
@@ -3468,7 +3492,7 @@ td {
 .floxa-video-viewport {
   position: relative;
   flex: 1;
-  background: #050a07;
+  background: #020617;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -3481,81 +3505,104 @@ td {
   object-fit: cover;
 }
 
-/* Local Video (Corner PIP - Apple Style) */
-.floxa-local-pip-container {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  width: 170px;
-  height: 108px;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1.5px solid rgba(255, 255, 255, 0.22);
-  background: #111a15;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
-  z-index: 5;
-  transition: all 0.2s ease;
-}
-
-.floxa-local-pip-container:hover {
-  transform: scale(1.04);
-  border-color: rgba(77, 255, 160, 0.55);
-}
-
-.floxa-local-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scaleX(-1);
-}
-
-.floxa-cam-off-badge {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.85);
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.65);
-}
-
-.floxa-sharing-badge {
-  position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(48, 209, 88, 0.95);
-  backdrop-filter: blur(8px);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 9px;
-  border-radius: 12px;
-  white-space: nowrap;
-  letter-spacing: 0.2px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-/* Empty Viewport Guidance */
-.floxa-viewport-hint {
-  position: absolute;
-  inset: 0;
+/* Remote Participant Placeholder (when connecting or camera off) */
+.floxa-remote-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  text-align: center;
-  background: radial-gradient(circle at center, rgba(18, 38, 28, 0.88) 0%, rgba(4, 9, 6, 0.96) 100%);
-  z-index: 2;
   gap: 14px;
+  z-index: 2;
+  text-align: center;
+  padding: 24px;
 }
 
-.floxa-viewport-hint-icon {
-  font-size: 42px;
-  animation: floxaPulseIcon 2s infinite ease-in-out;
+.floxa-remote-placeholder-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.floxa-remote-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.floxa-remote-avatar-initials {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #10b981;
+}
+
+.floxa-remote-placeholder-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: #f1f5f9;
+  letter-spacing: -0.2px;
+}
+
+.floxa-remote-placeholder-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #34d399;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.floxa-placeholder-spinner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #34d399;
+  border-top-color: transparent;
+  animation: floxa-spin 0.8s linear infinite;
+}
+
+@keyframes floxa-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Unmute audio floating prompt */
+.floxa-unmute-chip {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: rgba(239, 68, 68, 0.9);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 6;
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.45);
+  transition: transform 0.15s ease, background 0.15s ease;
+  animation: floxa-pulse-unmute 2s infinite;
+}
+
+.floxa-unmute-chip:hover {
+  transform: scale(1.04);
+  background: #dc2626;
 }
 
 @keyframes floxaPulseIcon {
@@ -3572,57 +3619,79 @@ td {
   }
 }
 
-.floxa-viewport-hint-text {
-  font-size: 13.5px;
-  color: rgba(240, 247, 244, 0.85);
-  max-width: 340px;
-  line-height: 1.5;
-}
-
-.floxa-quick-share-btn {
-  padding: 10px 22px;
-  border-radius: 20px;
-  border: 1.5px solid #4dffa0;
-  background: rgba(77, 255, 160, 0.16);
-  color: #4dffa0;
-  font-size: 13.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 16px rgba(77, 255, 160, 0.28);
-}
-
-.floxa-quick-share-btn:hover {
-  background: #4dffa0;
-  color: #06110a;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(77, 255, 160, 0.45);
-}
-
-/* APPLE / macOS FLOATING GLASS CONTROL ISLAND */
-.floxa-apple-toolbar-island {
+/* Local Video (Self-View Tile) */
+.floxa-local-pip-container {
   position: absolute;
-  bottom: 24px;
+  top: 16px;
+  right: 16px;
+  width: 180px;
+  height: 114px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  background: #0f172a;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  z-index: 5;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.floxa-local-pip-container:hover {
+  transform: scale(1.03);
+  border-color: #10b981;
+}
+
+.floxa-local-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.floxa-local-pip-tag {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #f8fafc;
+  font-size: 10.5px;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+}
+
+.floxa-pip-muted {
+  color: #f87171;
+  font-weight: 500;
+}
+
+/* STANDARD PROFESSIONAL BOTTOM CONTROL DOCK */
+.floxa-pro-control-bar {
+  position: absolute;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 10px 22px;
-  background: rgba(24, 28, 26, 0.8);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  gap: 16px;
+  padding: 8px 18px;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 9999px;
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
   z-index: 10;
 }
 
-.floxa-apple-ctrl-btn {
+.floxa-pro-ctrl-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -3630,76 +3699,76 @@ td {
   transition: transform 0.15s ease;
 }
 
-.floxa-apple-ctrl-btn:hover {
+.floxa-pro-ctrl-btn:hover {
   transform: translateY(-2px);
 }
 
-.floxa-apple-icon-wrap {
-  width: 48px;
-  height: 48px;
+.floxa-pro-btn-icon {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   transition: all 0.2s ease;
 }
 
-.floxa-apple-ctrl-btn:hover .floxa-apple-icon-wrap {
-  background: rgba(255, 255, 255, 0.22);
+.floxa-pro-ctrl-btn:hover .floxa-pro-btn-icon {
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.floxa-apple-ctrl-btn.muted .floxa-apple-icon-wrap {
-  background: #ffffff;
-  color: #1c1c1e;
-  border-color: #ffffff;
-  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.3);
-}
-
-.floxa-apple-ctrl-btn.sharing .floxa-apple-icon-wrap {
-  background: #30d158;
+.floxa-pro-ctrl-btn.muted .floxa-pro-btn-icon {
+  background: #ef4444;
   color: #ffffff;
-  border-color: #30d158;
-  box-shadow: 0 4px 20px rgba(48, 209, 88, 0.5);
+  border-color: #ef4444;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
 }
 
-.floxa-apple-end-btn .floxa-apple-icon-wrap {
-  background: #ff3b30;
+.floxa-pro-ctrl-btn.active-screen .floxa-pro-btn-icon {
+  background: #10b981;
   color: #ffffff;
-  border-color: #ff3b30;
-  width: 52px;
-  height: 52px;
-  box-shadow: 0 6px 20px rgba(255, 59, 48, 0.5);
+  border-color: #10b981;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.45);
 }
 
-.floxa-apple-end-btn:hover .floxa-apple-icon-wrap {
-  background: #e02d23;
+.floxa-pro-end-btn .floxa-pro-btn-icon {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  width: 48px;
+  height: 48px;
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.45);
+}
+
+.floxa-pro-end-btn:hover .floxa-pro-btn-icon {
+  background: #b91c1c;
   transform: scale(1.05);
 }
 
-.floxa-apple-btn-label {
+.floxa-pro-btn-text {
   font-size: 11px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.75);
   letter-spacing: -0.1px;
 }
 
-/* MINIMIZED FLOATING BUBBLE */
+/* MINIMIZED FLOATING TILE */
 .floxa-video-minimized-bubble {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 140px;
-  height: 94px;
+  width: 150px;
+  height: 100px;
   z-index: 10000;
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 2px solid #4dffa0;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
-  background: #030805;
+  border: 2px solid #10b981;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75);
+  background: #020617;
   cursor: pointer;
 }
 
@@ -3711,33 +3780,48 @@ td {
 
 .floxa-minimized-info {
   position: absolute;
-  bottom: 4px;
+  bottom: 6px;
   left: 6px;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #4dffa0;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #34d399;
   font-size: 10px;
+  font-weight: 600;
 }
 
-.floxa-expand-btn {
+.floxa-minimized-actions {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.floxa-minimized-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   border: none;
-  background: rgba(0, 0, 0, 0.65);
-  color: #4dffa0;
-  font-size: 12px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffffff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.floxa-minimized-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.floxa-minimized-btn-danger:hover {
+  background: #dc2626;
 }
 
 /* PERSISTENT FLOATING CLIENT CALL TRIGGER BUTTON */

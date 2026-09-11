@@ -5131,6 +5131,56 @@ textarea {
   box-shadow: 0 0 10px rgba(77, 255, 160, 0.38);
 }
 
+.ai-chat-formatted-heading {
+  font-size: 14px;
+  font-weight: 800;
+  color: #55ffb0;
+  letter-spacing: -0.01em;
+  margin-top: 14px;
+  margin-bottom: 5px;
+  line-height: 1.4;
+}
+
+.ai-chat-formatted-heading:first-child {
+  margin-top: 2px;
+}
+
+.ai-chat-divider {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(77, 255, 160, 0.22), rgba(255, 255, 255, 0.05));
+  margin: 12px 0;
+  border: none;
+}
+
+.ai-chat-spacer {
+  height: 8px;
+}
+
+.ai-chat-formatted-line.numbered {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  margin-bottom: 4px;
+}
+
+.ai-chat-num-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4dffa0;
+  opacity: 0.95;
+  line-height: 1.6;
+}
+
+.ai-chat-code {
+  font-family: monospace;
+  background: rgba(77, 255, 160, 0.1);
+  color: #a3ffd1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
 .ai-chat-sources {
   color: #7fa594;
   font-size: 11px;

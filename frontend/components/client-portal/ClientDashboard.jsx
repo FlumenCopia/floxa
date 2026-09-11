@@ -432,7 +432,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       });
 
       if (newActivity.description) {
-        showSuccess(newActivity.description);
+        const notifId = newActivity.id || newActivity._id || newActivity.description;
+        showSuccess(newActivity.description, { toastId: `notif-${notifId}` });
       }
 
       if (typeof onProjectRefresh === "function") {

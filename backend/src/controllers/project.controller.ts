@@ -484,6 +484,7 @@ export async function chatAssistant(req: any, res: Response, next: NextFunction)
     const reply = await generateProjectAssistantReply(id, message);
     res.json({ response: reply });
   } catch (err: any) {
-    res.status(err.status || 500).json({ detail: err.message || 'AI Assistant service unavailable.' });
+    const statusCode = err.status && err.status !== 401 ? err.status : 502;
+    res.status(statusCode).json({ detail: err.message || 'AI Assistant service unavailable.' });
   }
 }
