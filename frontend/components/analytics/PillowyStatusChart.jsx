@@ -295,9 +295,9 @@ export default function PillowyStatusChart({
               </radialGradient>
 
               <linearGradient id="wash-blue" x1="0%" y1="0%" x2="70%" y2="80%">
-                <stop offset="0%" stopColor="#0284c7" stopOpacity="0.92" />
-                <stop offset="30%" stopColor="#0284c7" stopOpacity="0.45" />
-                <stop offset="65%" stopColor="#0284c7" stopOpacity="0" />
+                <stop offset="0%" stopColor="#0284c7"  />
+                <stop offset="30%" stopColor="#0284c7"  />
+                <stop offset="65%" stopColor="#0284c7"  />
               </linearGradient>
 
               {/* 2. Bottom-Right Pink Wedge (Created 12%) */}
@@ -310,9 +310,9 @@ export default function PillowyStatusChart({
               </radialGradient>
 
               <linearGradient id="wash-pink" x1="0%" y1="0%" x2="80%" y2="80%">
-                <stop offset="0%" stopColor="#f472b6" stopOpacity="0.85" />
-                <stop offset="28%" stopColor="#f472b6" stopOpacity="0.38" />
-                <stop offset="65%" stopColor="#f472b6" stopOpacity="0" />
+                <stop offset="0%" stopColor="#f472b6"  />
+                <stop offset="28%" stopColor="#f472b6"  />
+                <stop offset="65%" stopColor="#f472b6" />
               </linearGradient>
 
               {/* 3. Bottom-Left Yellow Wedge (Delivered 48%) */}
@@ -325,9 +325,9 @@ export default function PillowyStatusChart({
               </radialGradient>
 
               <linearGradient id="wash-yellow" x1="30%" y1="0%" x2="70%" y2="90%">
-                <stop offset="0%" stopColor="#fbbf24" stopOpacity="0.85" />
-                <stop offset="30%" stopColor="#fbbf24" stopOpacity="0.4" />
-                <stop offset="70%" stopColor="#fbbf24" stopOpacity="0" />
+                <stop offset="0%" stopColor="#fbbf24"  />
+                <stop offset="30%" stopColor="#fbbf24"  />
+                <stop offset="70%" stopColor="#fbbf24" />
               </linearGradient>
 
               {/* 4. Top-Left Green Wedge (In Progress 18%) */}
@@ -340,9 +340,9 @@ export default function PillowyStatusChart({
               </radialGradient>
 
               <linearGradient id="wash-green" x1="100%" y1="0%" x2="30%" y2="80%">
-                <stop offset="0%" stopColor="#22c55e" stopOpacity="0.88" />
-                <stop offset="30%" stopColor="#22c55e" stopOpacity="0.45" />
-                <stop offset="65%" stopColor="#22c55e" stopOpacity="1" />
+                <stop offset="0%" stopColor="#22c55e"  />
+                <stop offset="30%" stopColor="#22c55e"/>
+                <stop offset="65%" stopColor="#22c55e"  />
               </linearGradient>
             </defs>
 
