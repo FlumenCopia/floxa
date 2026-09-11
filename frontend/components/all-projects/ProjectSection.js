@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getProjects } from "@/lib/projectApi";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
-import { ChevronDown, Plus } from "lucide-react";
+import { ChevronDown, Plus, Video } from "lucide-react";
+import { webRTCService } from "@/services/webRTCService";
 
 export const statusOptions = [
   "All statuses",
@@ -307,12 +308,13 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                       <th>Value</th>
                       <th>Progress</th>
                       <th>Created</th>
+                      <th style={{ textAlign: "right", paddingRight: "20px" }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {isLoadingInitial ? (
                       <tr>
-                        <td className="project-empty-state" colSpan="6" style={{ padding: "40px 0" }}>
+                        <td className="project-empty-state" colSpan="7" style={{ padding: "40px 0" }}>
                           Loading projects...
                         </td>
                       </tr>
@@ -344,12 +346,31 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                             </div>
                           </td>
                           <td>{new Date(row.created_at).toLocaleDateString()}</td>
+                          <td style={{ textAlign: "right", paddingRight: "20px" }}>
+                            <button
+                              type="button"
+                              className="project-table-call-btn"
+                              title={`Video call ${row.client_name || row.company_name}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                webRTCService.initiateCall({
+                                  projectId: row.id,
+                                  clientName: row.client_name || row.company_name || "Client",
+                                  projectTitle: row.company_name || "Project",
+                                  role: "consultant",
+                                });
+                              }}
+                            >
+                              <Video size={13} strokeWidth={2.2} />
+                              <span>Call</span>
+                            </button>
+                          </td>
                         </tr>
                       ))}
 
                     {!isLoadingInitial && projects.length === 0 ? (
                       <tr>
-                        <td className="project-empty-state" colSpan="6" style={{ padding: "40px 0" }}>
+                        <td className="project-empty-state" colSpan="7" style={{ padding: "40px 0" }}>
                           {projectSearch || selectedStatus !== "All statuses"
                             ? "No projects found for this search or status."
                             : "No projects found."}

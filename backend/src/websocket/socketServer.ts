@@ -16,8 +16,51 @@ export interface ClientConnection {
   ws: WebSocket;
   role: 'client' | 'consultant';
   userId?: string;
+  consultantId?: string;
   projectId: string;
   portalToken: string;
+}
+
+export interface CachedProjectMeta {
+  id: string;
+  consultantId: string;
+  clientName: string;
+  projectTitle: string;
+  portalToken: string;
+  isArchived: boolean;
+  cachedAt: number;
+}
+
+export const PROJECT_META_CACHE = new Map<string, CachedProjectMeta>();
+const CACHE_TTL_MS = 60_000; // 60 seconds
+
+export async function getOrFetchProjectMeta(
+  projectId: string,
+  forceRefresh = false
+): Promise<CachedProjectMeta | null> {
+  const cached = PROJECT_META_CACHE.get(projectId);
+  const now = Date.now();
+  if (!forceRefresh && cached && now - cached.cachedAt < CACHE_TTL_MS) {
+    return cached;
+  }
+
+  const proj = await Project.findOne({ _id: projectId, isArchived: false }).populate('client');
+  if (!proj) {
+    PROJECT_META_CACHE.delete(projectId);
+    return null;
+  }
+
+  const meta: CachedProjectMeta = {
+    id: proj.id,
+    consultantId: String(proj.consultantId || ''),
+    clientName: (proj.client as any)?.name || proj.companyName || 'Client',
+    projectTitle: proj.title,
+    portalToken: proj.portalToken,
+    isArchived: proj.isArchived || false,
+    cachedAt: now,
+  };
+  PROJECT_META_CACHE.set(projectId, meta);
+  return meta;
 }
 
 export interface ActiveHelpSession {
@@ -299,6 +342,9 @@ export async function broadcastActivityNotification(activityDoc: any) {
       activityObj.project = project;
     }
 
+    // Track WebSockets that have already been sent to avoid duplicate sends across shared consultant/project connections
+    const sentSockets = new Set<WebSocket>();
+
     // 1. Send to Consultant
     if (consultantId && consultantSockets.has(consultantId)) {
       const consultantPayload = JSON.stringify({
@@ -307,8 +353,9 @@ export async function broadcastActivityNotification(activityDoc: any) {
       });
 
       consultantSockets.get(consultantId)?.forEach((cws) => {
-        if (cws.readyState === WebSocket.OPEN) {
+        if (cws.readyState === WebSocket.OPEN && !sentSockets.has(cws)) {
           cws.send(consultantPayload);
+          sentSockets.add(cws);
         }
       });
     }
@@ -321,8 +368,9 @@ export async function broadcastActivityNotification(activityDoc: any) {
       });
 
       projectSockets.get(projectId)?.forEach((clientConn) => {
-        if (clientConn.ws.readyState === WebSocket.OPEN) {
+        if (clientConn.ws.readyState === WebSocket.OPEN && !sentSockets.has(clientConn.ws)) {
           clientConn.ws.send(clientPayload);
+          sentSockets.add(clientConn.ws);
         }
       });
     }
@@ -447,13 +495,10 @@ export function setupWebSocketServer(server: Server) {
             const payloadStr = JSON.stringify(content.data || {});
             if (payloadStr.length > 65536) return;
 
-            // Verify consultant owns this project
-            const project = await Project.findOne({
-              _id: projectId,
-              consultantId: consultant.id,
-              isArchived: false,
-            }).populate('client');
-            if (!project) return;
+            // Use fast-path cached metadata for high-frequency media negotiation (ICE candidates, offer, answer)
+            const isFastPath = ['ice_candidate', 'offer', 'answer'].includes(action);
+            const project = await getOrFetchProjectMeta(projectId, !isFastPath);
+            if (!project || project.consultantId !== consultant.id || project.isArchived) return;
 
             // Check if client is online when consultant initiates a call
             if (action === 'call_initiate') {
@@ -483,8 +528,8 @@ export function setupWebSocketServer(server: Server) {
               sender_role: 'consultant',
               project_id: project.id,
               portal_token: project.portalToken,
-              client_name: (project.client as any)?.name || project.companyName || 'Client',
-              project_title: project.title,
+              client_name: project.clientName || 'Client',
+              project_title: project.projectTitle,
               data: content.data || {},
             });
 
@@ -584,10 +629,21 @@ export function setupWebSocketServer(server: Server) {
       }
     }
 
+    PROJECT_META_CACHE.set(project.id, {
+      id: project.id,
+      consultantId: String(project.consultantId || ''),
+      clientName: (project.client as any)?.name || project.companyName || 'Client',
+      projectTitle: project.title,
+      portalToken: project.portalToken,
+      isArchived: project.isArchived || false,
+      cachedAt: Date.now(),
+    });
+
     const clientConn: ClientConnection = {
       ws,
       role,
       userId: consultantId || undefined,
+      consultantId: consultantId || undefined,
       projectId: project.id,
       portalToken,
     };
@@ -624,22 +680,46 @@ export function setupWebSocketServer(server: Server) {
       try {
         const content = JSON.parse(rawMessage.toString());
         const msgType = content.type;
-        const currentProjectId = clientConn.projectId;
 
-        // Verify project is still active (not archived)
-        const currentProject = await Project.findOne({
-          _id: currentProjectId,
-          isArchived: false,
-        }).populate('client');
-
-        if (!currentProject) {
-          ws.send(JSON.stringify({ type: 'ERROR', message: 'Project not found' }));
-          ws.close(4004);
+        // Immediate zero-latency response for heartbeat PING
+        if (msgType === 'PING') {
+          ws.send(JSON.stringify({ type: 'PONG' }));
           return;
         }
 
-        if (msgType === 'PING') {
-          ws.send(JSON.stringify({ type: 'PONG' }));
+        const currentProjectId = clientConn.projectId;
+
+        // Fast path for high-frequency WebRTC media negotiation (ICE candidates, offer, answer)
+        const isFastPathSignal =
+          msgType === 'WEBRTC_SIGNAL' && ['ice_candidate', 'offer', 'answer'].includes(content.action);
+
+        let currentProject: CachedProjectMeta | null = null;
+        if (isFastPathSignal) {
+          currentProject = await getOrFetchProjectMeta(currentProjectId, false);
+        } else {
+          // Full verification for lifecycle actions and project state
+          const dbProj = await Project.findOne({
+            _id: currentProjectId,
+            isArchived: false,
+          }).populate('client');
+
+          if (dbProj) {
+            currentProject = {
+              id: dbProj.id,
+              consultantId: String(dbProj.consultantId || ''),
+              clientName: (dbProj.client as any)?.name || dbProj.companyName || 'Client',
+              projectTitle: dbProj.title,
+              portalToken: dbProj.portalToken,
+              isArchived: dbProj.isArchived || false,
+              cachedAt: Date.now(),
+            };
+            PROJECT_META_CACHE.set(currentProjectId, currentProject);
+          }
+        }
+
+        if (!currentProject || currentProject.isArchived) {
+          ws.send(JSON.stringify({ type: 'ERROR', message: 'Project not found' }));
+          ws.close(4004);
           return;
         }
 
@@ -658,8 +738,7 @@ export function setupWebSocketServer(server: Server) {
           };
           ACTIVE_HELP_SESSIONS[currentProjectId] = helpSession;
 
-          const clientDisplayName =
-            currentProject.client?.name || currentProject.companyName || 'Client';
+          const clientDisplayName = currentProject.clientName || 'Client';
 
           const consId = String(currentProject.consultantId || '');
 
@@ -681,7 +760,7 @@ export function setupWebSocketServer(server: Server) {
 
           broadcastHelpRequested(currentProjectId, consId, {
             project_id: currentProjectId,
-            project_title: currentProject.title,
+            project_title: currentProject.projectTitle,
             client_name: clientDisplayName,
             portal_token: currentProject.portalToken,
             page_id: pageId,
@@ -874,8 +953,8 @@ export function setupWebSocketServer(server: Server) {
             sender_role: role,
             project_id: currentProjectId,
             portal_token: currentProject.portalToken,
-            client_name: currentProject.client?.name || currentProject.companyName || 'Client',
-            project_title: currentProject.title,
+            client_name: currentProject.clientName || 'Client',
+            project_title: currentProject.projectTitle,
             data: dataPayload,
           });
 

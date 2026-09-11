@@ -3278,41 +3278,74 @@ function getAssistantErrorMessage(error) {
 }
 
 function AssistantMessageText({ text }) {
+  const cleanedText = String(text || "").trim();
+
   const renderInlineText = (value) => {
-    const parts = String(value || "").split(/(\*\*[^*]+\*\*)/g);
+    const parts = String(value || "").split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
 
     return parts.map((part, index) => {
       if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
         return <strong key={`${part}-${index}`}>{part.slice(2, -2)}</strong>;
       }
-
+      if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+        return <code key={`${part}-${index}`} className="ai-chat-code">{part.slice(1, -1)}</code>;
+      }
       return <span key={`${part}-${index}`}>{part}</span>;
     });
   };
 
+  const lines = cleanedText.split("\n");
+
   return (
     <div className="ai-chat-message-text">
-      {String(text || "")
-        .split("\n")
-        .map((line, index) => {
-          const trimmedLine = line.trim();
-          const bulletMatch = trimmedLine.match(/^\*\s+(.*)$/);
+      {lines.map((line, index) => {
+        const trimmedLine = line.trim();
 
-          if (bulletMatch) {
-            return (
-              <div className="ai-chat-formatted-line bullet" key={`${line}-${index}`}>
-                <span className="ai-chat-bullet-dot" aria-hidden="true" />
-                <span>{renderInlineText(bulletMatch[1])}</span>
-              </div>
-            );
-          }
+        // Horizontal divider lines like "---" or "***"
+        if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmedLine)) {
+          return <div className="ai-chat-divider" key={`div-${index}`} />;
+        }
 
+        // Markdown headings like "### Title" or "## Title" -> clean styled heading without hashes
+        const headingMatch = trimmedLine.match(/^(#{1,4})\s+(.*)$/);
+        if (headingMatch) {
+          const headingText = headingMatch[2].replace(/:\s*$/, "");
           return (
-            <div className="ai-chat-formatted-line" key={`${line}-${index}`}>
-              {trimmedLine ? renderInlineText(line) : "\u00a0"}
+            <div className="ai-chat-formatted-heading" key={`head-${index}`}>
+              {renderInlineText(headingText)}
             </div>
           );
-        })}
+        }
+
+        // Bullet or numbered lists: "* text", "- text", "• text", "1. text"
+        const bulletMatch = trimmedLine.match(/^([*•-]|\d+\.)\s+(.*)$/);
+        if (bulletMatch) {
+          const isNumber = /^\d+\./.test(bulletMatch[1]);
+          return (
+            <div
+              className={`ai-chat-formatted-line ${isNumber ? "numbered" : "bullet"}`}
+              key={`li-${index}`}
+            >
+              {isNumber ? (
+                <span className="ai-chat-num-badge">{bulletMatch[1]}</span>
+              ) : (
+                <span className="ai-chat-bullet-dot" aria-hidden="true" />
+              )}
+              <span>{renderInlineText(bulletMatch[2])}</span>
+            </div>
+          );
+        }
+
+        if (!trimmedLine) {
+          return <div className="ai-chat-spacer" key={`space-${index}`} />;
+        }
+
+        return (
+          <div className="ai-chat-formatted-line" key={`line-${index}`}>
+            {renderInlineText(line)}
+          </div>
+        );
+      })}
     </div>
   );
 }

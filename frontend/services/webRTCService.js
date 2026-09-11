@@ -4,14 +4,14 @@ import { supportSocket } from "./supportSocketService";
 
 const ICE_SERVERS = {
   iceServers: [
+    { urls: "stun:stun.cloudflare.com:3478" },
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun.cloudflare.com:3478" },
   ],
   iceCandidatePoolSize: 10,
   bundlePolicy: "max-bundle",
   rtcpMuxPolicy: "require",
+  iceTransportPolicy: "all",
 };
 
 class WebRTCService {
@@ -27,6 +27,8 @@ class WebRTCService {
     this.isVideoMuted = false;
     this.isScreenSharing = false;
     this.pendingCandidates = [];
+    this.statsInterval = null;
+    this.lastStats = null;
 
     // Bind socket listener
     this.setupSocketListener();
@@ -53,14 +55,24 @@ class WebRTCService {
       const { action, sender_role, data, project_id, client_name, project_title } = payload;
 
       if (action === "call_initiate") {
-        // Prevent call collision if already busy
-        if (this.callState !== "idle") {
+        // Prevent call collision only if already actively in a call or placing an outgoing call
+        if (this.callState === "connected" || this.callState === "outgoing_ringing") {
           supportSocket.sendWebRTCSignal({
             action: "call_reject",
             data: { reason: "Participant is currently busy on another call." },
             projectId: project_id,
           });
           return;
+        }
+
+        // If already ringing for this incoming call, ignore duplicate signal
+        if (this.callState === "incoming_ringing") {
+          return;
+        }
+
+        if (this.callState === "ended") {
+          this.cleanUpCall();
+          this.setCallState("idle");
         }
 
         this.currentCallInfo = {
@@ -86,6 +98,9 @@ class WebRTCService {
           this.setCallState("connected");
           // The caller creates and sends the initial WebRTC offer
           await this.initiatePeerConnectionAsCaller();
+        } else if (this.callState === "incoming_ringing") {
+          this.cleanUpCall();
+          this.setCallState("idle");
         }
       } else if (action === "call_reject" || action === "call_cancel") {
         clearTimeout(this.ringingTimeout);
@@ -144,17 +159,23 @@ class WebRTCService {
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280, max: 1280 },
-          height: { ideal: 720, max: 720 },
-          frameRate: { ideal: 30, max: 30 },
+          width: { ideal: 1280, max: 1280, min: 640 },
+          height: { ideal: 720, max: 720, min: 360 },
+          frameRate: { ideal: 30, max: 30, min: 24 },
           facingMode: "user",
+          aspectRatio: { ideal: 1.7777777778 },
         },
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          channelCount: 1, // Mono: cuts audio bitrate in half with zero loss
+          channelCount: 1, // Mono: halves payload and eliminates stereo phase processing delay
           sampleRate: 48000,
+          latency: 0, // Direct real-time audio pipeline hint
+          googEchoCancellation: true,
+          googAutoGainControl: true,
+          googNoiseSuppression: true,
+          googHighpassFilter: true,
         },
       });
       this.isAudioMuted = false;
@@ -183,7 +204,14 @@ class WebRTCService {
       try {
         const audioStream = await navigator.mediaDevices.getUserMedia({
           video: false,
-          audio: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            sampleRate: 48000,
+            latency: 0,
+          },
         });
         audioTrack = audioStream.getAudioTracks()[0];
       } catch (audioErr) {
@@ -214,43 +242,161 @@ class WebRTCService {
     }
   }
 
+  attachLocalTracksToPeerConnection() {
+    if (!this.peerConnection || !this.localStream) return;
+    try {
+      const senders = this.peerConnection.getSenders ? this.peerConnection.getSenders() : [];
+      this.localStream.getTracks().forEach((track) => {
+        const existingSender = senders.find((s) => s.track && s.track.id === track.id);
+        if (!existingSender) {
+          const emptySender = senders.find((s) => !s.track && s.track?.kind === track.kind);
+          if (emptySender && emptySender.replaceTrack) {
+            emptySender.replaceTrack(track);
+          } else {
+            this.peerConnection.addTrack(track, this.localStream);
+          }
+        }
+      });
+      if (this.peerConnection.getTransceivers) {
+        this.peerConnection.getTransceivers().forEach((t) => {
+          if (t.direction !== "sendrecv" && t.direction !== "stopped") {
+            t.direction = "sendrecv";
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("[WebRTC] Error attaching local tracks:", e);
+    }
+  }
+
+  applyReceiverLowLatencyHints() {
+    if (!this.peerConnection || !this.peerConnection.getReceivers) return;
+    try {
+      this.peerConnection.getReceivers().forEach((receiver) => {
+        // Zero playout delay tells browser jitter buffer to output packets immediately without buffer latency
+        if ("playoutDelayHint" in receiver) {
+          receiver.playoutDelayHint = 0;
+        }
+        if ("jitterBufferTarget" in receiver) {
+          receiver.jitterBufferTarget = 0;
+        }
+      });
+    } catch {}
+  }
+
+  startStatsMonitoring() {
+    this.stopStatsMonitoring();
+    this.statsInterval = setInterval(async () => {
+      if (!this.peerConnection || this.callState !== "connected") {
+        this.stopStatsMonitoring();
+        return;
+      }
+      try {
+        const stats = await this.peerConnection.getStats();
+        let rtt = null;
+        let jitter = null;
+        let packetsLost = 0;
+        let fps = null;
+
+        stats.forEach((report) => {
+          if (report.type === "candidate-pair" && report.state === "succeeded") {
+            if (report.currentRoundTripTime != null) {
+              rtt = Math.round(report.currentRoundTripTime * 1000);
+            }
+          }
+          if (report.type === "inbound-rtp" && report.kind === "video") {
+            if (report.jitter != null) {
+              jitter = Math.round(report.jitter * 1000);
+            }
+            if (report.packetsLost != null) {
+              packetsLost = report.packetsLost;
+            }
+            if (report.framesPerSecond != null) {
+              fps = Math.round(report.framesPerSecond);
+            }
+          }
+        });
+
+        this.lastStats = { rtt, jitter, packetsLost, fps };
+        this.emit("call_stats", this.lastStats);
+      } catch {}
+    }, 2000);
+  }
+
+  stopStatsMonitoring() {
+    if (this.statsInterval) {
+      clearInterval(this.statsInterval);
+      this.statsInterval = null;
+    }
+  }
+
   createPeerConnection() {
-    if (this.peerConnection) return this.peerConnection;
+    if (this.peerConnection) {
+      this.attachLocalTracksToPeerConnection();
+      return this.peerConnection;
+    }
 
     this.peerConnection = new RTCPeerConnection(ICE_SERVERS);
     this.remoteStream = new MediaStream();
-    this.emit("remote_stream", this.remoteStream);
 
     // Add local tracks to peer connection
-    if (this.localStream) {
-      this.localStream.getTracks().forEach((track) => {
-        this.peerConnection.addTrack(track, this.localStream);
-      });
-    }
+    this.attachLocalTracksToPeerConnection();
 
-    // Remote track handler (safely handles both event.streams and event.track)
+    // Remote track handler with instant zero-playout delay injection
     this.peerConnection.ontrack = (event) => {
-      const incomingTracks =
-        event.streams && event.streams[0] && event.streams[0].getTracks().length > 0
-          ? event.streams[0].getTracks()
-          : event.track
-          ? [event.track]
-          : [];
+      if (event.receiver) {
+        try {
+          if ("playoutDelayHint" in event.receiver) {
+            event.receiver.playoutDelayHint = 0;
+          }
+          if ("jitterBufferTarget" in event.receiver) {
+            event.receiver.jitterBufferTarget = 0;
+          }
+        } catch {}
+      }
 
-      incomingTracks.forEach((track) => {
-        if (!this.remoteStream.getTracks().some((t) => t.id === track.id)) {
-          this.remoteStream.addTrack(track);
+      if (!this.remoteStream) {
+        this.remoteStream = new MediaStream();
+      }
+
+      if (event.streams && event.streams[0]) {
+        event.streams[0].getTracks().forEach((track) => {
+          if (!this.remoteStream.getTracks().some((t) => t.id === track.id)) {
+            this.remoteStream.addTrack(track);
+          }
+        });
+      } else if (event.track) {
+        if (!this.remoteStream.getTracks().some((t) => t.id === event.track.id)) {
+          this.remoteStream.addTrack(event.track);
         }
-      });
+      }
+
+      if (event.track) {
+        event.track.onunmute = () => {
+          this.emit("remote_stream", this.remoteStream);
+        };
+        event.track.onended = () => {
+          this.emit("remote_stream", this.remoteStream);
+        };
+      }
+
       this.emit("remote_stream", this.remoteStream);
     };
 
     // ICE Candidate handler
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
+        const candidatePayload = event.candidate.toJSON
+          ? event.candidate.toJSON()
+          : {
+              candidate: event.candidate.candidate,
+              sdpMid: event.candidate.sdpMid,
+              sdpMLineIndex: event.candidate.sdpMLineIndex,
+              usernameFragment: event.candidate.usernameFragment,
+            };
         supportSocket.sendWebRTCSignal({
           action: "ice_candidate",
-          data: { candidate: event.candidate },
+          data: { candidate: candidatePayload },
           projectId: this.currentCallInfo?.projectId,
         });
       }
@@ -260,6 +406,8 @@ class WebRTCService {
       const state = this.peerConnection?.connectionState;
       if (state === "connected") {
         this.setCallState("connected");
+        this.applyReceiverLowLatencyHints();
+        this.startStatsMonitoring();
       } else if (state === "failed") {
         this.cleanUpCall();
         this.setCallState("idle");
@@ -346,15 +494,26 @@ class WebRTCService {
 
   optimizeSDP(sdp) {
     if (!sdp) return sdp;
-    // Low-latency Opus configuration: mono speech with forward error correction (FEC)
-    let modified = sdp.replace(
-      /a=fmtp:(\d+) minptime=\d+;useinbandfec=1/g,
+    let modified = sdp;
+
+    // 1. Low-latency Opus configuration: mono speech with forward error correction
+    modified = modified.replace(
+      /a=fmtp:(\d+) minptime=\d+;useinbandfec=1/gi,
       "a=fmtp:$1 minptime=10;useinbandfec=1;stereo=0;sprop-stereo=0"
     );
-    // Bandwidth ceiling (1.5 Mbps) prevents buffer bloat and latency spikes
-    if (!modified.includes("b=AS:") && modified.includes("m=video")) {
-      modified = modified.replace(/m=video (\d+) [^\r\n]+/, "$&\r\nb=AS:1500");
+    if (!modified.includes("minptime=10") && modified.includes("opus/48000")) {
+      const match = modified.match(/a=rtpmap:(\d+)\s+opus\/48000/i);
+      if (match && match[1]) {
+        const pt = match[1];
+        if (modified.includes(`a=fmtp:${pt}`)) {
+          modified = modified.replace(
+            new RegExp(`a=fmtp:${pt}\\s+[^\\r\\n]+`, "i"),
+            `a=fmtp:${pt} minptime=10;useinbandfec=1;stereo=0;sprop-stereo=0`
+          );
+        }
+      }
     }
+
     return modified;
   }
 
@@ -368,9 +527,11 @@ class WebRTCService {
         if (!params.encodings || params.encodings.length === 0) {
           params.encodings = [{}];
         }
-        params.encodings[0].maxBitrate = 1200000; // 1.2 Mbps sweet spot
+        params.encodings[0].maxBitrate = 1400000; // 1.4 Mbps sweet spot
         params.encodings[0].maxFramerate = 30;
-        params.degradationPreference = "maintain-framerate"; // Fluid motion without freezing
+        params.encodings[0].priority = "high";
+        params.encodings[0].networkPriority = "high";
+        params.degradationPreference = "maintain-framerate"; // Never buffer or freeze frames
         await videoSender.setParameters(params);
       }
 
@@ -380,7 +541,9 @@ class WebRTCService {
         if (!params.encodings || params.encodings.length === 0) {
           params.encodings = [{}];
         }
-        params.encodings[0].maxBitrate = 48000; // 48 kbps clear voice
+        params.encodings[0].maxBitrate = 32000; // 32 kbps crisp vocal stream
+        params.encodings[0].priority = "high";
+        params.encodings[0].networkPriority = "high";
         await audioSender.setParameters(params);
       }
     } catch {
@@ -389,6 +552,9 @@ class WebRTCService {
   }
 
   async initiatePeerConnectionAsCaller() {
+    if (!this.localStream) {
+      await this.acquireLocalMedia();
+    }
     const pc = this.createPeerConnection();
     if (!pc || pc.signalingState === "closed") return;
     if (pc.signalingState !== "stable") {
@@ -397,6 +563,7 @@ class WebRTCService {
     }
 
     try {
+      this.attachLocalTracksToPeerConnection();
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true,
@@ -436,6 +603,7 @@ class WebRTCService {
     }
 
     try {
+      this.attachLocalTracksToPeerConnection();
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
 
       // Guard: Ensure state transitioned to have-remote-offer before creating local answer
@@ -449,8 +617,12 @@ class WebRTCService {
         const candidate = this.pendingCandidates.shift();
         try {
           await pc.addIceCandidate(candidate);
-        } catch {}
+        } catch (e) {
+          console.warn("[WebRTC] Error adding pending candidate:", e);
+        }
       }
+
+      this.applyReceiverLowLatencyHints();
 
       const answer = await pc.createAnswer();
       answer.sdp = this.optimizeSDP(answer.sdp);
@@ -483,13 +655,17 @@ class WebRTCService {
     }
 
     try {
+      this.attachLocalTracksToPeerConnection();
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
       while (this.pendingCandidates.length) {
         const candidate = this.pendingCandidates.shift();
         try {
           await this.peerConnection.addIceCandidate(candidate);
-        } catch {}
+        } catch (e) {
+          console.warn("[WebRTC] Error adding pending candidate:", e);
+        }
       }
+      this.applyReceiverLowLatencyHints();
       await this.optimizeSenderBitrates();
     } catch (err) {
       console.warn("[WebRTC] Warning setting remote answer description:", err);
@@ -497,10 +673,13 @@ class WebRTCService {
   }
 
   async handleRemoteCandidate(candidate) {
-    if (!candidate || !candidate.candidate) return;
+    if (!candidate || (!candidate.candidate && candidate.candidate !== "")) return;
     try {
-      const rtcCandidate = new RTCIceCandidate(candidate);
-      if (this.peerConnection && this.peerConnection.remoteDescription) {
+      const rtcCandidate =
+        typeof RTCIceCandidate !== "undefined" && !(candidate instanceof RTCIceCandidate)
+          ? new RTCIceCandidate(candidate)
+          : candidate;
+      if (this.peerConnection && this.peerConnection.remoteDescription && this.peerConnection.remoteDescription.type) {
         await this.peerConnection.addIceCandidate(rtcCandidate);
       } else {
         this.pendingCandidates.push(rtcCandidate);
@@ -597,6 +776,8 @@ class WebRTCService {
   }
 
   cleanUpCall() {
+    this.stopStatsMonitoring();
+    this.lastStats = null;
     clearTimeout(this.ringingTimeout);
     this.ringingTimeout = null;
     if (this.localStream) {
