@@ -346,17 +346,7 @@ export default function PillowyStatusChart({
               </linearGradient>
             </defs>
 
-            {/* Outer Diffuse Airbrush Ambient Bleed */}
-            <g id="ambientGlow" filter="url(#glow-ambient)" opacity="0.75">
-              {sectors.map((sec) => (
-                <path
-                  key={`glow-${sec.id}`}
-                  id={`glow-${sec.id}`}
-                  d={createRoundedWedge(cx, cy, radius, sec.start, sec.sweep, cornerR)}
-                  fill={`url(#grad-${sec.id})`}
-                />
-              ))}
-            </g>
+            {/* Outer Diffuse Airbrush Ambient Bleed removed */}
 
             {/* Main Crisp + Feathered Petals */}
             <g id="petals">

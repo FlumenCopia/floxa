@@ -5561,6 +5561,10 @@ textarea {
   padding: 12px;
 }
 
+.analytics-module-card {
+  box-shadow: none;
+}
+
 .analytics-line-chart {
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
