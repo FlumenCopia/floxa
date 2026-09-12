@@ -2149,26 +2149,26 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           ) : null}
 
           {panel === "payments" ? (
-            <div className="client-panel-stack">
+            <div className="client-payments-container">
               {paymentsLoading ? (
-                <article>
+                <article className="client-payment-card client-payment-status-message">
                   <h3>Loading payments...</h3>
                   <p>Your payment schedule is being fetched.</p>
                 </article>
               ) : null}
               {!paymentsLoading && payments.length === 0 ? (
-                <article>
+                <article className="client-payment-card client-payment-status-message">
                   <h3>Payments are being prepared.</h3>
                   <p>{paymentsError || "Your consultant will request payments here."}</p>
                 </article>
               ) : null}
               {!paymentsLoading && paymentsError && payments.length > 0 ? (
-                <article>
+                <article className="client-payment-card client-payment-error-message">
                   <p>{paymentsError}</p>
                 </article>
               ) : null}
               {!paymentsLoading && (paymentCheckoutMessage || paymentCallbackData) ? (
-                <article aria-live="polite">
+                <article className="client-payment-card client-payment-alert" aria-live="polite">
                   <p>
                     {paymentCheckoutMessage ||
                       "Payment could not be confirmed yet. Please retry verification or refresh the page."}
@@ -2185,37 +2185,59 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                   ) : null}
                 </article>
               ) : null}
-              {!paymentsLoading && payments.map((item) => {
+              {!paymentsLoading && payments.map((item, index) => {
                 const paymentBusy = paymentCheckoutLoadingId === item.id || activePaymentCheckoutId === item.id;
                 const canPayNow = isPayableMilestone(item);
                 const checkoutBlocked = Boolean(activePaymentCheckoutId) && activePaymentCheckoutId !== item.id;
+                const isPaid = item.status === "paid";
+                const isRequested = item.status === "requested";
 
                 return (
-                  <article key={item.id || item.type} className="client-delivery-row">
-                    <div>
-                      <h3>{getPaymentTypeLabel(item.type)} payment</h3>
-                      <p>
-                        {item.percentage}% - {formatPaymentAmount(item.amount)}
-                      </p>
+                  <article
+                    key={item.id || item.type}
+                    className={`client-payment-card ${isPaid ? "is-paid" : isRequested ? "is-requested" : "is-locked"}`}
+                  >
+                    <div className="client-payment-main">
+                      <div className="client-payment-index">
+                        {isPaid ? (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        ) : (
+                          <span>{`0${index + 1}`}</span>
+                        )}
+                      </div>
+                      <div className="client-payment-details">
+                        <h3 className="client-payment-title">{getPaymentTypeLabel(item.type)} Payment</h3>
+                        <span className="client-payment-meta">{item.percentage}% Project Milestone</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="client-panel-action secondary">
-                        {getPaymentStatusLabel(item.status)}
-                      </span>
-                      {item.status === "requested" ? (
-                        <button
-                          type="button"
-                          disabled={!canPayNow || paymentBusy || checkoutBlocked}
-                          onClick={() => startPaymentCheckout(item)}
-                          className="client-panel-action"
-                        >
-                          {paymentBusy && paymentCheckoutMessage === "Verifying payment..."
-                            ? "Verifying..."
-                            : paymentBusy
-                              ? "Opening..."
-                              : "Pay Now"}
-                        </button>
-                      ) : null}
+
+                    <div className="client-payment-aside">
+                      <div className="client-payment-amount-block">
+                        <span className="client-payment-amount-label">Amount</span>
+                        <strong className="client-payment-amount">{formatPaymentAmount(item.amount)}</strong>
+                      </div>
+
+                      <div className="client-payment-actions">
+                        <span className={`client-payment-badge ${item.status || "locked"}`}>
+                          {isPaid ? "✓ Paid" : isRequested ? "Due Now" : getPaymentStatusLabel(item.status)}
+                        </span>
+                        {isRequested ? (
+                          <button
+                            type="button"
+                            disabled={!canPayNow || paymentBusy || checkoutBlocked}
+                            onClick={() => startPaymentCheckout(item)}
+                            className="client-panel-action client-payment-pay-btn"
+                          >
+                            {paymentBusy && paymentCheckoutMessage === "Verifying payment..."
+                              ? "Verifying..."
+                              : paymentBusy
+                                ? "Opening..."
+                                : "Pay Now"}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </article>
                 );
