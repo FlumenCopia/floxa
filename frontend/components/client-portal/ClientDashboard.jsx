@@ -239,7 +239,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const workflowStatus = project.workflowStatus || project.workflow_status;
   const activePhaseIndex = getActivePhaseIndex(pct, workflowStatus);
   const activePhaseLabel = pct >= 100 ? "Complete" : phaseLabels[activePhaseIndex];
-  const [panel, setPanel] = useState(null);
+  const defaultPanel = phaseToPanelMap[phaseLabels[activePhaseIndex]] || "moodboards";
+  const [panel, setPanel] = useState(defaultPanel);
   const [working, setWorking] = useState("");
   const [brandDNAReport, setBrandDNAReport] = useState(null);
   const [discoveryReport, setDiscoveryReport] = useState(null);
@@ -992,20 +993,22 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   function handleStageClick(label) {
     const targetPanel = phaseToPanelMap[label];
     if (targetPanel) {
-      openPanel(targetPanel);
+      openPanel(targetPanel, true);
     }
   }
 
-  async function openPanel(nextPanel) {
+  async function openPanel(nextPanel, shouldScroll = true) {
     setPanel(nextPanel);
     setSignOffError("");
 
-    setTimeout(() => {
-      const panelEl = document.getElementById("client-workspace-panel");
-      if (panelEl) {
-        panelEl.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    }, 100);
+    if (shouldScroll) {
+      setTimeout(() => {
+        const panelEl = document.getElementById("client-workspace-panel");
+        if (panelEl) {
+          panelEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
 
     const token = project?.portal_token || project?.portalToken || project?.token;
 
@@ -1120,6 +1123,11 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
+  useEffect(() => {
+    const initialPanel = phaseToPanelMap[phaseLabels[activePhaseIndex]] || "moodboards";
+    openPanel(initialPanel, false);
+  }, []);
+
   async function handleSignOff() {
     setWorking("sign-off");
     setSignOffError("");
@@ -1140,52 +1148,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
-  const cards = [
-    {
-      symbol: "01",
-      title: "Discovery Report",
-      sub: brandDNAReport
-        ? "Brand DNA ready"
-        : "Under review by consultant",
-      active: true,
-      panel: "discovery",
-    },
-    {
-      symbol: "02",
-      title: "Moodboards",
-      sub: `${moodboards.length} directions ready`,
-      active: true,
-      panel: "moodboards",
-    },
-    {
-      symbol: "03",
-      title: "Concepts",
-      sub: `${concepts.length} concepts ready`,
-      active: true,
-      panel: "concepts",
-    },
-    {
-      symbol: "04",
-      title: "Agreement",
-      sub: agreement ? "Ready to view" : "Pending",
-      active: true,
-      panel: "agreement",
-    },
-    {
-      symbol: "05",
-      title: "Delivery",
-      sub: `${deliverables.length} files ready`,
-      active: true,
-      panel: "delivery",
-    },
-    {
-      symbol: "06",
-      title: "Payments",
-      sub: `${payments.filter((item) => item.status === "requested").length} requested`,
-      active: true,
-      panel: "payments",
-    },
-  ];
   const visibleNotifications = notifications.slice(0, 5);
   const unreadCount = notifications.filter((item) => item.client_is_read === false).length;
   const hasSharedDelivery = deliverables.some((item) => item.status === "shared" || item.file_url || item.fileUrl);
@@ -1366,23 +1328,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
             );
           })}
         </div>
-      </section>
-
-      <section className="client-dashboard-grid">
-        {cards.map((card) => (
-          <button
-            key={card.panel}
-            type="button"
-            disabled={!card.active}
-            className={`client-journey-card ${card.active ? "available" : ""}`}
-            onClick={() => card.active && openPanel(card.panel)}
-          >
-            <span className="client-card-number">{card.symbol}</span>
-            <span className="client-card-arrow">^</span>
-            <strong>{card.title}</strong>
-            <small>{card.sub}</small>
-          </button>
-        ))}
       </section>
 
       {panel ? (
