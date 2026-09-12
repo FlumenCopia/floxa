@@ -1333,12 +1333,21 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       {panel ? (
         <section id="client-workspace-panel" className="client-dashboard-panel client-design-enter">
           <div className="client-panel-heading">
-            <div>
-              <span>Project workspace</span>
+            <div className="client-panel-heading-title">
+              <span className="client-panel-heading-kicker">Project workspace</span>
               <h2>{panelTitles[panel] || panel}</h2>
             </div>
-            <button type="button" onClick={() => setPanel(null)}>
-              Close
+            <button
+              type="button"
+              className="client-panel-close-btn"
+              onClick={() => setPanel(null)}
+              aria-label="Close workspace"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+              <span>Close</span>
             </button>
           </div>
 
