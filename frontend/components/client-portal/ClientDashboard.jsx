@@ -1456,23 +1456,23 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           {panel === "moodboards" ? (
             <div className="client-panel-grid">
               {moodboardsLoading ? (
-                <article>
+                <article className="empty-state">
                   <h3>Loading moodboards...</h3>
                   <p>Your consultant&apos;s visual directions are being fetched.</p>
                 </article>
               ) : null}
               {!moodboardsLoading && moodboardsMessage ? (
-                <article style={{ gridColumn: "1 / -1", padding: "12px 16px", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "10px", color: "var(--emerald-400, #34d399)" }}>
-                  <p style={{ margin: 0, fontWeight: 600 }}>{moodboardsMessage}</p>
+                <article className="client-panel-status-banner success">
+                  <p>{moodboardsMessage}</p>
                 </article>
               ) : null}
               {!moodboardsLoading && moodboardsError && moodboards.length > 0 ? (
-                <article style={{ gridColumn: "1 / -1", padding: "12px 16px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "10px", color: "var(--red-400, #f87171)" }}>
-                  <p style={{ margin: 0 }}>{moodboardsError}</p>
+                <article className="client-panel-status-banner error">
+                  <p>{moodboardsError}</p>
                 </article>
               ) : null}
               {!moodboardsLoading && moodboards.length === 0 ? (
-                <article>
+                <article className="empty-state">
                   <h3>No moodboards yet</h3>
                   <p>{moodboardsError || "Your consultant is preparing visual directions."}</p>
                 </article>
@@ -1482,80 +1482,88 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                   const isThisSelected = item.clientSelected || item.is_selected;
 
                   return (
-                    <article key={item.id} className={isThisSelected ? "selected" : ""}>
-                      <ProtectedAssetImage
-                        src={item.image_url}
-                        asBackground
-                        className={`client-panel-image ${item.image_url ? "clickable" : ""}`.trim()}
-                        role={item.image_url ? "button" : undefined}
-                        tabIndex={item.image_url ? 0 : undefined}
-                        aria-label={item.image_url ? `Enlarge preview for ${item.name || item.title || "moodboard"}` : undefined}
-                        onClick={(event) => {
-                          if (item.image_url) {
-                            openPreview(item, "moodboard", event);
-                          }
-                        }}
-                        onKeyDown={(event) => {
-                          if (item.image_url && (event.key === "Enter" || event.key === " ")) {
-                            event.preventDefault();
-                            openPreview(item, "moodboard", event);
-                          }
-                        }}
-                        onContextMenu={(event) => event.preventDefault()}
-                        style={{ userSelect: "none", WebkitUserDrag: "none" }}
-                        fallbackText="No image preview"
-                      />
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: "8px" }}>
-                        <h3 style={{ margin: 0 }}>{item.name || item.title}</h3>
+                    <article key={item.id} className={`client-moodboard-card ${isThisSelected ? "selected" : ""}`.trim()}>
+                      <div className="client-moodboard-media-wrap">
+                        <ProtectedAssetImage
+                          src={item.image_url}
+                          asBackground
+                          className={`client-panel-image ${item.image_url ? "clickable" : ""}`.trim()}
+                          role={item.image_url ? "button" : undefined}
+                          tabIndex={item.image_url ? 0 : undefined}
+                          aria-label={item.image_url ? `Enlarge preview for ${item.name || item.title || "moodboard"}` : undefined}
+                          onClick={(event) => {
+                            if (item.image_url) {
+                              openPreview(item, "moodboard", event);
+                            }
+                          }}
+                          onKeyDown={(event) => {
+                            if (item.image_url && (event.key === "Enter" || event.key === " ")) {
+                              event.preventDefault();
+                              openPreview(item, "moodboard", event);
+                            }
+                          }}
+                          onContextMenu={(event) => event.preventDefault()}
+                          style={{ userSelect: "none", WebkitUserDrag: "none" }}
+                          fallbackText="No image preview"
+                        />
                         {isThisSelected ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "999px", background: "rgba(16, 185, 129, 0.18)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#34d399", fontSize: "11px", fontWeight: 700 }}>✓ Selected</span>
+                          <div className="client-moodboard-selected-pill">
+                            <span className="dot" /> Selected Direction
+                          </div>
                         ) : null}
                       </div>
-                      {item.description ? <p>{item.description}</p> : null}
-                      {item.client_feedback ? (
-                        <div className="client-feedback-badge">
-                          <span style={{ fontWeight: 600, color: "#fbbf24" }}>Requested changes:</span> {item.client_feedback}
-                        </div>
-                      ) : null}
 
-                      <div style={{ display: "flex", gap: "8px", width: "100%", marginTop: "auto" }}>
-                        {isThisSelected ? (
-                          <button
-                            type="button"
-                            disabled
-                            className="client-panel-action"
-                            style={{ flex: 1 }}
-                          >
-                            Selected
-                          </button>
-                        ) : (
+                      <div className="client-moodboard-card-body">
+                        <div className="client-moodboard-header-row">
+                          <h3>{item.name || item.title}</h3>
+                        </div>
+
+                        {item.description ? (
+                          <p className="client-moodboard-description">{item.description}</p>
+                        ) : null}
+
+                        {item.client_feedback ? (
+                          <div className="client-feedback-badge">
+                            <strong>Requested changes:</strong> {item.client_feedback}
+                          </div>
+                        ) : null}
+
+                        <div className="client-moodboard-actions">
+                          {isThisSelected ? (
+                            <button
+                              type="button"
+                              disabled
+                              className="client-panel-action is-selected"
+                            >
+                              ✓ Selected Direction
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={working === item.id}
+                              onClick={() => selectMoodboard(item.id)}
+                              className="client-panel-action primary"
+                            >
+                              {working === item.id
+                                ? "Saving..."
+                                : hasSelectedMoodboard
+                                  ? "Switch to this"
+                                  : "Select direction"}
+                            </button>
+                          )}
                           <button
                             type="button"
                             disabled={working === item.id}
-                            onClick={() => selectMoodboard(item.id)}
-                            className="client-panel-action"
-                            style={{ flex: 1 }}
+                            onClick={() => openMoodboardFeedback(item.id)}
+                            className="client-panel-action secondary"
                           >
-                            {working === item.id
-                              ? "Saving..."
-                              : hasSelectedMoodboard
-                                ? "Switch to this direction"
-                                : "Select direction"}
+                            Request changes
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={working === item.id}
-                          onClick={() => openMoodboardFeedback(item.id)}
-                          className="client-panel-action secondary"
-                          style={{ flex: 1 }}
-                        >
-                          Request changes
-                        </button>
+                        </div>
                       </div>
 
                       {feedbackMoodboardId === item.id ? (
-                        <div className="client-concept-feedback-box" style={{ width: "100%", marginTop: "12px" }}>
+                        <div className="client-concept-feedback-box" style={{ width: "100%", marginTop: "14px" }}>
                           <textarea
                             value={moodboardFeedbackText}
                             onChange={(event) => setMoodboardFeedbackText(event.target.value)}
@@ -1567,7 +1575,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                               type="button"
                               disabled={working === item.id}
                               onClick={() => submitMoodboardChanges(item.id)}
-                              className="client-panel-action"
+                              className="client-panel-action primary"
                             >
                               {working === item.id ? "Sending..." : "Send feedback"}
                             </button>
