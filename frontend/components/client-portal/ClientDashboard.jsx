@@ -1721,19 +1721,19 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           ) : null}
 
           {panel === "delivery" ? (
-            <div className="client-panel-stack">
+            <div className="client-delivery-container">
               {deliverablesLoading ? (
-                <article>
+                <div className="client-delivery-empty">
                   <h3>Loading deliverables...</h3>
                   <p>Your consultant&apos;s shared files are being fetched.</p>
-                </article>
+                </div>
               ) : null}
 
               {/* Showcase Selected Moodboards */}
               {moodboards.filter((m) => m.clientSelected || m.is_selected).length > 0 ? (
-                <article>
+                <div className="client-delivery-section">
                   <h3>Selected Moodboard Direction</h3>
-                  <div className="client-panel-grid" style={{ marginTop: "1rem" }}>
+                  <div className="client-panel-grid" style={{ marginTop: "0.5rem" }}>
                     {moodboards.filter((m) => m.clientSelected || m.is_selected).map((item) => (
                       <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
                         {item.image_url ? (
@@ -1749,14 +1749,14 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       </div>
                     ))}
                   </div>
-                </article>
+                </div>
               ) : null}
 
               {/* Showcase Approved Concepts */}
               {concepts.filter((c) => c.status === "approved").length > 0 ? (
-                <article>
+                <div className="client-delivery-section">
                   <h3>Approved Brand Concepts</h3>
-                  <div className="client-panel-grid" style={{ marginTop: "1rem" }}>
+                  <div className="client-panel-grid" style={{ marginTop: "0.5rem" }}>
                     {concepts.filter((c) => c.status === "approved").map((item) => (
                       <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
                         {item.image_url ? (
@@ -1772,16 +1772,16 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       </div>
                     ))}
                   </div>
-                </article>
+                </div>
               ) : null}
 
               {/* Payment Settlement Status */}
               {payments.length > 0 ? (
-                <article>
+                <div className="client-delivery-section">
                   <h3>Payment Settlement Status</h3>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "10px" }}>
+                  <div className="client-delivery-settlement-list">
                     {payments.map((p) => (
-                      <div key={p.id} style={{ background: "rgba(255,255,255,0.03)", padding: "8px 14px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.08)", fontSize: "0.9rem" }}>
+                      <div key={p.id} className="client-delivery-settlement-item">
                         <span style={{ color: "#94a3b8", textTransform: "capitalize" }}>{p.type || "Milestone"}: </span>
                         <strong style={{ color: "#f8fafc" }}>Rs {Number(p.amount || 0).toLocaleString()} </strong>
                         <span style={{ color: p.status === "paid" ? "#4ade80" : "#fbbf24", marginLeft: "4px" }}>
@@ -1790,69 +1790,76 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       </div>
                     ))}
                   </div>
-                </article>
+                </div>
               ) : null}
 
               {!deliverablesLoading && deliverables.length === 0 ? (
-                <article>
+                <div className="client-delivery-empty">
                   <h3>Deliverables are being prepared.</h3>
                   <p>{deliverablesError || "Your consultant will share final deliverable files here."}</p>
-                </article>
+                </div>
               ) : null}
+
               {!deliverablesLoading && deliverablesError && deliverables.length > 0 ? (
-                <article>
+                <div className="client-delivery-empty" style={{ color: "#f87171" }}>
                   <p>{deliverablesError}</p>
-                </article>
+                </div>
               ) : null}
-              {!deliverablesLoading && deliverables.map((item) => (
-                <article key={item.id} className="client-delivery-row">
-                  <div>
-                    <h3>{item.title || item.label}</h3>
-                    {item.description ? <p>{item.description}</p> : null}
-                    <p>
-                      {item.file_name || item.fileFormat || item.category || "File"}
-                      {item.created_at ? ` - ${new Date(item.created_at).toLocaleDateString()}` : ""}
-                    </p>
-                    {item.can_download === false || (!item.file_url && item.can_download !== true) ? (
-                      <p>{item.download_locked_reason || FINAL_PAYMENT_REQUIRED_MESSAGE}</p>
-                    ) : null}
-                  </div>
-                  {item.can_download !== false && item.file_url ? (
-                    <a
-                      href={item.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="client-panel-action"
-                    >
-                      Download Final File
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="client-panel-action secondary"
-                    >
-                      Locked (Final Payment Required)
-                    </button>
-                  )}
-                </article>
-              ))}
+
+              {!deliverablesLoading && deliverables.length > 0 ? (
+                <div className="client-delivery-file-list">
+                  {deliverables.map((item) => (
+                    <div key={item.id} className="client-delivery-file-row">
+                      <div>
+                        <h3 style={{ margin: "0 0 4px", fontSize: "15px", color: "#fff" }}>{item.title || item.label}</h3>
+                        {item.description ? <p style={{ margin: "0 0 4px", fontSize: "13px", color: "#94a3b8" }}>{item.description}</p> : null}
+                        <p style={{ margin: 0, fontSize: "12px", color: "#64748b" }}>
+                          {item.file_name || item.fileFormat || item.category || "File"}
+                          {item.created_at ? ` - ${new Date(item.created_at).toLocaleDateString()}` : ""}
+                        </p>
+                        {item.can_download === false || (!item.file_url && item.can_download !== true) ? (
+                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#f59e0b" }}>{item.download_locked_reason || FINAL_PAYMENT_REQUIRED_MESSAGE}</p>
+                        ) : null}
+                      </div>
+                      {item.can_download !== false && item.file_url ? (
+                        <a
+                          href={item.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="client-panel-action"
+                        >
+                          Download Final File
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="client-panel-action secondary"
+                        >
+                          Locked (Final Payment Required)
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
               {!deliverablesLoading ? (
-                <article className="client-agreement-card">
-                  <div className="client-agreement-summary">
+                <div className="client-delivery-signoff-bar">
+                  <div className="client-delivery-signoff-info">
                     <h3>{project.clientSignedOff ? "Project completed" : "Final sign-off"}</h3>
                     <p>
                       {project.clientSignedOff
                         ? "Project completed"
                         : signOffDisabledReason || "Accept the final delivery and complete this project."}
                     </p>
-                    {signOffError ? <p>{signOffError}</p> : null}
+                    {signOffError ? <p style={{ color: "#f87171", margin: "4px 0 0" }}>{signOffError}</p> : null}
                   </div>
                   <button
                     type="button"
                     disabled={project.clientSignedOff || Boolean(signOffDisabledReason) || working === "sign-off"}
                     onClick={handleSignOff}
-                    className="client-panel-action"
+                    className="client-panel-action client-delivery-signoff-btn"
                   >
                     {project.clientSignedOff
                       ? "Completed"
@@ -1860,7 +1867,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         ? "Completing..."
                         : "Accept & Complete Project"}
                   </button>
-                </article>
+                </div>
               ) : null}
             </div>
           ) : null}

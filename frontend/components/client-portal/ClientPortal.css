@@ -2419,6 +2419,125 @@
   width: 100%;
 }
 
+/* --- Client Delivery Workspace Layout --- */
+.client-delivery-container {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+}
+
+.client-delivery-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.client-delivery-section h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.client-delivery-settlement-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.client-delivery-settlement-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+}
+
+.client-delivery-empty {
+  padding: 10px 0;
+}
+
+.client-delivery-empty h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.client-delivery-empty p {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(137, 172, 160, 0.7);
+  line-height: 1.5;
+}
+
+.client-delivery-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.client-delivery-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  flex-wrap: wrap;
+}
+
+.client-delivery-signoff-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-top: 22px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.client-delivery-signoff-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.client-delivery-signoff-info h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+}
+
+.client-delivery-signoff-info p {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(137, 172, 160, 0.7);
+  line-height: 1.5;
+}
+
+.client-delivery-signoff-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .client-payment-card {
   display: flex;
   align-items: center;
