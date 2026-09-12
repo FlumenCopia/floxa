@@ -37,6 +37,15 @@ const panelTitles = {
   payments: "Project Payments",
 };
 
+const panelToDefaultStage = {
+  discovery: "Discovery",
+  moodboards: "Moodboards",
+  concepts: "Concepts",
+  agreement: "Agreement",
+  delivery: "Delivery",
+  payments: "Payments",
+};
+
 const FINAL_PAYMENT_REQUIRED_MESSAGE = "Final payment must be completed before downloading deliverables.";
 
 function getAgreementStatusLabel(agreement) {
@@ -241,6 +250,12 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const activePhaseLabel = pct >= 100 ? "Complete" : phaseLabels[activePhaseIndex];
   const defaultPanel = phaseToPanelMap[phaseLabels[activePhaseIndex]] || "moodboards";
   const [panel, setPanel] = useState(defaultPanel);
+  const [selectedStage, setSelectedStage] = useState(panelToDefaultStage[defaultPanel] || activePhaseLabel);
+  const currentActiveStage = panel
+    ? (selectedStage && phaseToPanelMap[selectedStage] === panel
+        ? selectedStage
+        : panelToDefaultStage[panel] || activePhaseLabel)
+    : activePhaseLabel;
   const [working, setWorking] = useState("");
   const [brandDNAReport, setBrandDNAReport] = useState(null);
   const [discoveryReport, setDiscoveryReport] = useState(null);
@@ -991,14 +1006,20 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   }
 
   function handleStageClick(label) {
+    setSelectedStage(label);
     const targetPanel = phaseToPanelMap[label];
     if (targetPanel) {
-      openPanel(targetPanel, true);
+      openPanel(targetPanel, true, label);
     }
   }
 
-  async function openPanel(nextPanel, shouldScroll = true) {
+  async function openPanel(nextPanel, shouldScroll = true, stageOverride = null) {
     setPanel(nextPanel);
+    if (stageOverride) {
+      setSelectedStage(stageOverride);
+    } else if (!selectedStage || phaseToPanelMap[selectedStage] !== nextPanel) {
+      setSelectedStage(panelToDefaultStage[nextPanel] || activePhaseLabel);
+    }
     setSignOffError("");
 
     if (shouldScroll) {
@@ -1307,20 +1328,19 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
         <div className="client-dashboard-stage-list" role="navigation" aria-label="Project stages">
           {phaseLabels.map((label, index) => {
-            const isComplete = index < activePhaseIndex;
-            const isMilestone = index === activePhaseIndex;
-            const isViewing = Boolean(panel && phaseToPanelMap[label] === panel);
+            const isActive = currentActiveStage === label;
+            const isComplete = !isActive && index < activePhaseIndex;
 
             return (
               <button
                 key={label}
                 type="button"
                 className={`client-dashboard-stage-item ${
-                  isComplete ? "complete" : isMilestone ? "active" : ""
-                } ${isViewing ? "viewing" : ""}`.trim()}
+                  isActive ? "active" : isComplete ? "complete" : ""
+                }`.trim()}
                 onClick={() => handleStageClick(label)}
                 title={`Open ${label} workspace`}
-                aria-current={isViewing ? "step" : undefined}
+                aria-current={isActive ? "step" : undefined}
               >
                 <span />
                 {pct >= 100 && index === phaseLabels.length - 1 ? "Complete" : label}
@@ -1340,7 +1360,10 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
             <button
               type="button"
               className="client-panel-close-btn"
-              onClick={() => setPanel(null)}
+              onClick={() => {
+                setPanel(null);
+                setSelectedStage(activePhaseLabel);
+              }}
               aria-label="Close workspace"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
