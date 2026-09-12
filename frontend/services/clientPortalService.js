@@ -995,10 +995,11 @@ export const clientPortalService = {
     return { success: true, data: updated.brandDNA };
   },
 
-  async selectMoodboard(moodboardId) {
-    if (activeToken && activeToken !== "test-token") {
+  async selectMoodboard(moodboardId, portalToken = activeToken) {
+    const token = portalToken || activeToken;
+    if (token && token !== "test-token") {
       const selectedMoodboard = await apiRequest(
-        `/client-portal/${activeToken}/moodboards/${moodboardId}/select/`,
+        `/client-portal/${token}/moodboards/${moodboardId}/select/`,
         {
           method: "POST",
         }
@@ -1007,25 +1008,26 @@ export const clientPortalService = {
       return { success: true, data: selectedMoodboard };
     }
 
-    const project = readProject();
+    const project = readProject(token);
     const updated = {
       ...project,
-      moodboards: project.moodboards.map((item) => ({
+      moodboards: (project.moodboards || []).map((item) => ({
         ...item,
         clientSelected: item.id === moodboardId,
         is_selected: item.id === moodboardId,
       })),
-      completionPct: Math.max(project.completionPct, 64),
+      completionPct: Math.max(project.completionPct || 0, 64),
     };
 
-    writeProject(updated);
+    writeProject(updated, token);
     return { success: true, data: updated.moodboards.find((item) => item.id === moodboardId) };
   },
 
-  async submitMoodboardFeedback(moodboardId, payload) {
-    if (activeToken && activeToken !== "test-token") {
+  async submitMoodboardFeedback(moodboardId, payload, portalToken = activeToken) {
+    const token = portalToken || activeToken;
+    if (token && token !== "test-token") {
       const moodboard = await apiRequest(
-        `/client-portal/${activeToken}/moodboards/${moodboardId}/feedback/`,
+        `/client-portal/${token}/moodboards/${moodboardId}/feedback/`,
         {
           method: "POST",
           body: JSON.stringify(payload),

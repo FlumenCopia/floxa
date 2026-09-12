@@ -1814,16 +1814,53 @@
   font-size: 12px;
 }
 
-.client-dashboard-stage-list div {
+.client-dashboard-stage-list button,
+.client-dashboard-stage-list div,
+.client-dashboard-stage-item {
   display: flex;
   align-items: center;
   gap: 9px;
+  background: none;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  padding: 2px 0;
+  margin: 0;
+  font: inherit;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0;
+  transition: color 0.2s ease;
+  width: auto;
+}
+
+.client-dashboard-stage-list button:focus,
+.client-dashboard-stage-list button:focus-visible,
+.client-dashboard-stage-item:focus,
+.client-dashboard-stage-item:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .client-dashboard-stage-list span {
   width: 18px;
   height: 2px;
   background: currentColor;
+  transition: width 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+  flex-shrink: 0;
+}
+
+.client-dashboard-stage-list button:hover,
+.client-dashboard-stage-item:hover {
+  color: #d1fae5;
+  background: none;
+}
+
+.client-dashboard-stage-list button:hover span,
+.client-dashboard-stage-item:hover span {
+  width: 24px;
 }
 
 .client-dashboard-stage-list .complete {
@@ -1831,7 +1868,7 @@
 }
 
 .client-dashboard-stage-list .active {
-  color: #fff;
+  color: #ffffff;
   font-weight: 600;
 }
 

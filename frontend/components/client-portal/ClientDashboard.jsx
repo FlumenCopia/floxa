@@ -17,6 +17,35 @@ const phaseLabels = [
   "Delivery",
   "Payments",
 ];
+
+const phaseToPanelMap = {
+  Discovery: "discovery",
+  "Brand DNA": "discovery",
+  Moodboards: "moodboards",
+  Concepts: "concepts",
+  Agreement: "agreement",
+  Delivery: "delivery",
+  Payments: "payments",
+};
+
+const panelTitles = {
+  discovery: "Discovery Report & Brand DNA",
+  moodboards: "Visual Moodboards",
+  concepts: "Brand Concepts & Identity",
+  agreement: "Client Agreement",
+  delivery: "Deliverables & Assets",
+  payments: "Project Payments",
+};
+
+const panelToDefaultStage = {
+  discovery: "Discovery",
+  moodboards: "Moodboards",
+  concepts: "Concepts",
+  agreement: "Agreement",
+  delivery: "Delivery",
+  payments: "Payments",
+};
+
 const FINAL_PAYMENT_REQUIRED_MESSAGE = "Final payment must be completed before downloading deliverables.";
 
 function getAgreementStatusLabel(agreement) {
@@ -220,6 +249,11 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const activePhaseIndex = getActivePhaseIndex(pct, workflowStatus);
   const activePhaseLabel = pct >= 100 ? "Complete" : phaseLabels[activePhaseIndex];
   const [panel, setPanel] = useState(null);
+  const [selectedStage, setSelectedStage] = useState(null);
+  const defaultMilestoneStage = pct >= 100 ? "Complete" : phaseLabels[activePhaseIndex];
+  const currentActiveStage = panel
+    ? (selectedStage || panelToDefaultStage[panel] || defaultMilestoneStage)
+    : defaultMilestoneStage;
   const [working, setWorking] = useState("");
   const [brandDNAReport, setBrandDNAReport] = useState(null);
   const [discoveryReport, setDiscoveryReport] = useState(null);
@@ -476,8 +510,10 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     setMoodboardsError("");
     setMoodboardsMessage("");
 
+    const token = project?.portal_token || project?.portalToken || project?.token;
+
     try {
-      const response = await clientPortalService.selectMoodboard(id);
+      const response = await clientPortalService.selectMoodboard(id, token);
       const selectedId = response.data?.id ?? id;
 
       setMoodboards((currentMoodboards) =>
@@ -514,8 +550,10 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     setMoodboardsError("");
     setMoodboardsMessage("");
 
+    const token = project?.portal_token || project?.portalToken || project?.token;
+
     try {
-      await clientPortalService.submitMoodboardFeedback(id, { feedback });
+      await clientPortalService.submitMoodboardFeedback(id, { feedback }, token);
       setMoodboards((currentMoodboards) =>
         currentMoodboards.map((item) =>
           item.id === id
@@ -965,9 +1003,31 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
-  async function openPanel(nextPanel) {
+  function handleStageClick(label) {
+    setSelectedStage(label);
+    const targetPanel = phaseToPanelMap[label];
+    if (targetPanel) {
+      openPanel(targetPanel, label);
+    }
+  }
+
+  async function openPanel(nextPanel, stageLabel) {
     setPanel(nextPanel);
+    if (stageLabel) {
+      setSelectedStage(stageLabel);
+    } else {
+      setSelectedStage(panelToDefaultStage[nextPanel] || null);
+    }
     setSignOffError("");
+
+    setTimeout(() => {
+      const panelEl = document.getElementById("client-workspace-panel");
+      if (panelEl) {
+        panelEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 100);
+
+    const token = project?.portal_token || project?.portalToken || project?.token;
 
     if (nextPanel === "moodboards") {
       setMoodboardsLoading(true);
@@ -977,7 +1037,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setMoodboardFeedbackText("");
 
       try {
-        const response = await clientPortalService.getMoodboards();
+        const response = await clientPortalService.getMoodboards(token);
         setMoodboards(response.success ? response.data : []);
         setMoodboardsError(response.success ? "" : response.error || "Moodboards are not ready yet.");
       } finally {
@@ -1009,7 +1069,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setPaymentsError("");
 
       try {
-        const response = await clientPortalService.getClientDeliverables();
+        const response = await clientPortalService.getClientDeliverables(token);
         setDeliverables(response.success ? response.data : []);
         setDeliverablesError(response.success ? "" : response.error || "Deliverables are not ready yet.");
       } finally {
@@ -1017,7 +1077,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       }
 
       try {
-        const response = await clientPortalService.getClientPayments();
+        const response = await clientPortalService.getClientPayments(token);
         setPayments(response.success ? response.data : []);
         setPaymentsError(response.success ? "" : response.error || "Payments are not available yet.");
       } finally {
@@ -1032,7 +1092,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setAgreementError("");
 
       try {
-        const response = await clientPortalService.getClientAgreement();
+        const response = await clientPortalService.getClientAgreement(token);
         setAgreement(response.success ? response.data : null);
         setAgreementError(response.success ? "" : response.error || "Agreement is being prepared.");
       } finally {
@@ -1049,7 +1109,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setPaymentCallbackData(null);
 
       try {
-        const response = await clientPortalService.getClientPayments();
+        const response = await clientPortalService.getClientPayments(token);
         setPayments(response.success ? response.data : []);
         setPaymentsError(response.success ? "" : response.error || "Payments are not available yet.");
       } finally {
@@ -1068,8 +1128,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
     try {
       const [discRes, dnaRes] = await Promise.all([
-        clientPortalService.getDiscoveryReport(),
-        clientPortalService.getBrandDNAReport(),
+        clientPortalService.getDiscoveryReport(token),
+        clientPortalService.getBrandDNAReport(token),
       ]);
 
       setDiscoveryReport(discRes.success ? discRes.data : null);
@@ -1303,18 +1363,27 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           </div>
         </div>
 
-        <div className="client-dashboard-stage-list">
-          {phaseLabels.map((label, index) => (
-            <div
-              key={label}
-              className={
-                index < activePhaseIndex ? "complete" : index === activePhaseIndex ? "active" : ""
-              }
-            >
-              <span />
-              {pct >= 100 && index === phaseLabels.length - 1 ? "Complete" : label}
-            </div>
-          ))}
+        <div className="client-dashboard-stage-list" role="navigation" aria-label="Project stages">
+          {phaseLabels.map((label, index) => {
+            const isActive = currentActiveStage === label;
+            const isComplete = !isActive && index < activePhaseIndex;
+
+            return (
+              <button
+                key={label}
+                type="button"
+                className={`client-dashboard-stage-item ${
+                  isActive ? "active" : isComplete ? "complete" : ""
+                }`.trim()}
+                onClick={() => handleStageClick(label)}
+                title={`Open ${label} workspace`}
+                aria-current={isActive ? "step" : undefined}
+              >
+                <span />
+                {pct >= 100 && index === phaseLabels.length - 1 ? "Complete" : label}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -1336,13 +1405,19 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       </section>
 
       {panel ? (
-        <section className="client-dashboard-panel client-design-enter">
+        <section id="client-workspace-panel" className="client-dashboard-panel client-design-enter">
           <div className="client-panel-heading">
             <div>
               <span>Project workspace</span>
-              <h2>{panel}</h2>
+              <h2>{panelTitles[panel] || panel}</h2>
             </div>
-            <button type="button" onClick={() => setPanel(null)}>
+            <button
+              type="button"
+              onClick={() => {
+                setPanel(null);
+                setSelectedStage(null);
+              }}
+            >
               Close
             </button>
           </div>
@@ -1510,14 +1585,16 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         ) : (
                           <button
                             type="button"
-                            disabled={hasSelectedMoodboard || working === item.id}
+                            disabled={working === item.id}
                             onClick={() => selectMoodboard(item.id)}
                             className="client-panel-action"
                             style={{ flex: 1 }}
                           >
                             {working === item.id
                               ? "Saving..."
-                              : "Select direction"}
+                              : hasSelectedMoodboard
+                                ? "Switch to this direction"
+                                : "Select direction"}
                           </button>
                         )}
                         <button
