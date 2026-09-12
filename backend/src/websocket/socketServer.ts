@@ -7,7 +7,7 @@ import { IncomingMessage, Server } from 'http';
 import url from 'url';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import { Consultant, Project, ProjectDiscovery, ProjectActivity, Moodboard, Concept } from '../models/index.js';
+import { Consultant, Project, ProjectDiscovery, ProjectActivity, Moodboard, Concept, ChatMessage } from '../models/index.js';
 import { ENV } from '../config/env.js';
 import { logProjectActivity, onActivityCreated } from '../services/project.service.js';
 import { serializeProjectActivity, serializeClientPortalActivity } from '../utils/serializer.js';
@@ -550,6 +550,125 @@ export function setupWebSocketServer(server: Server) {
                 }
               });
             }
+          } else if (content.type === 'CHAT_MESSAGE_SEND') {
+            const projectId = content.projectId || content.project_id;
+            const text = String(content.text || '').trim();
+            const mediaUrl = content.mediaUrl ? String(content.mediaUrl) : null;
+            const messageType = ['text', 'voice', 'image', 'file'].includes(content.messageType)
+              ? content.messageType
+              : (mediaUrl ? 'file' : 'text');
+            const mediaMimeType = content.mediaMimeType ? String(content.mediaMimeType) : null;
+            const mediaDuration = typeof content.mediaDuration === 'number'
+              ? content.mediaDuration
+              : (content.duration ? Number(content.duration) : null);
+            const fileName = content.fileName ? String(content.fileName) : null;
+            const fileSize = typeof content.fileSize === 'number' ? content.fileSize : null;
+            const clientTempId = content.clientTempId || content.tempId || null;
+
+            if (!projectId || (!text && !mediaUrl) || text.length > 5000) return;
+            if (!mongoose.isValidObjectId(projectId)) return;
+
+            const project = await Project.findOne({ _id: projectId, consultantId: consultant.id, isArchived: false });
+            if (!project) return;
+
+            const clientConns = projectSockets.get(project.id);
+            const isClientOnline = Boolean(
+              clientConns && Array.from(clientConns).some((c) => c.role === 'client' && c.ws.readyState === WebSocket.OPEN)
+            );
+
+            const chatMsg = await ChatMessage.create({
+              projectId: project.id,
+              consultantId: consultant.id,
+              senderRole: 'consultant',
+              senderName: consultant.name || 'Consultant',
+              text,
+              messageType,
+              mediaUrl,
+              mediaMimeType,
+              mediaDuration,
+              fileName,
+              fileSize,
+              status: isClientOnline ? 'delivered' : 'sent',
+              clientTempId,
+              createdAt: new Date(),
+            });
+
+            const chatPayload = JSON.stringify({
+              type: 'CHAT_MESSAGE_NEW',
+              message: {
+                id: chatMsg.id,
+                projectId: project.id,
+                senderRole: chatMsg.senderRole,
+                senderName: chatMsg.senderName,
+                text: chatMsg.text,
+                messageType: chatMsg.messageType,
+                mediaUrl: chatMsg.mediaUrl,
+                mediaMimeType: chatMsg.mediaMimeType,
+                mediaDuration: chatMsg.mediaDuration,
+                fileName: chatMsg.fileName,
+                fileSize: chatMsg.fileSize,
+                status: chatMsg.status,
+                clientTempId: chatMsg.clientTempId,
+                createdAt: chatMsg.createdAt,
+              },
+            });
+
+            projectSockets.get(project.id)?.forEach((c) => {
+              if (c.ws.readyState === WebSocket.OPEN) {
+                c.ws.send(chatPayload);
+              }
+            });
+
+            consultantSockets.get(consultant.id)?.forEach((cws) => {
+              if (cws.readyState === WebSocket.OPEN) {
+                cws.send(chatPayload);
+              }
+            });
+          } else if (content.type === 'CHAT_TYPING') {
+            const projectId = content.projectId || content.project_id;
+            const isTyping = Boolean(content.isTyping);
+            if (!projectId || !mongoose.isValidObjectId(projectId)) return;
+
+            const typingPayload = JSON.stringify({
+              type: 'CHAT_TYPING',
+              projectId,
+              senderRole: 'consultant',
+              isTyping,
+            });
+
+            projectSockets.get(projectId)?.forEach((c) => {
+              if (c.ws.readyState === WebSocket.OPEN && c.role === 'client') {
+                c.ws.send(typingPayload);
+              }
+            });
+          } else if (content.type === 'CHAT_MESSAGES_READ') {
+            const projectId = content.projectId || content.project_id;
+            if (!projectId || !mongoose.isValidObjectId(projectId)) return;
+
+            const now = new Date();
+            await ChatMessage.updateMany(
+              { projectId, senderRole: 'client', status: { $ne: 'read' } },
+              { $set: { status: 'read', readAt: now } }
+            );
+
+            const readPayload = JSON.stringify({
+              type: 'CHAT_MESSAGES_READ',
+              projectId,
+              readBy: 'consultant',
+              readAt: now,
+            });
+
+            projectSockets.get(projectId)?.forEach((c) => {
+              if (c.ws.readyState === WebSocket.OPEN) {
+                c.ws.send(readPayload);
+              }
+            });
+
+            consultantSockets.get(consultant.id)?.forEach((cws) => {
+              if (cws.readyState === WebSocket.OPEN) {
+                cws.send(readPayload);
+              }
+            });
           }
         } catch {}
       });
@@ -1066,6 +1185,154 @@ export function setupWebSocketServer(server: Server) {
             consultantSockets.get(consultantId)?.forEach((cws) => {
               if (cws !== ws && cws.readyState === WebSocket.OPEN && !projectRoomWs.has(cws)) {
                 cws.send(signalMsg);
+              }
+            });
+          }
+        } else if (msgType === 'CHAT_MESSAGE_SEND') {
+          const text = String(content.text || '').trim();
+          const mediaUrl = content.mediaUrl ? String(content.mediaUrl) : null;
+          const messageType = ['text', 'voice', 'image', 'file'].includes(content.messageType)
+            ? content.messageType
+            : (mediaUrl ? 'file' : 'text');
+          const mediaMimeType = content.mediaMimeType ? String(content.mediaMimeType) : null;
+          const mediaDuration = typeof content.mediaDuration === 'number'
+            ? content.mediaDuration
+            : (content.duration ? Number(content.duration) : null);
+          const fileName = content.fileName ? String(content.fileName) : null;
+          const fileSize = typeof content.fileSize === 'number' ? content.fileSize : null;
+          const clientTempId = content.clientTempId || content.tempId || null;
+
+          if ((!text && !mediaUrl) || text.length > 5000) return;
+
+          const consId = String(currentProject.consultantId || '');
+          const isExplicitConsultant = content.senderRole === 'consultant' || Boolean(query.consultant_token);
+          const senderRole: 'client' | 'consultant' = isExplicitConsultant ? 'consultant' : 'client';
+          const senderName =
+            senderRole === 'consultant'
+              ? (content.senderName || 'Consultant')
+              : (currentProject.clientName || 'Client');
+
+          let isRecipientOnline = false;
+          if (senderRole === 'client') {
+            const consSockets = consultantSockets.get(consId);
+            isRecipientOnline = Boolean(
+              consSockets && Array.from(consSockets).some((s) => s.readyState === WebSocket.OPEN)
+            );
+          } else {
+            const clientConns = projectSockets.get(currentProjectId);
+            isRecipientOnline = Boolean(
+              clientConns && Array.from(clientConns).some((c) => c.role === 'client' && c.ws.readyState === WebSocket.OPEN)
+            );
+          }
+
+          const chatMsg = await ChatMessage.create({
+            projectId: currentProjectId,
+            consultantId: consId,
+            senderRole,
+            senderName,
+            text,
+            messageType,
+            mediaUrl,
+            mediaMimeType,
+            mediaDuration,
+            fileName,
+            fileSize,
+            status: isRecipientOnline ? 'delivered' : 'sent',
+            clientTempId,
+            createdAt: new Date(),
+          });
+
+          const chatPayload = JSON.stringify({
+            type: 'CHAT_MESSAGE_NEW',
+            message: {
+              id: chatMsg.id,
+              projectId: currentProjectId,
+              senderRole: chatMsg.senderRole,
+              senderName: chatMsg.senderName,
+              text: chatMsg.text,
+              messageType: chatMsg.messageType,
+              mediaUrl: chatMsg.mediaUrl,
+              mediaMimeType: chatMsg.mediaMimeType,
+              mediaDuration: chatMsg.mediaDuration,
+              fileName: chatMsg.fileName,
+              fileSize: chatMsg.fileSize,
+              status: chatMsg.status,
+              clientTempId: chatMsg.clientTempId,
+              createdAt: chatMsg.createdAt,
+            },
+          });
+
+          projectSockets.get(currentProjectId)?.forEach((c) => {
+            if (c.ws.readyState === WebSocket.OPEN) {
+              c.ws.send(chatPayload);
+            }
+          });
+
+          if (consId) {
+            consultantSockets.get(consId)?.forEach((cws) => {
+              if (cws.readyState === WebSocket.OPEN) {
+                cws.send(chatPayload);
+              }
+            });
+          }
+        } else if (msgType === 'CHAT_TYPING') {
+          const isTyping = Boolean(content.isTyping);
+          const typingRole: 'client' | 'consultant' =
+            content.senderRole === 'consultant' || Boolean(query.consultant_token) ? 'consultant' : 'client';
+          const typingPayload = JSON.stringify({
+            type: 'CHAT_TYPING',
+            projectId: currentProjectId,
+            senderRole: typingRole,
+            isTyping,
+          });
+
+          if (typingRole === 'client') {
+            const consId = String(currentProject.consultantId || '');
+            consultantSockets.get(consId)?.forEach((cws) => {
+              if (cws.readyState === WebSocket.OPEN) {
+                cws.send(typingPayload);
+              }
+            });
+            projectSockets.get(currentProjectId)?.forEach((c) => {
+              if (c.role === 'consultant' && c.ws.readyState === WebSocket.OPEN) {
+                c.ws.send(typingPayload);
+              }
+            });
+          } else {
+            projectSockets.get(currentProjectId)?.forEach((c) => {
+              if (c.role === 'client' && c.ws.readyState === WebSocket.OPEN) {
+                c.ws.send(typingPayload);
+              }
+            });
+          }
+        } else if (msgType === 'CHAT_MESSAGES_READ') {
+          const now = new Date();
+          const readerRole: 'client' | 'consultant' =
+            content.readBy === 'consultant' || Boolean(query.consultant_token) ? 'consultant' : 'client';
+          const targetRole = readerRole === 'client' ? 'consultant' : 'client';
+          await ChatMessage.updateMany(
+            { projectId: currentProjectId, senderRole: targetRole, status: { $ne: 'read' } },
+            { $set: { status: 'read', readAt: now } }
+          );
+
+          const readPayload = JSON.stringify({
+            type: 'CHAT_MESSAGES_READ',
+            projectId: currentProjectId,
+            readBy: readerRole,
+            readAt: now,
+          });
+
+          projectSockets.get(currentProjectId)?.forEach((c) => {
+            if (c.ws.readyState === WebSocket.OPEN) {
+              c.ws.send(readPayload);
+            }
+          });
+
+          const consId = String(currentProject.consultantId || '');
+          if (consId) {
+            consultantSockets.get(consId)?.forEach((cws) => {
+              if (cws.readyState === WebSocket.OPEN) {
+                cws.send(readPayload);
               }
             });
           }

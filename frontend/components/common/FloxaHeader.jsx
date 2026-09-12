@@ -23,15 +23,18 @@ import {
   Video,
   Phone,
   PhoneOff,
+  MessageSquare,
 } from "lucide-react";
 import { supportSocket } from "@/services/supportSocketService";
 import { webRTCService } from "@/services/webRTCService";
+import { chatService } from "@/services/chatService";
 import { VideoCallModal } from "@/components/client-portal/VideoCallModal";
 import "@/components/client-portal/ClientPortal.css";
 
 const primaryNavItems = [
   { label: "DASHBOARD", icon: "grid", route: "/" },
   { label: "PROJECTS", icon: "mail", route: "/project" },
+  { label: "CHAT", icon: "chat", route: "/chat" },
   { label: "DISCOVERY", icon: "search", route: "/discovery" },
   { label: "AI SUITE", icon: "star", route: "/ai-suite" },
   { label: "ANALYTICS", icon: "chart", route: "/analytics" },
@@ -44,6 +47,7 @@ const accountNavItems = [{ label: "SETTINGS", icon: "settings", route: "/setting
 const mobileTabItems = [
   { label: "Home", icon: "grid", route: "/" },
   { label: "Projects", icon: "mail", route: "/project" },
+  { label: "Chat", icon: "chat", route: "/chat" },
   { label: "AI", icon: "star", route: "/ai-suite" },
   { label: "Portal", icon: "portal", route: "/client-portal" },
   { label: "Settings", icon: "settings", route: "/settings" },
@@ -138,6 +142,8 @@ function Icon({ type, size, strokeWidth }) {
       return <LayoutDashboard size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "mail":
       return <FolderKanban size={size || 16} strokeWidth={strokeWidth || 1.8} />;
+    case "chat":
+      return <MessageSquare size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "search":
       return <Compass size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     case "star":
@@ -243,11 +249,14 @@ export default function Floxaheader({
   const [headerNotificationsLoading, setHeaderNotificationsLoading] = useState(false);
   const [consultant, setConsultant] = useState(cachedConsultant);
   const [projectSearch, setProjectSearch] = useState(() => searchParams.get("search") || "");
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
   const notificationsRequestRef = useRef(false);
-  const resolvedActiveNav = pathname === "/project" ? "Projects" : activeNav;
+  const resolvedActiveNav = pathname === "/project" ? "Projects" : pathname === "/chat" ? "Chat" : activeNav;
   const resolvedPrimaryNavItems = primaryNavItems.map((item) => ({
     ...item,
     active: item.label.toLowerCase() === resolvedActiveNav.toLowerCase(),
+    badge: item.label === "CHAT" && unreadChatCount > 0 ? unreadChatCount : item.badge,
+    badgeClass: item.label === "CHAT" ? "nav-badge-chat" : item.badgeClass,
   }));
 
   const resolvedMobileTabItems = mobileTabItems.map((item) => ({
@@ -255,23 +264,60 @@ export default function Floxaheader({
     active:
       (resolvedActiveNav?.toLowerCase() === "dashboard" && item.label.toLowerCase() === "home") ||
       (resolvedActiveNav?.toLowerCase() === "projects" && item.label.toLowerCase() === "projects") ||
+      (resolvedActiveNav?.toLowerCase() === "chat" && item.label.toLowerCase() === "chat") ||
       (resolvedActiveNav?.toLowerCase() === "ai suite" && item.label.toLowerCase() === "ai") ||
       (resolvedActiveNav?.toLowerCase() === "client portal" && item.label.toLowerCase() === "portal") ||
       (resolvedActiveNav?.toLowerCase() === "settings" && item.label.toLowerCase() === "settings"),
   }));
+
+  useEffect(() => {
+    let isMounted = true;
+    chatService
+      .fetchConversations()
+      .then((data) => {
+        if (isMounted && data?.conversations) {
+          const totalUnread = data.conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+          setUnreadChatCount(totalUnread);
+        }
+      })
+      .catch(() => {});
+
+    const unsubChatMsg = supportSocket.on("chat_message_new", (msg) => {
+      if (!isMounted) return;
+      if (msg?.senderRole === "client") {
+        setUnreadChatCount((prev) => prev + 1);
+      }
+    });
+
+    const unsubChatRead = supportSocket.on("chat_messages_read", (data) => {
+      if (!isMounted) return;
+      if (data?.readBy === "consultant") {
+        chatService
+          .fetchConversations()
+          .then((cdata) => {
+            if (isMounted && cdata?.conversations) {
+              const total = cdata.conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+              setUnreadChatCount(total);
+            }
+          })
+          .catch(() => {});
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubChatMsg();
+      unsubChatRead();
+    };
+  }, []);
   const visibleNotifications = headerNotifications.length ? headerNotifications : notifications;
   const visibleNotificationsLoading = headerNotificationsLoading || notificationsLoading;
   const visibleNotificationCount = headerNotifications.length
     ? headerNotifications.filter((notification) => !notification.is_read).length
     : notificationCount;
 
-  const [callState, setCallState] = useState("idle");
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isCallPickerOpen, setIsCallPickerOpen] = useState(false);
-  const [callPickerProjects, setCallPickerProjects] = useState([]);
-  const [callPickerLoading, setCallPickerLoading] = useState(false);
-  const [callPickerSearch, setCallPickerSearch] = useState("");
 
   useEffect(() => {
     const token =
@@ -283,10 +329,6 @@ export default function Floxaheader({
     if (token || consultant?.id) {
       supportSocket.connectConsultantNotifications({ consultantToken: token, consultantId: consultant?.id });
     }
-
-    const unsubState = webRTCService.on("state_change", (state) => {
-      setCallState(state);
-    });
 
     const unsubReject = webRTCService.on("call_rejected", ({ reason }) => {
       showInfo(reason || "Call was declined.");
@@ -313,7 +355,6 @@ export default function Floxaheader({
     });
 
     return () => {
-      unsubState();
       unsubReject();
       unsubTimeout();
       unsubMediaErr();
@@ -323,80 +364,7 @@ export default function Floxaheader({
     };
   }, []);
 
-  const loadCallPickerProjects = async () => {
-    setCallPickerLoading(true);
-    try {
-      const data = await getProjects({ pageSize: 50 });
-      setCallPickerProjects(Array.isArray(data.results) ? data.results : []);
-    } catch (err) {
-      console.error("Failed to load projects for call picker:", err);
-    } finally {
-      setCallPickerLoading(false);
-    }
-  };
 
-  const handleNavbarVideoClick = () => {
-    if (callState === "incoming_ringing") {
-      webRTCService.acceptCall();
-      return;
-    }
-    if (callState === "connected" || callState === "outgoing_ringing") {
-      return;
-    }
-
-    // 1. Check if there is an active project in current page context
-    const routeProjectId =
-      searchParams.get("projectId") ||
-      searchParams.get("id") ||
-      searchParams.get("project_id");
-
-    const selectedProjectId = project?.id || project?._id || projectId;
-    const explicitProjectId = routeProjectId || selectedProjectId;
-
-    if (explicitProjectId) {
-      let clientName = "Client";
-      let projectTitle = "Project";
-
-      if (project && (project.id === explicitProjectId || project._id === explicitProjectId)) {
-        clientName =
-          project.client_name ||
-          project.client?.name ||
-          project.company_name ||
-          "Client";
-        projectTitle =
-          project.company_name ||
-          project.title ||
-          "Project";
-      } else {
-        const matchingNotif = visibleNotifications.find(
-          (n) => (n.project_id || n.metadata?.project_id) === explicitProjectId
-        );
-        if (matchingNotif) {
-          clientName =
-            matchingNotif.client_name ||
-            matchingNotif.metadata?.client_name ||
-            "Client";
-          projectTitle =
-            matchingNotif.project_title ||
-            matchingNotif.metadata?.project_title ||
-            "Project";
-        } else if (title && title !== "Dashboard" && title !== "Projects") {
-          projectTitle = title;
-        }
-      }
-
-      webRTCService.initiateCall({
-        projectId: explicitProjectId,
-        clientName,
-        projectTitle,
-        role: "consultant",
-      });
-    } else {
-      // 2. On overview pages (/project, /dashboard), open the Client Call Picker modal
-      setIsCallPickerOpen(true);
-      loadCallPickerProjects();
-    }
-  };
 
   useEffect(() => {
     if (!readActivityIds.length) {
@@ -860,39 +828,6 @@ export default function Floxaheader({
               onChange={(event) => setProjectSearch(event.target.value)}
             />
           </form>
-          {callState === "incoming_ringing" ? (
-            <div className="floxa-nav-incoming-call-group">
-              <span className="floxa-nav-ringing-indicator">
-                <Video size={13} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
-                Incoming: <strong>{webRTCService.currentCallInfo?.clientName || "Client"}</strong>
-              </span>
-              <button
-                type="button"
-                className="floxa-nav-btn-pick"
-                title="Accept Call"
-                onClick={() => webRTCService.acceptCall()}
-              >
-                <Phone size={12} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "3px" }} /> Pick
-              </button>
-              <button
-                type="button"
-                className="floxa-nav-btn-deny"
-                title="Decline Call"
-                onClick={() => webRTCService.rejectCall()}
-              >
-                <PhoneOff size={12} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "3px" }} /> Deny
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className={`floxa-nav-video-btn ${callState === "connected" ? "in-call" : ""}`}
-              title={callState === "connected" ? "Active Video Call" : "Video Call"}
-              onClick={handleNavbarVideoClick}
-            >
-              <Video size={24} strokeWidth={2} />
-            </button>
-          )}
           <div className="notification-wrap">
             <button
               className="icon-btn"
@@ -986,114 +921,6 @@ export default function Floxaheader({
       </div>
 
       <VideoCallModal currentRole="consultant" project={project} />
-
-      {/* Client Call Picker Modal */}
-      {isCallPickerOpen ? (
-        <div
-          className="floxa-picker-overlay"
-          onClick={() => setIsCallPickerOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="floxa-call-picker-title"
-        >
-          <div className="floxa-picker-card" onClick={(e) => e.stopPropagation()}>
-            <div className="floxa-picker-header">
-              <div className="floxa-picker-title-wrap">
-                <div className="floxa-picker-icon-wrap" aria-hidden="true">
-                  <Video size={20} strokeWidth={2.2} color="#10b981" />
-                </div>
-                <div>
-                  <h3 id="floxa-call-picker-title" className="floxa-picker-title">
-                    Video Call a Client
-                  </h3>
-                  <p className="floxa-picker-subtitle">
-                    Select which client you would like to connect with:
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="floxa-picker-close-btn"
-                onClick={() => setIsCallPickerOpen(false)}
-                aria-label="Close"
-              >
-                <X size={18} strokeWidth={2.2} />
-              </button>
-            </div>
-
-            <div className="floxa-picker-search-wrap">
-              <Search size={15} className="floxa-picker-search-icon" />
-              <input
-                type="text"
-                placeholder="Search client or company name..."
-                value={callPickerSearch}
-                onChange={(e) => setCallPickerSearch(e.target.value)}
-                className="floxa-picker-search-input"
-                autoFocus
-              />
-            </div>
-
-            <div className="floxa-picker-list">
-              {callPickerLoading ? (
-                <div className="floxa-picker-empty">Loading clients...</div>
-              ) : callPickerProjects.filter((p) => {
-                  if (!callPickerSearch.trim()) return true;
-                  const q = callPickerSearch.toLowerCase();
-                  const name = String(p.client_name || p.company_name || "").toLowerCase();
-                  const email = String(p.client_email || "").toLowerCase();
-                  return name.includes(q) || email.includes(q);
-                }).length === 0 ? (
-                <div className="floxa-picker-empty">
-                  {callPickerSearch ? "No matching clients found." : "No active projects found."}
-                </div>
-              ) : (
-                callPickerProjects
-                  .filter((p) => {
-                    if (!callPickerSearch.trim()) return true;
-                    const q = callPickerSearch.toLowerCase();
-                    const name = String(p.client_name || p.company_name || "").toLowerCase();
-                    const email = String(p.client_email || "").toLowerCase();
-                    return name.includes(q) || email.includes(q);
-                  })
-                  .map((p) => {
-                    const clientDisplayName = p.client_name || p.company_name || "Client";
-                    const initials = clientDisplayName.slice(0, 2).toUpperCase();
-                    return (
-                      <div key={p.id} className="floxa-picker-item">
-                        <div className="floxa-picker-item-info">
-                          <div className="floxa-picker-item-avatar">{initials}</div>
-                          <div className="floxa-picker-item-text">
-                            <div className="floxa-picker-item-name">{clientDisplayName}</div>
-                            <div className="floxa-picker-item-sub">
-                              {p.company_name ? `${p.company_name} • ` : ""}
-                              {p.client_email || p.sector || "Project"}
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          className="floxa-picker-call-btn"
-                          onClick={() => {
-                            setIsCallPickerOpen(false);
-                            webRTCService.initiateCall({
-                              projectId: p.id,
-                              clientName: clientDisplayName,
-                              projectTitle: p.title || p.company_name || "Project",
-                              role: "consultant",
-                            });
-                          }}
-                        >
-                          <Video size={14} strokeWidth={2.2} />
-                          <span>Call</span>
-                        </button>
-                      </div>
-                    );
-                  })
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {isLogoutModalOpen ? (
         <div

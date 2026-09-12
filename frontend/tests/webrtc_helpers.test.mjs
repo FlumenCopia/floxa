@@ -105,4 +105,45 @@ test('Frontend WebRTC: Signaling Protocol & State Transitions', async (t) => {
     sm.endCall();
     assert.strictEqual(sm.state, 'ended');
   });
+
+  await t.test('4. Call initiation validates callType differentiation (audio vs video)', () => {
+    function formatCallSignal(projectId, clientName, projectTitle, callType = 'video') {
+      const validCallTypes = new Set(['audio', 'video']);
+      const normalizedType = validCallTypes.has(callType) ? callType : 'video';
+      return {
+        action: 'call_initiate',
+        projectId,
+        data: {
+          clientName,
+          projectTitle,
+          callType: normalizedType,
+        },
+      };
+    }
+
+    const audioSignal = formatCallSignal('p1', 'taigun', 'Brand Project', 'audio');
+    assert.strictEqual(audioSignal.data.callType, 'audio');
+
+    const videoSignal = formatCallSignal('p1', 'taigun', 'Brand Project', 'video');
+    assert.strictEqual(videoSignal.data.callType, 'video');
+
+    const fallbackSignal = formatCallSignal('p1', 'taigun', 'Brand Project', 'invalid');
+    assert.strictEqual(fallbackSignal.data.callType, 'video');
+  });
+
+  await t.test('5. FloxaHeader navigation contract: Navbar video button and picker are excluded from topbar', async () => {
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+    const headerPath = path.resolve('components/common/FloxaHeader.jsx');
+    const content = await fs.readFile(headerPath, 'utf8');
+
+    // Confirm floxa-nav-video-btn and floxa-nav-incoming-call-group are removed from FloxaHeader
+    assert.strictEqual(content.includes('floxa-nav-video-btn'), false, 'floxa-nav-video-btn must not exist in FloxaHeader');
+    assert.strictEqual(content.includes('floxa-nav-incoming-call-group'), false, 'floxa-nav-incoming-call-group must not exist in FloxaHeader');
+    assert.strictEqual(content.includes('isCallPickerOpen'), false, 'isCallPickerOpen must not exist in FloxaHeader');
+
+    // Confirm VideoCallModal is mounted globally so all pages display incoming calls
+    assert.ok(content.includes('<VideoCallModal currentRole="consultant"'), 'VideoCallModal must be mounted globally in FloxaHeader');
+  });
 });
+

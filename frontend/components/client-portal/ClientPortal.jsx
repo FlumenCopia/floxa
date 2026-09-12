@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Video } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { clientPortalService } from "../../services/clientPortalService";
 import { ClientDashboard } from "./ClientDashboard";
 import "./ClientPortal.css";
@@ -11,6 +11,7 @@ import { DiscoveryReview } from "./DiscoveryReview";
 import { ProfileScreen } from "./ProfileScreen";
 import { LoginScreen, SplashScreen, WelcomeStage } from "./SplashScreen";
 import { VideoCallModal } from "./VideoCallModal";
+import { ClientPortalChatWidget } from "./ClientPortalChatWidget";
 import { webRTCService } from "../../services/webRTCService";
 import { supportSocket } from "../../services/supportSocketService";
 import { ClientSecurityShield } from "./ClientSecurityShield";
@@ -119,21 +120,32 @@ function hasDiscoveryAnswers(savedDiscovery) {
   );
 }
 
-function getBackendResumeScreen(savedProfile, savedDiscovery) {
-  if (savedDiscovery?.isSubmitted || savedDiscovery?.is_submitted) {
+function getBackendResumeScreen(savedProfile, savedDiscovery, project) {
+  const normalizedStatus = String(project?.status || "").toLowerCase();
+  const progressPct = Number(project?.completionPct ?? project?.progress ?? 0);
+
+  // 1. Has the client already submitted discovery and reached dashboard?
+  const isDiscoverySubmitted = Boolean(
+    savedDiscovery?.isSubmitted ||
+    savedDiscovery?.is_submitted ||
+    savedDiscovery?.submitted_at ||
+    savedDiscovery?.submittedAt ||
+    ["discovery_complete", "concepts_in_progress", "agreement_pending", "final_paid", "delivered"].includes(normalizedStatus) ||
+    progressPct >= 48
+  );
+
+  if (isDiscoverySubmitted) {
     return "dashboard";
   }
 
-  if (savedDiscovery?.isComplete || savedDiscovery?.is_complete) {
-    return "review";
-  }
-
-  if (hasDiscoveryAnswers(savedDiscovery)) {
-    return "discovery";
-  }
-
+  // 2. First-time client or incomplete profile: must submit profile first
   if (!isClientProfileComplete(savedProfile)) {
     return "profile";
+  }
+
+  // 3. Profile submitted, but discovery not submitted yet
+  if (savedDiscovery?.isComplete || savedDiscovery?.is_complete) {
+    return "review";
   }
 
   return "discovery";
@@ -191,6 +203,7 @@ export function ClientPortal({ token, isConsultant = false }) {
   const [resumeTargetScreen, setResumeTargetScreen] = useState("");
   const [clientData, setClientData] = useState({});
   const [profileReturnScreen, setProfileReturnScreen] = useState("");
+  const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
 
   const applyProject = useCallback((portalProject) => {
     setProject(portalProject);
@@ -198,7 +211,7 @@ export function ClientPortal({ token, isConsultant = false }) {
   }, []);
 
   const refreshProject = useCallback(async () => {
-    const response = await clientPortalService.getProject();
+    const response = await clientPortalService.getProject(token);
     const portalProject = "success" in response ? response.data : response;
 
     if (portalProject) {
@@ -206,7 +219,7 @@ export function ClientPortal({ token, isConsultant = false }) {
     }
 
     return portalProject;
-  }, [applyProject]);
+  }, [applyProject, token]);
 
   const [editStep, setEditStep] = useState(1);
 
@@ -224,7 +237,10 @@ export function ClientPortal({ token, isConsultant = false }) {
   const loadSavedPortalProgress = useCallback(async (portalProject) => {
     let savedProfile = null;
     try {
-      const profileResponse = await clientPortalService.getClientProfile(portalProject.id);
+      const profileResponse = await clientPortalService.getClientProfile(
+        portalProject.id,
+        portalProject.portal_token || token
+      );
       if (profileResponse?.success) {
         savedProfile = profileResponse.data;
       }
@@ -234,7 +250,10 @@ export function ClientPortal({ token, isConsultant = false }) {
 
     let savedDiscovery = null;
     try {
-      const discoveryResponse = await clientPortalService.getDiscoveryDraft(portalProject.portal_token || portalProject.id);
+      const discoveryResponse = await clientPortalService.getDiscoveryDraft(
+        portalProject.portal_token || token || portalProject.id,
+        portalProject.portal_token || token
+      );
       if (discoveryResponse?.success) {
         savedDiscovery = discoveryResponse.data;
       }
@@ -260,8 +279,8 @@ export function ClientPortal({ token, isConsultant = false }) {
 
     applyProject(projectWithSavedData);
 
-    return getBackendResumeScreen(savedProfile, savedDiscovery);
-  }, [applyProject]);
+    return getBackendResumeScreen(savedProfile, savedDiscovery, portalProject);
+  }, [applyProject, token]);
 
   const handlePortalAccess = async (password) => {
     const response = await clientPortalService.verifyPortalPassword(password, token);
@@ -270,11 +289,15 @@ export function ClientPortal({ token, isConsultant = false }) {
       return response;
     }
 
-    const projectResponse = await clientPortalService.getProject();
-    const verifiedProject = projectResponse.success ? projectResponse.data : project;
-    const nextScreen = await loadSavedPortalProgress(verifiedProject);
-    setResumeTargetScreen(nextScreen);
-    goToScreen(nextScreen);
+    const projectResponse = await clientPortalService.getProject(token);
+    const verifiedProject = projectResponse?.success && projectResponse.data ? projectResponse.data : project;
+    if (verifiedProject) {
+      applyProject(verifiedProject);
+    }
+    const targetScreen = await loadSavedPortalProgress(verifiedProject);
+    const destination = targetScreen || "profile";
+    setResumeTargetScreen(destination);
+    goToScreen(destination);
 
     return response;
   };
@@ -344,9 +367,11 @@ export function ClientPortal({ token, isConsultant = false }) {
               const nextScreen = await loadSavedPortalProgress(verifiedProject);
               setResumeTargetScreen(nextScreen);
               const stored = readStoredScreen(token);
+              const isDiscoverySubmitted = nextScreen === "dashboard";
               const finalScreen =
                 stored &&
                 !["splash", "login"].includes(stored) &&
+                (isDiscoverySubmitted || stored !== "dashboard") &&
                 (nextScreen !== "profile" || stored === "profile")
                   ? stored
                   : nextScreen;
@@ -458,33 +483,63 @@ export function ClientPortal({ token, isConsultant = false }) {
       {screen === "dashboard" ? (
         <ClientDashboard
           {...screenProps}
-          onSignOut={async () => {
-            await clientPortalService.logout();
-            goToScreen("splash");
-          }}
+          onSignOut={() => setIsSignOutModalOpen(true)}
         />
       ) : null}
 
       {screen !== "splash" && screen !== "login" ? (
         <>
-          <button
-            type="button"
-            className="floxa-video-call-trigger-btn"
-            onClick={() =>
-              webRTCService.initiateCall({
-                projectId: project?.project_id || project?.id,
-                clientName: project?.client_name || project?.company_name || project?.client?.name || "Client",
-                projectTitle: project?.title || project?.company_name || "Brand Project",
-                role: "client",
-                portalToken: token || project?.portal_token,
-              })
-            }
-          >
-            <Video size={15} strokeWidth={2} />
-            <span>Video Call Consultant</span>
-          </button>
+          <ClientPortalChatWidget project={project} token={token} />
           <VideoCallModal currentRole="client" project={project} />
         </>
+      ) : null}
+
+      {/* Centered Sign Out Confirmation Modal */}
+      {isSignOutModalOpen ? (
+        <div
+          className="client-signout-overlay"
+          onClick={() => setIsSignOutModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="client-signout-title"
+        >
+          <div className="client-signout-card" onClick={(e) => e.stopPropagation()}>
+            <div className="client-signout-icon-wrap">
+              <LogOut size={26} strokeWidth={2.2} color="#4dffa0" />
+            </div>
+
+            <h3 id="client-signout-title" className="client-signout-title">
+              Sign Out Confirmation
+            </h3>
+            <p className="client-signout-text">
+              Are you sure you want to sign out of your client portal?
+              Your progress and all filled information will remain safely saved.
+            </p>
+
+            <div className="client-signout-actions">
+              <button
+                type="button"
+                className="client-signout-btn client-signout-btn-cancel"
+                onClick={() => setIsSignOutModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="client-signout-btn client-signout-btn-confirm"
+                onClick={async () => {
+                  setIsSignOutModalOpen(false);
+                  await clientPortalService.logout(token);
+                  writeStoredScreen(token, "splash");
+                  setResumeTargetScreen("");
+                  setScreen("splash");
+                }}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </main>
   );

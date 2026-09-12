@@ -4,6 +4,7 @@ import { clientPortalAccess, clientOnlyAction } from '../middleware/portal.middl
 import { requireAuth, optionalAuth } from '../middleware/auth.middleware.js';
 import * as portalController from '../controllers/portal.controller.js';
 import * as generatedAgreementController from '../controllers/generatedAgreement.controller.js';
+import * as chatController from '../controllers/chat.controller.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -55,6 +56,12 @@ router.post('/:portal_token/sign-off/', clientOnlyAction, portalController.porta
 router.get('/:portal_token/activities/', portalController.getPortalActivities);
 router.post('/:portal_token/activities/mark-read/', portalController.markPortalActivitiesRead);
 
+// Client Chat Messages
+router.get('/:portal_token/messages/', chatController.getPortalMessages);
+router.post('/:portal_token/messages/', chatController.sendPortalMessageFallback);
+router.post('/:portal_token/messages/upload/', upload.single('file'), chatController.uploadPortalAttachment);
+router.post('/:portal_token/messages/read/', chatController.markPortalMessagesRead);
+
 router.get('/:portal_token/help-status/', portalController.getPortalHelpStatus);
 router.get('/:portal_token/support-status/', portalController.getPortalHelpStatus);
 router.get('/:portal_token/support-request/active/', portalController.getPortalHelpStatus);
@@ -66,3 +73,4 @@ router.post('/:portal_token/help-resolve/', portalController.resolvePortalHelp);
 router.post('/:portal_token/support-resolve/', portalController.resolvePortalHelp);
 
 export default router;
+

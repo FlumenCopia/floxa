@@ -276,15 +276,11 @@ export async function selectPortalMoodboard(req: any, res: Response, next: NextF
   try {
     const { moodboard_id } = req.params;
 
-    await Moodboard.updateMany(
-      { projectId: req.project.id },
-      { $set: { isSelected: false } }
-    );
-
-    const selected = await Moodboard.findByIdAndUpdate(
-      moodboard_id,
+    // Clients can select multiple moodboards, and once selected, it remains locked
+    const selected = await Moodboard.findOneAndUpdate(
+      { _id: moodboard_id, projectId: req.project.id },
       { $set: { isSelected: true } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!selected) {
@@ -340,8 +336,8 @@ export async function submitMoodboardFeedback(req: any, res: Response, next: Nex
       projectId: req.project.id,
       consultantId: req.project.consultantId?.toString() || req.project.consultantId,
       actorType: 'client',
-      action: 'moodboard_changes_requested',
-      description: `Client requested changes on moodboard: ${moodboard.title}`,
+      action: 'moodboard_feedback_submitted',
+      description: `Client submitted changes for moodboard: ${moodboard.title}`,
       metadata: { moodboard_id: moodboard.id, feedback: String(feedback).trim() },
       visibleToClient: true,
     });
@@ -357,7 +353,7 @@ export async function getPortalConcepts(req: any, res: Response, next: NextFunct
     const concepts = await Concept.find({
       projectId: req.project.id,
       status: { $in: ['shared', 'approved', 'changes_requested'] },
-    }).sort({ version: -1, createdAt: -1 });
+    }).sort({ createdAt: -1 });
 
     res.json(concepts.map((c) => serializeClientPortalConcept(c, req.project.portalToken)));
   } catch (err) {
@@ -388,22 +384,22 @@ export async function submitConceptFeedback(req: any, res: Response, next: NextF
       return;
     }
 
-    if (isApprove) {
-      if (concept.status === 'approved') {
+    // Once approved, status is locked and cannot be changed or deselected
+    if (concept.status === 'approved') {
+      if (isApprove) {
         res.json(serializeClientPortalConcept(concept, req.project.portalToken));
         return;
       }
+      res.status(400).json({ detail: 'Approved concepts are locked and cannot be changed or deselected.' });
+      return;
+    }
 
+    if (isApprove) {
       if (concept.status !== 'shared' && concept.status !== 'changes_requested') {
         res.status(400).json({ detail: 'Only shared concepts can be approved.' });
         return;
       }
     } else if (isChangesRequested) {
-      if (concept.status === 'approved') {
-        res.status(400).json({ detail: 'Approved concepts are locked and cannot receive further feedback.' });
-        return;
-      }
-
       if (concept.status !== 'shared') {
         res.status(400).json({ detail: 'Changes can only be requested for shared concepts.' });
         return;
@@ -426,7 +422,7 @@ export async function submitConceptFeedback(req: any, res: Response, next: NextF
           clientFeedback: isApprove ? '' : trimmedFeedback,
         },
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     await recalculatePaymentMilestones(req.project.id);

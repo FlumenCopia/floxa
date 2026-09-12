@@ -14,13 +14,19 @@ export function WelcomeStage({
 }) {
   const [mode, setMode] = useState(initialMode);
   const [prevInitialMode, setPrevInitialMode] = useState(initialMode);
+  const [emailOrName, setEmailOrName] = useState(project?.clientEmail || project?.name || "");
+  const [prevProject, setPrevProject] = useState(project);
+  const [password, setPassword] = useState("");
+  const [accessError, setAccessError] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+
   if (initialMode && initialMode !== prevInitialMode) {
     setPrevInitialMode(initialMode);
     setMode(initialMode);
+    setPassword("");
+    setAccessError("");
   }
 
-  const [emailOrName, setEmailOrName] = useState(project?.clientEmail || project?.name || "");
-  const [prevProject, setPrevProject] = useState(project);
   if (project !== prevProject) {
     setPrevProject(project);
     const candidate = project?.clientEmail || project?.name || "";
@@ -28,10 +34,6 @@ export function WelcomeStage({
       setEmailOrName(candidate);
     }
   }
-
-  const [password, setPassword] = useState("");
-  const [accessError, setAccessError] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
 
   const handleBeginClick = () => {
     setMode("login");

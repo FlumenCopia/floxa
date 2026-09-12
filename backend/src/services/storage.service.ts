@@ -29,6 +29,14 @@ export const UPLOAD_RULES = {
     maxSize: 5 * 1024 * 1024,
     allowedExts: ['.jpg', '.jpeg', '.png', '.webp'],
   },
+  chat_attachment: {
+    maxSize: 25 * 1024 * 1024,
+    allowedExts: [
+      '.jpg', '.jpeg', '.png', '.webp', '.gif',
+      '.webm', '.ogg', '.mp3', '.wav', '.m4a', '.mp4',
+      '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.txt', '.zip',
+    ],
+  },
 };
 
 export function validateUploadedFile(
@@ -270,6 +278,13 @@ export function getMimeType(filename: string): string {
     '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     '.ppt': 'application/vnd.ms-powerpoint',
     '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.webm': 'audio/webm',
+    '.ogg': 'audio/ogg',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.m4a': 'audio/mp4',
+    '.mp4': 'video/mp4',
+    '.txt': 'text/plain',
   };
   return mimeMap[ext] || 'application/octet-stream';
 }

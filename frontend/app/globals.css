@@ -919,6 +919,14 @@ textarea {
   color: var(--bg);
 }
 
+.nav-badge-chat,
+.nav-badge.nav-badge-chat {
+  background: #25d366;
+  color: #0c1c15;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(37, 211, 102, 0.4);
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding: 18px 14px 22px;

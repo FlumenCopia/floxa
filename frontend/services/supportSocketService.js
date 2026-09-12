@@ -172,6 +172,21 @@ class SupportSocketService {
       this.emit("asset_stream", data);
     } else if (type === "ASSET_STREAM_ERROR") {
       this.emit(`asset_stream_error_${data.asset_id}`, data);
+    } else if (type === "CHAT_MESSAGE_NEW") {
+      this.emit("chat_message_new", data.message);
+      if (data.message?.projectId) {
+        this.emit(`chat_message_${data.message.projectId}`, data.message);
+      }
+    } else if (type === "CHAT_TYPING") {
+      this.emit("chat_typing", data);
+      if (data.projectId) {
+        this.emit(`chat_typing_${data.projectId}`, data);
+      }
+    } else if (type === "CHAT_MESSAGES_READ") {
+      this.emit("chat_messages_read", data);
+      if (data.projectId) {
+        this.emit(`chat_messages_read_${data.projectId}`, data);
+      }
     } else if (type === "ERROR") {
       this.emit("server_error", data);
     }
@@ -180,8 +195,78 @@ class SupportSocketService {
   send(data) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
+      return true;
+    }
+    return false;
+  }
+
+  sendChatMessage({
+    projectId,
+    text = "",
+    clientTempId = null,
+    senderRole = null,
+    messageType = "text",
+    mediaUrl = null,
+    mediaMimeType = null,
+    mediaDuration = null,
+    fileName = null,
+    fileSize = null,
+  }) {
+    const payload = {
+      type: "CHAT_MESSAGE_SEND",
+      projectId,
+      text,
+      clientTempId,
+      senderRole,
+      messageType,
+      mediaUrl,
+      mediaMimeType,
+      mediaDuration,
+      fileName,
+      fileSize,
+    };
+
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(payload));
+      return true;
+    }
+    if (this.consultantWs && this.consultantWs.readyState === WebSocket.OPEN) {
+      this.consultantWs.send(JSON.stringify(payload));
+      return true;
+    }
+    return false;
+  }
+
+  sendChatTyping({ projectId, isTyping, senderRole = null }) {
+    const payload = {
+      type: "CHAT_TYPING",
+      projectId,
+      isTyping,
+      senderRole,
+    };
+
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(payload));
+    } else if (this.consultantWs && this.consultantWs.readyState === WebSocket.OPEN) {
+      this.consultantWs.send(JSON.stringify(payload));
     }
   }
+
+  sendChatRead({ projectId, readBy = null }) {
+    const payload = {
+      type: "CHAT_MESSAGES_READ",
+      projectId,
+      readBy,
+    };
+
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(payload));
+    } else if (this.consultantWs && this.consultantWs.readyState === WebSocket.OPEN) {
+      this.consultantWs.send(JSON.stringify(payload));
+    }
+  }
+
+
 
   requestProtectedAsset({ assetType, assetId }) {
     this.send({

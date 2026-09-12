@@ -357,26 +357,30 @@ export const clientPortalService = {
     return { success: true, project: writeProject(project, activeToken) };
   },
 
-  async getProject() {
-    if (activeToken && activeToken !== "test-token") {
-      const res = await resolvePortalProject(activeToken);
+  async getProject(portalToken = activeToken) {
+    const tokenToUse = portalToken || activeToken;
+    if (tokenToUse && tokenToUse !== "test-token") {
+      activeToken = tokenToUse;
+      const res = await resolvePortalProject(tokenToUse);
 
       if (res.data) {
-        return { success: true, data: writeProject(mapPortalProjectToClientProject(res.data), activeToken) };
+        return { success: true, data: writeProject(mapPortalProjectToClientProject(res.data), tokenToUse) };
       }
 
       return { success: false, error: "Portal password verification required." };
     }
 
-    return { success: true, data: readProject() };
+    return { success: true, data: readProject(tokenToUse) };
   },
 
   async checkPortalAccess(portalToken = activeToken) {
-    if (!portalToken || portalToken === "test-token") {
-      return { success: true, data: readProject(portalToken) };
+    const tokenToUse = portalToken || activeToken;
+    if (!tokenToUse || tokenToUse === "test-token") {
+      return { success: true, data: readProject(tokenToUse) };
     }
 
-    const res = await resolvePortalProject(portalToken);
+    activeToken = tokenToUse;
+    const res = await resolvePortalProject(tokenToUse);
 
     if (!res.data) {
       return { success: false };
@@ -384,7 +388,7 @@ export const clientPortalService = {
 
     return {
       success: true,
-      data: writeProject(mapPortalProjectToClientProject(res.data), portalToken),
+      data: writeProject(mapPortalProjectToClientProject(res.data), tokenToUse),
     };
   },
 
@@ -411,6 +415,7 @@ export const clientPortalService = {
         body: JSON.stringify({ password }),
       });
 
+      activeToken = portalToken;
       return { success: true };
     } catch (error) {
       if (error?.detail) {
@@ -421,8 +426,8 @@ export const clientPortalService = {
     }
   },
 
-  async refreshProject() {
-    const response = await this.getProject();
+  async refreshProject(portalToken = activeToken) {
+    const response = await this.getProject(portalToken || activeToken);
     return response.success ? response.data : null;
   },
 
@@ -1010,11 +1015,15 @@ export const clientPortalService = {
     const project = readProject();
     const updated = {
       ...project,
-      moodboards: project.moodboards.map((item) => ({
-        ...item,
-        clientSelected: item.id === moodboardId,
-        is_selected: item.id === moodboardId,
-      })),
+      moodboards: (project.moodboards || []).map((item) =>
+        item.id === moodboardId
+          ? {
+              ...item,
+              clientSelected: true,
+              is_selected: true,
+            }
+          : item
+      ),
       completionPct: Math.max(project.completionPct, 64),
     };
 
@@ -1043,7 +1052,6 @@ export const clientPortalService = {
           ? {
               ...item,
               clientFeedback: payload.feedback || "",
-              client_feedback: payload.feedback || "",
               clientSelected: false,
               is_selected: false,
             }
@@ -1082,20 +1090,21 @@ export const clientPortalService = {
       return { success: true, data: mapBackendConcept(concept) };
     }
 
+    const isApprove = payload.action === "approved";
     const project = readProject();
     const updated = {
       ...project,
-      concepts: project.concepts.map((item) =>
+      concepts: (project.concepts || []).map((item) =>
         item.id === conceptId
           ? {
               ...item,
               status: payload.action,
-              clientStatus: payload.action === "approved" ? "SELECTED" : "REJECTED",
-              client_feedback: payload.feedback || "",
+              clientStatus: isApprove ? "SELECTED" : "REJECTED",
+              client_feedback: isApprove ? "" : payload.feedback || "",
             }
           : item
       ),
-      completionPct: Math.max(project.completionPct, payload.action === "approved" ? 82 : 70),
+      completionPct: Math.max(project.completionPct, isApprove ? 82 : 70),
     };
 
     writeProject(updated);
@@ -1220,10 +1229,11 @@ export const clientPortalService = {
 
 
 
-  async logout() {
-    if (activeToken && activeToken !== "test-token") {
+  async logout(portalToken = activeToken) {
+    const tokenToUse = portalToken || activeToken;
+    if (tokenToUse && tokenToUse !== "test-token") {
       try {
-        await apiRequest(`/client-portal/${activeToken}/logout/`, {
+        await apiRequest(`/client-portal/${tokenToUse}/logout/`, {
           method: "POST",
         });
       } catch {

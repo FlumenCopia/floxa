@@ -61,7 +61,8 @@ export async function buildAgreementSnapshotData(project: any, generatedAt: Date
   const profile = await ClientProfile.findOne({ projectId });
   const discovery = await ProjectDiscovery.findOne({ projectId });
   const brandDna = await BrandDNA.findOne({ projectId });
-  const selectedMoodboard = await Moodboard.findOne({ projectId, isSelected: true });
+  const selectedMoodboards = await Moodboard.find({ projectId, isSelected: true }).sort({ createdAt: 1 });
+  const selectedMoodboard = selectedMoodboards[0] || null;
   const approvedConcepts = await Concept.find({ projectId, status: 'approved' }).sort({ createdAt: 1 });
   const requestedConcepts = await Concept.find({ projectId, status: 'changes_requested' }).sort({ createdAt: 1 });
 
@@ -69,7 +70,9 @@ export async function buildAgreementSnapshotData(project: any, generatedAt: Date
     'discovery_submitted',
     'discovery_updated',
     'moodboard_selected',
+    'moodboard_deselected',
     'concept_approved',
+    'concept_unapproved',
     'concept_changes_requested',
     'agreement_shared',
     'agreement_downloaded',
@@ -104,17 +107,17 @@ export async function buildAgreementSnapshotData(project: any, generatedAt: Date
   });
 
   const moodboardSelectionEvidence = [];
-  if (selectedMoodboard) {
+  for (const mb of selectedMoodboards) {
     const mbActivity = await ProjectActivity.findOne({
       projectId,
       action: 'moodboard_selected',
-      metadata: new RegExp(selectedMoodboard.id, 'i'),
+      metadata: new RegExp(mb.id, 'i'),
     }).sort({ createdAt: 1 });
 
     moodboardSelectionEvidence.push({
-      moodboard_id: selectedMoodboard.id,
-      title: selectedMoodboard.title,
-      image: selectedMoodboard.image,
+      moodboard_id: mb.id,
+      title: mb.title,
+      image: mb.image,
       selected_at: mbActivity?.createdAt ? new Date(mbActivity.createdAt).toISOString() : null,
     });
   }

@@ -43,3 +43,11 @@ export {
   type IProjectActivity,
   type ActorType,
 } from './activity.model.js';
+export {
+  ChatMessage,
+  type IChatMessage,
+  type ChatSenderRole,
+  type ChatMessageStatus,
+  type ChatMessageType,
+} from './chatMessage.model.js';
+

@@ -77,9 +77,10 @@ class WebRTCService {
 
         this.currentCallInfo = {
           projectId: project_id,
-          clientName: client_name || "Client",
-          projectTitle: project_title || "Project",
+          clientName: client_name || data?.clientName || "Client",
+          projectTitle: project_title || data?.projectTitle || "Project",
           role: sender_role,
+          callType: data?.callType || "video",
         };
         this.setCallState("incoming_ringing");
 
@@ -147,7 +148,7 @@ class WebRTCService {
     }
   }
 
-  async acquireLocalMedia() {
+  async acquireLocalMedia(requestedCallType = null) {
     if (this.localStream) return this.localStream;
     if (typeof navigator === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       this.emit("media_error", {
@@ -156,6 +157,49 @@ class WebRTCService {
       });
       return null;
     }
+
+    const callType = requestedCallType || this.currentCallInfo?.callType || "video";
+    const isAudioOnly = callType === "audio";
+
+    // Audio-only call pipeline (voice call - no camera required)
+    if (isAudioOnly) {
+      try {
+        this.localStream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            sampleRate: 48000,
+            latency: 0,
+            googEchoCancellation: true,
+            googAutoGainControl: true,
+            googNoiseSuppression: true,
+            googHighpassFilter: true,
+          },
+        });
+        this.isAudioMuted = false;
+        this.isVideoMuted = true;
+        this.emit("local_stream", this.localStream);
+        return this.localStream;
+      } catch (err) {
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          this.emit("media_error", {
+            type: "permission_denied",
+            message: "Microphone access was denied. Please allow microphone permissions in browser settings.",
+          });
+        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+          this.emit("media_error", {
+            type: "no_device",
+            message: "No microphone found on this device.",
+          });
+        }
+        console.warn("Could not acquire microphone for audio call:", err);
+        return null;
+      }
+    }
+
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -422,7 +466,7 @@ class WebRTCService {
     return this.peerConnection;
   }
 
-  async initiateCall({ projectId, clientName, projectTitle, role, portalToken }) {
+  async initiateCall({ projectId, clientName, projectTitle, role, portalToken, callType = "video" }) {
     if (!projectId) {
       this.emit("call_error", { message: "Cannot initiate call: No project selected." });
       return;
@@ -431,7 +475,7 @@ class WebRTCService {
       this.emit("call_error", { message: "A call is already in progress." });
       return;
     }
-    this.currentCallInfo = { projectId, clientName, projectTitle, role, portalToken };
+    this.currentCallInfo = { projectId, clientName, projectTitle, role, portalToken, callType };
     this.setCallState("outgoing_ringing");
 
     // Timeout for outgoing ringing (40 seconds)
@@ -445,13 +489,13 @@ class WebRTCService {
     }, 40000);
 
     try {
-      await this.acquireLocalMedia();
+      await this.acquireLocalMedia(callType);
     } catch (err) {
       console.warn("Acquiring media deferred, proceeding with signaling:", err);
     }
     supportSocket.sendWebRTCSignal({
       action: "call_initiate",
-      data: { clientName, projectTitle },
+      data: { clientName, projectTitle, callType },
       projectId,
       portalToken,
     });
@@ -460,14 +504,14 @@ class WebRTCService {
   async acceptCall() {
     this.setCallState("connected");
     try {
-      await this.acquireLocalMedia();
+      await this.acquireLocalMedia(this.currentCallInfo?.callType);
     } catch (err) {
       console.warn("Acquiring media on accept deferred:", err);
     }
     this.createPeerConnection();
     supportSocket.sendWebRTCSignal({
       action: "call_accept",
-      data: {},
+      data: { callType: this.currentCallInfo?.callType || "video" },
       projectId: this.currentCallInfo?.projectId,
     });
   }
@@ -553,7 +597,7 @@ class WebRTCService {
 
   async initiatePeerConnectionAsCaller() {
     if (!this.localStream) {
-      await this.acquireLocalMedia();
+      await this.acquireLocalMedia(this.currentCallInfo?.callType);
     }
     const pc = this.createPeerConnection();
     if (!pc || pc.signalingState === "closed") return;
@@ -583,7 +627,7 @@ class WebRTCService {
 
   async handleRemoteOffer(sdp) {
     if (!this.localStream) {
-      await this.acquireLocalMedia();
+      await this.acquireLocalMedia(this.currentCallInfo?.callType);
     }
     const pc = this.createPeerConnection();
     if (!pc || pc.signalingState === "closed") return;

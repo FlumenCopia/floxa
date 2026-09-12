@@ -4015,3 +4015,431 @@ td {
     visibility: hidden !important;
   }
 }
+
+/* ==========================================================================
+   FLOXA 1-ON-1 AUDIO CALL & CALL TYPE BADGE ENHANCEMENTS
+   ========================================================================== */
+
+.floxa-call-type-indicator-badge {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0f241a;
+  border: 2px solid #25d366;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
+}
+
+.floxa-call-project-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 3px 12px;
+  border-radius: 12px;
+  margin-top: -18px;
+  margin-bottom: 24px;
+  display: inline-block;
+}
+
+.floxa-audio-connected-card {
+  width: min(92vw, 420px);
+  padding: 32px 28px 36px 28px;
+  background: #111a15;
+  border: 1px solid rgba(77, 255, 160, 0.18);
+  border-radius: 28px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #ffffff;
+  animation: floxaCardPop 0.25s ease-out;
+}
+
+.floxa-audio-pro-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.floxa-audio-timer-badge {
+  font-size: 13px;
+  font-weight: 600;
+  color: #25d366;
+  background: rgba(37, 211, 102, 0.12);
+  padding: 4px 12px;
+  border-radius: 14px;
+}
+
+.floxa-audio-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.floxa-voice-wave-ring {
+  width: 136px;
+  height: 136px;
+  border-radius: 50%;
+  border: 2px solid rgba(37, 211, 102, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: floxaVoicePulse 2.2s infinite ease-in-out;
+}
+
+@keyframes floxaVoicePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 22px rgba(37, 211, 102, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0);
+  }
+}
+
+.floxa-voice-bars-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 24px;
+  margin: 10px 0 26px 0;
+}
+
+.floxa-voice-bar {
+  width: 3.5px;
+  border-radius: 3px;
+  background: #25d366;
+  animation: floxaVoiceBarAnim 1.2s infinite ease-in-out;
+}
+.floxa-voice-bar.b1 { height: 10px; animation-delay: 0.1s; }
+.floxa-voice-bar.b2 { height: 18px; animation-delay: 0.3s; }
+.floxa-voice-bar.b3 { height: 24px; animation-delay: 0.15s; }
+.floxa-voice-bar.b4 { height: 16px; animation-delay: 0.4s; }
+.floxa-voice-bar.b5 { height: 8px; animation-delay: 0.25s; }
+
+@keyframes floxaVoiceBarAnim {
+  0%, 100% {
+    transform: scaleY(0.4);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.floxa-audio-controls-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.floxa-audio-ctrl-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #e9edef;
+  transition: transform 0.15s ease;
+}
+
+.floxa-audio-ctrl-btn:active {
+  transform: scale(0.95);
+}
+
+.floxa-audio-btn-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.floxa-audio-ctrl-btn:hover .floxa-audio-btn-icon {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.floxa-audio-ctrl-btn.muted .floxa-audio-btn-icon {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.floxa-audio-end-btn .floxa-audio-btn-icon {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+.floxa-audio-end-btn:hover .floxa-audio-btn-icon {
+  background: #dc2626 !important;
+  transform: scale(1.06);
+}
+
+.floxa-audio-btn-text {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.65);
+  font-weight: 500;
+}
+
+.floxa-minimized-audio-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #0f241a;
+  border: 2px solid #25d366;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.floxa-minimized-audio-initials {
+  font-size: 17px;
+  font-weight: 700;
+  color: #4dffa0;
+}
+
+/* ==========================================================================
+   CLIENT PORTAL SIGN OUT CONFIRMATION MODAL
+   ========================================================================== */
+
+.client-signout-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  padding: 20px;
+}
+
+.client-signout-card {
+  width: min(90vw, 410px);
+  padding: 38px 30px 32px 30px;
+  background: #111a15;
+  border: 1px solid rgba(77, 255, 160, 0.2);
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #ffffff;
+  animation: floxaCardPop 0.25s ease-out;
+}
+
+.client-signout-icon-wrap {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(77, 255, 160, 0.12);
+  border: 1.5px solid rgba(77, 255, 160, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.client-signout-title {
+  margin: 0 0 10px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+}
+
+.client-signout-text {
+  margin: 0 0 28px 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.client-signout-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.client-signout-btn {
+  flex: 1;
+  padding: 13px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.client-signout-btn-cancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e9edef;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.client-signout-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.client-signout-btn-confirm {
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35);
+}
+
+.client-signout-btn-confirm:hover {
+  background: #dc2626;
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   CLIENT PORTAL INLINE IN-PLACE CONFIRMATION BOX (MOODBOARD & CONCEPT)
+   ========================================================================== */
+
+.client-inline-confirm-box {
+  width: 100%;
+  margin-top: auto;
+  padding: 14px 16px;
+  background: rgba(14, 24, 19, 0.95);
+  border: 1px solid rgba(77, 255, 160, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: floxaCardPop 0.2s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.client-inline-confirm-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.client-inline-confirm-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+}
+
+.client-inline-confirm-header svg {
+  flex-shrink: 0;
+}
+
+.client-inline-confirm-text {
+  margin: 0 !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.client-inline-confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.client-inline-confirm-actions button {
+  flex: 1;
+}
+
+.client-inline-confirm-btn-confirm {
+  background: #4dffa0 !important;
+  color: #0c1c14 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 10px rgba(77, 255, 160, 0.3) !important;
+}
+
+.client-inline-confirm-btn-confirm:hover:not(:disabled) {
+  background: #3ee690 !important;
+  box-shadow: 0 4px 16px rgba(77, 255, 160, 0.45) !important;
+  transform: translateY(-1px);
+}
+
+/* Big screens / desktop: Standard proper inline confirmation banner */
+@media (min-width: 640px) {
+  .client-inline-confirm-box {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px 24px;
+    padding: 16px 22px;
+    background: linear-gradient(135deg, rgba(14, 28, 20, 0.96) 0%, rgba(10, 20, 15, 0.98) 100%);
+    border: 1px solid rgba(77, 255, 160, 0.4);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(77, 255, 160, 0.15);
+  }
+
+  .client-inline-confirm-content {
+    flex: 1 1 340px;
+    min-width: 260px;
+    gap: 4px;
+  }
+
+  .client-inline-confirm-header {
+    font-size: 14.5px;
+  }
+
+  .client-inline-confirm-text {
+    font-size: 13.5px !important;
+    line-height: 1.5 !important;
+  }
+
+  .client-inline-confirm-actions {
+    flex: 0 0 auto;
+    margin-top: 0;
+    margin-left: auto;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .client-inline-confirm-actions button {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 105px;
+    padding: 10px 22px;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  .client-inline-confirm-actions .client-inline-confirm-btn-confirm {
+    min-width: 150px;
+    padding: 10px 24px;
+  }
+}

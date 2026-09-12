@@ -65,7 +65,7 @@ app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(cookieParser());
 
 // 3. Static Media Files (Strictly restricted: only public directories allowed, symlinks and private paths blocked)
-const ALLOWED_PUBLIC_MEDIA_DIRS = ['consultant_avatars', 'public'];
+const ALLOWED_PUBLIC_MEDIA_DIRS = ['consultant_avatars', 'public', 'chat_attachments'];
 
 app.use('/media', (req, res) => {
   try {

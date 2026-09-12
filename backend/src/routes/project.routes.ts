@@ -9,6 +9,7 @@ import * as creativeController from '../controllers/creative.controller.js';
 import * as agreementController from '../controllers/agreement.controller.js';
 import * as generatedAgreementController from '../controllers/generatedAgreement.controller.js';
 import * as paymentController from '../controllers/payment.controller.js';
+import * as chatController from '../controllers/chat.controller.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -31,6 +32,9 @@ router.get('/analytics/', projectController.getAnalytics);
 router.get('/activities/', projectController.getConsultantActivities);
 router.post('/activities/mark-read/', projectController.markConsultantActivitiesRead);
 
+// Chat conversations list for consultant
+router.get('/chat/conversations/', chatController.getRecentConversations);
+
 // Enforce project ownership on all single-project and sub-resource routes
 router.use('/:id', requireProjectOwnership);
 
@@ -40,6 +44,13 @@ router.patch('/:id/', projectController.updateProject);
 router.post('/:id/invite/retry/', projectController.retryInvite);
 router.get('/:id/activities/', projectController.getProjectActivities);
 router.post('/:id/activities/mark-read/', projectController.markProjectActivitiesRead);
+
+// Project Chat Messages
+router.get('/:id/messages/', chatController.getProjectMessages);
+router.post('/:id/messages/', chatController.sendProjectMessageFallback);
+router.post('/:id/messages/upload/', upload.single('file'), chatController.uploadProjectAttachment);
+router.post('/:id/messages/read/', chatController.markProjectMessagesRead);
+
 
 // Discovery consultant-only summary
 router.get('/:id/discovery-summary/', discoveryController.getDiscoverySummary);
