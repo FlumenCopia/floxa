@@ -17,6 +17,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { webRTCService } from "../../services/webRTCService";
+import "./ClientPortal.css";
 
 export function VideoCallModal({ currentRole = "client", project = null }) {
   const [callState, setCallState] = useState(() => webRTCService.callState || "idle");
@@ -392,6 +393,18 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
           style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
         />
 
+        {isAutoplayMuted && (
+          <button
+            type="button"
+            className="floxa-unmute-chip"
+            onClick={handleUnmuteRemoteAudio}
+            title="Click to enable audio playback"
+          >
+            <VolumeX size={15} />
+            <span>Click anywhere to enable sound</span>
+          </button>
+        )}
+
         <div className="floxa-audio-connected-card">
           <div className="floxa-audio-pro-header">
             <div className="floxa-pro-live-tag">
@@ -425,27 +438,28 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
 
           <div className="floxa-audio-call-body">
             <div className="floxa-voice-wave-ring">
-              <div className="floxa-concentric-avatar" style={{ width: 104, height: 104 }}>
+              <div className="floxa-concentric-avatar">
                 {otherPartyAvatar ? (
                   <img src={otherPartyAvatar} alt={otherPartyName} className="floxa-call-avatar-img" />
                 ) : (
-                  <span className="floxa-call-avatar-placeholder" style={{ fontSize: 30 }}>
+                  <span className="floxa-call-avatar-placeholder">
                     {getInitials(otherPartyName)}
                   </span>
                 )}
               </div>
             </div>
 
-            <h3 className="floxa-call-person-name" style={{ marginTop: 22 }}>{otherPartyName}</h3>
-            <p className="floxa-call-status-subtitle" style={{ color: "#25d366" }}>
-              Voice Call Connected • HD Audio
+            <h3 className="floxa-call-person-name">{otherPartyName}</h3>
+            <p className="floxa-call-status-subtitle">
+              <Zap size={13} className="floxa-latency-icon" />
+              <span>Voice Connected • HD Audio</span>
             </p>
             {callInfo?.projectTitle ? (
               <span className="floxa-call-project-tag">{callInfo.projectTitle}</span>
             ) : null}
 
             {/* Subtle animated voice bars */}
-            <div className="floxa-voice-bars-wrap">
+            <div className="floxa-voice-bars-wrap" title="HD Audio Stream Active">
               <span className="floxa-voice-bar b1" />
               <span className="floxa-voice-bar b2" />
               <span className="floxa-voice-bar b3" />

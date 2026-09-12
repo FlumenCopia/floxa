@@ -3908,6 +3908,393 @@ td {
   box-shadow: 0 10px 28px rgba(14, 166, 100, 0.55);
 }
 
+/* ==========================================================================
+   FLOXA CONNECTED AUDIO CALL CARD (STUDIO-GRADE GLASSMORPHIC UI)
+   ========================================================================== */
+
+.floxa-audio-connected-card {
+  position: relative;
+  width: min(92vw, 420px);
+  background: radial-gradient(130% 120% at 50% 0%, #12231a 0%, #0c1712 45%, #060b08 100%);
+  border: 1px solid rgba(77, 255, 160, 0.22);
+  border-radius: 28px;
+  box-shadow: 0 36px 90px rgba(0, 0, 0, 0.9), 0 0 50px rgba(16, 185, 129, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+  animation: floxaAudioModalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+@keyframes floxaAudioModalIn {
+  0% {
+    transform: scale(0.92) translateY(12px);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Ambient Radial Top Glow */
+.floxa-audio-connected-card::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  height: 120px;
+  background: radial-gradient(circle, rgba(77, 255, 160, 0.22) 0%, rgba(77, 255, 160, 0) 70%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Audio Call Pro Header */
+.floxa-audio-pro-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  z-index: 2;
+}
+
+.floxa-audio-timer-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.floxa-audio-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Audio Call Body */
+.floxa-audio-call-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 34px 24px 26px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+/* Acoustic Pulse Wave Ring around Avatar */
+.floxa-voice-wave-ring {
+  position: relative;
+  width: 124px;
+  height: 124px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin-bottom: 4px;
+}
+
+.floxa-voice-wave-ring::before,
+.floxa-voice-wave-ring::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.floxa-voice-wave-ring::before {
+  inset: -8px;
+  border: 1.5px solid rgba(77, 255, 160, 0.35);
+  animation: floxaAcousticRing 2.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.floxa-voice-wave-ring::after {
+  inset: -18px;
+  border: 1px solid rgba(77, 255, 160, 0.18);
+  animation: floxaAcousticRing 2.6s cubic-bezier(0.16, 1, 0.3, 1) 0.9s infinite;
+}
+
+@keyframes floxaAcousticRing {
+  0% {
+    transform: scale(0.88);
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1.22);
+    opacity: 0;
+  }
+}
+
+.floxa-audio-call-body .floxa-concentric-avatar {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #183324 0%, #0b1711 100%);
+  border: 2.5px solid rgba(77, 255, 160, 0.45);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), 0 0 28px rgba(77, 255, 160, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  z-index: 3;
+}
+
+.floxa-audio-call-body .floxa-call-avatar-placeholder {
+  font-size: 32px;
+  font-weight: 700;
+  color: #4dffa0;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  text-shadow: 0 0 16px rgba(77, 255, 160, 0.4);
+}
+
+.floxa-audio-call-body .floxa-call-person-name {
+  margin: 18px 0 6px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.4px;
+  line-height: 1.25;
+  text-align: center;
+  font-family: inherit;
+}
+
+.floxa-audio-call-body .floxa-call-status-subtitle {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #34d399;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.1px;
+}
+
+.floxa-call-project-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.22);
+  color: #a7f3d0;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: capitalize;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Sound Wave Equalizer Bars */
+.floxa-voice-bars-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  margin-top: 6px;
+  padding: 0 10px;
+}
+
+.floxa-voice-bar {
+  width: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #4dffa0, #059669);
+  transform-origin: bottom;
+  animation: floxaVoiceBarPulse 1.1s ease-in-out infinite alternate;
+}
+
+.floxa-voice-bar.b1 {
+  height: 12px;
+  animation-duration: 0.85s;
+  animation-delay: 0.1s;
+}
+
+.floxa-voice-bar.b2 {
+  height: 22px;
+  animation-duration: 1.15s;
+  animation-delay: 0.25s;
+}
+
+.floxa-voice-bar.b3 {
+  height: 28px;
+  animation-duration: 0.95s;
+  animation-delay: 0.05s;
+}
+
+.floxa-voice-bar.b4 {
+  height: 18px;
+  animation-duration: 1.25s;
+  animation-delay: 0.35s;
+}
+
+.floxa-voice-bar.b5 {
+  height: 13px;
+  animation-duration: 1.05s;
+  animation-delay: 0.2s;
+}
+
+@keyframes floxaVoiceBarPulse {
+  0% {
+    transform: scaleY(0.35);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* Bottom Control Dock */
+.floxa-audio-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 22px 24px 28px;
+  background: rgba(0, 0, 0, 0.38);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.floxa-audio-ctrl-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.floxa-audio-ctrl-btn:hover {
+  transform: translateY(-3px);
+}
+
+.floxa-audio-ctrl-btn:active {
+  transform: scale(0.96);
+}
+
+.floxa-audio-btn-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s ease;
+}
+
+.floxa-audio-ctrl-btn:hover .floxa-audio-btn-icon {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Muted / Inactive states */
+.floxa-audio-ctrl-btn.muted .floxa-audio-btn-icon {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.55);
+  color: #f87171;
+  box-shadow: 0 8px 22px rgba(239, 68, 68, 0.28);
+}
+
+.floxa-audio-ctrl-btn.muted:hover .floxa-audio-btn-icon {
+  background: rgba(239, 68, 68, 0.35);
+  color: #ffffff;
+}
+
+/* End Call Action Button */
+.floxa-audio-end-btn .floxa-audio-btn-icon {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  width: 58px;
+  height: 58px;
+  box-shadow: 0 10px 26px rgba(220, 38, 38, 0.45);
+}
+
+.floxa-audio-end-btn:hover .floxa-audio-btn-icon {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  transform: scale(1.06);
+  box-shadow: 0 12px 30px rgba(220, 38, 38, 0.6);
+}
+
+.floxa-audio-btn-text {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.1px;
+  transition: color 0.15s ease;
+}
+
+.floxa-audio-ctrl-btn:hover .floxa-audio-btn-text {
+  color: #ffffff;
+}
+
+.floxa-audio-ctrl-btn.muted .floxa-audio-btn-text {
+  color: #fca5a5;
+}
+
+.floxa-audio-end-btn .floxa-audio-btn-text {
+  color: #fca5a5;
+}
+
+/* Minimized Floating Audio Tile Avatar */
+.floxa-minimized-audio-avatar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 40% 40%, #15291e, #070d0a);
+}
+
+.floxa-minimized-audio-initials {
+  font-size: 26px;
+  font-weight: 700;
+  color: #4dffa0;
+  letter-spacing: 1px;
+}
+
 /* CONNECTED VIDEO CALL MODAL (CENTERED IN VIEWPORT - APPLE/macOS STYLE) */
 .floxa-video-connected-modal {
   position: relative;
