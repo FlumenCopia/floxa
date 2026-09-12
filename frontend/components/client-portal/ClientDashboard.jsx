@@ -2012,13 +2012,13 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               ) : null}
 
               {!agreementLoading && agreement && agreement.status !== "signed" ? (
-                <article className="client-delivery-row">
-                  <div>
+                <article className="client-agreement-card">
+                  <div className="client-agreement-summary">
                     {agreement.isProjectAgreement && agreement.status === "signature_requested" ? (
-                      <p>New Agreement Available</p>
+                      <p className="client-agreement-badge">New Agreement Available</p>
                     ) : null}
                     {agreement.isProjectAgreement && agreement.status !== "shared" && Number(agreement.current_version || 1) > 1 ? (
-                      <p>Agreement Updated</p>
+                      <p className="client-agreement-badge">Agreement Updated</p>
                     ) : null}
                     <h3>{agreement.title || "Service Agreement"}</h3>
                     <p>
@@ -2064,7 +2064,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         <div className="client-signature-heading">
                           <strong>eSignature</strong>
                         </div>
-                        <label className="client-panel-check">
+                        <label className="client-panel-check client-signature-name-field">
                           <span>Full legal name</span>
                           <input
                             value={signerName}
@@ -2073,26 +2073,37 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                             placeholder="Type your full legal name"
                           />
                         </label>
-                        <label className="client-panel-check">
-                          <input
-                            checked={signatureMethod === "typed"}
-                            onChange={() => setSignatureMethod("typed")}
-                            type="radio"
-                            name="signature-method"
-                          />
-                          <span>Type Name</span>
-                        </label>
-                        <label className="client-panel-check">
-                          <input
-                            checked={signatureMethod === "drawn"}
-                            onChange={() => setSignatureMethod("drawn")}
-                            type="radio"
-                            name="signature-method"
-                          />
-                          <span>Draw Signature</span>
-                        </label>
+                        <div className="client-signature-methods">
+                          <label className="client-panel-check">
+                            <input
+                              checked={signatureMethod === "typed"}
+                              onChange={() => setSignatureMethod("typed")}
+                              type="radio"
+                              name="signature-method"
+                            />
+                            <span>Type Name</span>
+                          </label>
+                          <label className="client-panel-check">
+                            <input
+                              checked={signatureMethod === "drawn"}
+                              onChange={() => setSignatureMethod("drawn")}
+                              type="radio"
+                              name="signature-method"
+                            />
+                            <span>Draw Signature</span>
+                          </label>
+                          <label className="client-panel-check">
+                            <input
+                              checked={signatureMethod === "uploaded"}
+                              onChange={() => setSignatureMethod("uploaded")}
+                              type="radio"
+                              name="signature-method"
+                            />
+                            <span>Upload Signature Image</span>
+                          </label>
+                        </div>
                         {signatureMethod === "drawn" ? (
-                          <div>
+                          <div className="client-signature-draw-area">
                             <canvas
                               ref={signatureCanvasRef}
                               width="320"
@@ -2111,15 +2122,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                             </button>
                           </div>
                         ) : null}
-                        <label className="client-panel-check">
-                          <input
-                            checked={signatureMethod === "uploaded"}
-                            onChange={() => setSignatureMethod("uploaded")}
-                            type="radio"
-                            name="signature-method"
-                          />
-                          <span>Upload Signature Image</span>
-                        </label>
                         {signatureMethod === "uploaded" ? (
                           <label className="client-panel-check">
                             <input accept="image/png,image/jpeg,image/webp" onChange={readSignatureUpload} type="file" />

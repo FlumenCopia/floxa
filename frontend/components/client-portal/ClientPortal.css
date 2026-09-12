@@ -2499,124 +2499,203 @@
   min-width: 0;
 }
 
+/* --- Client Agreement Card Layout & Alignment Fix --- */
 .client-agreement-card {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(320px, 1.4fr);
+  grid-template-columns: 280px minmax(0, 1fr);
   align-items: start;
-  gap: 24px;
+  gap: 32px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  box-sizing: border-box;
 }
 
-.client-panel-stack article.client-agreement-card>div {
-  display: block;
-  margin-top: 0;
+@media (max-width: 900px) {
+  .client-agreement-card {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
 }
 
+.client-panel-stack article.client-agreement-card > div,
 .client-agreement-summary {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  margin-top: 0 !important;
   min-width: 0;
 }
 
-.client-agreement-summary>p:first-child {
-  display: inline-flex;
-  width: fit-content;
-  margin-bottom: 10px;
-  padding: 5px 10px;
-  border: 1px solid rgba(77, 255, 160, 0.24);
-  border-radius: 999px;
-  color: var(--floxa-neon);
-  background: rgba(77, 255, 160, 0.08);
+.client-agreement-summary .client-agreement-badge {
+  display: inline-block;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--floxa-neon, #4dffa0);
   font-size: 12px;
   font-weight: 700;
-  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
 }
 
 .client-agreement-summary h3 {
-  margin-bottom: 12px;
+  margin: 0 0 4px;
   font-size: 22px;
+  color: #ffffff;
+  line-height: 1.3;
 }
 
-.client-agreement-summary p+p {
-  margin-top: 5px;
+.client-agreement-summary p {
+  margin: 0;
+  color: rgba(190, 221, 209, 0.72);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 .client-agreement-workspace {
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: column !important;
   gap: 16px;
+  width: 100%;
   min-width: 0;
 }
 
 .client-agreement-actions {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
-}
-
-.client-signature-box {
-  display: grid;
-  grid-template-columns: minmax(180px, 1.2fr) repeat(3, max-content) max-content;
-  align-items: center;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid rgba(177, 239, 215, 0.14);
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.14);
-  min-width: 0;
-}
-
-.client-signature-heading {
-  grid-column: 1 / -1;
-  color: #fff;
-  font-size: 14px;
+  width: 100%;
 }
 
 .client-agreement-preview-frame {
-  grid-column: 1 / -1;
   width: 100%;
-  min-height: 360px;
-  border: 1px solid rgba(177, 239, 215, 0.14);
+  min-height: 420px;
+  height: 480px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.04);
+  box-sizing: border-box;
+  display: block;
 }
 
-.client-signature-box .client-panel-check {
-  min-width: 0;
+.client-signature-box {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.client-signature-heading {
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.client-signature-name-field {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 6px;
+  width: 100%;
+}
+
+.client-signature-name-field span {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(220, 235, 229, 0.85);
+}
+
+.client-signature-name-field input[type="text"] {
+  width: 100%;
+  max-width: 360px;
+  padding: 10px 14px;
+  border: 1px solid rgba(177, 239, 215, 0.2);
+  border-radius: 10px;
+  outline: 0;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.client-signature-name-field input[type="text"]:focus {
+  border-color: rgba(77, 255, 160, 0.5);
+  box-shadow: 0 0 0 3px rgba(77, 255, 160, 0.15);
+}
+
+.client-signature-methods {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin: 2px 0;
+}
+
+.client-signature-methods .client-panel-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(220, 235, 229, 0.88);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.client-signature-methods input[type="radio"] {
+  accent-color: var(--floxa-neon, #4dffa0);
+  cursor: pointer;
+  margin: 0;
+}
+
+.client-signature-draw-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.client-signature-draw-area canvas {
+  display: block;
+  max-width: 100%;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  touch-action: none;
 }
 
 .client-signature-consent {
-  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(220, 235, 229, 0.88);
+  font-size: 13px;
+  cursor: pointer;
+  margin: 6px 0 2px;
 }
 
-.client-signature-box .client-panel-check:has(input[type="text"]) {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-
-.client-signature-box input[type="text"] {
-  width: 100%;
-  min-width: 0;
-  padding: 9px 11px;
-  border: 1px solid rgba(177, 239, 215, 0.16);
-  border-radius: 10px;
-  outline: 0;
-  color: var(--floxa-text);
-  background: rgba(255, 255, 255, 0.06);
-  font: inherit;
-}
-
-.client-signature-box input[type="text"]:focus-visible {
-  border-color: rgba(77, 255, 160, 0.48);
-  box-shadow: 0 0 0 3px rgba(77, 255, 160, 0.12);
-}
-
-.client-signature-box canvas {
-  display: block;
-  max-width: 100%;
-  margin-bottom: 8px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  touch-action: none;
+.client-signature-consent input[type="checkbox"] {
+  accent-color: var(--floxa-neon, #4dffa0);
+  cursor: pointer;
+  margin: 0;
+  width: 16px;
+  height: 16px;
 }
 
 /* --- Professional SaaS Verified Agreement Card --- */
