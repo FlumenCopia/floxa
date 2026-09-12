@@ -29,7 +29,7 @@ import {
   completePaymentMilestone,
   PaymentCompletionError,
 } from '../services/payment.service.js';
-import { generateSignedAgreementPdf } from '../services/pdf.service.js';
+import { generateSignedAgreementPdf, generateBrandDnaBriefPdf } from '../services/pdf.service.js';
 import { maybeGenerateAgreementSnapshot } from '../services/agreement.service.js';
 import fs from 'fs';
 import {
@@ -156,6 +156,34 @@ export async function getPortalBrandDNA(req: any, res: Response, next: NextFunct
     }
 
     res.json(serializeBrandDNA(brandDNA));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function downloadPortalBrandDnaPdf(req: any, res: Response, next: NextFunction) {
+  try {
+    const project = await Project.findById(req.project.id).populate(['clientProfile', 'discovery', 'client']);
+    if (!project) {
+      res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
+
+    const brandDNA = await BrandDNA.findOne({ projectId: req.project.id });
+    if (!brandDNA) {
+      res.status(404).json({ detail: 'Brand DNA not found for this project. Please generate Brand DNA first.' });
+      return;
+    }
+
+    const pdfBuffer = await generateBrandDnaBriefPdf(project, brandDNA);
+    const safeTitle = (project.clientProfile?.companyName || project.companyName || project.title || 'brand')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="brand-dna-brief-${safeTitle}.pdf"`);
+    res.send(pdfBuffer);
   } catch (err) {
     next(err);
   }

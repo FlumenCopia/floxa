@@ -160,6 +160,34 @@ export async function generateBrandDNA(projectId) {
   });
 }
 
+export async function downloadBrandDnaPdf(projectId, filename = "brand-dna-brief.pdf") {
+  const url = buildApiUrl(`/projects/${projectId}/brand-dna/pdf/`);
+  const response = await fetch(url, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    let errorDetail = `Failed to download Brand DNA PDF (${response.status})`;
+    try {
+      const errJson = await response.json();
+      if (errJson?.detail) errorDetail = errJson.detail;
+    } catch {
+      // ignore
+    }
+    throw new Error(errorDetail);
+  }
+
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+}
+
 export async function getMoodboards(projectId) {
   return apiRequest(`/projects/${projectId}/moodboards/`);
 }

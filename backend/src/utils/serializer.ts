@@ -146,6 +146,12 @@ export function serializeBrandDNA(dna: any) {
     visual_direction_summary: dna.visualDirectionSummary || '',
     competitor_summary: dna.competitorSummary || '',
     generated_from_discovery: Boolean(dna.generatedFromDiscovery),
+    poster_concepts: Array.isArray(dna.posterConcepts) ? dna.posterConcepts : [],
+    copywriting_hooks: Array.isArray(dna.copywritingHooks) ? dna.copywritingHooks : [],
+    color_palette: Array.isArray(dna.colorPalette) ? dna.colorPalette : [],
+    typography_directives: dna.typographyDirectives || null,
+    art_direction: dna.artDirection || null,
+    design_rules: dna.designRules || { dos: [], donts: [] },
     created_at: dna.createdAt ? new Date(dna.createdAt).toISOString() : null,
     updated_at: dna.updatedAt ? new Date(dna.updatedAt).toISOString() : null,
   };

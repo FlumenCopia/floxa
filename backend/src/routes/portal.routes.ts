@@ -21,6 +21,7 @@ router.use('/:portal_token', optionalAuth, clientPortalAccess);
 
 router.get('/:portal_token/', portalController.getPortalProject);
 router.get('/:portal_token/brand-dna/', portalController.getPortalBrandDNA);
+router.get('/:portal_token/brand-dna/pdf/', portalController.downloadPortalBrandDnaPdf);
 router.get('/:portal_token/discovery/', portalController.getPortalDiscovery);
 router.post('/:portal_token/discovery/', portalController.savePortalDiscovery);
 router.post('/:portal_token/discovery/submit/', portalController.submitPortalDiscovery);

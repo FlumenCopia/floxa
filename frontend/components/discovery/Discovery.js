@@ -9,11 +9,12 @@ import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset } from "@/lib/api";
 import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
 import { showError, showSuccess } from "@/lib/toast";
-import { FileText, X, ArrowRight, Trash2, Lock, Share2, Pencil, AlertCircle } from "lucide-react";
+import { FileText, X, ArrowRight, Trash2, Lock, Share2, Pencil, AlertCircle, Download, Palette, Type, Sparkles, CheckCircle2, XCircle } from "lucide-react";
 import {
   askProjectAssistant,
   generateAgreement,
   generateBrandDNA,
+  downloadBrandDnaPdf,
   deleteConcept,
   deleteDeliverable,
   deleteMoodboard,
@@ -736,10 +737,31 @@ function isAfterDate(value, comparisonValue) {
   return date.getTime() > comparisonDate.getTime();
 }
 
-function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, onGenerateBrandDNA }) {
+const BRAND_DNA_LOADING_STEPS = [
+  "Reading your discovery...",
+  "Analyzing brand personality & audience...",
+  "Synthesizing poster concepts & color tokens...",
+  "Formulating design guardrails & typography...",
+];
+
+function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, onGenerateBrandDNA, projectId, companyName }) {
   const hasSummary = hasDiscoverySummary(summary);
   const hasBrandDNA = Boolean(brandDNA);
-  const [showEnhancedBrief, setShowEnhancedBrief] = useState(false);
+  const [downloadingBrief, setDownloadingBrief] = useState(false);
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+
+  useEffect(() => {
+    if (!generatingBrandDNA) {
+      setLoadingStepIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingStepIndex((prev) => (prev + 1) % BRAND_DNA_LOADING_STEPS.length);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, [generatingBrandDNA]);
+
+  const loadingStepText = BRAND_DNA_LOADING_STEPS[loadingStepIndex];
   const enhancedBrief = hasSummary ? buildEnhancedBrief(summary) : {};
   const isStaleBrandDNA = Boolean(
     hasBrandDNA &&
@@ -766,7 +788,27 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
     visualDirection: formatBriefList(summary?.visual_styles),
     competitors: formatBriefCompetitors(summary?.top_competitors || summary?.competitors),
   };
-  const brief = showEnhancedBrief ? enhancedBrief : savedBrief;
+  const brief = savedBrief;
+
+  async function handleDownloadPdf() {
+    if (!projectId || downloadingBrief) {
+      return;
+    }
+    setDownloadingBrief(true);
+    try {
+      const safeTitle = (companyName || "brand")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      await downloadBrandDnaPdf(projectId, `brand-dna-brief-${safeTitle}.pdf`);
+      showSuccess("Designer Brief PDF downloaded successfully.");
+    } catch (err) {
+      console.error("Failed to download Brand DNA PDF:", err);
+      showError(err?.message || "Failed to download Designer Brief PDF.");
+    } finally {
+      setDownloadingBrief(false);
+    }
+  }
 
   return (
     <div className="discovery-stack">
@@ -781,80 +823,347 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
           onClick={onGenerateBrandDNA}
           disabled={!hasSummary || generatingBrandDNA}
         >
-          {generatingBrandDNA ? "Generating Brand DNA..." : hasBrandDNA ? "Brand DNA generated" : hasSummary ? "Ready to generate Brand DNA" : "Waiting for client discovery"}
+          {generatingBrandDNA ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <span className="brand-dna-mini-spinner" />
+              {loadingStepText}
+            </span>
+          ) : hasBrandDNA ? "Regenerate Brand DNA" : hasSummary ? "Ready to generate Brand DNA" : "Waiting for client discovery"}
         </button>
       </section>
 
+      {generatingBrandDNA ? (
+        <div className="brand-dna-loading-banner">
+          <div className="brand-dna-loading-spinner-wrap">
+            <div className="brand-dna-loading-spinner" />
+          </div>
+          <div className="brand-dna-loading-info">
+            <div className="brand-dna-loading-title">
+              <Sparkles size={16} color="#4dffa0" />
+              <span>{loadingStepText}</span>
+            </div>
+            <div className="brand-dna-loading-subtext">
+              Floxa AI is synthesizing your Brand DNA from the discovery inputs. This may take a few seconds...
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {hasSummary || hasBrandDNA ? (
-        <section className="discovery-card discovery-form-card">
-          <div className="discovery-form-block">
-            <div className="discovery-form-label">Business</div>
-            <BriefValue>{brief.business}</BriefValue>
-          </div>
-
-          <div className="discovery-form-block">
-            <div className="discovery-form-label">Target Audience</div>
-            <BriefValue>{brief.targetAudience}</BriefValue>
-          </div>
-
-          <div className="discovery-form-block">
-            <div className="discovery-form-label">Brand Goal / Why Choose Us</div>
-            <BriefValue>{brief.brandGoal}</BriefValue>
-          </div>
-
-          <div className="discovery-form-block">
-            <div className="discovery-form-label">Desired Brand Feeling</div>
-            <BriefValue>{brief.brandFeeling}</BriefValue>
-          </div>
-
-          <div className="discovery-form-block">
-            <div className="discovery-form-label">Audience Archetype</div>
-            <BriefValue>{brief.audienceArchetype}</BriefValue>
-          </div>
-
-          <div className="discovery-form-block">
-            <div className="discovery-form-label">Brand personality sliders</div>
-            <DiscoverySliderValue sliders={summary?.sliders} />
-          </div>
-
-          <div className="discovery-form-block">
-            <div className="discovery-form-label">Emotions</div>
-            <BriefValue>{brief.emotions}</BriefValue>
-          </div>
-
-          <div className="discovery-form-block">
-            <div className="discovery-form-label">Visual Direction</div>
-            <BriefValue>{brief.visualDirection}</BriefValue>
-          </div>
-
-          <div className="discovery-form-block">
-            <div className="discovery-form-label">Competitors</div>
-            <BriefValue>{brief.competitors}</BriefValue>
-          </div>
-
-          {generatingBrandDNA ? (
-            <div className="discovery-form-block">
-              <div className="discovery-form-label">Generating</div>
-              <BriefValue>Creating and saving the Brand DNA report from client discovery...</BriefValue>
+        <>
+          <section className="discovery-card discovery-form-card">
+            <div className="brand-dna-section-header" style={{ margin: "0 0 16px" }}>
+              <div className="brand-dna-section-title">
+                Strategic Brand Foundation
+              </div>
             </div>
+
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Business</div>
+              <BriefValue>{brief.business}</BriefValue>
+            </div>
+
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Target Audience</div>
+              <BriefValue>{brief.targetAudience}</BriefValue>
+            </div>
+
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Brand Goal / Why Choose Us</div>
+              <BriefValue>{brief.brandGoal}</BriefValue>
+            </div>
+
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Desired Brand Feeling</div>
+              <BriefValue>{brief.brandFeeling}</BriefValue>
+            </div>
+
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Audience Archetype</div>
+              <BriefValue>{brief.audienceArchetype}</BriefValue>
+            </div>
+
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Brand personality sliders</div>
+              <DiscoverySliderValue sliders={summary?.sliders} />
+            </div>
+
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Emotions</div>
+              <BriefValue>{brief.emotions}</BriefValue>
+            </div>
+
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Visual Direction</div>
+              <BriefValue>{brief.visualDirection}</BriefValue>
+            </div>
+
+            <div className="discovery-form-block">
+              <div className="discovery-form-label">Competitors</div>
+              <BriefValue>{brief.competitors}</BriefValue>
+            </div>
+
+
+            {brandDNAError ? (
+              <div className="discovery-form-block">
+                <div className="discovery-form-label">Generation issue</div>
+                <BriefValue>{brandDNAError}</BriefValue>
+              </div>
+            ) : null}
+
+            {isStaleBrandDNA ? (
+              <div className="discovery-form-block">
+                <div className="discovery-form-label">Brand DNA update needed</div>
+                <BriefValue>
+                  The client updated the Discovery information after the last Brand DNA generation. Please regenerate Brand DNA to reflect the latest client input.
+                </BriefValue>
+              </div>
+            ) : null}
+          </section>
+
+          {hasBrandDNA && brandDNA.poster_concepts?.length > 0 ? (
+            <section className="discovery-card discovery-panel" style={{ marginTop: "16px" }}>
+              <div className="brand-dna-section-header" style={{ margin: "0 0 12px" }}>
+                <div>
+                  <div className="brand-dna-section-title">
+                    <Sparkles size={16} color="#4dffa0" />
+                    Poster Concept Angles
+                  </div>
+                  <div className="brand-dna-section-subtitle">
+                    Strategic campaign themes for graphic designers to conceptualize distinct poster directions.
+                  </div>
+                </div>
+              </div>
+              <div className="brand-dna-concepts-grid">
+                {brandDNA.poster_concepts.map((concept, idx) => (
+                  <div className="brand-dna-concept-card" key={idx}>
+                    <span className="brand-dna-concept-angle">{concept.angle || `Angle ${idx + 1}`}</span>
+                    <h4 className="brand-dna-concept-title">{concept.title}</h4>
+                    {concept.visual_hook ? (
+                      <div className="brand-dna-concept-hook">
+                        &ldquo;{concept.visual_hook}&rdquo;
+                      </div>
+                    ) : null}
+                    <p className="brand-dna-concept-desc">{concept.description}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
           ) : null}
 
-          {brandDNAError ? (
-            <div className="discovery-form-block">
-              <div className="discovery-form-label">Generation issue</div>
-              <BriefValue>{brandDNAError}</BriefValue>
-            </div>
+          {hasBrandDNA && brandDNA.color_palette?.length > 0 ? (
+            <section className="discovery-card discovery-panel" style={{ marginTop: "16px" }}>
+              <div className="brand-dna-section-header" style={{ margin: "0 0 12px" }}>
+                <div>
+                  <div className="brand-dna-section-title">
+                    <Palette size={16} color="#4dffa0" />
+                    Color Palette &amp; Token Directives
+                  </div>
+                  <div className="brand-dna-section-subtitle">
+                    Approved brand color codes, roles, and usage directives for artwork creation.
+                  </div>
+                </div>
+              </div>
+              <div className="brand-dna-swatches-grid">
+                {brandDNA.color_palette.map((color, idx) => (
+                  <div className="brand-dna-swatch-card" key={idx}>
+                    <div
+                      className="brand-dna-swatch-box"
+                      style={{ backgroundColor: color.hex }}
+                      title={color.hex}
+                    />
+                    <div className="brand-dna-swatch-info">
+                      <div className="brand-dna-swatch-name">{color.name}</div>
+                      <div className="brand-dna-swatch-meta">
+                        <span className="brand-dna-swatch-hex">{color.hex}</span>
+                        <span className="brand-dna-swatch-role">&bull; {color.role}</span>
+                      </div>
+                      {color.usage ? (
+                        <div className="brand-dna-swatch-usage">{color.usage}</div>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
           ) : null}
 
-          {isStaleBrandDNA ? (
-            <div className="discovery-form-block">
-              <div className="discovery-form-label">Brand DNA update needed</div>
-              <BriefValue>
-                The client updated the Discovery information after the last Brand DNA generation. Please regenerate Brand DNA to reflect the latest client input.
-              </BriefValue>
-            </div>
+          {hasBrandDNA && (brandDNA.typography_directives || brandDNA.art_direction) ? (
+            <section className="discovery-card discovery-panel" style={{ marginTop: "16px" }}>
+              <div className="brand-dna-section-header" style={{ margin: "0 0 12px" }}>
+                <div>
+                  <div className="brand-dna-section-title">
+                    <Type size={16} color="#4dffa0" />
+                    Typography &amp; Art Direction Directives
+                  </div>
+                  <div className="brand-dna-section-subtitle">
+                    Type hierarchy, font pairing rules, and spatial layout guardrails for poster creatives.
+                  </div>
+                </div>
+              </div>
+
+              {brandDNA.typography_directives ? (
+                <div className="brand-dna-typography-grid">
+                  {brandDNA.typography_directives.primary_headline ? (
+                    <div className="brand-dna-typo-card">
+                      <div className="brand-dna-typo-role">Primary Headline</div>
+                      <div className="brand-dna-typo-family">{brandDNA.typography_directives.primary_headline}</div>
+                      <div className="brand-dna-typo-usage">Striking display titles, poster hero typography, and main branding elements.</div>
+                    </div>
+                  ) : null}
+                  {brandDNA.typography_directives.secondary_body ? (
+                    <div className="brand-dna-typo-card">
+                      <div className="brand-dna-typo-role">Secondary Body</div>
+                      <div className="brand-dna-typo-family">{brandDNA.typography_directives.secondary_body}</div>
+                      <div className="brand-dna-typo-usage">Subheadlines, body copy, and descriptive narrative paragraphs.</div>
+                    </div>
+                  ) : null}
+                  {brandDNA.typography_directives.accent_callout ? (
+                    <div className="brand-dna-typo-card">
+                      <div className="brand-dna-typo-role">Accent / Microcopy</div>
+                      <div className="brand-dna-typo-family">{brandDNA.typography_directives.accent_callout}</div>
+                      <div className="brand-dna-typo-usage">Category tags, key statistic badges, footer microcopy, and CTAs.</div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {brandDNA.typography_directives?.rules ? (
+                <div className="discovery-form-block" style={{ marginTop: "14px" }}>
+                  <div className="discovery-form-label">Typography Hierarchy Guidelines</div>
+                  <BriefValue>{brandDNA.typography_directives.rules}</BriefValue>
+                </div>
+              ) : null}
+
+              {brandDNA.art_direction ? (
+                <div style={{ marginTop: "14px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+                  {brandDNA.art_direction.composition ? (
+                    <div className="brand-dna-typo-card">
+                      <div className="brand-dna-typo-role">Composition</div>
+                      <div className="brand-dna-typo-usage">{brandDNA.art_direction.composition}</div>
+                    </div>
+                  ) : null}
+                  {brandDNA.art_direction.imagery_style ? (
+                    <div className="brand-dna-typo-card">
+                      <div className="brand-dna-typo-role">Imagery Style</div>
+                      <div className="brand-dna-typo-usage">{brandDNA.art_direction.imagery_style}</div>
+                    </div>
+                  ) : null}
+                  {brandDNA.art_direction.lighting_and_mood ? (
+                    <div className="brand-dna-typo-card">
+                      <div className="brand-dna-typo-role">Lighting &amp; Mood</div>
+                      <div className="brand-dna-typo-usage">{brandDNA.art_direction.lighting_and_mood}</div>
+                    </div>
+                  ) : null}
+                  {brandDNA.art_direction.negative_space ? (
+                    <div className="brand-dna-typo-card">
+                      <div className="brand-dna-typo-role">Negative Space</div>
+                      <div className="brand-dna-typo-usage">{brandDNA.art_direction.negative_space}</div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
           ) : null}
-        </section>
+
+          {hasBrandDNA && brandDNA.copywriting_hooks?.length > 0 ? (
+            <section className="discovery-card discovery-panel" style={{ marginTop: "16px" }}>
+              <div className="brand-dna-section-header" style={{ margin: "0 0 12px" }}>
+                <div>
+                  <div className="brand-dna-section-title">
+                    <FileText size={16} color="#4dffa0" />
+                    Poster Headlines &amp; Slogans
+                  </div>
+                  <div className="brand-dna-section-subtitle">
+                    Sample messaging hooks and taglines crafted for campaign poster copy.
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {brandDNA.copywriting_hooks.map((hook, idx) => {
+                  const headline = hook.headline || hook.text || "";
+                  const subline = hook.subline || "";
+                  const cta = hook.cta || "";
+                  return (
+                    <div className="brand-dna-hook-card" key={idx}>
+                      <div className="brand-dna-hook-header">
+                        <span className="brand-dna-hook-tag">
+                          {hook.category || `Hook Option ${idx + 1}`}
+                        </span>
+                        {cta ? (
+                          <span className="brand-dna-hook-cta">
+                            CTA: {cta}
+                          </span>
+                        ) : null}
+                      </div>
+                      {headline ? (
+                        <div className="brand-dna-hook-headline">
+                          &ldquo;{headline}&rdquo;
+                        </div>
+                      ) : null}
+                      {subline ? (
+                        <div className="brand-dna-hook-subline">
+                          {subline}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          {hasBrandDNA && brandDNA.design_rules && (brandDNA.design_rules.dos?.length > 0 || brandDNA.design_rules.donts?.length > 0) ? (
+            <section className="discovery-card discovery-panel" style={{ marginTop: "16px" }}>
+              <div className="brand-dna-section-header" style={{ margin: "0 0 12px" }}>
+                <div>
+                  <div className="brand-dna-section-title">
+                    <AlertCircle size={16} color="#4dffa0" />
+                    Design Guardrails (Dos &amp; Don&apos;ts)
+                  </div>
+                  <div className="brand-dna-section-subtitle">
+                    Mandatory standards for external designers and creative partners.
+                  </div>
+                </div>
+              </div>
+              <div className="brand-dna-rules-grid">
+                {brandDNA.design_rules.dos?.length > 0 ? (
+                  <div className="brand-dna-rules-col dos">
+                    <div className="brand-dna-rules-title">
+                      <CheckCircle2 size={15} color="#4dffa0" />
+                      Creative Dos (Encouraged)
+                    </div>
+                    <ul className="brand-dna-rules-list">
+                      {brandDNA.design_rules.dos.map((item, idx) => (
+                        <li className="brand-dna-rules-item" key={idx}>
+                          <span className="brand-dna-rule-bullet" style={{ color: "#4dffa0" }}>&bull;</span>
+                          <span className="brand-dna-rule-text">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {brandDNA.design_rules.donts?.length > 0 ? (
+                  <div className="brand-dna-rules-col donts">
+                    <div className="brand-dna-rules-title">
+                      <XCircle size={15} color="#f87171" />
+                      Creative Don&apos;ts (Prohibited)
+                    </div>
+                    <ul className="brand-dna-rules-list">
+                      {brandDNA.design_rules.donts.map((item, idx) => (
+                        <li className="brand-dna-rules-item" key={idx}>
+                          <span className="brand-dna-rule-bullet" style={{ color: "#f87171" }}>&bull;</span>
+                          <span className="brand-dna-rule-text">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+        </>
       ) : (
         <section className="discovery-card discovery-form-card">
           <div className="discovery-form-block">
@@ -866,21 +1175,14 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
         </section>
       )}
 
-      <div className="discovery-inline-actions">
-        <button
-          className="btn btn-secondary discovery-wide-btn"
-          type="button"
-          onClick={() => setShowEnhancedBrief(true)}
-          disabled={!hasSummary || showEnhancedBrief}
-        >
-          {showEnhancedBrief ? "Enhanced brief ready" : " Enhance with AI"}
-        </button>
+      <div className="discovery-inline-actions" style={{ marginTop: "20px" }}>
         <button
           className="discovery-text-action"
           type="button"
-          onClick={() => downloadClientBrief(summary)}
+          onClick={hasBrandDNA ? handleDownloadPdf : () => downloadClientBrief(summary)}
+          disabled={downloadingBrief || (!hasSummary && !hasBrandDNA)}
         >
-          Export brief
+          {downloadingBrief ? "Exporting brief..." : "Export brief"}
         </button>
       </div>
     </div>
@@ -3564,6 +3866,8 @@ function renderTabPanel(
           generatingBrandDNA={generatingBrandDNA}
           brandDNAError={brandDNAError}
           onGenerateBrandDNA={onGenerateBrandDNA}
+          projectId={project?.id}
+          companyName={project?.company_name || project?.title}
         />
       );
     case "Discovery":

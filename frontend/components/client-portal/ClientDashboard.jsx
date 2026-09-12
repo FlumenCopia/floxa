@@ -5,7 +5,7 @@ import { clientPortalService } from "../../services/clientPortalService";
 import { supportSocket } from "../../services/supportSocketService";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/lib/api";
-import { showSuccess } from "@/lib/toast";
+import { showError, showSuccess } from "@/lib/toast";
 import { Bell } from "lucide-react";
 
 const phaseLabels = [
@@ -258,7 +258,34 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     : activePhaseLabel;
   const [working, setWorking] = useState("");
   const [brandDNAReport, setBrandDNAReport] = useState(null);
+  const [downloadingBrandDna, setDownloadingBrandDna] = useState(false);
   const [discoveryReport, setDiscoveryReport] = useState(null);
+
+  async function handleDownloadBrandDnaPdf() {
+    const token = project?.portal_token || project?.portalToken || project?.token;
+    if (!token || downloadingBrandDna) {
+      return;
+    }
+
+    setDownloadingBrandDna(true);
+    try {
+      const safeTitle = (project.companyName || project.company_name || project.name || "brand")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
+      const res = await clientPortalService.downloadBrandDnaPdf(token, `brand-dna-brief-${safeTitle}.pdf`);
+      if (res?.success) {
+        showSuccess("Brand DNA brief downloaded successfully.");
+      } else {
+        showError(res?.error || "Unable to download Brand DNA brief.");
+      }
+    } catch (err) {
+      console.error("Failed to download Brand DNA PDF:", err);
+      showError("Unable to download Brand DNA brief.");
+    } finally {
+      setDownloadingBrandDna(false);
+    }
+  }
   const [discoveryReportLoading, setDiscoveryReportLoading] = useState(false);
   const [discoveryReportError, setDiscoveryReportError] = useState("");
   const [moodboards, setMoodboards] = useState(project.moodboards || []);
@@ -1435,6 +1462,272 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         <p>{brandDNAReport.competitor_summary}</p>
                       </div>
                     ) : null}
+                  </div>
+
+                  {brandDNAReport.poster_concepts?.length > 0 ? (
+                    <div style={{ marginBottom: "2rem" }}>
+                      <div className="client-discovery-report-header" style={{ marginBottom: "1rem" }}>
+                        <span>Creative Direction</span>
+                        <h4 style={{ margin: 0, fontSize: "1.15rem", color: "#ffffff", fontWeight: 600 }}>
+                          Poster Concept Angles
+                        </h4>
+                        <p style={{ margin: "4px 0 0", color: "#94a3b8", fontSize: "0.85rem" }}>
+                          Strategic creative themes formulated for your brand posters and marketing collateral.
+                        </p>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
+                        {brandDNAReport.poster_concepts.map((concept, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              background: "rgba(10, 24, 18, 0.5)",
+                              border: "1px solid rgba(77, 255, 160, 0.18)",
+                              borderRadius: "14px",
+                              padding: "16px",
+                              backdropFilter: "blur(12px)",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "8px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                alignSelf: "flex-start",
+                                fontSize: "10px",
+                                fontWeight: 700,
+                                letterSpacing: "0.1em",
+                                textTransform: "uppercase",
+                                color: "#4dffa0",
+                                background: "rgba(77, 255, 160, 0.12)",
+                                padding: "3px 8px",
+                                borderRadius: "999px",
+                                border: "1px solid rgba(77, 255, 160, 0.25)",
+                              }}
+                            >
+                              {concept.angle || `Angle ${idx + 1}`}
+                            </span>
+                            <strong style={{ color: "#ffffff", fontSize: "0.95rem" }}>{concept.title}</strong>
+                            {concept.visual_hook ? (
+                              <div
+                                style={{
+                                  background: "rgba(0, 0, 0, 0.25)",
+                                  borderLeft: "2px solid #4dffa0",
+                                  padding: "6px 10px",
+                                  borderRadius: "0 6px 6px 0",
+                                  fontSize: "0.8rem",
+                                  color: "#c9e3d7",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                &ldquo;{concept.visual_hook}&rdquo;
+                              </div>
+                            ) : null}
+                            <p style={{ margin: 0, fontSize: "0.85rem", color: "rgba(220, 235, 229, 0.8)", lineHeight: 1.5 }}>
+                              {concept.description}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {brandDNAReport.color_palette?.length > 0 ? (
+                    <div style={{ marginBottom: "2rem" }}>
+                      <div className="client-discovery-report-header" style={{ marginBottom: "1rem" }}>
+                        <span>Color Strategy</span>
+                        <h4 style={{ margin: 0, fontSize: "1.15rem", color: "#ffffff", fontWeight: 600 }}>
+                          Curated Color Palette
+                        </h4>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "12px" }}>
+                        {brandDNAReport.color_palette.map((color, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              background: "rgba(10, 24, 18, 0.5)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "12px",
+                              padding: "12px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "12px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "38px",
+                                height: "38px",
+                                borderRadius: "8px",
+                                backgroundColor: color.hex,
+                                border: "1px solid rgba(255, 255, 255, 0.2)",
+                                flexShrink: 0,
+                              }}
+                            />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {color.name}
+                              </div>
+                              <div style={{ fontSize: "0.75rem", fontFamily: "monospace", color: "#4dffa0" }}>
+                                {color.hex} <span style={{ color: "rgba(255,255,255,0.4)" }}>&bull; {color.role}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {brandDNAReport.typography_directives ? (
+                    <div style={{ marginBottom: "2rem" }}>
+                      <div className="client-discovery-report-header" style={{ marginBottom: "1rem" }}>
+                        <span>Typography Pairing</span>
+                        <h4 style={{ margin: 0, fontSize: "1.15rem", color: "#ffffff", fontWeight: 600 }}>
+                          Selected Font Directives
+                        </h4>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+                        {brandDNAReport.typography_directives.primary_headline ? (
+                          <div
+                            style={{
+                              background: "rgba(10, 24, 18, 0.5)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "12px",
+                              padding: "14px",
+                            }}
+                          >
+                            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4dffa0", marginBottom: "4px" }}>
+                              Primary Headline
+                            </div>
+                            <strong style={{ color: "#ffffff", fontSize: "0.95rem" }}>
+                              {brandDNAReport.typography_directives.primary_headline}
+                            </strong>
+                          </div>
+                        ) : null}
+                        {brandDNAReport.typography_directives.secondary_body ? (
+                          <div
+                            style={{
+                              background: "rgba(10, 24, 18, 0.5)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "12px",
+                              padding: "14px",
+                            }}
+                          >
+                            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4dffa0", marginBottom: "4px" }}>
+                              Secondary Body
+                            </div>
+                            <strong style={{ color: "#ffffff", fontSize: "0.95rem" }}>
+                              {brandDNAReport.typography_directives.secondary_body}
+                            </strong>
+                          </div>
+                        ) : null}
+                        {brandDNAReport.typography_directives.accent_callout ? (
+                          <div
+                            style={{
+                              background: "rgba(10, 24, 18, 0.5)",
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              borderRadius: "12px",
+                              padding: "14px",
+                            }}
+                          >
+                            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4dffa0", marginBottom: "4px" }}>
+                              Accent / Microcopy
+                            </div>
+                            <strong style={{ color: "#ffffff", fontSize: "0.95rem" }}>
+                              {brandDNAReport.typography_directives.accent_callout}
+                            </strong>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {brandDNAReport.copywriting_hooks?.length > 0 ? (
+                    <div style={{ marginBottom: "2rem" }}>
+                      <div className="client-discovery-report-header" style={{ marginBottom: "1rem" }}>
+                        <span>Brand Messaging</span>
+                        <h4 style={{ margin: 0, fontSize: "1.15rem", color: "#ffffff", fontWeight: 600 }}>
+                          Poster Headlines &amp; Slogans
+                        </h4>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        {brandDNAReport.copywriting_hooks.map((hook, idx) => {
+                          const headline = hook.headline || hook.text || "";
+                          const subline = hook.subline || "";
+                          const cta = hook.cta || "";
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                background: "rgba(10, 24, 18, 0.5)",
+                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                                borderRadius: "12px",
+                                padding: "14px 16px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "6px",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+                                <span
+                                  style={{
+                                    fontSize: "10px",
+                                    fontWeight: 700,
+                                    letterSpacing: "0.1em",
+                                    textTransform: "uppercase",
+                                    color: "#4dffa0",
+                                    background: "rgba(77, 255, 160, 0.1)",
+                                    padding: "3px 8px",
+                                    borderRadius: "4px",
+                                  }}
+                                >
+                                  {hook.category || `Hook Option ${idx + 1}`}
+                                </span>
+                                {cta ? (
+                                  <span style={{ fontSize: "11px", color: "#4dffa0", fontWeight: 600 }}>
+                                    CTA: {cta}
+                                  </span>
+                                ) : null}
+                              </div>
+                              {headline ? (
+                                <div style={{ fontSize: "14px", fontWeight: 600, color: "#ffffff", lineHeight: 1.4 }}>
+                                  &ldquo;{headline}&rdquo;
+                                </div>
+                              ) : null}
+                              {subline ? (
+                                <div style={{ fontSize: "12px", color: "rgba(220, 235, 229, 0.8)", lineHeight: 1.5 }}>
+                                  {subline}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div style={{ marginTop: "2rem", display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="client-action-btn"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        background: "linear-gradient(135deg, #1f4d38 0%, #102e21 100%)",
+                        color: "#4dffa0",
+                        border: "1px solid rgba(77, 255, 160, 0.4)",
+                        borderRadius: "10px",
+                        padding: "10px 20px",
+                        fontSize: "0.9rem",
+                        fontWeight: 600,
+                        cursor: downloadingBrandDna ? "not-allowed" : "pointer",
+                        opacity: downloadingBrandDna ? 0.6 : 1,
+                      }}
+                      onClick={handleDownloadBrandDnaPdf}
+                      disabled={downloadingBrandDna}
+                    >
+                      <span>📄</span> {downloadingBrandDna ? "Downloading PDF..." : "Download Brand DNA Brief (PDF)"}
+                    </button>
                   </div>
                 </>
               ) : (

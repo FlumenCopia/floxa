@@ -4,6 +4,8 @@ import { BrandDNA } from '../models/brandDNA.model.js';
 import { Project } from '../models/project.model.js';
 import { ProjectActivity } from '../models/activity.model.js';
 import { buildBrandDNAData } from '../services/discovery.service.js';
+import { generateAiBrandDNA } from '../services/gemini.service.js';
+import { generateBrandDnaBriefPdf } from '../services/pdf.service.js';
 import { calculateProjectProgress, logProjectActivity } from '../services/project.service.js';
 import {
   serializeDiscovery,
@@ -429,7 +431,7 @@ export async function generateBrandDNA(req: any, res: Response, next: NextFuncti
       return;
     }
 
-    const dnaData = buildBrandDNAData(project, project.discovery);
+    const dnaData = await generateAiBrandDNA(project, project.discovery);
 
     const brandDNA = await BrandDNA.findOneAndUpdate(
       { projectId: id },
@@ -451,6 +453,36 @@ export async function generateBrandDNA(req: any, res: Response, next: NextFuncti
     });
 
     res.json(serializeBrandDNA(brandDNA));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function downloadBrandDnaPdf(req: any, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const project = await Project.findById(id).populate(['clientProfile', 'discovery', 'client']);
+
+    if (!project) {
+      res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
+
+    const brandDNA = await BrandDNA.findOne({ projectId: id });
+    if (!brandDNA) {
+      res.status(404).json({ detail: 'Brand DNA not found for this project. Please generate Brand DNA first.' });
+      return;
+    }
+
+    const pdfBuffer = await generateBrandDnaBriefPdf(project, brandDNA);
+    const safeTitle = (project.clientProfile?.companyName || project.companyName || project.title || 'brand')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="brand-dna-brief-${safeTitle}.pdf"`);
+    res.send(pdfBuffer);
   } catch (err) {
     next(err);
   }

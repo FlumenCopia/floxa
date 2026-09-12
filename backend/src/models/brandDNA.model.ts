@@ -12,6 +12,37 @@ export interface IBrandDNA {
   visualDirectionSummary: string;
   competitorSummary: string;
   generatedFromDiscovery: boolean;
+  posterConcepts?: Array<{
+    angle: string;
+    conceptName: string;
+    description: string;
+    visualHook: string;
+  }>;
+  copywritingHooks?: Array<{
+    headline: string;
+    subline: string;
+    cta: string;
+  }>;
+  colorPalette?: Array<{
+    role: string;
+    name: string;
+    hex: string;
+    usage: string;
+  }>;
+  typographyDirectives?: {
+    headlineStyle: string;
+    bodyStyle: string;
+    pairingRationale: string;
+  };
+  artDirection?: {
+    composition: string;
+    lightingAndTexture: string;
+    focalPoint: string;
+  };
+  designRules?: {
+    dos: string[];
+    donts: string[];
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -33,6 +64,43 @@ const brandDNASchema = new Schema<IBrandDNA>(
     visualDirectionSummary: { type: String, default: '' },
     competitorSummary: { type: String, default: '' },
     generatedFromDiscovery: { type: Boolean, default: true },
+    posterConcepts: [
+      {
+        angle: { type: String, default: '' },
+        conceptName: { type: String, default: '' },
+        description: { type: String, default: '' },
+        visualHook: { type: String, default: '' },
+      },
+    ],
+    copywritingHooks: [
+      {
+        headline: { type: String, default: '' },
+        subline: { type: String, default: '' },
+        cta: { type: String, default: '' },
+      },
+    ],
+    colorPalette: [
+      {
+        role: { type: String, default: '' },
+        name: { type: String, default: '' },
+        hex: { type: String, default: '' },
+        usage: { type: String, default: '' },
+      },
+    ],
+    typographyDirectives: {
+      headlineStyle: { type: String, default: '' },
+      bodyStyle: { type: String, default: '' },
+      pairingRationale: { type: String, default: '' },
+    },
+    artDirection: {
+      composition: { type: String, default: '' },
+      lightingAndTexture: { type: String, default: '' },
+      focalPoint: { type: String, default: '' },
+    },
+    designRules: {
+      dos: [{ type: String }],
+      donts: [{ type: String }],
+    },
   },
   {
     collection: 'brand_dnas',

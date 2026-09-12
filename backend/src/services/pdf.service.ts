@@ -563,3 +563,212 @@ export async function generateBrandDeliverablesPdf(project: any): Promise<Buffer
   });
 }
 
+export async function generateBrandDnaBriefPdf(project: any, brandDNA: any): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 40, autoFirstPage: true, compress: false, size: 'A4' });
+    const buffers: Buffer[] = [];
+
+    doc.on('data', (chunk) => buffers.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(buffers)));
+    doc.on('error', (err) => reject(err));
+
+    const companyName = project.clientProfile?.companyName || project.companyName || project.title || 'Brand';
+    const sector = project.clientProfile?.industry || project.sector || 'Creative Industry';
+    const clientName = project.client?.name || project.clientProfile?.clientName || 'Client';
+    const cluster = brandDNA.brandPersonalityCluster || 'Bold Challenger';
+
+    const renderHeader = (pageTitle: string, pageNumber: number) => {
+      // Dark emerald banner
+      doc.rect(40, 30, 515, 45).fill('#081610');
+      doc.fillColor('#4dffa0').fontSize(14).font('Helvetica-Bold').text('FLOXA BRAND DNA & CREATIVE BRIEF', 55, 40);
+      doc.fillColor('#94a3b8').fontSize(8.5).font('Helvetica').text(
+        `${companyName.toUpperCase()} • ${sector.toUpperCase()} • ARCHETYPE: ${cluster.toUpperCase()} | PAGE ${pageNumber} OF 2`,
+        55,
+        58
+      );
+      doc.y = 88;
+    };
+
+    const renderSectionTitle = (title: string) => {
+      doc.moveDown(0.6);
+      doc.font('Helvetica-Bold').fontSize(10.5).fillColor('#0f172a').text(title.toUpperCase());
+      doc.strokeColor('#cbd5e1').lineWidth(0.75).moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+      doc.moveDown(0.35);
+    };
+
+    const renderField = (label: string, value: string) => {
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#1e293b').text(`${label}: `, { continued: true });
+      doc.font('Helvetica').fontSize(8.5).fillColor('#475569').text(value || 'Not specified.');
+      doc.moveDown(0.15);
+    };
+
+    // ==========================================
+    // PAGE 1: STRATEGY & VISUAL FOUNDATION
+    // ==========================================
+    renderHeader('STRATEGY & VISUAL FOUNDATION', 1);
+
+    // Project metadata pill
+    doc.rect(40, doc.y, 515, 26).fill('#f1f5f9');
+    doc.fillColor('#334155').fontSize(8).font('Helvetica-Bold')
+      .text(`PROJECT: ${project.title || companyName}  |  CLIENT: ${clientName}  |  DATE: ${new Date().toLocaleDateString('en-US')}`, 50, doc.y + 8);
+    doc.y += 24;
+
+    // Section 1: STRATEGIC IDENTITY
+    renderSectionTitle('1. Strategic Identity & Market Stance');
+    renderField('Business Essence', brandDNA.businessSummary);
+    renderField('Target Customer Psychology', brandDNA.targetAudienceSummary);
+    renderField('Core UVP / Positioning Anchor', brandDNA.positioningSummary);
+    renderField('Emotional Resonance & Tone', brandDNA.brandFeelingSummary);
+    renderField('Competitive Differentiation', brandDNA.competitorSummary);
+
+    // Section 2: COLOR SYSTEM DIRECTIVES
+    renderSectionTitle('2. Recommended Color Palette (60-30-10 Rule)');
+    const palette = Array.isArray(brandDNA.colorPalette) && brandDNA.colorPalette.length > 0
+      ? brandDNA.colorPalette
+      : [
+          { role: 'Dominant (60%)', name: 'Deep Void', hex: '#0a0d12', usage: 'Primary background canvas' },
+          { role: 'Secondary (30%)', name: 'Forest Slate', hex: '#163325', usage: 'Structural containers and panels' },
+          { role: 'Accent (10%)', name: 'Neon Emerald', hex: '#4dffa0', usage: 'High-impact focal hooks and CTAs' },
+          { role: 'Canvas Contrast', name: 'Ghost White', hex: '#f8fafc', usage: 'High-visibility typography' },
+        ];
+
+    const startY = doc.y + 4;
+    const boxWidth = 120;
+    const boxHeight = 44;
+    palette.slice(0, 4).forEach((color: any, idx: number) => {
+      const x = 40 + idx * (boxWidth + 8);
+      // Swatch box
+      const hexColor = (color.hex && /^#[0-9A-Fa-f]{6}$/.test(color.hex)) ? color.hex : '#22c55e';
+      doc.rect(x, startY, 20, 20).fill(hexColor);
+      doc.strokeColor('#94a3b8').lineWidth(0.5).rect(x, startY, 20, 20).stroke();
+
+      doc.fillColor('#0f172a').fontSize(8).font('Helvetica-Bold').text(color.name || 'Color', x + 25, startY + 1, { width: boxWidth - 25 });
+      doc.fillColor('#64748b').fontSize(7.5).font('Helvetica').text(color.hex || '', x + 25, startY + 11, { width: boxWidth - 25 });
+      doc.fillColor('#475569').fontSize(7).font('Helvetica').text(color.role || '', x, startY + 24, { width: boxWidth });
+    });
+    doc.y = startY + boxHeight + 4;
+
+    // Section 3: TYPOGRAPHY DIRECTIVES
+    renderSectionTitle('3. Typography & Hierarchy Directives');
+    const typo = brandDNA.typographyDirectives || {};
+    renderField('Headline Typography', typo.headlineStyle || 'Bold modern geometric grotesque in impactful casing');
+    renderField('Body & Subtitle Typography', typo.bodyStyle || 'Clean neutral sans-serif in regular/medium weight');
+    renderField('Pairing Rationale', typo.pairingRationale || 'Balances commanding visual authority with effortless readability across all formats.');
+
+    // Section 4: OVERALL VISUAL DIRECTION
+    renderSectionTitle('4. Overall Aesthetic Foundation');
+    doc.font('Helvetica').fontSize(8.5).fillColor('#475569').text(brandDNA.visualDirectionSummary || 'Clean, intentional, and high-impact visual direction.');
+
+    // ==========================================
+    // PAGE 2: POSTER CONCEPTS & CREATIVE DIRECTIVES
+    // ==========================================
+    doc.addPage();
+    renderHeader('POSTER CONCEPTS & EXECUTION DIRECTIVES', 2);
+
+    // Section 5: POSTER CONCEPTS (3 Distinct Angles)
+    renderSectionTitle('5. Poster Campaign Themes (3 Creative Angles for Designers)');
+    const concepts = Array.isArray(brandDNA.posterConcepts) && brandDNA.posterConcepts.length > 0
+      ? brandDNA.posterConcepts
+      : [
+          {
+            angle: 'Concept 1: Primary Hero Theme',
+            conceptName: 'The Definitive Standard',
+            description: `A bold, iconic statement showcasing ${companyName}'s core value proposition with high-contrast focal weight.`,
+            visualHook: 'Arresting central subject bathed in emerald neon rim lighting over a dark canvas.',
+          },
+          {
+            angle: 'Concept 2: Typographic & Narrative Theme',
+            conceptName: 'Zero Compromise',
+            description: 'Puts the core positioning promise front and center through scale-shifted typographic storytelling.',
+            visualHook: 'Massive tight-tracked headline occupying 50% of the canvas with dimensional shadows.',
+          },
+          {
+            angle: 'Concept 3: Atmospheric & Emotion Theme',
+            conceptName: 'Quiet Resonance',
+            description: 'Evokes deep confidence and prestige through cinematic depth and generous negative space.',
+            visualHook: 'Asymmetrical composition with 70% dark breathing room leading the eye to the refined badge.',
+          },
+        ];
+
+    concepts.slice(0, 3).forEach((c: any, i: number) => {
+      doc.rect(40, doc.y, 515, 42).fill('#f8fafc');
+      const boxY = doc.y;
+      doc.fillColor('#047857').fontSize(8).font('Helvetica-Bold').text((c.angle || `Concept ${i + 1}`).toUpperCase(), 50, boxY + 5);
+      doc.fillColor('#0f172a').fontSize(9).font('Helvetica-Bold').text(`"${c.conceptName || 'Theme'}"`, 50, boxY + 15);
+      doc.fillColor('#334155').fontSize(7.5).font('Helvetica').text(c.description || '', 50, boxY + 27, { width: 330 });
+
+      // Visual hook callout box on the right
+      doc.rect(390, boxY + 4, 155, 34).fill('#ecfdf5');
+      doc.fillColor('#065f46').fontSize(7).font('Helvetica-Bold').text('VISUAL HOOK:', 395, boxY + 7);
+      doc.fillColor('#047857').fontSize(7).font('Helvetica').text(c.visualHook || '', 395, boxY + 15, { width: 145 });
+
+      doc.y = boxY + 46;
+    });
+
+    // Section 6: COPYWRITING & HEADLINE HOOKS
+    renderSectionTitle('6. Poster Headlines & Copywriting Hooks');
+    const copyHooks = Array.isArray(brandDNA.copywritingHooks) && brandDNA.copywritingHooks.length > 0
+      ? brandDNA.copywritingHooks
+      : [
+          { headline: `${companyName}: Built for those who demand more.`, subline: 'Uncompromising craftsmanship in every detail.', cta: 'Experience the standard.' },
+          { headline: 'The standard has shifted.', subline: 'Precision execution designed for modern leaders.', cta: 'Discover the difference.' },
+          { headline: 'Decisive clarity. Zero compromise.', subline: 'Why settle for ordinary when excellence is within reach?', cta: 'Start with Floxa.' },
+        ];
+
+    copyHooks.slice(0, 3).forEach((h: any, i: number) => {
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0f172a').text(`${i + 1}. "${h.headline}"`, { continued: true });
+      doc.font('Helvetica').fontSize(8).fillColor('#64748b').text(`  —  Subline: "${h.subline}"  |  CTA: [${h.cta}]`);
+      doc.moveDown(0.15);
+    });
+
+    // Section 7: ART DIRECTION & COMPOSITION
+    renderSectionTitle('7. Composition, Lighting & Focal Weight');
+    const art = brandDNA.artDirection || {};
+    renderField('Layout & Grid', art.composition || 'Asymmetrical Swiss grid with 60-70% focal weight and generous negative space.');
+    renderField('Lighting & Texture', art.lightingAndTexture || 'Deep dark-mode shadows with neon chromatic edge lighting and subtle film grain.');
+    renderField('Primary Focal Point', art.focalPoint || 'The central visual metaphor and dominant headline lockup.');
+
+    // Section 8: CREATIVE GUARDRAILS (DOS & DON'TS)
+    renderSectionTitle('8. Creative Guardrails (Design Dos & Don\'ts)');
+    const rules = brandDNA.designRules || {};
+    const dos = rules.dos || [
+      `Anchor every poster with ${companyName}'s core positioning.`,
+      'Maintain clean hierarchy with generous breathing room and tight typography tracking.',
+      'Strictly respect the 60-30-10 color palette ratios.',
+    ];
+    const donts = rules.donts || [
+      'Do NOT use generic corporate stock photography or sterile business clichés.',
+      'Do NOT clutter the canvas with multiple competing headlines or multi-column paragraphs.',
+      'Do NOT dilute the color system with unauthorized pastel or gradient hues.',
+    ];
+
+    const ruleStartY = doc.y + 2;
+    // Left: DOs
+    doc.rect(40, ruleStartY, 250, 62).fill('#f0fdf4');
+    doc.fillColor('#15803d').fontSize(8).font('Helvetica-Bold').text('STRICT VISUAL DOS (MUST FOLLOW):', 48, ruleStartY + 6);
+    dos.slice(0, 3).forEach((d: string, idx: number) => {
+      doc.fillColor('#166534').fontSize(7.5).font('Helvetica').text(`✔  ${d}`, 48, ruleStartY + 18 + idx * 13, { width: 235 });
+    });
+
+    // Right: DON'Ts
+    doc.rect(300, ruleStartY, 255, 62).fill('#fef2f2');
+    doc.fillColor('#b91c1c').fontSize(8).font('Helvetica-Bold').text('STRICT VISUAL DON\'TS (AVOID):', 308, ruleStartY + 6);
+    donts.slice(0, 3).forEach((d: string, idx: number) => {
+      doc.fillColor('#991b1b').fontSize(7.5).font('Helvetica').text(`✖  ${d}`, 308, ruleStartY + 18 + idx * 13, { width: 240 });
+    });
+
+    doc.y = ruleStartY + 72;
+
+    // Footer
+    doc.fillColor('#94a3b8').fontSize(7.5).font('Helvetica').text(
+      'CONFIDENTIAL CREATIVE BRIEF • GENERATED BY FLOXA STUDIO • FOR PRODUCTION & DESIGN USE ONLY',
+      40,
+      780,
+      { align: 'center', width: 515 }
+    );
+
+    doc.end();
+  });
+}
+
+

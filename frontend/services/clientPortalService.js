@@ -476,6 +476,33 @@ export const clientPortalService = {
     }
   },
 
+  async downloadBrandDnaPdf(portalToken = activeToken, filename = "brand-dna-brief.pdf") {
+    const targetToken = portalToken || activeToken;
+    if (!targetToken || targetToken === "test-token") {
+      return { success: false, error: "Brand DNA PDF is not available in demo mode." };
+    }
+
+    try {
+      const url = buildApiUrl(`/client-portal/${targetToken}/brand-dna/pdf/`);
+      const response = await fetch(url, { credentials: "include" });
+      if (!response.ok) {
+        return { success: false, error: "Brand DNA PDF is not available." };
+      }
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err?.message || "Failed to download PDF." };
+    }
+  },
+
   async getMoodboards(portalToken = activeToken) {
     if (!portalToken || portalToken === "test-token") {
       return { success: true, data: readProject(portalToken).moodboards || [] };

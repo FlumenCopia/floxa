@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { ENV } from '../config/env.js';
 import { Project } from '../models/project.model.js';
+import { buildBrandDNAData, calculateCluster } from './discovery.service.js';
 
 let aiClient: GoogleGenAI | null = null;
 
@@ -180,4 +181,190 @@ AGENCY WORKFLOW & STAGE-AWARE RULES:
   }
 
   throw lastError || new Error('Gemini service is temporarily unavailable.');
+}
+
+export async function generateAiBrandDNA(project: any, discovery: any): Promise<any> {
+  const fallback = buildBrandDNAData(project, discovery);
+
+  if (!ENV.GEMINI_API_KEY) {
+    console.warn('[Gemini Brand DNA] No GEMINI_API_KEY configured; using strategic fallback generator.');
+    return fallback;
+  }
+
+  let client: GoogleGenAI;
+  try {
+    client = getAiClient();
+  } catch (err) {
+    console.warn('[Gemini Brand DNA] Failed to initialize client, using fallback:', err);
+    return fallback;
+  }
+
+  const profile = project.clientProfile;
+  const companyName = profile?.companyName || project.companyName || project.title || 'The Brand';
+  const industry = profile?.industry || project.sector || 'Creative Industry';
+
+  const whatBusinessDoes = discovery.whatBusinessDoes || discovery.what_business_does || 'Distinctive professional services.';
+  const targetCustomer = discovery.targetCustomer || discovery.target_customer || 'Quality-conscious clients';
+  const whyChooseUs = discovery.whyChooseUs || discovery.why_choose_us || 'Uncompromising craftsmanship';
+  const brandFeeling = discovery.brandFeeling || discovery.brand_feeling || 'Bold and authoritative';
+
+  const rawEmotions = discovery.emotions || [];
+  const emotions = rawEmotions.map((e: any) => (typeof e === 'string' ? e : e?.emotion)).filter(Boolean).join(', ') || 'Trust, Bold, Refined';
+
+  const rawStyles = discovery.visualStyles || discovery.visual_styles || [];
+  const visualStyles = rawStyles.map((s: any) => (typeof s === 'string' ? s : s?.style)).filter(Boolean).join(', ') || 'Bold & Loud, Minimal & Clean';
+
+  const rawComps = discovery.competitors || [];
+  const competitors = rawComps.slice(0, 5).map((c: any) => `${c.name || 'Competitor'} (${c.rating || 'neutral'})`).join(', ') || 'None submitted';
+
+  const cluster = calculateCluster(discovery.sliders);
+
+  const prompt = `You are FLOXA's Chief Creative Strategist & Brand Director.
+Transform the following client discovery questionnaire into a comprehensive, world-class Brand DNA and Designer Creative Brief.
+Your output must be strictly valid JSON matching the schema below without any markdown code fences.
+
+CLIENT DISCOVERY INTAKE:
+- Company Name: ${companyName}
+- Industry / Sector: ${industry}
+- What Business Does: ${whatBusinessDoes}
+- Target Customer: ${targetCustomer}
+- Core Reason to Choose Them (UVP): ${whyChooseUs}
+- Desired Brand Feeling: ${brandFeeling}
+- Selected Emotional Cues: ${emotions}
+- Preferred Visual Direction: ${visualStyles}
+- Calculated Personality Cluster: ${cluster}
+- Competitor References: ${competitors}
+
+JSON STRUCTURE REQUIRED:
+{
+  "brandPersonalityCluster": "${cluster}",
+  "businessSummary": "2-sentence strategic synthesis of what the business does and its elevated market purpose.",
+  "targetAudienceSummary": "Deep psychological breakdown of the target audience and what drives their decision-making.",
+  "positioningSummary": "Sharp, defensible value proposition and competitive market stance based on '${whyChooseUs}'.",
+  "brandFeelingSummary": "Rich description of the brand's sensory mood, emotional resonance, and tone of voice.",
+  "visualDirectionSummary": "Overall creative art direction, aesthetic mood, and visual storytelling foundation.",
+  "competitorSummary": "Specific strategic differentiation notes highlighting how ${companyName} stands distinct from competitors.",
+  "posterConcepts": [
+    {
+      "angle": "Concept 1: Primary Hero Theme",
+      "conceptName": "Punchy 2-3 word concept name",
+      "description": "Clear 2-sentence creative description of what this poster represents and communicates.",
+      "visualHook": "The specific visual metaphor, focal element, or dramatic contrast to design."
+    },
+    {
+      "angle": "Concept 2: Typographic & Narrative Theme",
+      "conceptName": "Punchy 2-3 word concept name",
+      "description": "Clear 2-sentence creative description of what this poster represents and communicates.",
+      "visualHook": "The specific visual metaphor, focal element, or dramatic contrast to design."
+    },
+    {
+      "angle": "Concept 3: Dynamic Atmosphere & Emotion Theme",
+      "conceptName": "Punchy 2-3 word concept name",
+      "description": "Clear 2-sentence creative description of what this poster represents and communicates.",
+      "visualHook": "The specific visual metaphor, focal element, or dramatic contrast to design."
+    }
+  ],
+  "copywritingHooks": [
+    {
+      "headline": "Arresting, punchy poster headline 1",
+      "subline": "Compelling supporting subtext 1",
+      "cta": "Decisive call to action 1"
+    },
+    {
+      "headline": "Arresting, punchy poster headline 2",
+      "subline": "Compelling supporting subtext 2",
+      "cta": "Decisive call to action 2"
+    },
+    {
+      "headline": "Arresting, punchy poster headline 3",
+      "subline": "Compelling supporting subtext 3",
+      "cta": "Decisive call to action 3"
+    }
+  ],
+  "colorPalette": [
+    {
+      "role": "Dominant (60%)",
+      "name": "Evocative color name",
+      "hex": "#HEX",
+      "usage": "Primary backdrop and negative space"
+    },
+    {
+      "role": "Secondary (30%)",
+      "name": "Evocative color name",
+      "hex": "#HEX",
+      "usage": "Structural containers, panels, and secondary layers"
+    },
+    {
+      "role": "Accent (10%)",
+      "name": "Evocative color name",
+      "hex": "#HEX",
+      "usage": "High-impact visual hooks, key badges, and CTAs"
+    },
+    {
+      "role": "Canvas Contrast",
+      "name": "Evocative color name",
+      "hex": "#HEX",
+      "usage": "Crisp headline typography and luminous accents"
+    }
+  ],
+  "typographyDirectives": {
+    "headlineStyle": "Specific headline font genre and casing (e.g., Ultra-bold geometric grotesque in tight uppercase)",
+    "bodyStyle": "Specific body font genre (e.g., Clean neutral grotesque or technical mono in regular weight)",
+    "pairingRationale": "Why this typography pairing reinforces the brand personality"
+  },
+  "artDirection": {
+    "composition": "Layout rules (e.g., Swiss asymmetrical grid with 65% focal weight and generous breathing room)",
+    "lightingAndTexture": "Lighting, material textures, and depth (e.g., Cinematic dark-mode shadows with neon chromatic edge lighting)",
+    "focalPoint": "What the viewer's eye should lock onto first"
+  },
+  "designRules": {
+    "dos": [
+      "Strict creative rule 1",
+      "Strict creative rule 2",
+      "Strict creative rule 3"
+    ],
+    "donts": [
+      "What the designer must strictly avoid 1",
+      "What the designer must strictly avoid 2",
+      "What the designer must strictly avoid 3"
+    ]
+  }
+}`;
+
+  const models = ENV.GEMINI_MODELS.length > 0 ? ENV.GEMINI_MODELS : ['gemini-2.5-flash', 'gemini-1.5-flash'];
+
+  for (const model of models) {
+    try {
+      const response = await client.models.generateContent({
+        model,
+        contents: [
+          { role: 'user', parts: [{ text: prompt }] }
+        ],
+        config: {
+          maxOutputTokens: 2500,
+          responseMimeType: 'application/json',
+        }
+      });
+
+      const reply = response.text?.trim();
+      if (reply) {
+        const cleaned = reply.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+        const parsed = JSON.parse(cleaned);
+
+        if (parsed.businessSummary && Array.isArray(parsed.posterConcepts) && parsed.posterConcepts.length > 0) {
+          return {
+            ...fallback,
+            ...parsed,
+            brandPersonalityCluster: parsed.brandPersonalityCluster || cluster,
+            generatedFromDiscovery: true,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn(`[Gemini Brand DNA] Model ${model} generation failed, trying next:`, err);
+    }
+  }
+
+  console.warn('[Gemini Brand DNA] Gemini generation exhausted fallbacks. Using strategic fallback generator.');
+  return fallback;
 }

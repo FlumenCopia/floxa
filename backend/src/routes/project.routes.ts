@@ -58,6 +58,7 @@ router.get('/:id/discovery-summary/', discoveryController.getDiscoverySummary);
 // Brand DNA
 router.get('/:id/brand-dna/', discoveryController.getBrandDNA);
 router.post('/:id/brand-dna/generate/', discoveryController.generateBrandDNA);
+router.get('/:id/brand-dna/pdf/', discoveryController.downloadBrandDnaPdf);
 
 // Moodboards
 router.get('/:id/moodboards/', creativeController.getMoodboards);
