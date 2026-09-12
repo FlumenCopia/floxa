@@ -130,7 +130,7 @@ async function resolvePortalProject(linkToken) {
       try {
         const body = await response.json();
         detail = body?.detail || "";
-      } catch { }
+      } catch {}
       const isPasswordRequired = detail.toLowerCase().includes("password");
       return {
         notFound: false,
@@ -146,7 +146,7 @@ async function resolvePortalProject(linkToken) {
       try {
         const body = await response.json();
         detail = body?.detail || "";
-      } catch { }
+      } catch {}
       return {
         notFound: false,
         unauthorized: true,
@@ -1000,11 +1000,10 @@ export const clientPortalService = {
     return { success: true, data: updated.brandDNA };
   },
 
-  async selectMoodboard(moodboardId, portalToken = activeToken) {
-    const token = portalToken || activeToken;
-    if (token && token !== "test-token") {
+  async selectMoodboard(moodboardId) {
+    if (activeToken && activeToken !== "test-token") {
       const selectedMoodboard = await apiRequest(
-        `/client-portal/${token}/moodboards/${moodboardId}/select/`,
+        `/client-portal/${activeToken}/moodboards/${moodboardId}/select/`,
         {
           method: "POST",
         }
@@ -1013,26 +1012,29 @@ export const clientPortalService = {
       return { success: true, data: selectedMoodboard };
     }
 
-    const project = readProject(token);
+    const project = readProject();
     const updated = {
       ...project,
-      moodboards: (project.moodboards || []).map((item) => ({
-        ...item,
-        clientSelected: item.id === moodboardId,
-        is_selected: item.id === moodboardId,
-      })),
-      completionPct: Math.max(project.completionPct || 0, 64),
+      moodboards: (project.moodboards || []).map((item) =>
+        item.id === moodboardId
+          ? {
+              ...item,
+              clientSelected: true,
+              is_selected: true,
+            }
+          : item
+      ),
+      completionPct: Math.max(project.completionPct, 64),
     };
 
-    writeProject(updated, token);
+    writeProject(updated);
     return { success: true, data: updated.moodboards.find((item) => item.id === moodboardId) };
   },
 
-  async submitMoodboardFeedback(moodboardId, payload, portalToken = activeToken) {
-    const token = portalToken || activeToken;
-    if (token && token !== "test-token") {
+  async submitMoodboardFeedback(moodboardId, payload) {
+    if (activeToken && activeToken !== "test-token") {
       const moodboard = await apiRequest(
-        `/client-portal/${token}/moodboards/${moodboardId}/feedback/`,
+        `/client-portal/${activeToken}/moodboards/${moodboardId}/feedback/`,
         {
           method: "POST",
           body: JSON.stringify(payload),
@@ -1048,11 +1050,11 @@ export const clientPortalService = {
       moodboards: project.moodboards.map((item) =>
         item.id === moodboardId
           ? {
-            ...item,
-            clientFeedback: payload.feedback || "",
-            clientSelected: false,
-            is_selected: false,
-          }
+              ...item,
+              clientFeedback: payload.feedback || "",
+              clientSelected: false,
+              is_selected: false,
+            }
           : item
       ),
     };
@@ -1095,11 +1097,11 @@ export const clientPortalService = {
       concepts: (project.concepts || []).map((item) =>
         item.id === conceptId
           ? {
-            ...item,
-            status: payload.action,
-            clientStatus: isApprove ? "SELECTED" : "REJECTED",
-            client_feedback: isApprove ? "" : payload.feedback || "",
-          }
+              ...item,
+              status: payload.action,
+              clientStatus: isApprove ? "SELECTED" : "REJECTED",
+              client_feedback: isApprove ? "" : payload.feedback || "",
+            }
           : item
       ),
       completionPct: Math.max(project.completionPct, isApprove ? 82 : 70),
