@@ -8819,7 +8819,6 @@ section:not(.client-welcome-stage),
 .client-dashboard-panel,
 .client-journey-card,
 .client-competitor-card,
-.client-agreement-card,
 .client-review-section,
 table,
 .table-wrap,
@@ -9120,11 +9119,10 @@ section:not(.client-welcome-stage)::after,
 .client-dashboard-panel,
 .client-journey-card,
 .client-competitor-card,
-.client-agreement-card,
 .card:not(.login-card):not(.client-welcome-glass),
 .card2,
-[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]),
-[class*="card-"]:not(.login-card):not(.client-welcome-glass):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]) {
+[class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.client-agreement-card):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]),
+[class*="card-"]:not(.login-card):not(.client-welcome-glass):not(.client-agreement-card):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]) {
   border-radius: 5px !important;
   border: 1px solid rgba(77, 255, 160, 0.28) !important;
   background: linear-gradient(145deg, rgba(77, 255, 160, 0.16) 0%, rgba(14, 52, 32, 0.72) 45%, rgba(4, 20, 12, 0.85) 100%) !important;

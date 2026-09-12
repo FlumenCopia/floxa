@@ -8,15 +8,43 @@ import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/lib/api";
 import { Bell, CheckCircle2, Palette } from "lucide-react";
 
 const phaseLabels = [
-  "Profile",
   "Discovery",
   "Brand DNA",
   "Moodboards",
   "Concepts",
   "Agreement",
   "Delivery",
-  "Sign Off",
+  "Payments",
 ];
+
+const phaseToPanelMap = {
+  Discovery: "discovery",
+  "Brand DNA": "discovery",
+  Moodboards: "moodboards",
+  Concepts: "concepts",
+  Agreement: "agreement",
+  Delivery: "delivery",
+  Payments: "payments",
+};
+
+const panelTitles = {
+  discovery: "Discovery Report & Brand DNA",
+  moodboards: "Visual Moodboards",
+  concepts: "Brand Concepts & Identity",
+  agreement: "Client Agreement",
+  delivery: "Deliverables & Assets",
+  payments: "Project Payments",
+};
+
+const panelToDefaultStage = {
+  discovery: "Discovery",
+  moodboards: "Moodboards",
+  concepts: "Concepts",
+  agreement: "Agreement",
+  delivery: "Delivery",
+  payments: "Payments",
+};
+
 const FINAL_PAYMENT_REQUIRED_MESSAGE = "Final payment must be completed before downloading deliverables.";
 
 function getAgreementStatusLabel(agreement) {
@@ -37,16 +65,16 @@ function getActivePhaseIndex(progress, workflowStatus) {
   if (workflowStatus) {
     const statusMap = {
       created: 0,
-      discovery: 1,
-      advance_payment: 1,
-      advance_paid: 1,
-      brand_dna: 2,
-      moodboards: 3,
-      concepts: 4,
-      agreement: 5,
-      deliverables: 6,
-      final_paid: 7,
-      delivered: 7,
+      discovery: 0,
+      advance_payment: 0,
+      advance_paid: 0,
+      brand_dna: 1,
+      moodboards: 2,
+      concepts: 3,
+      agreement: 4,
+      deliverables: 5,
+      final_paid: 6,
+      delivered: 6,
     };
 
     if (workflowStatus in statusMap) {
@@ -57,7 +85,7 @@ function getActivePhaseIndex(progress, workflowStatus) {
   const pct = Number(progress || 0);
 
   if (pct >= 100) {
-    return 7;
+    return 6;
   }
 
   if (pct >= 85) {
@@ -72,7 +100,7 @@ function getActivePhaseIndex(progress, workflowStatus) {
     return 4;
   }
 
-  if (pct >= 45) {
+  if (pct >= 40) {
     return 3;
   }
 
@@ -219,7 +247,13 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const workflowStatus = project.workflowStatus || project.workflow_status;
   const activePhaseIndex = getActivePhaseIndex(pct, workflowStatus);
   const activePhaseLabel = pct >= 100 ? "Complete" : phaseLabels[activePhaseIndex];
-  const [panel, setPanel] = useState(null);
+  const defaultMilestoneStage = pct >= 100 ? "Complete" : phaseLabels[activePhaseIndex];
+  const initialPanel = phaseToPanelMap[defaultMilestoneStage] || "moodboards";
+  const [panel, setPanel] = useState(initialPanel);
+  const [selectedStage, setSelectedStage] = useState(defaultMilestoneStage);
+  const currentActiveStage = panel
+    ? (selectedStage || panelToDefaultStage[panel] || defaultMilestoneStage)
+    : defaultMilestoneStage;
   const [working, setWorking] = useState("");
   const [brandDNAReport, setBrandDNAReport] = useState(null);
   const [discoveryReport, setDiscoveryReport] = useState(null);
@@ -427,6 +461,12 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   }, []);
 
   useEffect(() => {
+    if (initialPanel) {
+      openPanel(initialPanel, defaultMilestoneStage, false);
+    }
+  }, []);
+
+  useEffect(() => {
     const portalToken = project?.portal_token || project?.portalToken;
     if (!portalToken) return;
 
@@ -495,18 +535,20 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     setMoodboardsError("");
     setMoodboardsMessage("");
 
+    const token = project?.portal_token || project?.portalToken || project?.token;
+
     try {
-      const response = await clientPortalService.selectMoodboard(id);
+      const response = await clientPortalService.selectMoodboard(id, token);
       const selectedId = response.data?.id ?? id;
 
       setMoodboards((currentMoodboards) =>
         currentMoodboards.map((item) =>
           item.id === selectedId
             ? {
-                ...item,
-                clientSelected: true,
-                is_selected: true,
-              }
+              ...item,
+              clientSelected: true,
+              is_selected: true,
+            }
             : item
         )
       );
@@ -539,18 +581,20 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     setMoodboardsError("");
     setMoodboardsMessage("");
 
+    const token = project?.portal_token || project?.portalToken || project?.token;
+
     try {
-      await clientPortalService.submitMoodboardFeedback(id, { feedback });
+      await clientPortalService.submitMoodboardFeedback(id, { feedback }, token);
       setMoodboards((currentMoodboards) =>
         currentMoodboards.map((item) =>
           item.id === id
             ? {
-                ...item,
-                clientFeedback: feedback,
-                client_feedback: feedback,
-                clientSelected: false,
-                is_selected: false,
-              }
+              ...item,
+              clientFeedback: feedback,
+              client_feedback: feedback,
+              clientSelected: false,
+              is_selected: false,
+            }
             : item
         )
       );
@@ -942,8 +986,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
     const hasRequiredFields = Boolean(
       callbackData?.razorpay_order_id &&
-        callbackData?.razorpay_payment_id &&
-        callbackData?.razorpay_signature
+      callbackData?.razorpay_payment_id &&
+      callbackData?.razorpay_signature
     );
 
     if (!hasRequiredFields) {
@@ -970,7 +1014,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       if (!verifyResponse.success) {
         setPaymentsError(
           verifyResponse.error ||
-            "Payment could not be confirmed yet. Please retry verification or refresh the page."
+          "Payment could not be confirmed yet. Please retry verification or refresh the page."
         );
         setPaymentCheckoutMessage("");
         return;
@@ -992,9 +1036,33 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
-  async function openPanel(nextPanel) {
+  function handleStageClick(label) {
+    setSelectedStage(label);
+    const targetPanel = phaseToPanelMap[label];
+    if (targetPanel) {
+      openPanel(targetPanel, label, true);
+    }
+  }
+
+  async function openPanel(nextPanel, stageLabel, shouldScroll = false) {
     setPanel(nextPanel);
+    if (stageLabel) {
+      setSelectedStage(stageLabel);
+    } else {
+      setSelectedStage(panelToDefaultStage[nextPanel] || null);
+    }
     setSignOffError("");
+
+    if (shouldScroll) {
+      setTimeout(() => {
+        const panelEl = document.getElementById("client-workspace-panel");
+        if (panelEl) {
+          panelEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+
+    const token = project?.portal_token || project?.portalToken || project?.token;
 
     if (nextPanel === "moodboards") {
       setMoodboardsLoading(true);
@@ -1004,7 +1072,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setMoodboardFeedbackText("");
 
       try {
-        const response = await clientPortalService.getMoodboards();
+        const response = await clientPortalService.getMoodboards(token);
         setMoodboards(response.success ? response.data : []);
         setMoodboardsError(response.success ? "" : response.error || "Moodboards are not ready yet.");
       } finally {
@@ -1036,7 +1104,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setPaymentsError("");
 
       try {
-        const response = await clientPortalService.getClientDeliverables();
+        const response = await clientPortalService.getClientDeliverables(token);
         setDeliverables(response.success ? response.data : []);
         setDeliverablesError(response.success ? "" : response.error || "Deliverables are not ready yet.");
       } finally {
@@ -1044,7 +1112,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       }
 
       try {
-        const response = await clientPortalService.getClientPayments();
+        const response = await clientPortalService.getClientPayments(token);
         setPayments(response.success ? response.data : []);
         setPaymentsError(response.success ? "" : response.error || "Payments are not available yet.");
       } finally {
@@ -1059,7 +1127,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setAgreementError("");
 
       try {
-        const response = await clientPortalService.getClientAgreement();
+        const response = await clientPortalService.getClientAgreement(token);
         setAgreement(response.success ? response.data : null);
         setAgreementError(response.success ? "" : response.error || "Agreement is being prepared.");
       } finally {
@@ -1076,7 +1144,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setPaymentCallbackData(null);
 
       try {
-        const response = await clientPortalService.getClientPayments();
+        const response = await clientPortalService.getClientPayments(token);
         setPayments(response.success ? response.data : []);
         setPaymentsError(response.success ? "" : response.error || "Payments are not available yet.");
       } finally {
@@ -1095,8 +1163,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
     try {
       const [discRes, dnaRes] = await Promise.all([
-        clientPortalService.getDiscoveryReport(),
-        clientPortalService.getBrandDNAReport(),
+        clientPortalService.getDiscoveryReport(token),
+        clientPortalService.getBrandDNAReport(token),
       ]);
 
       setDiscoveryReport(discRes.success ? discRes.data : null);
@@ -1127,52 +1195,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
-  const cards = [
-    {
-      symbol: "01",
-      title: "Discovery Report",
-      sub: brandDNAReport
-        ? "Brand DNA ready"
-        : "Under review by consultant",
-      active: true,
-      panel: "discovery",
-    },
-    {
-      symbol: "02",
-      title: "Moodboards",
-      sub: `${moodboards.length} directions ready`,
-      active: true,
-      panel: "moodboards",
-    },
-    {
-      symbol: "03",
-      title: "Concepts",
-      sub: `${concepts.length} concepts ready`,
-      active: true,
-      panel: "concepts",
-    },
-    {
-      symbol: "04",
-      title: "Agreement",
-      sub: agreement ? "Ready to view" : "Pending",
-      active: true,
-      panel: "agreement",
-    },
-    {
-      symbol: "05",
-      title: "Delivery",
-      sub: `${deliverables.length} files ready`,
-      active: true,
-      panel: "delivery",
-    },
-    {
-      symbol: "06",
-      title: "Payments",
-      sub: `${payments.filter((item) => item.status === "requested").length} requested`,
-      active: true,
-      panel: "payments",
-    },
-  ];
   const visibleNotifications = notifications.slice(0, 5);
   const unreadCount = notifications.filter((item) => item.client_is_read === false).length;
   const hasSharedDelivery = deliverables.some((item) => item.status === "shared" || item.file_url || item.fileUrl);
@@ -1217,10 +1239,10 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
         currentNotifications.map((notification) =>
           notification.client_is_read === false
             ? {
-                ...notification,
-                client_is_read: true,
-                client_read_at: new Date().toISOString(),
-              }
+              ...notification,
+              client_is_read: true,
+              client_read_at: new Date().toISOString(),
+            }
             : notification
         )
       );
@@ -1282,9 +1304,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                     <button
                       type="button"
                       key={notification.id}
-                      className={`client-notification-item ${
-                        notification.client_is_read === false ? "unread" : ""
-                      }`}
+                      className={`client-notification-item ${notification.client_is_read === false ? "unread" : ""
+                        }`}
                       onClick={() => openNotification(notification)}
                     >
                       <span className="client-notification-dot" />
@@ -1330,56 +1351,43 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           </div>
         </div>
 
-        <div className="client-dashboard-stage-list">
-          {phaseLabels.map((label, index) => (
-            <div
-              key={label}
-              className={
-                index < activePhaseIndex ? "complete" : index === activePhaseIndex ? "active" : ""
-              }
-            >
-              <span />
-              {pct >= 100 && index === phaseLabels.length - 1 ? "Complete" : label}
-            </div>
-          ))}
+        <div className="client-dashboard-stage-list" role="navigation" aria-label="Project stages">
+          {phaseLabels.map((label, index) => {
+            const isActive = currentActiveStage === label;
+            const isComplete = !isActive && index < activePhaseIndex;
+
+            return (
+              <button
+                key={label}
+                type="button"
+                className={`client-dashboard-stage-item ${isActive ? "active" : isComplete ? "complete" : ""
+                  }`.trim()}
+                onClick={() => handleStageClick(label)}
+                title={`Open ${label} workspace`}
+                aria-current={isActive ? "step" : undefined}
+              >
+                <span />
+                {pct >= 100 && index === phaseLabels.length - 1 ? "Complete" : label}
+              </button>
+            );
+          })}
         </div>
       </section>
 
-      <section className="client-dashboard-grid">
-        {cards.map((card) => (
-          <button
-            key={card.panel}
-            type="button"
-            disabled={!card.active}
-            className={`client-journey-card ${card.active ? "available" : ""}`}
-            onClick={() => card.active && openPanel(card.panel)}
-          >
-            <span className="client-card-number">{card.symbol}</span>
-            <span className="client-card-arrow">^</span>
-            <strong>{card.title}</strong>
-            <small>{card.sub}</small>
-          </button>
-        ))}
-      </section>
-
       {panel ? (
-        <section className="client-dashboard-panel client-design-enter">
+        <section id="client-workspace-panel" className="client-dashboard-panel client-design-enter">
           <div className="client-panel-heading">
             <div>
               <span>Project workspace</span>
-              <h2>{panel}</h2>
-              {panel === "moodboards" ? (
-                <small style={{ display: "block", marginTop: "4px", color: "rgba(255,255,255,0.6)", fontSize: "0.85rem" }}>
-                  Select one or more visual directions for your brand identity
-                </small>
-              ) : null}
-              {panel === "concepts" ? (
-                <small style={{ display: "block", marginTop: "4px", color: "rgba(255,255,255,0.6)", fontSize: "0.85rem" }}>
-                  Review and approve one or more brand concepts
-                </small>
-              ) : null}
+              <h2>{panelTitles[panel] || panel}</h2>
             </div>
-            <button type="button" onClick={() => setPanel(null)}>
+            <button
+              type="button"
+              onClick={() => {
+                setPanel(null);
+                setSelectedStage(null);
+              }}
+            >
               Close
             </button>
           </div>
@@ -1472,23 +1480,23 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           {panel === "moodboards" ? (
             <div className="client-panel-grid">
               {moodboardsLoading ? (
-                <article>
+                <article className="empty-state">
                   <h3>Loading moodboards...</h3>
                   <p>Your consultant&apos;s visual directions are being fetched.</p>
                 </article>
               ) : null}
               {!moodboardsLoading && moodboardsMessage ? (
-                <article style={{ gridColumn: "1 / -1", padding: "12px 16px", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "10px", color: "var(--emerald-400, #34d399)" }}>
-                  <p style={{ margin: 0, fontWeight: 600 }}>{moodboardsMessage}</p>
+                <article className="client-panel-status-banner success">
+                  <p>{moodboardsMessage}</p>
                 </article>
               ) : null}
               {!moodboardsLoading && moodboardsError && moodboards.length > 0 ? (
-                <article style={{ gridColumn: "1 / -1", padding: "12px 16px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "10px", color: "var(--red-400, #f87171)" }}>
-                  <p style={{ margin: 0 }}>{moodboardsError}</p>
+                <article className="client-panel-status-banner error">
+                  <p>{moodboardsError}</p>
                 </article>
               ) : null}
               {!moodboardsLoading && moodboards.length === 0 ? (
-                <article>
+                <article className="empty-state">
                   <h3>No moodboards yet</h3>
                   <p>{moodboardsError || "Your consultant is preparing visual directions."}</p>
                 </article>
@@ -1498,41 +1506,36 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                   const isThisSelected = item.clientSelected || item.is_selected;
 
                   return (
-                    <article key={item.id} className={isThisSelected ? "selected" : ""}>
-                      <ProtectedAssetImage
-                        src={item.image_url}
-                        asBackground
-                        className={`client-panel-image ${item.image_url ? "clickable" : ""}`.trim()}
-                        role={item.image_url ? "button" : undefined}
-                        tabIndex={item.image_url ? 0 : undefined}
-                        aria-label={item.image_url ? `Enlarge preview for ${item.name || item.title || "moodboard"}` : undefined}
-                        onClick={(event) => {
-                          if (item.image_url) {
-                            openPreview(item, "moodboard", event);
-                          }
-                        }}
-                        onKeyDown={(event) => {
-                          if (item.image_url && (event.key === "Enter" || event.key === " ")) {
-                            event.preventDefault();
-                            openPreview(item, "moodboard", event);
-                          }
-                        }}
-                        onContextMenu={(event) => event.preventDefault()}
-                        style={{ userSelect: "none", WebkitUserDrag: "none" }}
-                        fallbackText="No image preview"
-                      />
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: "8px" }}>
-                        <h3 style={{ margin: 0 }}>{item.name || item.title}</h3>
+                    <article key={item.id} className={`client-moodboard-card ${isThisSelected ? "selected" : ""}`.trim()}>
+                      <div className="client-moodboard-media-wrap">
+                        <ProtectedAssetImage
+                          src={item.image_url}
+                          asBackground
+                          className={`client-panel-image ${item.image_url ? "clickable" : ""}`.trim()}
+                          role={item.image_url ? "button" : undefined}
+                          tabIndex={item.image_url ? 0 : undefined}
+                          aria-label={item.image_url ? `Enlarge preview for ${item.name || item.title || "moodboard"}` : undefined}
+                          onClick={(event) => {
+                            if (item.image_url) {
+                              openPreview(item, "moodboard", event);
+                            }
+                          }}
+                          onKeyDown={(event) => {
+                            if (item.image_url && (event.key === "Enter" || event.key === " ")) {
+                              event.preventDefault();
+                              openPreview(item, "moodboard", event);
+                            }
+                          }}
+                          onContextMenu={(event) => event.preventDefault()}
+                          style={{ userSelect: "none", WebkitUserDrag: "none" }}
+                          fallbackText="No image preview"
+                        />
                         {isThisSelected ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "999px", background: "rgba(16, 185, 129, 0.18)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#34d399", fontSize: "11px", fontWeight: 700 }}>✓ Selected</span>
+                          <div className="client-moodboard-selected-pill">
+                            <span className="dot" /> Selected Direction
+                          </div>
                         ) : null}
                       </div>
-                      {item.description ? <p>{item.description}</p> : null}
-                      {item.client_feedback ? (
-                        <div className="client-feedback-badge">
-                          <span style={{ fontWeight: 600, color: "#fbbf24" }}>Requested changes:</span> {item.client_feedback}
-                        </div>
-                      ) : null}
 
                       {confirmingMoodboardId === item.id ? (
                         <div className="client-inline-confirm-box">
@@ -1566,196 +1569,223 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         </div>
                       ) : (
                         <div style={{ display: "flex", gap: "8px", width: "100%", marginTop: "auto" }}>
-                          {isThisSelected ? (
-                            <button
-                              type="button"
-                              disabled
-                              className="client-panel-action"
-                              style={{ flex: 1 }}
+                          <div className="client-moodboard-card-body">
+                            <div className="client-moodboard-header-row">
+                              <h3>{item.name || item.title}</h3>
+                            </div>
+
+                            {item.description ? (
+                              <p className="client-moodboard-description">{item.description}</p>
+                            ) : null}
+
+                            {item.client_feedback ? (
+                              <div className="client-feedback-badge">
+                                <strong>Requested changes:</strong> {item.client_feedback}
+                              </div>
+                            ) : null}
+
+                            <div className="client-moodboard-actions">
+                              {isThisSelected ? (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="client-panel-action is-selected"
+                                >
+                                  ✓ Selected Direction
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={working === item.id}
+                                  onClick={() => selectMoodboard(item)}
+                                  className="client-panel-action"
+                                  style={{ flex: 1 }}
+                                >
+                                  {working === item.id
+                                    ? "Saving..."
+                                    : "Select direction"}
+                                  onClick={() => selectMoodboard(item.id)}
+                                  className="client-panel-action primary"
                             >
-                              Selected
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={working === item.id}
-                              onClick={() => selectMoodboard(item)}
-                              className="client-panel-action"
-                              style={{ flex: 1 }}
-                            >
-                              {working === item.id
-                                ? "Saving..."
-                                : "Select direction"}
-                            </button>
-                          )}
+                                  {working === item.id
+                                    ? "Saving..."
+                                    : hasSelectedMoodboard
+                                      ? "Switch to this"
+                                      : "Select direction"}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                disabled={working === item.id || isThisSelected}
+                                onClick={() => openMoodboardFeedback(item.id)}
+                                className="client-panel-action secondary"
+                                style={{ flex: 1 }}
+                                disabled={working === item.id}
+                                onClick={() => openMoodboardFeedback(item.id)}
+                                className="client-panel-action secondary"
+                              >
+                                Request changes
+                              </button>
+                            </div>
+                      )}
+                          </div>
+
+                          {feedbackMoodboardId === item.id ? (
+                            <div className="client-concept-feedback-box" style={{ width: "100%", marginTop: "14px" }}>
+                              <textarea
+                                value={moodboardFeedbackText}
+                                onChange={(event) => setMoodboardFeedbackText(event.target.value)}
+                                placeholder="Tell your consultant what to refine or change in this visual direction..."
+                                rows={3}
+                              />
+                              <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                                <button
+                                  type="button"
+                                  disabled={working === item.id}
+                                  onClick={() => submitMoodboardChanges(item.id)}
+                                  className="client-panel-action primary"
+                                >
+                                  {working === item.id ? "Sending..." : "Send feedback"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={working === item.id}
+                                  onClick={() => setFeedbackMoodboardId(null)}
+                                  className="client-panel-action secondary"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </article>
+                      );
+                })}
+                    </div>
+                  ) : null}
+
+              {panel === "concepts" ? (
+                <div className="client-panel-stack">
+                  {conceptsLoading ? (
+                    <article>
+                      <h3>Loading concepts...</h3>
+                      <p>Your consultant&apos;s design concepts are being fetched.</p>
+                    </article>
+                  ) : null}
+                  {!conceptsLoading && concepts.length === 0 ? (
+                    <article>
+                      <h3>Concepts are being prepared.</h3>
+                      <p>{conceptsError || "Your consultant will share design concepts here."}</p>
+                    </article>
+                  ) : null}
+                  {!conceptsLoading && conceptsError && concepts.length > 0 ? (
+                    <article>
+                      <p>{conceptsError}</p>
+                    </article>
+                  ) : null}
+                  {!conceptsLoading && conceptsMessage ? (
+                    <article>
+                      <p>{conceptsMessage}</p>
+                    </article>
+                  ) : null}
+                  {!conceptsLoading && concepts.map((item) => (
+                    <article key={item.id}>
+                      {item.image_url ? (
+                        <ProtectedAssetImage
+                          src={item.image_url}
+                          asBackground
+                          className="client-panel-image clickable"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Enlarge preview for ${item.title || "concept"}`}
+                          onClick={(event) => openPreview(item, "concept", event)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openPreview(item, "concept", event);
+                            }
+                          }}
+                          onContextMenu={(event) => event.preventDefault()}
+                          style={{ userSelect: "none", WebkitUserDrag: "none" }}
+                          fallbackText="No image preview"
+                        />
+                      ) : null}
+                      <h3>{item.title}</h3>
+                      {item.description ? <p>{item.description}</p> : null}
+                      <p>
+                        Version {item.version || 1} - {item.status || "shared"}
+                        {item.created_at ? ` - ${new Date(item.created_at).toLocaleDateString()}` : ""}
+                      </p>
+                      {item.status === "changes_requested" && item.client_feedback ? (
+                        <p>Latest feedback: {item.client_feedback}</p>
+                      ) : null}
+                      {item.file_url ? (
+                        <div>
                           <button
                             type="button"
-                            disabled={working === item.id || isThisSelected}
-                            onClick={() => openMoodboardFeedback(item.id)}
+                            className="client-panel-action"
+                            onClick={() => downloadProtectedAsset(item.file_url, `concept-file-${item.id}`)}
+                          >
+                            View file
+                          </button>
+                        </div>
+                      ) : null}
+                      {confirmingConceptId === item.id ? (
+                        <div className="client-inline-confirm-box" style={{ marginTop: "8px" }}>
+                          <div className="client-inline-confirm-content">
+                            <div className="client-inline-confirm-header">
+                              <CheckCircle2 size={16} strokeWidth={2.2} color="#4dffa0" />
+                              <span>Approve Concept</span>
+                            </div>
+                            <p className="client-inline-confirm-text">
+                              Are you sure you want to approve &ldquo;{item.title || "this concept"}&rdquo;? Once approved, this decision cannot be undone. (You can approve multiple concepts)
+                            </p>
+                          </div>
+                          <div className="client-inline-confirm-actions">
+                            <button
+                              type="button"
+                              className="client-panel-action secondary"
+                              disabled={Boolean(working)}
+                              onClick={() => setConfirmingConceptId(null)}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className="client-panel-action client-inline-confirm-btn-confirm"
+                              disabled={Boolean(working)}
+                              onClick={() => executeApproveConcept(item.id)}
+                            >
+                              {working === item.id ? "Saving..." : "Confirm Approval"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : item.status === "approved" ? (
+                        <div>
+                          <button type="button" className="client-panel-action" disabled>
+                            Approved
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <button
+                            type="button"
+                            disabled={working === item.id}
+                            onClick={() => approveConcept(item)}
+                            className="client-panel-action"
+                          >
+                            {working === item.id ? "Saving..." : "Approve"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={working === item.id}
+                            onClick={() => openConceptFeedback(item.id)}
                             className="client-panel-action secondary"
-                            style={{ flex: 1 }}
                           >
                             Request changes
                           </button>
                         </div>
                       )}
-
-                      {feedbackMoodboardId === item.id ? (
-                        <div className="client-concept-feedback-box" style={{ width: "100%", marginTop: "12px" }}>
-                          <textarea
-                            value={moodboardFeedbackText}
-                            onChange={(event) => setMoodboardFeedbackText(event.target.value)}
-                            placeholder="Tell your consultant what to refine or change in this visual direction..."
-                            rows={3}
-                          />
-                          <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                            <button
-                              type="button"
-                              disabled={working === item.id}
-                              onClick={() => submitMoodboardChanges(item.id)}
-                              className="client-panel-action"
-                            >
-                              {working === item.id ? "Sending..." : "Send feedback"}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={working === item.id}
-                              onClick={() => setFeedbackMoodboardId(null)}
-                              className="client-panel-action secondary"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-                    </article>
-                  );
-                })}
-            </div>
-          ) : null}
-
-          {panel === "concepts" ? (
-            <div className="client-panel-stack">
-              {conceptsLoading ? (
-                <article>
-                  <h3>Loading concepts...</h3>
-                  <p>Your consultant&apos;s design concepts are being fetched.</p>
-                </article>
-              ) : null}
-              {!conceptsLoading && concepts.length === 0 ? (
-                <article>
-                  <h3>Concepts are being prepared.</h3>
-                  <p>{conceptsError || "Your consultant will share design concepts here."}</p>
-                </article>
-              ) : null}
-              {!conceptsLoading && conceptsError && concepts.length > 0 ? (
-                <article>
-                  <p>{conceptsError}</p>
-                </article>
-              ) : null}
-              {!conceptsLoading && conceptsMessage ? (
-                <article>
-                  <p>{conceptsMessage}</p>
-                </article>
-              ) : null}
-              {!conceptsLoading && concepts.map((item) => (
-                <article key={item.id}>
-                  {item.image_url ? (
-                    <ProtectedAssetImage
-                      src={item.image_url}
-                      asBackground
-                      className="client-panel-image clickable"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Enlarge preview for ${item.title || "concept"}`}
-                      onClick={(event) => openPreview(item, "concept", event)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          openPreview(item, "concept", event);
-                        }
-                      }}
-                      onContextMenu={(event) => event.preventDefault()}
-                      style={{ userSelect: "none", WebkitUserDrag: "none" }}
-                      fallbackText="No image preview"
-                    />
-                  ) : null}
-                  <h3>{item.title}</h3>
-                  {item.description ? <p>{item.description}</p> : null}
-                  <p>
-                    Version {item.version || 1} - {item.status || "shared"}
-                    {item.created_at ? ` - ${new Date(item.created_at).toLocaleDateString()}` : ""}
-                  </p>
-                  {item.status === "changes_requested" && item.client_feedback ? (
-                    <p>Latest feedback: {item.client_feedback}</p>
-                  ) : null}
-                  {item.file_url ? (
-                    <div>
-                      <button
-                        type="button"
-                        className="client-panel-action"
-                        onClick={() => downloadProtectedAsset(item.file_url, `concept-file-${item.id}`)}
-                      >
-                        View file
-                      </button>
-                    </div>
-                  ) : null}
-                  {confirmingConceptId === item.id ? (
-                    <div className="client-inline-confirm-box" style={{ marginTop: "8px" }}>
-                      <div className="client-inline-confirm-content">
-                        <div className="client-inline-confirm-header">
-                          <CheckCircle2 size={16} strokeWidth={2.2} color="#4dffa0" />
-                          <span>Approve Concept</span>
-                        </div>
-                        <p className="client-inline-confirm-text">
-                          Are you sure you want to approve &ldquo;{item.title || "this concept"}&rdquo;? Once approved, this decision cannot be undone. (You can approve multiple concepts)
-                        </p>
-                      </div>
-                      <div className="client-inline-confirm-actions">
-                        <button
-                          type="button"
-                          className="client-panel-action secondary"
-                          disabled={Boolean(working)}
-                          onClick={() => setConfirmingConceptId(null)}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          className="client-panel-action client-inline-confirm-btn-confirm"
-                          disabled={Boolean(working)}
-                          onClick={() => executeApproveConcept(item.id)}
-                        >
-                          {working === item.id ? "Saving..." : "Confirm Approval"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : item.status === "approved" ? (
-                    <div>
-                      <button type="button" className="client-panel-action" disabled>
-                        Approved
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <button
-                        type="button"
-                        disabled={working === item.id}
-                        onClick={() => approveConcept(item)}
-                        className="client-panel-action"
-                      >
-                        {working === item.id ? "Saving..." : "Approve"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={working === item.id}
-                        onClick={() => openConceptFeedback(item.id)}
-                        className="client-panel-action secondary"
-                      >
-                        Request changes
-                      </button>
-                    </div>
-                  )}
                       {feedbackConceptId === item.id ? (
                         <div className="client-concept-feedback-box">
                           <textarea
@@ -1783,551 +1813,553 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                           </div>
                         </div>
                       ) : null}
-                </article>
-              ))}
-            </div>
-          ) : null}
-
-          {panel === "delivery" ? (
-            <div className="client-panel-stack">
-              {deliverablesLoading ? (
-                <article>
-                  <h3>Loading deliverables...</h3>
-                  <p>Your consultant&apos;s shared files are being fetched.</p>
-                </article>
+                    </article>
+                  ))}
+                </div>
               ) : null}
 
-              {/* Showcase Selected Moodboards */}
-              {moodboards.filter((m) => m.clientSelected || m.is_selected).length > 0 ? (
-                <article>
-                  <h3>Selected Moodboard Direction</h3>
-                  <div className="client-panel-grid" style={{ marginTop: "1rem" }}>
-                    {moodboards.filter((m) => m.clientSelected || m.is_selected).map((item) => (
-                      <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
-                        {item.image_url ? (
-                          <ProtectedAssetImage
-                            src={item.image_url}
-                            asBackground
-                            className="client-panel-image"
-                            fallbackText="No image"
-                          />
+              {panel === "delivery" ? (
+                <div className="client-panel-stack">
+                  {deliverablesLoading ? (
+                    <article>
+                      <h3>Loading deliverables...</h3>
+                      <p>Your consultant&apos;s shared files are being fetched.</p>
+                    </article>
+                  ) : null}
+
+                  {/* Showcase Selected Moodboards */}
+                  {moodboards.filter((m) => m.clientSelected || m.is_selected).length > 0 ? (
+                    <article>
+                      <h3>Selected Moodboard Direction</h3>
+                      <div className="client-panel-grid" style={{ marginTop: "1rem" }}>
+                        {moodboards.filter((m) => m.clientSelected || m.is_selected).map((item) => (
+                          <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                            {item.image_url ? (
+                              <ProtectedAssetImage
+                                src={item.image_url}
+                                asBackground
+                                className="client-panel-image"
+                                fallbackText="No image"
+                              />
+                            ) : null}
+                            <strong style={{ display: "block", marginTop: "8px", color: "#f8fafc" }}>{item.title}</strong>
+                            <small style={{ color: "#94a3b8" }}>{item.description || "Client-selected visual direction."}</small>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ) : null}
+
+                  {/* Showcase Approved Concepts */}
+                  {concepts.filter((c) => c.status === "approved").length > 0 ? (
+                    <article>
+                      <h3>Approved Brand Concepts</h3>
+                      <div className="client-panel-grid" style={{ marginTop: "1rem" }}>
+                        {concepts.filter((c) => c.status === "approved").map((item) => (
+                          <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                            {item.image_url ? (
+                              <ProtectedAssetImage
+                                src={item.image_url}
+                                asBackground
+                                className="client-panel-image"
+                                fallbackText="No image"
+                              />
+                            ) : null}
+                            <strong style={{ display: "block", marginTop: "8px", color: "#f8fafc" }}>{item.title} (v{item.version || 1})</strong>
+                            <small style={{ color: "#38bdf8" }}>Approved Identity</small>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ) : null}
+
+                  {/* Payment Settlement Status */}
+                  {payments.length > 0 ? (
+                    <article>
+                      <h3>Payment Settlement Status</h3>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "10px" }}>
+                        {payments.map((p) => (
+                          <div key={p.id} style={{ background: "rgba(255,255,255,0.03)", padding: "8px 14px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.08)", fontSize: "0.9rem" }}>
+                            <span style={{ color: "#94a3b8", textTransform: "capitalize" }}>{p.type || "Milestone"}: </span>
+                            <strong style={{ color: "#f8fafc" }}>Rs {Number(p.amount || 0).toLocaleString()} </strong>
+                            <span style={{ color: p.status === "paid" ? "#4ade80" : "#fbbf24", marginLeft: "4px" }}>
+                              ({p.status === "paid" ? "Paid" : "Pending"})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  ) : null}
+
+                  {!deliverablesLoading && deliverables.length === 0 ? (
+                    <article>
+                      <h3>Deliverables are being prepared.</h3>
+                      <p>{deliverablesError || "Your consultant will share final deliverable files here."}</p>
+                    </article>
+                  ) : null}
+                  {!deliverablesLoading && deliverablesError && deliverables.length > 0 ? (
+                    <article>
+                      <p>{deliverablesError}</p>
+                    </article>
+                  ) : null}
+                  {!deliverablesLoading && deliverables.map((item) => (
+                    <article key={item.id} className="client-delivery-row">
+                      <div className="client-delivery-info">
+                        <h3>{item.title || item.label}</h3>
+                        {item.description ? <p>{item.description}</p> : null}
+                        <p>
+                          {item.file_name || item.fileFormat || item.category || "File"}
+                          {item.created_at ? ` - ${new Date(item.created_at).toLocaleDateString()}` : ""}
+                        </p>
+                        {item.can_download === false || (!item.file_url && item.can_download !== true) ? (
+                          <p>{item.download_locked_reason || FINAL_PAYMENT_REQUIRED_MESSAGE}</p>
                         ) : null}
-                        <strong style={{ display: "block", marginTop: "8px", color: "#f8fafc" }}>{item.title}</strong>
-                        <small style={{ color: "#94a3b8" }}>{item.description || "Client-selected visual direction."}</small>
                       </div>
-                    ))}
-                  </div>
-                </article>
-              ) : null}
-
-              {/* Showcase Approved Concepts */}
-              {concepts.filter((c) => c.status === "approved").length > 0 ? (
-                <article>
-                  <h3>Approved Brand Concepts</h3>
-                  <div className="client-panel-grid" style={{ marginTop: "1rem" }}>
-                    {concepts.filter((c) => c.status === "approved").map((item) => (
-                      <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
-                        {item.image_url ? (
-                          <ProtectedAssetImage
-                            src={item.image_url}
-                            asBackground
-                            className="client-panel-image"
-                            fallbackText="No image"
-                          />
-                        ) : null}
-                        <strong style={{ display: "block", marginTop: "8px", color: "#f8fafc" }}>{item.title} (v{item.version || 1})</strong>
-                        <small style={{ color: "#38bdf8" }}>Approved Identity</small>
+                      {item.can_download !== false && item.file_url ? (
+                        <a
+                          href={item.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="client-panel-action"
+                        >
+                          Download Final File
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="client-panel-action secondary"
+                        >
+                          Locked (Final Payment Required)
+                        </button>
+                      )}
+                    </article>
+                  ))}
+                  {!deliverablesLoading ? (
+                    <article className="client-agreement-card client-final-signoff-row">
+                      <div className="client-agreement-summary">
+                        <h3>{project.clientSignedOff ? "Project completed" : "Final sign-off"}</h3>
+                        <p>
+                          {project.clientSignedOff
+                            ? "Project completed"
+                            : signOffDisabledReason || "Accept the final delivery and complete this project."}
+                        </p>
+                        {signOffError ? <p>{signOffError}</p> : null}
                       </div>
-                    ))}
-                  </div>
-                </article>
-              ) : null}
-
-              {/* Payment Settlement Status */}
-              {payments.length > 0 ? (
-                <article>
-                  <h3>Payment Settlement Status</h3>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "10px" }}>
-                    {payments.map((p) => (
-                      <div key={p.id} style={{ background: "rgba(255,255,255,0.03)", padding: "8px 14px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.08)", fontSize: "0.9rem" }}>
-                        <span style={{ color: "#94a3b8", textTransform: "capitalize" }}>{p.type || "Milestone"}: </span>
-                        <strong style={{ color: "#f8fafc" }}>Rs {Number(p.amount || 0).toLocaleString()} </strong>
-                        <span style={{ color: p.status === "paid" ? "#4ade80" : "#fbbf24", marginLeft: "4px" }}>
-                          ({p.status === "paid" ? "Paid" : "Pending"})
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-              ) : null}
-
-              {!deliverablesLoading && deliverables.length === 0 ? (
-                <article>
-                  <h3>Deliverables are being prepared.</h3>
-                  <p>{deliverablesError || "Your consultant will share final deliverable files here."}</p>
-                </article>
-              ) : null}
-              {!deliverablesLoading && deliverablesError && deliverables.length > 0 ? (
-                <article>
-                  <p>{deliverablesError}</p>
-                </article>
-              ) : null}
-              {!deliverablesLoading && deliverables.map((item) => (
-                <article key={item.id} className="client-delivery-row">
-                  <div>
-                    <h3>{item.title || item.label}</h3>
-                    {item.description ? <p>{item.description}</p> : null}
-                    <p>
-                      {item.file_name || item.fileFormat || item.category || "File"}
-                      {item.created_at ? ` - ${new Date(item.created_at).toLocaleDateString()}` : ""}
-                    </p>
-                    {item.can_download === false || (!item.file_url && item.can_download !== true) ? (
-                      <p>{item.download_locked_reason || FINAL_PAYMENT_REQUIRED_MESSAGE}</p>
-                    ) : null}
-                  </div>
-                  {item.can_download !== false && item.file_url ? (
-                    <a
-                      href={item.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="client-panel-action"
-                    >
-                      Download Final File
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="client-panel-action secondary"
-                    >
-                      Locked (Final Payment Required)
-                    </button>
-                  )}
-                </article>
-              ))}
-              {!deliverablesLoading ? (
-                <article className="client-agreement-card">
-                  <div className="client-agreement-summary">
-                    <h3>{project.clientSignedOff ? "Project completed" : "Final sign-off"}</h3>
-                    <p>
-                      {project.clientSignedOff
-                        ? "Project completed"
-                        : signOffDisabledReason || "Accept the final delivery and complete this project."}
-                    </p>
-                    {signOffError ? <p>{signOffError}</p> : null}
-                  </div>
-                  <button
-                    type="button"
-                    disabled={project.clientSignedOff || Boolean(signOffDisabledReason) || working === "sign-off"}
-                    onClick={handleSignOff}
-                    className="client-panel-action"
-                  >
-                    {project.clientSignedOff
-                      ? "Completed"
-                      : working === "sign-off"
-                        ? "Completing..."
-                        : "Accept & Complete Project"}
-                  </button>
-                </article>
-              ) : null}
-            </div>
-          ) : null}
-
-          {panel === "agreement" ? (
-            <div className="client-panel-stack">
-              {agreementLoading ? (
-                <article>
-                  <h3>Loading agreement...</h3>
-                  <p>Your consultant&apos;s agreement file is being fetched.</p>
-                </article>
-              ) : null}
-              {!agreementLoading && !agreement ? (
-                <article>
-                  <h3>Agreement is being prepared.</h3>
-                  <p>{agreementError || "Your consultant will share the agreement here."}</p>
-                </article>
-              ) : null}
-              {!agreementLoading && agreementError && agreement ? (
-                <article>
-                  <p>{agreementError}</p>
-                </article>
-              ) : null}
-              {!agreementLoading && agreement && agreement.status === "signed" ? (
-                <div className="client-agreement-verified-card">
-                  <div className="client-verified-card-header">
-                    <div className="client-verified-badge">
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      <span>Executed & Legally Binding</span>
-                    </div>
-                    <span className="client-verified-version">Version v{agreement.current_version || 1}.0</span>
-                  </div>
-
-                  <div className="client-verified-body">
-                    <div className="client-audit-info">
-                      <h3 className="client-verified-title">{agreement.title || "Service Agreement"}</h3>
-                      <p className="client-verified-subtitle">This contract has been digitally executed and recorded on Floxa eSign.</p>
-
-                      <div className="client-audit-grid">
-                        <div className="client-audit-item">
-                          <span className="client-audit-label">Signed by</span>
-                          <strong className="client-audit-value">{agreement.signer_name || "Authorized Client"}</strong>
-                        </div>
-                        <div className="client-audit-item">
-                          <span className="client-audit-label">Signed Timestamp</span>
-                          <strong className="client-audit-value">
-                            {agreement.signed_at ? new Date(agreement.signed_at).toLocaleString(undefined, {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            }) : "Completed"}
-                          </strong>
-                        </div>
-                        <div className="client-audit-item">
-                          <span className="client-audit-label">Signing Method</span>
-                          <strong className="client-audit-value">
-                            {agreement.signature_method === "drawn" ? "Drawn Signature" : agreement.signature_method === "uploaded" ? "Uploaded Image" : "Digitally Typed"}
-                          </strong>
-                        </div>
-                        <div className="client-audit-item">
-                          <span className="client-audit-label">Digital Audit</span>
-                          <strong className="client-audit-value audit-hash" title={agreement.signature_metadata?.hash || "SHA-256 Verified"}>
-                            {agreement.signature_metadata?.hash ? `${agreement.signature_metadata.hash.slice(0, 14)}...` : "SHA-256 Verified"}
-                          </strong>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="client-signature-stamp-box">
-                      <span className="client-stamp-label">Digital Signature</span>
-                      <div className="client-stamp-display">
-                        {agreement.signature_image ? (
-                          <img src={agreement.signature_image} alt="Signature Stamp" className="client-stamp-img" />
-                        ) : (
-                          <span className="client-stamp-typed">{agreement.signer_name || "Signed"}</span>
-                        )}
-                      </div>
-                      <div className="client-stamp-footer">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
-                        </svg>
-                        <span>Verified eSign Certificate</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="client-verified-actions-bar">
-                    <div className="client-verified-btn-group">
                       <button
                         type="button"
-                        disabled={!agreement.file_url || working === "agreement"}
-                        onClick={previewAgreement}
+                        disabled={project.clientSignedOff || Boolean(signOffDisabledReason) || working === "sign-off"}
+                        onClick={handleSignOff}
                         className="client-panel-action"
                       >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                          <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                        Preview Agreement
+                        {project.clientSignedOff
+                          ? "Completed"
+                          : working === "sign-off"
+                            ? "Completing..."
+                            : "Accept & Complete Project"}
                       </button>
-                      <button
-                        type="button"
-                        disabled={!agreement.file_url || working === "agreement"}
-                        onClick={downloadAgreement}
-                        className="client-panel-action secondary"
-                      >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                          <polyline points="7 10 12 15 17 10"/>
-                          <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                        {working === "agreement" ? "Downloading..." : "Download PDF"}
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      className="client-inline-toggle-btn"
-                      onClick={() => setShowInlineAgreement((prev) => !prev)}
-                    >
-                      {showInlineAgreement ? "Hide Document" : "View on Page"}
-                      <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        style={{ transform: showInlineAgreement ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }}
-                      >
-                        <polyline points="6 9 12 15 18 9"/>
-                      </svg>
-                    </button>
-                  </div>
-
-                  {showInlineAgreement && agreement.file_url ? (
-                    <div className="client-inline-preview-container">
-                      <iframe
-                        className="client-agreement-preview-frame"
-                        src={agreement.file_url}
-                        title="Signed Agreement Document"
-                      />
-                    </div>
+                    </article>
                   ) : null}
                 </div>
               ) : null}
 
-              {!agreementLoading && agreement && agreement.status !== "signed" ? (
-                <article className="client-delivery-row">
-                  <div>
-                    {agreement.isProjectAgreement && agreement.status === "signature_requested" ? (
-                      <p>New Agreement Available</p>
-                    ) : null}
-                    {agreement.isProjectAgreement && agreement.status !== "shared" && Number(agreement.current_version || 1) > 1 ? (
-                      <p>Agreement Updated</p>
-                    ) : null}
-                    <h3>{agreement.title || "Service Agreement"}</h3>
-                    <p>
-                      Basic Agreement
-                      {agreement.generated_at ? ` - ${new Date(agreement.generated_at).toLocaleString()}` : ""}
-                    </p>
-                    {agreement.isProjectAgreement ? (
-                      <p>Current Version - v{agreement.current_version || 1}</p>
-                    ) : null}
-                    {agreement.isProjectAgreement && agreement.last_updated_at ? (
-                      <p>Last Updated - {new Date(agreement.last_updated_at).toLocaleString()}</p>
-                    ) : null}
-                    <p>Status - {getAgreementStatusLabel(agreement)}</p>
-                  </div>
-                  <div className="client-agreement-workspace">
-                    <div className="client-agreement-actions">
-                      <button
-                        type="button"
-                        disabled={!agreement.file_url || working === "agreement"}
-                        onClick={previewAgreement}
-                        className="client-panel-action"
-                      >
-                        Preview
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!agreement.file_url || working === "agreement"}
-                        onClick={downloadAgreement}
-                        className="client-panel-action secondary"
-                      >
-                        {working === "agreement" ? "Downloading..." : "Download"}
-                      </button>
-                    </div>
-                    {agreement.isProjectAgreement && agreement.status === "signature_requested" ? (
-                      <div className="client-signature-box">
-                        {agreement.file_url ? (
+              {panel === "agreement" ? (
+                <div className="client-panel-stack">
+                  {agreementLoading ? (
+                    <article>
+                      <h3>Loading agreement...</h3>
+                      <p>Your consultant&apos;s agreement file is being fetched.</p>
+                    </article>
+                  ) : null}
+                  {!agreementLoading && !agreement ? (
+                    <article>
+                      <h3>Agreement is being prepared.</h3>
+                      <p>{agreementError || "Your consultant will share the agreement here."}</p>
+                    </article>
+                  ) : null}
+                  {!agreementLoading && agreementError && agreement ? (
+                    <article>
+                      <p>{agreementError}</p>
+                    </article>
+                  ) : null}
+                  {!agreementLoading && agreement && agreement.status === "signed" ? (
+                    <div className="client-agreement-verified-card">
+                      <div className="client-verified-card-header">
+                        <div className="client-verified-badge">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          <span>Executed & Legally Binding</span>
+                        </div>
+                        <span className="client-verified-version">Version v{agreement.current_version || 1}.0</span>
+                      </div>
+
+                      <div className="client-verified-body">
+                        <div className="client-audit-info">
+                          <h3 className="client-verified-title">{agreement.title || "Service Agreement"}</h3>
+                          <p className="client-verified-subtitle">This contract has been digitally executed and recorded on Floxa eSign.</p>
+
+                          <div className="client-audit-grid">
+                            <div className="client-audit-item">
+                              <span className="client-audit-label">Signed by</span>
+                              <strong className="client-audit-value">{agreement.signer_name || "Authorized Client"}</strong>
+                            </div>
+                            <div className="client-audit-item">
+                              <span className="client-audit-label">Signed Timestamp</span>
+                              <strong className="client-audit-value">
+                                {agreement.signed_at ? new Date(agreement.signed_at).toLocaleString(undefined, {
+                                  dateStyle: "medium",
+                                  timeStyle: "short",
+                                }) : "Completed"}
+                              </strong>
+                            </div>
+                            <div className="client-audit-item">
+                              <span className="client-audit-label">Signing Method</span>
+                              <strong className="client-audit-value">
+                                {agreement.signature_method === "drawn" ? "Drawn Signature" : agreement.signature_method === "uploaded" ? "Uploaded Image" : "Digitally Typed"}
+                              </strong>
+                            </div>
+                            <div className="client-audit-item">
+                              <span className="client-audit-label">Digital Audit</span>
+                              <strong className="client-audit-value audit-hash" title={agreement.signature_metadata?.hash || "SHA-256 Verified"}>
+                                {agreement.signature_metadata?.hash ? `${agreement.signature_metadata.hash.slice(0, 14)}...` : "SHA-256 Verified"}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="client-signature-stamp-box">
+                          <span className="client-stamp-label">Digital Signature</span>
+                          <div className="client-stamp-display">
+                            {agreement.signature_image ? (
+                              <img src={agreement.signature_image} alt="Signature Stamp" className="client-stamp-img" />
+                            ) : (
+                              <span className="client-stamp-typed">{agreement.signer_name || "Signed"}</span>
+                            )}
+                          </div>
+                          <div className="client-stamp-footer">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" />
+                            </svg>
+                            <span>Verified eSign Certificate</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="client-verified-actions-bar">
+                        <div className="client-verified-btn-group">
+                          <button
+                            type="button"
+                            disabled={!agreement.file_url || working === "agreement"}
+                            onClick={previewAgreement}
+                            className="client-panel-action"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                            Preview Agreement
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!agreement.file_url || working === "agreement"}
+                            onClick={downloadAgreement}
+                            className="client-panel-action secondary"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="7 10 12 15 17 10" />
+                              <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            {working === "agreement" ? "Downloading..." : "Download PDF"}
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="client-inline-toggle-btn"
+                          onClick={() => setShowInlineAgreement((prev) => !prev)}
+                        >
+                          {showInlineAgreement ? "Hide Document" : "View on Page"}
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            style={{ transform: showInlineAgreement ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }}
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {showInlineAgreement && agreement.file_url ? (
+                        <div className="client-inline-preview-container">
                           <iframe
                             className="client-agreement-preview-frame"
                             src={agreement.file_url}
-                            title="Agreement preview"
+                            title="Signed Agreement Document"
                           />
-                        ) : null}
-                        <div className="client-signature-heading">
-                          <strong>eSignature</strong>
                         </div>
-                        <label className="client-panel-check">
-                          <span>Full legal name</span>
-                          <input
-                            value={signerName}
-                            onChange={(event) => setSignerName(event.target.value)}
-                            type="text"
-                            placeholder="Type your full legal name"
-                          />
-                        </label>
-                        <label className="client-panel-check">
-                          <input
-                            checked={signatureMethod === "typed"}
-                            onChange={() => setSignatureMethod("typed")}
-                            type="radio"
-                            name="signature-method"
-                          />
-                          <span>Type Name</span>
-                        </label>
-                        <label className="client-panel-check">
-                          <input
-                            checked={signatureMethod === "drawn"}
-                            onChange={() => setSignatureMethod("drawn")}
-                            type="radio"
-                            name="signature-method"
-                          />
-                          <span>Draw Signature</span>
-                        </label>
-                        {signatureMethod === "drawn" ? (
-                          <div>
-                            <canvas
-                              ref={signatureCanvasRef}
-                              width="320"
-                              height="120"
-                              onMouseDown={startDrawingSignature}
-                              onMouseMove={drawSignature}
-                              onMouseUp={stopDrawingSignature}
-                              onMouseLeave={stopDrawingSignature}
-                              onTouchStart={startDrawingSignature}
-                              onTouchMove={drawSignature}
-                              onTouchEnd={stopDrawingSignature}
-                              style={{ border: "1px solid rgba(255,255,255,0.25)", width: "100%", maxWidth: 320 }}
-                            />
-                            <button type="button" className="client-panel-action secondary" onClick={clearDrawnSignature}>
-                              Clear
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {!agreementLoading && agreement && agreement.status !== "signed" ? (
+                    <article className="client-agreement-card">
+                      <div className="client-agreement-summary">
+                        {agreement.isProjectAgreement && agreement.status === "signature_requested" ? (
+                          <p className="client-agreement-badge">New Agreement Available</p>
+                        ) : null}
+                        {agreement.isProjectAgreement && agreement.status !== "shared" && Number(agreement.current_version || 1) > 1 ? (
+                          <p className="client-agreement-badge">Agreement Updated</p>
+                        ) : null}
+                        <h3>{agreement.title || "Service Agreement"}</h3>
+                        <p>
+                          Basic Agreement
+                          {agreement.generated_at ? ` - ${new Date(agreement.generated_at).toLocaleString()}` : ""}
+                        </p>
+                        {agreement.isProjectAgreement ? (
+                          <p>Current Version - v{agreement.current_version || 1}</p>
+                        ) : null}
+                        {agreement.isProjectAgreement && agreement.last_updated_at ? (
+                          <p>Last Updated - {new Date(agreement.last_updated_at).toLocaleString()}</p>
+                        ) : null}
+                        <p>Status - {getAgreementStatusLabel(agreement)}</p>
+                      </div>
+                      <div className="client-agreement-workspace">
+                        <div className="client-agreement-actions">
+                          <button
+                            type="button"
+                            disabled={!agreement.file_url || working === "agreement"}
+                            onClick={previewAgreement}
+                            className="client-panel-action"
+                          >
+                            Preview
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!agreement.file_url || working === "agreement"}
+                            onClick={downloadAgreement}
+                            className="client-panel-action secondary"
+                          >
+                            {working === "agreement" ? "Downloading..." : "Download"}
+                          </button>
+                        </div>
+                        {agreement.isProjectAgreement && agreement.status === "signature_requested" ? (
+                          <div className="client-signature-box">
+                            {agreement.file_url ? (
+                              <iframe
+                                className="client-agreement-preview-frame"
+                                src={agreement.file_url}
+                                title="Agreement preview"
+                              />
+                            ) : null}
+                            <div className="client-signature-heading">
+                              <strong>eSignature</strong>
+                            </div>
+                            <label className="client-panel-check client-signature-name-field">
+                              <span>Full legal name</span>
+                              <input
+                                value={signerName}
+                                onChange={(event) => setSignerName(event.target.value)}
+                                type="text"
+                                placeholder="Type your full legal name"
+                              />
+                            </label>
+                            <div className="client-signature-methods">
+                              <label className="client-panel-check">
+                                <input
+                                  checked={signatureMethod === "typed"}
+                                  onChange={() => setSignatureMethod("typed")}
+                                  type="radio"
+                                  name="signature-method"
+                                />
+                                <span>Type Name</span>
+                              </label>
+                              <label className="client-panel-check">
+                                <input
+                                  checked={signatureMethod === "drawn"}
+                                  onChange={() => setSignatureMethod("drawn")}
+                                  type="radio"
+                                  name="signature-method"
+                                />
+                                <span>Draw Signature</span>
+                              </label>
+                              <label className="client-panel-check">
+                                <input
+                                  checked={signatureMethod === "uploaded"}
+                                  onChange={() => setSignatureMethod("uploaded")}
+                                  type="radio"
+                                  name="signature-method"
+                                />
+                                <span>Upload Signature Image</span>
+                              </label>
+                            </div>
+                            {signatureMethod === "drawn" ? (
+                              <div className="client-signature-draw-area">
+                                <canvas
+                                  ref={signatureCanvasRef}
+                                  width="320"
+                                  height="120"
+                                  onMouseDown={startDrawingSignature}
+                                  onMouseMove={drawSignature}
+                                  onMouseUp={stopDrawingSignature}
+                                  onMouseLeave={stopDrawingSignature}
+                                  onTouchStart={startDrawingSignature}
+                                  onTouchMove={drawSignature}
+                                  onTouchEnd={stopDrawingSignature}
+                                  style={{ border: "1px solid rgba(255,255,255,0.25)", width: "100%", maxWidth: 320 }}
+                                />
+                                <button type="button" className="client-panel-action secondary" onClick={clearDrawnSignature}>
+                                  Clear
+                                </button>
+                              </div>
+                            ) : null}
+                            {signatureMethod === "uploaded" ? (
+                              <label className="client-panel-check">
+                                <input accept="image/png,image/jpeg,image/webp" onChange={readSignatureUpload} type="file" />
+                                <span>{uploadedSignature ? "Signature image selected" : "Choose signature image"}</span>
+                              </label>
+                            ) : null}
+                            <label className="client-panel-check client-signature-consent">
+                              <input
+                                checked={hasReadAgreement}
+                                onChange={(event) => setHasReadAgreement(event.target.checked)}
+                                type="checkbox"
+                              />
+                              <span>I have read and agree to the agreement</span>
+                            </label>
+                            <button
+                              type="button"
+                              disabled={working === "agreement-sign"}
+                              onClick={signAgreement}
+                              className="client-panel-action"
+                            >
+                              {working === "agreement-sign" ? "Signing..." : "Finish Signing"}
                             </button>
                           </div>
                         ) : null}
-                        <label className="client-panel-check">
-                          <input
-                            checked={signatureMethod === "uploaded"}
-                            onChange={() => setSignatureMethod("uploaded")}
-                            type="radio"
-                            name="signature-method"
-                          />
-                          <span>Upload Signature Image</span>
-                        </label>
-                        {signatureMethod === "uploaded" ? (
-                          <label className="client-panel-check">
-                            <input accept="image/png,image/jpeg,image/webp" onChange={readSignatureUpload} type="file" />
-                            <span>{uploadedSignature ? "Signature image selected" : "Choose signature image"}</span>
-                          </label>
-                        ) : null}
-                        <label className="client-panel-check client-signature-consent">
-                          <input
-                            checked={hasReadAgreement}
-                            onChange={(event) => setHasReadAgreement(event.target.checked)}
-                            type="checkbox"
-                          />
-                          <span>I have read and agree to the agreement</span>
-                        </label>
-                        <button
-                          type="button"
-                          disabled={working === "agreement-sign"}
-                          onClick={signAgreement}
-                          className="client-panel-action"
-                        >
-                          {working === "agreement-sign" ? "Signing..." : "Finish Signing"}
-                        </button>
                       </div>
-                    ) : null}
-                  </div>
-                </article>
-              ) : null}
-            </div>
-          ) : null}
-
-          {panel === "payments" ? (
-            <div className="client-panel-stack">
-              {paymentsLoading ? (
-                <article>
-                  <h3>Loading payments...</h3>
-                  <p>Your payment schedule is being fetched.</p>
-                </article>
-              ) : null}
-              {!paymentsLoading && payments.length === 0 ? (
-                <article>
-                  <h3>Payments are being prepared.</h3>
-                  <p>{paymentsError || "Your consultant will request payments here."}</p>
-                </article>
-              ) : null}
-              {!paymentsLoading && paymentsError && payments.length > 0 ? (
-                <article>
-                  <p>{paymentsError}</p>
-                </article>
-              ) : null}
-              {!paymentsLoading && (paymentCheckoutMessage || paymentCallbackData) ? (
-                <article aria-live="polite">
-                  <p>
-                    {paymentCheckoutMessage ||
-                      "Payment could not be confirmed yet. Please retry verification or refresh the page."}
-                  </p>
-                  {paymentCallbackData && !paymentCheckoutMessage ? (
-                    <button
-                      type="button"
-                      className="client-panel-action"
-                      disabled={Boolean(paymentCheckoutLoadingId)}
-                      onClick={() => verifyPaymentCallback(paymentCallbackData)}
-                    >
-                      {paymentCheckoutLoadingId ? "Verifying..." : "Retry verification"}
-                    </button>
+                    </article>
                   ) : null}
-                </article>
+                </div>
               ) : null}
-              {!paymentsLoading && payments.map((item) => {
-                const paymentBusy = paymentCheckoutLoadingId === item.id || activePaymentCheckoutId === item.id;
-                const canPayNow = isPayableMilestone(item);
-                const checkoutBlocked = Boolean(activePaymentCheckoutId) && activePaymentCheckoutId !== item.id;
 
-                return (
-                  <article key={item.id || item.type} className="client-delivery-row">
-                    <div>
-                      <h3>{getPaymentTypeLabel(item.type)} payment</h3>
+              {panel === "payments" ? (
+                <div className="client-panel-stack">
+                  {paymentsLoading ? (
+                    <article>
+                      <h3>Loading payments...</h3>
+                      <p>Your payment schedule is being fetched.</p>
+                    </article>
+                  ) : null}
+                  {!paymentsLoading && payments.length === 0 ? (
+                    <article>
+                      <h3>Payments are being prepared.</h3>
+                      <p>{paymentsError || "Your consultant will request payments here."}</p>
+                    </article>
+                  ) : null}
+                  {!paymentsLoading && paymentsError && payments.length > 0 ? (
+                    <article>
+                      <p>{paymentsError}</p>
+                    </article>
+                  ) : null}
+                  {!paymentsLoading && (paymentCheckoutMessage || paymentCallbackData) ? (
+                    <article aria-live="polite">
                       <p>
-                        {item.percentage}% - {formatPaymentAmount(item.amount)}
+                        {paymentCheckoutMessage ||
+                          "Payment could not be confirmed yet. Please retry verification or refresh the page."}
                       </p>
-                    </div>
-                    <div>
-                      <span className="client-panel-action secondary">
-                        {getPaymentStatusLabel(item.status)}
-                      </span>
-                      {item.status === "requested" ? (
+                      {paymentCallbackData && !paymentCheckoutMessage ? (
                         <button
                           type="button"
-                          disabled={!canPayNow || paymentBusy || checkoutBlocked}
-                          onClick={() => startPaymentCheckout(item)}
                           className="client-panel-action"
+                          disabled={Boolean(paymentCheckoutLoadingId)}
+                          onClick={() => verifyPaymentCallback(paymentCallbackData)}
                         >
-                          {paymentBusy && paymentCheckoutMessage === "Verifying payment..."
-                            ? "Verifying..."
-                            : paymentBusy
-                              ? "Opening..."
-                              : "Pay Now"}
+                          {paymentCheckoutLoadingId ? "Verifying..." : "Retry verification"}
                         </button>
                       ) : null}
-                    </div>
-                  </article>
-                );
-              })}
+                    </article>
+                  ) : null}
+                  {!paymentsLoading && payments.map((item) => {
+                    const paymentBusy = paymentCheckoutLoadingId === item.id || activePaymentCheckoutId === item.id;
+                    const canPayNow = isPayableMilestone(item);
+                    const checkoutBlocked = Boolean(activePaymentCheckoutId) && activePaymentCheckoutId !== item.id;
+
+                    return (
+                      <article key={item.id || item.type} className="client-delivery-row client-payment-row">
+                        <div className="client-payment-info">
+                          <h3>{getPaymentTypeLabel(item.type)} payment</h3>
+                          <p>
+                            {item.percentage}% - {formatPaymentAmount(item.amount)}
+                          </p>
+                        </div>
+                        <div className="client-payment-actions">
+                          <span className="client-panel-action secondary">
+                            {getPaymentStatusLabel(item.status)}
+                          </span>
+                          {item.status === "requested" ? (
+                            <button
+                              type="button"
+                              disabled={!canPayNow || paymentBusy || checkoutBlocked}
+                              onClick={() => startPaymentCheckout(item)}
+                              className="client-panel-action"
+                            >
+                              {paymentBusy && paymentCheckoutMessage === "Verifying payment..."
+                                ? "Verifying..."
+                                : paymentBusy
+                                  ? "Opening..."
+                                  : "Pay Now"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          {activePreview ? (
+            <div
+              className="client-preview-backdrop"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="client-preview-title"
+              onClick={closePreview}
+            >
+              <div
+                className="client-preview-modal"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="client-preview-header">
+                  <h3 id="client-preview-title">{activePreview.title}</h3>
+                  <button
+                    ref={closeButtonRef}
+                    type="button"
+                    className="client-preview-close-btn"
+                    onClick={closePreview}
+                    aria-label="Close preview"
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="client-preview-body">
+                  <ProtectedAssetImage
+                    src={activePreview.imageUrl}
+                    alt={activePreview.title}
+                    draggable={false}
+                    onContextMenu={(event) => event.preventDefault()}
+                  />
+                </div>
+              </div>
             </div>
           ) : null}
-        </section>
-      ) : null}
-
-      {activePreview ? (
-        <div
-          className="client-preview-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="client-preview-title"
-          onClick={closePreview}
-        >
-          <div
-            className="client-preview-modal"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="client-preview-header">
-              <h3 id="client-preview-title">{activePreview.title}</h3>
-              <button
-                ref={closeButtonRef}
-                type="button"
-                className="client-preview-close-btn"
-                onClick={closePreview}
-                aria-label="Close preview"
-              >
-                Close
-              </button>
-            </div>
-            <div className="client-preview-body">
-              <ProtectedAssetImage
-                src={activePreview.imageUrl}
-                alt={activePreview.title}
-                draggable={false}
-                onContextMenu={(event) => event.preventDefault()}
-              />
-            </div>
-          </div>
         </div>
-      ) : null}
-    </div>
-  );
+      );
 }
