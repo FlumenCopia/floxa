@@ -5,18 +5,38 @@ import { clientPortalService } from "../../services/clientPortalService";
 import { supportSocket } from "../../services/supportSocketService";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/lib/api";
-import { Bell, CheckCircle2, Palette } from "lucide-react";
+import { showSuccess } from "@/lib/toast";
+import { Bell } from "lucide-react";
 
 const phaseLabels = [
-  "Profile",
   "Discovery",
   "Brand DNA",
   "Moodboards",
   "Concepts",
   "Agreement",
   "Delivery",
-  "Sign Off",
+  "Payments",
 ];
+
+const phaseToPanelMap = {
+  Discovery: "discovery",
+  "Brand DNA": "discovery",
+  Moodboards: "moodboards",
+  Concepts: "concepts",
+  Agreement: "agreement",
+  Delivery: "delivery",
+  Payments: "payments",
+};
+
+const panelTitles = {
+  discovery: "Discovery Report & Brand DNA",
+  moodboards: "Visual Moodboards",
+  concepts: "Brand Concepts & Identity",
+  agreement: "Client Agreement",
+  delivery: "Deliverables & Assets",
+  payments: "Project Payments",
+};
+
 const FINAL_PAYMENT_REQUIRED_MESSAGE = "Final payment must be completed before downloading deliverables.";
 
 function getAgreementStatusLabel(agreement) {
@@ -37,16 +57,16 @@ function getActivePhaseIndex(progress, workflowStatus) {
   if (workflowStatus) {
     const statusMap = {
       created: 0,
-      discovery: 1,
-      advance_payment: 1,
-      advance_paid: 1,
-      brand_dna: 2,
-      moodboards: 3,
-      concepts: 4,
-      agreement: 5,
-      deliverables: 6,
-      final_paid: 7,
-      delivered: 7,
+      discovery: 0,
+      advance_payment: 0,
+      advance_paid: 0,
+      brand_dna: 1,
+      moodboards: 2,
+      concepts: 3,
+      agreement: 4,
+      deliverables: 5,
+      final_paid: 6,
+      delivered: 6,
     };
 
     if (workflowStatus in statusMap) {
@@ -57,7 +77,7 @@ function getActivePhaseIndex(progress, workflowStatus) {
   const pct = Number(progress || 0);
 
   if (pct >= 100) {
-    return 7;
+    return 6;
   }
 
   if (pct >= 85) {
@@ -72,7 +92,7 @@ function getActivePhaseIndex(progress, workflowStatus) {
     return 4;
   }
 
-  if (pct >= 45) {
+  if (pct >= 40) {
     return 3;
   }
 
@@ -263,24 +283,11 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const [notifications, setNotifications] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
-  const [confirmingMoodboardId, setConfirmingMoodboardId] = useState(null);
-  const [confirmingConceptId, setConfirmingConceptId] = useState(null);
+  const [notificationsError, setNotificationsError] = useState("");
   const notificationsRef = useRef(null);
   const [activePreview, setActivePreview] = useState(null);
   const lastFocusedElementRef = useRef(null);
   const closeButtonRef = useRef(null);
-
-  useEffect(() => {
-    if (!confirmingMoodboardId && !confirmingConceptId) return;
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape" && !working) {
-        setConfirmingMoodboardId(null);
-        setConfirmingConceptId(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [confirmingMoodboardId, confirmingConceptId, working]);
 
   const openPreview = useCallback((item, type, event) => {
     if (!item?.image_url) {
@@ -484,35 +491,26 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     };
   }, [notificationsOpen]);
 
-  function selectMoodboard(moodboardOrId) {
-    const id = typeof moodboardOrId === "object" && moodboardOrId !== null ? moodboardOrId.id : moodboardOrId;
-    setFeedbackMoodboardId(null);
-    setConfirmingMoodboardId(id);
-  }
-
-  async function executeSelectMoodboard(id) {
+  async function selectMoodboard(id) {
     setWorking(id);
     setMoodboardsError("");
     setMoodboardsMessage("");
 
+    const token = project?.portal_token || project?.portalToken || project?.token;
+
     try {
-      const response = await clientPortalService.selectMoodboard(id);
+      const response = await clientPortalService.selectMoodboard(id, token);
       const selectedId = response.data?.id ?? id;
 
       setMoodboards((currentMoodboards) =>
-        currentMoodboards.map((item) =>
-          item.id === selectedId
-            ? {
-                ...item,
-                clientSelected: true,
-                is_selected: true,
-              }
-            : item
-        )
+        currentMoodboards.map((item) => ({
+          ...item,
+          clientSelected: item.id === selectedId,
+          is_selected: item.id === selectedId,
+        }))
       );
       setMoodboardsMessage("Visual direction selected.");
       await onProjectRefresh?.();
-      setConfirmingMoodboardId(null);
     } catch (error) {
       setMoodboardsError(error?.detail || "Unable to select moodboard. Please try again.");
     } finally {
@@ -521,7 +519,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   }
 
   function openMoodboardFeedback(id) {
-    setConfirmingMoodboardId(null);
     setFeedbackMoodboardId(id);
     setMoodboardFeedbackText("");
     setMoodboardsError("");
@@ -539,8 +536,10 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     setMoodboardsError("");
     setMoodboardsMessage("");
 
+    const token = project?.portal_token || project?.portalToken || project?.token;
+
     try {
-      await clientPortalService.submitMoodboardFeedback(id, { feedback });
+      await clientPortalService.submitMoodboardFeedback(id, { feedback }, token);
       setMoodboards((currentMoodboards) =>
         currentMoodboards.map((item) =>
           item.id === id
@@ -780,13 +779,13 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     setConceptsError(response.success ? "" : response.error || "Concepts are not ready yet.");
   }
 
-  function approveConcept(conceptOrId) {
-    const id = typeof conceptOrId === "object" && conceptOrId !== null ? conceptOrId.id : conceptOrId;
-    setFeedbackConceptId(null);
-    setConfirmingConceptId(id);
-  }
+  async function approveConcept(id) {
+    const confirmed = window.confirm("Approve this concept?");
 
-  async function executeApproveConcept(id) {
+    if (!confirmed) {
+      return;
+    }
+
     setWorking(id);
     setConceptsError("");
     setConceptsMessage("");
@@ -796,7 +795,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       await refreshConcepts();
       await onProjectRefresh?.();
       setConceptsMessage("Concept approved.");
-      setConfirmingConceptId(null);
     } catch (error) {
       setConceptsError(error?.detail || "Unable to approve concept. Please try again.");
     } finally {
@@ -805,7 +803,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   }
 
   function openConceptFeedback(id) {
-    setConfirmingConceptId(null);
     setFeedbackConceptId(id);
     setFeedbackText("");
     setConceptsError("");
@@ -992,9 +989,25 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
+  function handleStageClick(label) {
+    const targetPanel = phaseToPanelMap[label];
+    if (targetPanel) {
+      openPanel(targetPanel);
+    }
+  }
+
   async function openPanel(nextPanel) {
     setPanel(nextPanel);
     setSignOffError("");
+
+    setTimeout(() => {
+      const panelEl = document.getElementById("client-workspace-panel");
+      if (panelEl) {
+        panelEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 100);
+
+    const token = project?.portal_token || project?.portalToken || project?.token;
 
     if (nextPanel === "moodboards") {
       setMoodboardsLoading(true);
@@ -1004,7 +1017,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setMoodboardFeedbackText("");
 
       try {
-        const response = await clientPortalService.getMoodboards();
+        const response = await clientPortalService.getMoodboards(token);
         setMoodboards(response.success ? response.data : []);
         setMoodboardsError(response.success ? "" : response.error || "Moodboards are not ready yet.");
       } finally {
@@ -1036,7 +1049,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setPaymentsError("");
 
       try {
-        const response = await clientPortalService.getClientDeliverables();
+        const response = await clientPortalService.getClientDeliverables(token);
         setDeliverables(response.success ? response.data : []);
         setDeliverablesError(response.success ? "" : response.error || "Deliverables are not ready yet.");
       } finally {
@@ -1044,7 +1057,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       }
 
       try {
-        const response = await clientPortalService.getClientPayments();
+        const response = await clientPortalService.getClientPayments(token);
         setPayments(response.success ? response.data : []);
         setPaymentsError(response.success ? "" : response.error || "Payments are not available yet.");
       } finally {
@@ -1059,7 +1072,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setAgreementError("");
 
       try {
-        const response = await clientPortalService.getClientAgreement();
+        const response = await clientPortalService.getClientAgreement(token);
         setAgreement(response.success ? response.data : null);
         setAgreementError(response.success ? "" : response.error || "Agreement is being prepared.");
       } finally {
@@ -1076,7 +1089,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       setPaymentCallbackData(null);
 
       try {
-        const response = await clientPortalService.getClientPayments();
+        const response = await clientPortalService.getClientPayments(token);
         setPayments(response.success ? response.data : []);
         setPaymentsError(response.success ? "" : response.error || "Payments are not available yet.");
       } finally {
@@ -1095,8 +1108,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
     try {
       const [discRes, dnaRes] = await Promise.all([
-        clientPortalService.getDiscoveryReport(),
-        clientPortalService.getBrandDNAReport(),
+        clientPortalService.getDiscoveryReport(token),
+        clientPortalService.getBrandDNAReport(token),
       ]);
 
       setDiscoveryReport(discRes.success ? discRes.data : null);
@@ -1330,18 +1343,28 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           </div>
         </div>
 
-        <div className="client-dashboard-stage-list">
-          {phaseLabels.map((label, index) => (
-            <div
-              key={label}
-              className={
-                index < activePhaseIndex ? "complete" : index === activePhaseIndex ? "active" : ""
-              }
-            >
-              <span />
-              {pct >= 100 && index === phaseLabels.length - 1 ? "Complete" : label}
-            </div>
-          ))}
+        <div className="client-dashboard-stage-list" role="navigation" aria-label="Project stages">
+          {phaseLabels.map((label, index) => {
+            const isComplete = index < activePhaseIndex;
+            const isMilestone = index === activePhaseIndex;
+            const isViewing = Boolean(panel && phaseToPanelMap[label] === panel);
+
+            return (
+              <button
+                key={label}
+                type="button"
+                className={`client-dashboard-stage-item ${
+                  isComplete ? "complete" : isMilestone ? "active" : ""
+                } ${isViewing ? "viewing" : ""}`.trim()}
+                onClick={() => handleStageClick(label)}
+                title={`Open ${label} workspace`}
+                aria-current={isViewing ? "step" : undefined}
+              >
+                <span />
+                {pct >= 100 && index === phaseLabels.length - 1 ? "Complete" : label}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -1363,21 +1386,11 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       </section>
 
       {panel ? (
-        <section className="client-dashboard-panel client-design-enter">
+        <section id="client-workspace-panel" className="client-dashboard-panel client-design-enter">
           <div className="client-panel-heading">
             <div>
               <span>Project workspace</span>
-              <h2>{panel}</h2>
-              {panel === "moodboards" ? (
-                <small style={{ display: "block", marginTop: "4px", color: "rgba(255,255,255,0.6)", fontSize: "0.85rem" }}>
-                  Select one or more visual directions for your brand identity
-                </small>
-              ) : null}
-              {panel === "concepts" ? (
-                <small style={{ display: "block", marginTop: "4px", color: "rgba(255,255,255,0.6)", fontSize: "0.85rem" }}>
-                  Review and approve one or more brand concepts
-                </small>
-              ) : null}
+              <h2>{panelTitles[panel] || panel}</h2>
             </div>
             <button type="button" onClick={() => setPanel(null)}>
               Close
@@ -1534,71 +1547,41 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         </div>
                       ) : null}
 
-                      {confirmingMoodboardId === item.id ? (
-                        <div className="client-inline-confirm-box">
-                          <div className="client-inline-confirm-content">
-                            <div className="client-inline-confirm-header">
-                              <Palette size={16} strokeWidth={2.2} color="#4dffa0" />
-                              <span>Select Visual Direction</span>
-                            </div>
-                            <p className="client-inline-confirm-text">
-                              Are you sure you want to select &ldquo;{item.name || item.title || "this moodboard"}&rdquo;? Once selected, this decision cannot be undone. (You can select multiple moodboards)
-                            </p>
-                          </div>
-                          <div className="client-inline-confirm-actions">
-                            <button
-                              type="button"
-                              className="client-panel-action secondary"
-                              disabled={Boolean(working)}
-                              onClick={() => setConfirmingMoodboardId(null)}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              className="client-panel-action client-inline-confirm-btn-confirm"
-                              disabled={Boolean(working)}
-                              onClick={() => executeSelectMoodboard(item.id)}
-                            >
-                              {working === item.id ? "Saving..." : "Confirm Selection"}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: "flex", gap: "8px", width: "100%", marginTop: "auto" }}>
-                          {isThisSelected ? (
-                            <button
-                              type="button"
-                              disabled
-                              className="client-panel-action"
-                              style={{ flex: 1 }}
-                            >
-                              Selected
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={working === item.id}
-                              onClick={() => selectMoodboard(item)}
-                              className="client-panel-action"
-                              style={{ flex: 1 }}
-                            >
-                              {working === item.id
-                                ? "Saving..."
-                                : "Select direction"}
-                            </button>
-                          )}
+                      <div style={{ display: "flex", gap: "8px", width: "100%", marginTop: "auto" }}>
+                        {isThisSelected ? (
                           <button
                             type="button"
-                            disabled={working === item.id || isThisSelected}
-                            onClick={() => openMoodboardFeedback(item.id)}
-                            className="client-panel-action secondary"
+                            disabled
+                            className="client-panel-action"
                             style={{ flex: 1 }}
                           >
-                            Request changes
+                            Selected
                           </button>
-                        </div>
-                      )}
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={working === item.id}
+                            onClick={() => selectMoodboard(item.id)}
+                            className="client-panel-action"
+                            style={{ flex: 1 }}
+                          >
+                            {working === item.id
+                              ? "Saving..."
+                              : hasSelectedMoodboard
+                                ? "Switch to this direction"
+                                : "Select direction"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={working === item.id}
+                          onClick={() => openMoodboardFeedback(item.id)}
+                          className="client-panel-action secondary"
+                          style={{ flex: 1 }}
+                        >
+                          Request changes
+                        </button>
+                      </div>
 
                       {feedbackMoodboardId === item.id ? (
                         <div className="client-concept-feedback-box" style={{ width: "100%", marginTop: "12px" }}>
@@ -1700,62 +1683,32 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       </button>
                     </div>
                   ) : null}
-                  {confirmingConceptId === item.id ? (
-                    <div className="client-inline-confirm-box" style={{ marginTop: "8px" }}>
-                      <div className="client-inline-confirm-content">
-                        <div className="client-inline-confirm-header">
-                          <CheckCircle2 size={16} strokeWidth={2.2} color="#4dffa0" />
-                          <span>Approve Concept</span>
-                        </div>
-                        <p className="client-inline-confirm-text">
-                          Are you sure you want to approve &ldquo;{item.title || "this concept"}&rdquo;? Once approved, this decision cannot be undone. (You can approve multiple concepts)
-                        </p>
-                      </div>
-                      <div className="client-inline-confirm-actions">
-                        <button
-                          type="button"
-                          className="client-panel-action secondary"
-                          disabled={Boolean(working)}
-                          onClick={() => setConfirmingConceptId(null)}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          className="client-panel-action client-inline-confirm-btn-confirm"
-                          disabled={Boolean(working)}
-                          onClick={() => executeApproveConcept(item.id)}
-                        >
-                          {working === item.id ? "Saving..." : "Confirm Approval"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : item.status === "approved" ? (
+                  {item.status === "approved" ? (
                     <div>
                       <button type="button" className="client-panel-action" disabled>
                         Approved
                       </button>
                     </div>
                   ) : (
-                    <div>
-                      <button
-                        type="button"
-                        disabled={working === item.id}
-                        onClick={() => approveConcept(item)}
-                        className="client-panel-action"
-                      >
-                        {working === item.id ? "Saving..." : "Approve"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={working === item.id}
-                        onClick={() => openConceptFeedback(item.id)}
-                        className="client-panel-action secondary"
-                      >
-                        Request changes
-                      </button>
-                    </div>
-                  )}
+                    <>
+                      <div>
+                        <button
+                          type="button"
+                          disabled={working === item.id}
+                          onClick={() => approveConcept(item.id)}
+                          className="client-panel-action"
+                        >
+                          {working === item.id ? "Saving..." : "Approve"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={working === item.id}
+                          onClick={() => openConceptFeedback(item.id)}
+                          className="client-panel-action secondary"
+                        >
+                          Request changes
+                        </button>
+                      </div>
                       {feedbackConceptId === item.id ? (
                         <div className="client-concept-feedback-box">
                           <textarea
@@ -1783,6 +1736,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                           </div>
                         </div>
                       ) : null}
+                    </>
+                  )}
                 </article>
               ))}
             </div>
