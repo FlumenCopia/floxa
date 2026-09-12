@@ -168,48 +168,48 @@ export async function generateWatermarkedImage(
     const height = metadata.height || 800;
 
     const diagonal = Math.sqrt(width * width + height * height);
-    const patternFontSize = Math.max(22, Math.round(diagonal * 0.026));
-    const subFontSize = Math.max(12, Math.round(patternFontSize * 0.52));
+    const patternFontSize = Math.max(20, Math.round(diagonal * 0.024));
+    const subFontSize = Math.max(11, Math.round(patternFontSize * 0.5));
 
     const svgWatermark = `
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         <style>
           .tiled-text {
-            fill: rgba(255, 255, 255, 0.52);
-            stroke: rgba(0, 0, 0, 0.55);
-            stroke-width: 1.5px;
+            fill: rgba(255, 255, 255, 0.20);
+            stroke: rgba(0, 0, 0, 0.20);
+            stroke-width: 0.75px;
             paint-order: stroke fill;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: ${patternFontSize}px;
-            font-weight: 900;
+            font-weight: 700;
             letter-spacing: 3.5px;
           }
           .tiled-sub {
-            fill: rgba(255, 255, 255, 0.42);
-            stroke: rgba(0, 0, 0, 0.48);
-            stroke-width: 1.2px;
+            fill: rgba(255, 255, 255, 0.14);
+            stroke: rgba(0, 0, 0, 0.15);
+            stroke-width: 0.6px;
             paint-order: stroke fill;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: ${subFontSize}px;
-            font-weight: 700;
+            font-weight: 600;
             letter-spacing: 2.2px;
           }
           .lattice-line-light {
-            stroke: rgba(255, 255, 255, 0.28);
-            stroke-width: 1.2px;
-            stroke-dasharray: 10, 4;
+            stroke: rgba(255, 255, 255, 0.07);
+            stroke-width: 0.75px;
+            stroke-dasharray: 12, 6;
           }
           .lattice-line-dark {
-            stroke: rgba(0, 0, 0, 0.28);
-            stroke-width: 1.2px;
-            stroke-dasharray: 10, 4;
+            stroke: rgba(0, 0, 0, 0.07);
+            stroke-width: 0.75px;
+            stroke-dasharray: 12, 6;
           }
         </style>
-        <pattern id="wm-pattern" width="240" height="140" patternTransform="rotate(-30 0 0)" patternUnits="userSpaceOnUse">
-          <line x1="0" y1="0" x2="240" y2="140" class="lattice-line-light" />
-          <line x1="0" y1="140" x2="240" y2="0" class="lattice-line-dark" />
-          <text x="15" y="55" class="tiled-text">FLOXA</text>
-          <text x="15" y="95" class="tiled-sub">DO NOT COPY</text>
+        <pattern id="wm-pattern" width="300" height="175" patternTransform="rotate(-30 0 0)" patternUnits="userSpaceOnUse">
+          <line x1="0" y1="0" x2="300" y2="175" class="lattice-line-light" />
+          <line x1="0" y1="175" x2="300" y2="0" class="lattice-line-dark" />
+          <text x="25" y="70" class="tiled-text">FLOXA</text>
+          <text x="25" y="112" class="tiled-sub">DO NOT COPY</text>
         </pattern>
         <rect width="100%" height="100%" fill="url(#wm-pattern)" />
       </svg>
@@ -218,7 +218,7 @@ export async function generateWatermarkedImage(
     const watermarkedBuffer = await sharp(buffer)
       .rotate()
       .composite([{ input: Buffer.from(svgWatermark), blend: 'over' }])
-      .jpeg({ quality: 84 })
+      .jpeg({ quality: 88 })
       .toBuffer();
 
     return { buffer: watermarkedBuffer, filename: wmFilename };
