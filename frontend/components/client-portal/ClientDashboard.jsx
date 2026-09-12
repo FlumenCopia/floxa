@@ -9,14 +9,12 @@ import { showSuccess } from "@/lib/toast";
 import { Bell } from "lucide-react";
 
 const phaseLabels = [
-  "Profile",
   "Discovery",
   "Brand DNA",
   "Moodboards",
   "Concepts",
   "Agreement",
   "Delivery",
-  "Sign Off",
 ];
 const FINAL_PAYMENT_REQUIRED_MESSAGE = "Final payment must be completed before downloading deliverables.";
 
@@ -38,16 +36,16 @@ function getActivePhaseIndex(progress, workflowStatus) {
   if (workflowStatus) {
     const statusMap = {
       created: 0,
-      discovery: 1,
-      advance_payment: 1,
-      advance_paid: 1,
-      brand_dna: 2,
-      moodboards: 3,
-      concepts: 4,
-      agreement: 5,
-      deliverables: 6,
-      final_paid: 7,
-      delivered: 7,
+      discovery: 0,
+      advance_payment: 0,
+      advance_paid: 0,
+      brand_dna: 1,
+      moodboards: 2,
+      concepts: 3,
+      agreement: 4,
+      deliverables: 5,
+      final_paid: 5,
+      delivered: 5,
     };
 
     if (workflowStatus in statusMap) {
@@ -58,30 +56,26 @@ function getActivePhaseIndex(progress, workflowStatus) {
   const pct = Number(progress || 0);
 
   if (pct >= 100) {
-    return 7;
-  }
-
-  if (pct >= 85) {
-    return 6;
-  }
-
-  if (pct >= 70) {
     return 5;
   }
 
-  if (pct >= 55) {
+  if (pct >= 85) {
+    return 5;
+  }
+
+  if (pct >= 70) {
     return 4;
   }
 
-  if (pct >= 45) {
+  if (pct >= 50) {
     return 3;
   }
 
-  if (pct >= 25) {
+  if (pct >= 35) {
     return 2;
   }
 
-  if (pct >= 15) {
+  if (pct >= 20) {
     return 1;
   }
 
