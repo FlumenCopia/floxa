@@ -1840,7 +1840,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                 </article>
               ))}
               {!deliverablesLoading ? (
-                <article className="client-agreement-card">
+                <article className="client-agreement-card client-final-signoff-row">
                   <div className="client-agreement-summary">
                     <h3>{project.clientSignedOff ? "Project completed" : "Final sign-off"}</h3>
                     <p>

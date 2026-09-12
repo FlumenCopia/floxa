@@ -2500,30 +2500,34 @@
 }
 
 /* --- Client Agreement Card Layout & Alignment Fix --- */
-.client-agreement-card {
+.client-agreement-card,
+.client-final-signoff-row {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   align-items: start;
   gap: 32px;
   width: 100%;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: none;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
   box-sizing: border-box;
 }
 
 @media (max-width: 900px) {
-  .client-agreement-card {
+  .client-agreement-card,
+  .client-final-signoff-row {
     grid-template-columns: 1fr;
     gap: 24px;
   }
 }
 
 .client-panel-stack article.client-agreement-card > div,
+.client-panel-stack article.client-final-signoff-row > div,
 .client-agreement-summary {
   display: flex !important;
   flex-direction: column !important;
