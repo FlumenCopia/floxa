@@ -15,6 +15,7 @@ const phaseLabels = [
   "Concepts",
   "Agreement",
   "Delivery",
+  "Payments",
 ];
 const FINAL_PAYMENT_REQUIRED_MESSAGE = "Final payment must be completed before downloading deliverables.";
 
@@ -44,8 +45,8 @@ function getActivePhaseIndex(progress, workflowStatus) {
       concepts: 3,
       agreement: 4,
       deliverables: 5,
-      final_paid: 5,
-      delivered: 5,
+      final_paid: 6,
+      delivered: 6,
     };
 
     if (workflowStatus in statusMap) {
@@ -56,26 +57,30 @@ function getActivePhaseIndex(progress, workflowStatus) {
   const pct = Number(progress || 0);
 
   if (pct >= 100) {
-    return 5;
+    return 6;
   }
 
   if (pct >= 85) {
-    return 5;
+    return 6;
   }
 
   if (pct >= 70) {
+    return 5;
+  }
+
+  if (pct >= 55) {
     return 4;
   }
 
-  if (pct >= 50) {
+  if (pct >= 40) {
     return 3;
   }
 
-  if (pct >= 35) {
+  if (pct >= 25) {
     return 2;
   }
 
-  if (pct >= 20) {
+  if (pct >= 15) {
     return 1;
   }
 
