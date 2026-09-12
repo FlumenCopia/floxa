@@ -1808,7 +1808,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               ) : null}
               {!deliverablesLoading && deliverables.map((item) => (
                 <article key={item.id} className="client-delivery-row">
-                  <div>
+                  <div className="client-delivery-info">
                     <h3>{item.title || item.label}</h3>
                     {item.description ? <p>{item.description}</p> : null}
                     <p>
@@ -2195,14 +2195,14 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                 const checkoutBlocked = Boolean(activePaymentCheckoutId) && activePaymentCheckoutId !== item.id;
 
                 return (
-                  <article key={item.id || item.type} className="client-delivery-row">
-                    <div>
+                  <article key={item.id || item.type} className="client-delivery-row client-payment-row">
+                    <div className="client-payment-info">
                       <h3>{getPaymentTypeLabel(item.type)} payment</h3>
                       <p>
                         {item.percentage}% - {formatPaymentAmount(item.amount)}
                       </p>
                     </div>
-                    <div>
+                    <div className="client-payment-actions">
                       <span className="client-panel-action secondary">
                         {getPaymentStatusLabel(item.status)}
                       </span>

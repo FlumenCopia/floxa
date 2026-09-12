@@ -2493,10 +2493,52 @@
   justify-content: space-between;
   gap: 16px;
   min-width: 0;
+  padding: 6px 0;
 }
 
 .client-delivery-row>* {
   min-width: 0;
+}
+
+.client-panel-stack article.client-delivery-row > div:first-child,
+.client-delivery-row > div:first-child,
+.client-delivery-info,
+.client-payment-info {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 4px !important;
+  margin-top: 0 !important;
+  min-width: 0;
+}
+
+.client-panel-stack article.client-delivery-row > div:last-child,
+.client-delivery-row > div:last-child,
+.client-payment-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-top: 0 !important;
+  flex-shrink: 0;
+}
+
+.client-delivery-row h3,
+.client-delivery-info h3,
+.client-payment-info h3 {
+  margin: 0 !important;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.client-delivery-row p,
+.client-delivery-info p,
+.client-payment-info p {
+  margin: 0 !important;
+  color: rgba(220, 235, 229, 0.72);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 /* --- Client Agreement Card Layout & Alignment Fix --- */
