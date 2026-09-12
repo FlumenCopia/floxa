@@ -248,9 +248,10 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const workflowStatus = project.workflowStatus || project.workflow_status;
   const activePhaseIndex = getActivePhaseIndex(pct, workflowStatus);
   const activePhaseLabel = pct >= 100 ? "Complete" : phaseLabels[activePhaseIndex];
-  const [panel, setPanel] = useState(null);
-  const [selectedStage, setSelectedStage] = useState(null);
   const defaultMilestoneStage = pct >= 100 ? "Complete" : phaseLabels[activePhaseIndex];
+  const initialPanel = phaseToPanelMap[defaultMilestoneStage] || "moodboards";
+  const [panel, setPanel] = useState(initialPanel);
+  const [selectedStage, setSelectedStage] = useState(defaultMilestoneStage);
   const currentActiveStage = panel
     ? (selectedStage || panelToDefaultStage[panel] || defaultMilestoneStage)
     : defaultMilestoneStage;
@@ -445,6 +446,12 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     return () => {
       isActive = false;
     };
+  }, []);
+
+  useEffect(() => {
+    if (initialPanel) {
+      openPanel(initialPanel, defaultMilestoneStage, false);
+    }
   }, []);
 
   useEffect(() => {
@@ -1007,11 +1014,11 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     setSelectedStage(label);
     const targetPanel = phaseToPanelMap[label];
     if (targetPanel) {
-      openPanel(targetPanel, label);
+      openPanel(targetPanel, label, true);
     }
   }
 
-  async function openPanel(nextPanel, stageLabel) {
+  async function openPanel(nextPanel, stageLabel, shouldScroll = false) {
     setPanel(nextPanel);
     if (stageLabel) {
       setSelectedStage(stageLabel);
@@ -1020,12 +1027,14 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
     setSignOffError("");
 
-    setTimeout(() => {
-      const panelEl = document.getElementById("client-workspace-panel");
-      if (panelEl) {
-        panelEl.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    }, 100);
+    if (shouldScroll) {
+      setTimeout(() => {
+        const panelEl = document.getElementById("client-workspace-panel");
+        if (panelEl) {
+          panelEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
 
     const token = project?.portal_token || project?.portalToken || project?.token;
 
@@ -1160,52 +1169,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
-  const cards = [
-    {
-      symbol: "01",
-      title: "Discovery Report",
-      sub: brandDNAReport
-        ? "Brand DNA ready"
-        : "Under review by consultant",
-      active: true,
-      panel: "discovery",
-    },
-    {
-      symbol: "02",
-      title: "Moodboards",
-      sub: `${moodboards.length} directions ready`,
-      active: true,
-      panel: "moodboards",
-    },
-    {
-      symbol: "03",
-      title: "Concepts",
-      sub: `${concepts.length} concepts ready`,
-      active: true,
-      panel: "concepts",
-    },
-    {
-      symbol: "04",
-      title: "Agreement",
-      sub: agreement ? "Ready to view" : "Pending",
-      active: true,
-      panel: "agreement",
-    },
-    {
-      symbol: "05",
-      title: "Delivery",
-      sub: `${deliverables.length} files ready`,
-      active: true,
-      panel: "delivery",
-    },
-    {
-      symbol: "06",
-      title: "Payments",
-      sub: `${payments.filter((item) => item.status === "requested").length} requested`,
-      active: true,
-      panel: "payments",
-    },
-  ];
   const visibleNotifications = notifications.slice(0, 5);
   const unreadCount = notifications.filter((item) => item.client_is_read === false).length;
   const hasSharedDelivery = deliverables.some((item) => item.status === "shared" || item.file_url || item.fileUrl);
@@ -1385,23 +1348,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
             );
           })}
         </div>
-      </section>
-
-      <section className="client-dashboard-grid">
-        {cards.map((card) => (
-          <button
-            key={card.panel}
-            type="button"
-            disabled={!card.active}
-            className={`client-journey-card ${card.active ? "available" : ""}`}
-            onClick={() => card.active && openPanel(card.panel)}
-          >
-            <span className="client-card-number">{card.symbol}</span>
-            <span className="client-card-arrow">^</span>
-            <strong>{card.title}</strong>
-            <small>{card.sub}</small>
-          </button>
-        ))}
       </section>
 
       {panel ? (
