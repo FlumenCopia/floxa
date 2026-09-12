@@ -1634,7 +1634,7 @@
 
 .client-dashboard-actions .client-notification-head button {
   padding: 6px 10px;
-  color: #4dffa0;
+  color: #ffffff;
   font-size: 11px;
 }
 
@@ -1743,8 +1743,8 @@
   place-items: center;
   border-radius: 50%;
   background:
-    conic-gradient(var(--floxa-neon) var(--client-progress), rgba(137, 172, 160, 0.16) 0),
-    rgba(5, 14, 10, 0.85);
+    conic-gradient(var(--floxa-neon) var(--client-progress), rgba(255, 255, 255, 0.1) 0),
+    rgba(254, 254, 254, 0.85);
 }
 
 .client-dashboard-orb>div {
@@ -1794,7 +1794,8 @@
   height: 5px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(137, 172, 160, 0.12);
+  background: rgba(4, 16, 11, 0.85);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(77, 255, 160, 0.1);
 }
 
 .client-dashboard-progress span {
@@ -1802,6 +1803,7 @@
   height: 100%;
   border-radius: inherit;
   background: var(--floxa-neon);
+  box-shadow: 0 0 10px rgba(77, 255, 160, 0.5);
 }
 
 .client-dashboard-stage-list {
@@ -1835,6 +1837,8 @@
 
 .client-dashboard-stage-list .active span {
   width: 30px;
+  background: var(--floxa-neon);
+  box-shadow: 0 0 8px rgba(77, 255, 160, 0.45);
 }
 
 .client-dashboard-grid {
@@ -4010,7 +4014,10 @@ td {
 }
 
 @media print {
-  html, body, .client-portal-shell {
+
+  html,
+  body,
+  .client-portal-shell {
     display: none !important;
     visibility: hidden !important;
   }
