@@ -297,7 +297,6 @@ export function ProfileScreen({
               </div>
             ))}
           </div>
-          <div className="client-stage-rail-slider-track" aria-hidden="true" />
         </div>
       </div>
     </div>

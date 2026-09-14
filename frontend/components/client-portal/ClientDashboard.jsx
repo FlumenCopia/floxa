@@ -2517,7 +2517,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                 );
               })}
             </div>
-            <div className="client-stage-rail-slider-track" aria-hidden="true" />
           </div>
         </aside>
       </main>
