@@ -27,6 +27,7 @@ export interface IProject {
   progress: number;
   clientSignedOff: boolean;
   signedOffAt: Date | null;
+  clientLastSeenAt?: Date | null;
   isArchived: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -78,6 +79,7 @@ const projectSchema = new Schema<IProject>(
     progress: { type: Number, default: 0 },
     clientSignedOff: { type: Boolean, default: false },
     signedOffAt: { type: Date, default: null },
+    clientLastSeenAt: { type: Date, default: null },
     isArchived: { type: Boolean, default: false },
   },
   {

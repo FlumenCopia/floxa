@@ -66,6 +66,44 @@ function formatGroupDate(timestamp) {
   return d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatLastSeen(timestamp) {
+  if (!timestamp) return "offline";
+  const d = new Date(timestamp);
+  if (Number.isNaN(d.getTime())) return "offline";
+
+  const now = new Date();
+  const diffMs = Math.max(0, now.getTime() - d.getTime());
+  const diffSec = Math.floor(diffMs / 1000);
+
+  if (diffSec < 60) {
+    return "last seen just now";
+  }
+
+  const timeStr = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
+
+  const isToday =
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear();
+
+  if (isToday) {
+    return `last seen today at ${timeStr}`;
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    d.getDate() === yesterday.getDate() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getFullYear() === yesterday.getFullYear();
+
+  if (isYesterday) {
+    return `last seen yesterday at ${timeStr}`;
+  }
+
+  return `last seen on ${d.toLocaleDateString([], { day: "numeric", month: "short" })} at ${timeStr}`;
+}
+
 function formatSeconds(sec) {
   if (!sec || Number.isNaN(sec)) return "0:00";
   const m = Math.floor(sec / 60);
@@ -211,6 +249,14 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
   const [clientIsTyping, setClientIsTyping] = useState(false);
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [, setPresenceTick] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPresenceTick((t) => t + 1);
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   // In-Chat Search & Header controls
   const [chatSearchOpen, setChatSearchOpen] = useState(false);
@@ -342,6 +388,8 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
             createdAt: newMsg.createdAt,
           },
           updatedAt: newMsg.createdAt,
+          isOnline: newMsg.senderRole === "client" ? true : updated[idx].isOnline,
+          lastSeen: newMsg.senderRole === "client" ? newMsg.createdAt : updated[idx].lastSeen,
           unreadCount:
             !isCurrentActive && newMsg.senderRole === "client"
               ? currentUnread + 1
@@ -369,6 +417,12 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
         if (newMsg.senderRole === "client") {
           supportSocket.sendChatRead({ projectId: newMsg.projectId, readBy: "consultant" });
           chatService.markProjectMessagesRead(newMsg.projectId).catch(() => {});
+          setSelectedConversation((prevConv) => {
+            if (prevConv?.projectId === newMsg.projectId) {
+              return { ...prevConv, isOnline: true, lastSeen: newMsg.createdAt };
+            }
+            return prevConv;
+          });
         }
 
         setTimeout(scrollToBottom, 50);
@@ -378,7 +432,37 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
     const unsubTyping = supportSocket.on("chat_typing", (data) => {
       if (data?.projectId === selectedConversation?.projectId && data?.senderRole === "client") {
         setClientIsTyping(Boolean(data.isTyping));
+        if (data.isTyping) {
+          setSelectedConversation((prev) => (prev ? { ...prev, isOnline: true } : prev));
+        }
       }
+    });
+
+    const unsubPresence = supportSocket.on("client_presence", (data) => {
+      if (!data?.projectId) return;
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.projectId === data.projectId
+            ? {
+                ...c,
+                isOnline: Boolean(data.isOnline),
+                lastSeen: data.lastSeen || new Date().toISOString(),
+              }
+            : c
+        )
+      );
+
+      setSelectedConversation((prev) => {
+        if (prev?.projectId === data.projectId) {
+          return {
+            ...prev,
+            isOnline: Boolean(data.isOnline),
+            lastSeen: data.lastSeen || new Date().toISOString(),
+          };
+        }
+        return prev;
+      });
     });
 
     const unsubRead = supportSocket.on("chat_messages_read", (data) => {
@@ -395,6 +479,7 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
       unsubMessage();
       unsubTyping();
       unsubRead();
+      unsubPresence();
     };
   }, [selectedConversation?.projectId]);
 
@@ -915,10 +1000,26 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
                   className={`wa-conv-item ${isSelected ? "active" : ""}`}
                   onClick={() => setSelectedConversation(conv)}
                 >
-                  <div className="wa-avatar-wrap">
+                  <div className="wa-avatar-wrap" style={{ position: "relative" }}>
                     <div className={`wa-avatar ${getAvatarGradient(idx)}`}>
                       {getInitials(conv.clientName)}
                     </div>
+                    {conv.isOnline && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          bottom: 1,
+                          right: 1,
+                          width: 9,
+                          height: 9,
+                          borderRadius: "50%",
+                          background: "#25d366",
+                          border: "2px solid #111b21",
+                          boxShadow: "0 0 4px #25d366",
+                        }}
+                        title="Online"
+                      />
+                    )}
                   </div>
 
                   <div className="wa-conv-content">
@@ -967,8 +1068,26 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
                 style={{ cursor: "pointer" }}
                 onClick={() => setIsContactDrawerOpen(true)}
               >
-                <div className="wa-avatar gradient-1">
-                  {getInitials(selectedConversation.clientName)}
+                <div style={{ position: "relative", display: "inline-flex" }}>
+                  <div className="wa-avatar gradient-1">
+                    {getInitials(selectedConversation.clientName)}
+                  </div>
+                  {selectedConversation.isOnline && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        bottom: 0,
+                        right: 0,
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: "#25d366",
+                        border: "2px solid #202c33",
+                        boxShadow: "0 0 6px #25d366",
+                      }}
+                      title="Online"
+                    />
+                  )}
                 </div>
                 <div className="wa-chat-header-text">
                   <div className="wa-chat-header-name">
@@ -977,7 +1096,29 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
                   <div className="wa-chat-header-subtitle">
                     <span>{selectedConversation.projectTitle}</span>
                     <span>•</span>
-                    <span style={{ color: "#25d366" }}>Active Client</span>
+                    {clientIsTyping ? (
+                      <span style={{ color: "#25d366", fontStyle: "italic", fontWeight: 500 }}>
+                        typing...
+                      </span>
+                    ) : selectedConversation.isOnline ? (
+                      <span style={{ color: "#25d366", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            background: "#25d366",
+                            display: "inline-block",
+                            boxShadow: "0 0 6px #25d366",
+                          }}
+                        />
+                        <span>online</span>
+                      </span>
+                    ) : (
+                      <span style={{ color: "#8696a0" }}>
+                        {formatLastSeen(selectedConversation.lastSeen)}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1162,10 +1303,32 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
                   </div>
 
                   <div className="wa-drawer-section">
-                    <div className="wa-drawer-label">Connection Status</div>
-                    <div className="wa-drawer-value" style={{ color: "#25d366", display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#25d366" }} />
-                      <span>Live WebSocket Connected</span>
+                    <div className="wa-drawer-label">Client Status</div>
+                    <div
+                      className="wa-drawer-value"
+                      style={{
+                        color: selectedConversation.isOnline ? "#25d366" : "#8696a0",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          background: selectedConversation.isOnline ? "#25d366" : "#8696a0",
+                          boxShadow: selectedConversation.isOnline ? "0 0 6px #25d366" : "none",
+                        }}
+                      />
+                      <span>
+                        {clientIsTyping
+                          ? "Typing..."
+                          : selectedConversation.isOnline
+                          ? "Online now"
+                          : formatLastSeen(selectedConversation.lastSeen)}
+                      </span>
                     </div>
                   </div>
 

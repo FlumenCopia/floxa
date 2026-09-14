@@ -187,6 +187,11 @@ class SupportSocketService {
       if (data.projectId) {
         this.emit(`chat_messages_read_${data.projectId}`, data);
       }
+    } else if (type === "CLIENT_PRESENCE") {
+      this.emit("client_presence", data);
+      if (data.projectId) {
+        this.emit(`client_presence_${data.projectId}`, data);
+      }
     } else if (type === "ERROR") {
       this.emit("server_error", data);
     }

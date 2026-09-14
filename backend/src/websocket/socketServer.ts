@@ -131,6 +131,14 @@ export const ACTIVE_HELP_SESSIONS: Record<string, ActiveHelpSession> = {};
 export const consultantSockets = new Map<string, Set<WebSocket>>(); // consultantId -> Set<ws>
 export const projectSockets = new Map<string, Set<ClientConnection>>(); // projectId -> Set<ClientConnection>
 
+export function isProjectClientOnline(projectId: string): boolean {
+  const conns = projectSockets.get(projectId);
+  if (!conns) return false;
+  return Array.from(conns).some(
+    (c) => c.role === 'client' && c.ws.readyState === WebSocket.OPEN
+  );
+}
+
 function parseCookies(cookieHeader?: string): Record<string, string> {
   const list: Record<string, string> = {};
   if (!cookieHeader) return list;
@@ -781,6 +789,25 @@ export function setupWebSocketServer(server: Server) {
       consultantSockets.get(consultantId)!.add(ws);
     }
 
+    if (role === 'client') {
+      const now = new Date();
+      Project.updateOne({ _id: project.id }, { $set: { clientLastSeenAt: now } }).catch(() => {});
+      const consId = String(project.consultantId || '');
+      if (consId) {
+        const presencePayload = JSON.stringify({
+          type: 'CLIENT_PRESENCE',
+          projectId: project.id,
+          isOnline: true,
+          lastSeen: now.toISOString(),
+        });
+        consultantSockets.get(consId)?.forEach((cws) => {
+          if (cws.readyState === WebSocket.OPEN) {
+            cws.send(presencePayload);
+          }
+        });
+      }
+    }
+
     // Initial state sync - rehydrate from DB if not in memory
     let currentHelp: ActiveHelpSession | null = ACTIVE_HELP_SESSIONS[project.id];
     if (!currentHelp || !currentHelp.is_active) {
@@ -1348,6 +1375,31 @@ export function setupWebSocketServer(server: Server) {
         set.delete(clientConn);
         if (set.size === 0) {
           projectSockets.delete(project.id);
+        }
+      }
+
+      if (role === 'client') {
+        const remaining = Array.from(projectSockets.get(project.id) || []).filter(
+          (c) => c.role === 'client' && c.ws.readyState === WebSocket.OPEN && c.ws !== ws
+        );
+        const isStillOnline = remaining.length > 0;
+        const now = new Date();
+        Project.updateOne({ _id: project.id }, { $set: { clientLastSeenAt: now } }).catch(() => {});
+        if (!isStillOnline) {
+          const consId = String(project.consultantId || '');
+          if (consId) {
+            const presencePayload = JSON.stringify({
+              type: 'CLIENT_PRESENCE',
+              projectId: project.id,
+              isOnline: false,
+              lastSeen: now.toISOString(),
+            });
+            consultantSockets.get(consId)?.forEach((cws) => {
+              if (cws.readyState === WebSocket.OPEN) {
+                cws.send(presencePayload);
+              }
+            });
+          }
         }
       }
 

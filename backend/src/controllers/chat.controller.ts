@@ -4,6 +4,7 @@ import { ChatMessage, Project, Client } from '../models/index.js';
 import type { AuthenticatedRequest } from '../types/express.js';
 import type { PortalRequest } from '../middleware/portal.middleware.js';
 import { saveFile, validateUploadedFile, getMimeType } from '../services/storage.service.js';
+import { isProjectClientOnline } from '../websocket/socketServer.js';
 
 export async function getRecentConversations(req: any, res: Response, next: NextFunction) {
   try {
@@ -31,6 +32,8 @@ export async function getRecentConversations(req: any, res: Response, next: Next
         });
 
         const clientName = (p.client as any)?.name || p.companyName || 'Client';
+        const isOnline = isProjectClientOnline(p.id);
+        const lastSeen = p.clientLastSeenAt || lastMessage?.createdAt || p.updatedAt || p.createdAt;
 
         return {
           projectId: p.id,
@@ -39,6 +42,8 @@ export async function getRecentConversations(req: any, res: Response, next: Next
           companyName: p.companyName || '',
           portalToken: p.portalToken,
           unreadCount,
+          isOnline,
+          lastSeen,
           lastMessage: lastMessage
             ? {
                 id: lastMessage._id.toString(),
@@ -145,6 +150,7 @@ export async function markPortalMessagesRead(req: any, res: Response, next: Next
     }
 
     const now = new Date();
+    Project.updateOne({ _id: project.id }, { $set: { clientLastSeenAt: now } }).catch(() => {});
     await ChatMessage.updateMany(
       {
         projectId: project.id,
@@ -284,6 +290,7 @@ export async function sendPortalMessageFallback(req: any, res: Response, next: N
     }
 
     const clientName = (project.client as any)?.name || project.companyName || 'Client';
+    Project.updateOne({ _id: project.id }, { $set: { clientLastSeenAt: new Date() } }).catch(() => {});
 
     const msg = await ChatMessage.create({
       projectId: project.id,
