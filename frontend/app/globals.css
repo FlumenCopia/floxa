@@ -734,11 +734,30 @@ textarea {
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(77, 255, 160, 0.18) transparent;
   transition: transform 0.25s ease, width 0.25s ease;
   z-index: 40;
   box-shadow:
     4px 0 32px rgba(0, 0, 0, 0.4),
     inset -1px 0 1px rgba(77, 255, 160, 0.14);
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(77, 255, 160, 0.18);
+  border-radius: 10px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(77, 255, 160, 0.38);
 }
 
 .sidebar-overlay {
@@ -6272,6 +6291,37 @@ textarea {
   background: linear-gradient(90deg, #4ef5a1, #21db7d);
 }
 
+/* Universal custom scrollbar styles across the entire Floxa platform */
+*,
+*::before,
+*::after {
+  scrollbar-color: rgba(77, 255, 160, 0.2) transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(77, 255, 160, 0.2);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(77, 255, 160, 0.38);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.sidebar,
 .content,
 .notification-list,
 .dashboard-table-wrap,
@@ -6286,6 +6336,7 @@ textarea {
   scrollbar-width: thin;
 }
 
+.sidebar::-webkit-scrollbar,
 .content::-webkit-scrollbar,
 .notification-list::-webkit-scrollbar,
 .dashboard-table-wrap::-webkit-scrollbar,
@@ -6296,10 +6347,11 @@ textarea {
 .discovery-overview-timeline-card .discovery-timeline::-webkit-scrollbar,
 .analytics-sector-list::-webkit-scrollbar,
 .project-filter-menu::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
+.sidebar::-webkit-scrollbar-thumb,
 .content::-webkit-scrollbar-thumb,
 .notification-list::-webkit-scrollbar-thumb,
 .dashboard-table-wrap::-webkit-scrollbar-thumb,
@@ -6314,6 +6366,7 @@ textarea {
   border-radius: 6px;
 }
 
+.sidebar::-webkit-scrollbar-thumb:hover,
 .content::-webkit-scrollbar-thumb:hover,
 .notification-list::-webkit-scrollbar-thumb:hover,
 .dashboard-table-wrap::-webkit-scrollbar-thumb:hover,
@@ -6324,9 +6377,10 @@ textarea {
 .discovery-overview-timeline-card .discovery-timeline::-webkit-scrollbar-thumb:hover,
 .analytics-sector-list::-webkit-scrollbar-thumb:hover,
 .project-filter-menu::-webkit-scrollbar-thumb:hover {
-  background: rgba(77, 255, 160, 0.32);
+  background: rgba(77, 255, 160, 0.35);
 }
 
+.sidebar::-webkit-scrollbar-track,
 .content::-webkit-scrollbar-track,
 .notification-list::-webkit-scrollbar-track,
 .dashboard-table-wrap::-webkit-scrollbar-track,
