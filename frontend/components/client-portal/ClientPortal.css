@@ -1145,35 +1145,63 @@
   border-left: 1px solid rgba(137, 172, 160, 0.08);
 }
 
-.client-profile-stage-rail div {
+.client-profile-stage-rail div,
+.client-profile-stage-rail button {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
-  color: rgba(137, 172, 160, 0.5);
+  gap: 12px;
+  padding: 8px 12px;
+  color: rgba(137, 172, 160, 0.45);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: right;
+  font: inherit;
+  font-family: inherit;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.client-profile-stage-rail strong {
+  flex: 1;
+  text-align: right;
+  font-size: 13.5px;
+  font-weight: 400;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .client-profile-stage-rail span {
   width: 2px;
   height: 28px;
   border-radius: 1px;
-  background: rgba(137, 172, 160, 0.12);
-}
-
-.client-profile-stage-rail strong {
-  flex: 1;
-  text-align: right;
-  font-size: 13px;
-  font-weight: 400;
+  background: rgba(137, 172, 160, 0.18);
+  flex-shrink: 0;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .client-profile-stage-rail .active {
-  color: var(--floxa-text);
-  font-weight: 700;
+  color: #ffffff;
+}
+
+.client-profile-stage-rail .active strong {
+  font-size: 17px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.02em;
 }
 
 .client-profile-stage-rail .active span {
-  background: var(--floxa-text);
+  background: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.85);
+  width: 3px;
+}
+
+.client-profile-stage-rail button:hover:not(.active) {
+  color: rgba(240, 247, 244, 0.85);
+}
+
+.client-profile-stage-rail button:hover:not(.active) span {
+  background: rgba(137, 172, 160, 0.45);
 }
 
 .client-discovery-screen {
@@ -2084,6 +2112,102 @@
   margin-bottom: 26px;
   padding-bottom: 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* --- Workspace Split Layout (Left: Content, Right: Stages Rail) --- */
+.client-workspace-split-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: clamp(24px, 4vw, 44px);
+  align-items: start;
+  width: 100%;
+}
+
+.client-workspace-content-area {
+  min-width: 0;
+  width: 100%;
+}
+
+.client-workspace-stage-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: clamp(16px, 2.5vw, 28px);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 24px;
+}
+
+.client-workspace-stage-rail .client-dashboard-stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .client-workspace-split-body {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .client-workspace-stage-rail {
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 20px;
+    position: static;
+  }
+}
+
+/* --- Dashboard Split Screen (Left: Section/Workspace, Right: % Orb + Nav) --- */
+.client-dashboard-split-layout {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 1fr);
+  width: 100%;
+  min-height: calc(100dvh - 72px);
+}
+
+.client-dashboard-content-section {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: clamp(24px, 4vw, 48px);
+  background: rgba(15, 20, 20, 0.55);
+  backdrop-filter: blur(13px);
+  border-right: 1px solid rgba(137, 172, 160, 0.08);
+}
+
+.client-dashboard-workspace-body {
+  width: 100%;
+}
+
+.client-dashboard-visual-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  background: rgba(5, 14, 10, 0.2);
+  height: 100%;
+  overflow: hidden;
+  padding-right: 28px;
+}
+
+@media (max-width: 980px) {
+  .client-dashboard-split-layout {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .client-dashboard-content-section {
+    border-right: none;
+    border-bottom: 1px solid rgba(137, 172, 160, 0.08);
+  }
+
+  .client-dashboard-visual-panel {
+    min-height: 480px;
+    padding-right: 0;
+  }
 }
 
 .client-panel-heading>div,

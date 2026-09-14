@@ -1333,75 +1333,20 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
         </div>
       </header>
 
-      <section className="client-dashboard-hero">
-        <div className="client-dashboard-orb" style={{ "--client-progress": `${pct * 3.6}deg` }}>
-          <div>
-            <strong>{pct}%</strong>
-            <span>complete</span>
-          </div>
-        </div>
-
-        <div className="client-dashboard-project">
-          <span className="client-dashboard-kicker">Your brand journey</span>
-          <h1>{project.name}</h1>
-          <p>
-            Phase {activePhaseIndex + 1} of {phaseLabels.length} -{" "}
-            {activePhaseLabel}
-          </p>
-          <div className="client-dashboard-progress">
-            <span style={{ width: `${pct}%` }} />
-          </div>
-        </div>
-
-        <div className="client-dashboard-stage-list" role="navigation" aria-label="Project stages">
-          {phaseLabels.map((label, index) => {
-            const isActive = currentActiveStage === label;
-            const isComplete = !isActive && index < activePhaseIndex;
-
-            return (
-              <button
-                key={label}
-                type="button"
-                className={`client-dashboard-stage-item ${
-                  isActive ? "active" : isComplete ? "complete" : ""
-                }`.trim()}
-                onClick={() => handleStageClick(label)}
-                title={`Open ${label} workspace`}
-                aria-current={isActive ? "step" : undefined}
-              >
-                <span />
-                {pct >= 100 && index === phaseLabels.length - 1 ? "Complete" : label}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {panel ? (
-        <section id="client-workspace-panel" className="client-dashboard-panel client-design-enter">
+      <main className="client-dashboard-split-layout">
+        {/* LEFT SIDE: SECTION (WORKSPACE) */}
+        <section className="client-dashboard-content-section">
           <div className="client-panel-heading">
             <div className="client-panel-heading-title">
-              <span className="client-panel-heading-kicker">Project workspace</span>
-              <h2>{panelTitles[panel] || panel}</h2>
+              <span className="client-panel-heading-kicker">
+                {project.name} • Phase {activePhaseIndex + 1} of {phaseLabels.length}
+              </span>
+              <h2>{panelTitles[panel] || panel || "Project Workspace"}</h2>
             </div>
-            <button
-              type="button"
-              className="client-panel-close-btn"
-              onClick={() => {
-                setPanel(null);
-                setSelectedStage(activePhaseLabel);
-              }}
-              aria-label="Close workspace"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-              <span>Close</span>
-            </button>
           </div>
 
-          {panel === "discovery" ? (
+          <div className="client-dashboard-workspace-body">
+            {panel === "discovery" ? (
             <div className="client-brand-summary">
               {discoveryReportLoading ? (
                 <>
@@ -2544,8 +2489,70 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               })}
             </div>
           ) : null}
+          </div>
         </section>
-      ) : null}
+
+        {/* RIGHT SIDE: NAV % (ORB + STAGE RAIL) */}
+        <aside className="client-dashboard-visual-panel">
+          <div className="client-profile-orb">
+            <svg width="min(340px, 32vw)" height="min(340px, 32vw)" viewBox="0 0 200 200">
+              <defs>
+                <clipPath id="dashboardOrbClip">
+                  <circle cx="100" cy="100" r="88" />
+                </clipPath>
+              </defs>
+              <circle
+                cx="100"
+                cy="100"
+                r="88"
+                fill="rgba(10,25,18,0.6)"
+                stroke="rgba(137,172,160,0.2)"
+                strokeWidth="1.5"
+              />
+              <rect
+                x="12"
+                y={200 - 176 * (pct / 100)}
+                width="176"
+                height={176 * (pct / 100)}
+                fill="rgba(28,52,46,0.55)"
+                clipPath="url(#dashboardOrbClip)"
+              />
+              <circle
+                cx="100"
+                cy="100"
+                r="88"
+                fill="none"
+                stroke="rgba(77,255,160,0.32)"
+                strokeWidth="2.5"
+                strokeDasharray={553}
+                strokeDashoffset={553 - 553 * (pct / 100)}
+                strokeLinecap="round"
+                transform="rotate(-90 100 100)"
+              />
+            </svg>
+            <div>{pct}%</div>
+          </div>
+
+          <div className="client-profile-stage-rail">
+            {phaseLabels.map((stage, index) => {
+              const isActive = currentActiveStage === stage;
+              const isComplete = !isActive && index < activePhaseIndex;
+              return (
+                <button
+                  type="button"
+                  key={stage}
+                  className={`client-rail-stage-btn ${isActive ? "active" : isComplete ? "complete" : ""}`.trim()}
+                  onClick={() => handleStageClick(stage)}
+                  title={`Open ${stage} workspace`}
+                >
+                  <strong>{stage}</strong>
+                  <span />
+                </button>
+              );
+            })}
+          </div>
+        </aside>
+      </main>
 
       {activePreview ? (
         <div
