@@ -938,12 +938,6 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
           LEFT SIDEBAR: CONVERSATION LIST
           ------------------------------------------------------------------- */}
       <aside className="wa-sidebar">
-        <div className="wa-sidebar-header">
-          <div className="wa-sidebar-title-wrap">
-            <span className="wa-sidebar-title">Floxa Chat</span>
-          </div>
-        </div>
-
         <div className="wa-search-bar-wrap">
           <div className="wa-search-input-box">
             <Search size={15} color="#8696a0" />
