@@ -1767,6 +1767,44 @@ textarea {
   color: #6f9283;
 }
 
+.project-table-call-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #4ef5a1;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
+  vertical-align: middle;
+  box-shadow: none;
+}
+
+.project-table-call-btn:hover {
+  background: rgba(77, 255, 160, 0.12);
+  color: #ffffff;
+  transform: scale(1.12);
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.project-table-call-btn:active {
+  transform: scale(0.95);
+}
+
+.project-table-call-btn:focus,
+.project-table-call-btn:focus-visible {
+  outline: none;
+  border: none;
+  box-shadow: none;
+}
+
 .activity-date {
   margin: 10px 0 8px;
   padding: 0 20px;

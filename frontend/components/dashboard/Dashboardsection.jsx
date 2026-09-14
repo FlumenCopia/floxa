@@ -215,11 +215,12 @@ export default function Dashboardsection() {
                               <span className="progress-value">{Number(project.progress || 0)}%</span>
                             </div>
                           </td>
-                          <td style={{ textAlign: "right", paddingRight: "14px" }}>
+                          <td style={{ textAlign: "right", paddingRight: "16px" }}>
                             <button
                               type="button"
                               className="project-table-call-btn"
                               title={`Video call ${project.client_name || project.company_name}`}
+                              aria-label={`Video call ${project.client_name || project.company_name}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 webRTCService.initiateCall({
@@ -230,8 +231,7 @@ export default function Dashboardsection() {
                                 });
                               }}
                             >
-                              <Video size={13} strokeWidth={2.2} />
-                              <span>Call</span>
+                              <Video size={20} strokeWidth={2} />
                             </button>
                           </td>
                         </tr>
