@@ -2494,62 +2494,30 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
         {/* RIGHT SIDE: NAV % (ORB + STAGE RAIL) */}
         <aside className="client-dashboard-visual-panel">
-          <div className="client-profile-orb">
-            <svg width="min(340px, 32vw)" height="min(340px, 32vw)" viewBox="0 0 200 200">
-              <defs>
-                <clipPath id="dashboardOrbClip">
-                  <circle cx="100" cy="100" r="88" />
-                </clipPath>
-              </defs>
-              <circle
-                cx="100"
-                cy="100"
-                r="88"
-                fill="rgba(10,25,18,0.6)"
-                stroke="rgba(137,172,160,0.2)"
-                strokeWidth="1.5"
-              />
-              <rect
-                x="12"
-                y={200 - 176 * (pct / 100)}
-                width="176"
-                height={176 * (pct / 100)}
-                fill="rgba(28,52,46,0.55)"
-                clipPath="url(#dashboardOrbClip)"
-              />
-              <circle
-                cx="100"
-                cy="100"
-                r="88"
-                fill="none"
-                stroke="rgba(77,255,160,0.32)"
-                strokeWidth="2.5"
-                strokeDasharray={553}
-                strokeDashoffset={553 - 553 * (pct / 100)}
-                strokeLinecap="round"
-                transform="rotate(-90 100 100)"
-              />
-            </svg>
-            <div>{pct}%</div>
+          <div className="client-luminous-disc-orb" style={{ "--orb-deg": `${pct * 3.6}deg` }}>
+            <span>{pct}%</span>
           </div>
 
-          <div className="client-profile-stage-rail">
-            {phaseLabels.map((stage, index) => {
-              const isActive = currentActiveStage === stage;
-              const isComplete = !isActive && index < activePhaseIndex;
-              return (
-                <button
-                  type="button"
-                  key={stage}
-                  className={`client-rail-stage-btn ${isActive ? "active" : isComplete ? "complete" : ""}`.trim()}
-                  onClick={() => handleStageClick(stage)}
-                  title={`Open ${stage} workspace`}
-                >
-                  <strong>{stage}</strong>
-                  <span />
-                </button>
-              );
-            })}
+          <div className="client-stage-rail-wrapper">
+            <div className="client-profile-stage-rail">
+              {phaseLabels.map((stage, index) => {
+                const isActive = currentActiveStage === stage;
+                const isComplete = !isActive && index < activePhaseIndex;
+                return (
+                  <button
+                    type="button"
+                    key={stage}
+                    className={`client-rail-stage-btn ${isActive ? "active" : isComplete ? "complete" : ""}`.trim()}
+                    onClick={() => handleStageClick(stage)}
+                    title={`Open ${stage} workspace`}
+                  >
+                    <strong>{stage}</strong>
+                    <span />
+                  </button>
+                );
+              })}
+            </div>
+            <div className="client-stage-rail-slider-track" aria-hidden="true" />
           </div>
         </aside>
       </main>

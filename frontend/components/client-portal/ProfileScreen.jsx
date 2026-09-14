@@ -284,52 +284,20 @@ export function ProfileScreen({
       </div>
 
       <div className="client-profile-visual-panel">
-        <div className="client-profile-orb">
-          <svg width="min(340px, 40vw)" height="min(340px, 40vw)" viewBox="0 0 200 200">
-            <defs>
-              <clipPath id="orbClip">
-                <circle cx="100" cy="100" r="88" />
-              </clipPath>
-            </defs>
-            <circle
-              cx="100"
-              cy="100"
-              r="88"
-              fill="rgba(10,25,18,0.6)"
-              stroke="rgba(137,172,160,0.2)"
-              strokeWidth="1.5"
-            />
-            <rect
-              x="12"
-              y={200 - 176 * (pct / 100)}
-              width="176"
-              height={176 * (pct / 100)}
-              fill="rgba(28,52,46,0.55)"
-              clipPath="url(#orbClip)"
-            />
-            <circle
-              cx="100"
-              cy="100"
-              r="88"
-              fill="none"
-              stroke="rgba(77,255,160,0.28)"
-              strokeWidth="2"
-              strokeDasharray={circumference}
-              strokeDashoffset={dashOffset}
-              strokeLinecap="round"
-              transform="rotate(-90 100 100)"
-            />
-          </svg>
-          <div>{pct}%</div>
+        <div className="client-luminous-disc-orb" style={{ "--orb-deg": `${pct * 3.6}deg` }}>
+          <span>{pct}%</span>
         </div>
 
-        <div className="client-profile-stage-rail">
-          {stageLabels.map((stage, index) => (
-            <div className={index === 0 ? "active" : ""} key={stage}>
-              <span />
-              <strong>{stage}</strong>
-            </div>
-          ))}
+        <div className="client-stage-rail-wrapper">
+          <div className="client-profile-stage-rail">
+            {stageLabels.map((stage, index) => (
+              <div className={index === 0 ? "active" : ""} key={stage}>
+                <strong>{stage}</strong>
+                <span />
+              </div>
+            ))}
+          </div>
+          <div className="client-stage-rail-slider-track" aria-hidden="true" />
         </div>
       </div>
     </div>
