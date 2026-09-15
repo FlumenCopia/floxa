@@ -2269,12 +2269,32 @@
 .client-dashboard-content-section {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: clamp(24px, 4vw, 48px);
   background: rgba(4, 12, 9, 0.62);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-right: 1px solid rgba(137, 172, 160, 0.08);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(77, 255, 160, 0.22) transparent;
+}
+
+.client-dashboard-content-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.client-dashboard-content-section::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.client-dashboard-content-section::-webkit-scrollbar-thumb {
+  background: rgba(77, 255, 160, 0.22);
+  border-radius: 999px;
+}
+
+.client-dashboard-content-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(77, 255, 160, 0.4);
 }
 
 .client-dashboard-workspace-body {
