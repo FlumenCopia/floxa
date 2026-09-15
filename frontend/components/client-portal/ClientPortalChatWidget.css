@@ -443,8 +443,17 @@
     right: 16px;
     left: auto;
     bottom: 16px;
-    padding: 10px 15px;
-    font-size: 12px;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .floxa-client-chat-trigger-btn span {
+    display: none !important;
   }
 
   .floxa-client-chat-modal.is-docked {

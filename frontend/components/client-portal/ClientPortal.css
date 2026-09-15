@@ -4434,6 +4434,8 @@ td {
   cursor: pointer;
   transition: all 0.2s ease;
   backdrop-filter: blur(6px);
+  white-space: nowrap;
+  position: relative;
 }
 
 .client-help-trigger-btn:hover {
@@ -4447,6 +4449,39 @@ td {
   background: rgba(16, 185, 129, 0.12);
   border-color: rgba(16, 185, 129, 0.4);
   color: #10b981;
+}
+
+@media (max-width: 768px) {
+  .client-help-trigger-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-shrink: 0;
+  }
+
+  .client-help-trigger-btn .client-help-text {
+    display: none !important;
+  }
+
+  .client-help-trigger-btn svg {
+    width: 17px;
+    height: 17px;
+    stroke: currentColor;
+    display: block;
+    margin: 0;
+  }
+
+  .client-help-trigger-btn.active-help .banner-pulse-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    margin: 0;
+  }
 }
 
 .client-help-modal-overlay {

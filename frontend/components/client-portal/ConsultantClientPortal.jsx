@@ -254,16 +254,23 @@ function PortalCard({
                 type="button"
                 className="client-help-trigger-btn active-help"
                 onClick={onResolveHelp}
+                title="Help Active • Click to Resolve"
+                aria-label="Help Active • Click to Resolve"
               >
-                <span className="banner-pulse-dot" /> Help Active • Click to Resolve
+                <span className="banner-pulse-dot" />
+                <MessageSquare size={16} />
+                <span className="client-help-text">Help Active • Click to Resolve</span>
               </button>
             ) : (
               <button
                 type="button"
                 className="client-help-trigger-btn"
                 onClick={onOpenHelp}
+                title={`Need Help on Frame ${step}?`}
+                aria-label={`Need Help on Frame ${step}?`}
               >
-                <MessageSquare size={13} /> Need Help on Frame {step}?
+                <MessageSquare size={16} />
+                <span className="client-help-text">Need Help on Frame {step}?</span>
               </button>
             )
           ) : null}

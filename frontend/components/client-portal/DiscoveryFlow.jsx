@@ -790,12 +790,27 @@ export function DiscoveryFlow({
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {!isConsultantMode ? (
               isCurrentStepHelpActive ? (
-                <button type="button" className="client-help-trigger-btn active-help" onClick={resolveCurrentHelp}>
-                  <span className="banner-pulse-dot" /> Help Active • Click to Resolve
+                <button
+                  type="button"
+                  className="client-help-trigger-btn active-help"
+                  onClick={resolveCurrentHelp}
+                  title="Help Active • Click to Resolve"
+                  aria-label="Help Active • Click to Resolve"
+                >
+                  <span className="banner-pulse-dot" />
+                  <MessageSquare size={16} />
+                  <span className="client-help-text">Help Active • Click to Resolve</span>
                 </button>
               ) : (
-                <button type="button" className="client-help-trigger-btn" onClick={() => setShowHelpModal(true)}>
-                  <MessageSquare size={13} /> Need Help on Step {step}?
+                <button
+                  type="button"
+                  className="client-help-trigger-btn"
+                  onClick={() => setShowHelpModal(true)}
+                  title={`Need Help on Step ${step}?`}
+                  aria-label={`Need Help on Step ${step}?`}
+                >
+                  <MessageSquare size={16} />
+                  <span className="client-help-text">Need Help on Step {step}?</span>
                 </button>
               )
             ) : null}
