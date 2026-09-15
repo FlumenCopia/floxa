@@ -2319,16 +2319,15 @@
   display: none;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   padding: 0;
-  border: 1px solid rgba(77, 255, 160, 0.3);
+  border: none !important;
+  outline: none !important;
   border-radius: 9999px;
   color: #ffffff;
-  background: linear-gradient(135deg, rgba(20, 48, 36, 0.88), rgba(8, 24, 17, 0.92));
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(77, 255, 160, 0.25);
+  background: transparent;
+  box-shadow: none !important;
   cursor: pointer;
   transition: all 0.22s ease;
   user-select: none;
@@ -2336,15 +2335,31 @@
 }
 
 .client-offcanvas-toggle-btn:hover {
-  border-color: rgba(77, 255, 160, 0.65);
-  background: linear-gradient(135deg, rgba(28, 64, 48, 0.95), rgba(12, 32, 22, 0.98));
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 16px rgba(77, 255, 160, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transform: scale(1.08);
+}
+
+.client-offcanvas-toggle-btn:focus,
+.client-offcanvas-toggle-btn:focus-visible,
+.client-offcanvas-toggle-btn:active {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .client-offcanvas-toggle-btn svg {
+  width: 26px;
+  height: 26px;
   stroke: #ffffff;
   display: block;
+  transition: stroke 0.2s ease;
+}
+
+.client-offcanvas-toggle-btn:hover svg {
+  stroke: #4dffa0;
 }
 
 .client-offcanvas-close-btn {
@@ -2692,13 +2707,13 @@
 /* --- Mobile Phones (<= 520px) --- */
 @media (max-width: 520px) {
   .client-offcanvas-toggle-btn {
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
   }
 
   .client-offcanvas-toggle-btn svg {
-    width: 17px;
-    height: 17px;
+    width: 24px;
+    height: 24px;
   }
 
   .client-dashboard-visual-panel,
