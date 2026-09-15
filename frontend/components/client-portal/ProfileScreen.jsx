@@ -217,14 +217,12 @@ export function ProfileScreen({
             type="button"
             className="client-offcanvas-toggle-btn"
             onClick={() => setOffcanvasOpen(true)}
-            title="View Stages & Progress"
-            aria-label="Open stages drawer"
+            title="Toggle Menu"
+            aria-label="Toggle Menu"
           >
-            <span className="client-toggle-pct">{pct}%</span>
-            <span className="client-toggle-label">Stages</span>
             <svg
-              width="17"
-              height="17"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -233,9 +231,9 @@ export function ProfileScreen({
               strokeLinejoin="round"
               aria-hidden="true"
             >
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
             </svg>
           </button>
         </div>
