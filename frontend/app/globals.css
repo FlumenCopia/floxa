@@ -102,7 +102,7 @@ textarea {
   height: 100vh;
   margin: 0;
   z-index: -2;
-  background: url("/client-design/banner3.png") center / cover no-repeat;
+  background: url("/client-design/banner1.png") center / cover no-repeat;
   background-attachment: fixed;
   opacity: 0.95;
   filter: brightness(1.1) contrast(1.12) saturate(1.2);

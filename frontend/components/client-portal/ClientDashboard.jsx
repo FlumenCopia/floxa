@@ -1256,6 +1256,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
   return (
     <div className="client-dashboard-screen">
+      {/*
       <header className="client-dashboard-header">
         <div>
           <div className="client-dashboard-wordmark">
@@ -1332,6 +1333,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           </button>
         </div>
       </header>
+      */}
 
       <main className="client-dashboard-split-layout">
         {/* LEFT SIDE: SECTION (WORKSPACE) */}
