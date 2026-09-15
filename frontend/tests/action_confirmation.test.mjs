@@ -111,7 +111,7 @@ test('In-Screen Confirmation Prompt Contract for Concept & Moodboard', async (t)
     assert.strictEqual(confirmingConceptId, null);
   });
 
-  await t.test('7. Multiple moodboards can be selected simultaneously', () => {
+  await t.test('7. Option A Strict Single Direction: Selecting a moodboard switches direction and deselects others', () => {
     let moodboards = [
       { id: 'm-1', title: 'Moody Minimal', is_selected: false },
       { id: 'm-2', title: 'Warm Editorial', is_selected: false },
@@ -119,41 +119,42 @@ test('In-Screen Confirmation Prompt Contract for Concept & Moodboard', async (t)
     ];
 
     function selectMoodboard(id) {
-      moodboards = moodboards.map((item) =>
-        item.id === id ? { ...item, is_selected: true } : item
-      );
+      moodboards = moodboards.map((item) => ({
+        ...item,
+        is_selected: item.id === id,
+      }));
     }
 
     // Client selects m-1
     selectMoodboard('m-1');
     assert.strictEqual(moodboards.find((m) => m.id === 'm-1').is_selected, true);
 
-    // Client selects m-2 without losing m-1
+    // Client switches to m-2: m-1 is deselected, m-2 is selected
     selectMoodboard('m-2');
-    assert.strictEqual(moodboards.find((m) => m.id === 'm-1').is_selected, true, 'm-1 remains selected');
-    assert.strictEqual(moodboards.find((m) => m.id === 'm-2').is_selected, true, 'm-2 is also selected');
+    assert.strictEqual(moodboards.find((m) => m.id === 'm-1').is_selected, false, 'm-1 is now deselected');
+    assert.strictEqual(moodboards.find((m) => m.id === 'm-2').is_selected, true, 'm-2 is selected');
 
     const selectedCount = moodboards.filter((m) => m.is_selected).length;
-    assert.strictEqual(selectedCount, 2, 'Two moodboards selected concurrently');
+    assert.strictEqual(selectedCount, 1, 'Strict single direction: exactly 1 moodboard selected at a time');
   });
 
-  await t.test('8. Once selected, moodboard cannot be deselected and remains permanently locked', () => {
-    const moodboards = [
+  await t.test('8. Switching moodboard direction updates active selection to new direction', () => {
+    let moodboards = [
       { id: 'm-1', title: 'Moody Minimal', is_selected: true },
-      { id: 'm-2', title: 'Warm Editorial', is_selected: true },
+      { id: 'm-2', title: 'Warm Editorial', is_selected: false },
     ];
 
-    // No deselect option is permitted once approved/selected
-    function attemptDeselect(item) {
-      if (item.is_selected) {
-        return { allowed: false, reason: 'Selection is permanent and cannot be deselected' };
-      }
-      return { allowed: true };
+    function switchDirection(newId) {
+      moodboards = moodboards.map((item) => ({
+        ...item,
+        is_selected: item.id === newId,
+      }));
     }
 
-    const result = attemptDeselect(moodboards[0]);
-    assert.strictEqual(result.allowed, false);
-    assert.strictEqual(moodboards[0].is_selected, true, 'Moodboard remains permanently selected');
+    switchDirection('m-2');
+    assert.strictEqual(moodboards.find((m) => m.id === 'm-1').is_selected, false);
+    assert.strictEqual(moodboards.find((m) => m.id === 'm-2').is_selected, true);
+    assert.strictEqual(moodboards.filter((m) => m.is_selected).length, 1);
   });
 
   await t.test('9. Multiple concepts can be approved simultaneously', () => {
@@ -197,12 +198,16 @@ test('In-Screen Confirmation Prompt Contract for Concept & Moodboard', async (t)
     assert.strictEqual(concepts[0].status, 'approved', 'Concept remains permanently approved');
   });
 
-  await t.test('11. Confirmation message explicitly warns that the decision cannot be undone', () => {
-    const conceptMessage = "Are you sure you want to approve this concept? Once approved, this decision cannot be undone. (You can approve multiple concepts)";
-    assert.ok(conceptMessage.includes("cannot be undone"), "Warns client about permanence");
+  await t.test('11. Confirmation message explicitly confirms visual direction selection and switching', () => {
+    const selectPrompt = createConfirmationPrompt('moodboard', { id: 'm-1', title: 'Moody Minimal', isSwitching: false });
+    assert.ok(selectPrompt.message.includes('select this visual direction'));
+    assert.strictEqual(selectPrompt.title, 'Select Visual Direction');
+    assert.strictEqual(selectPrompt.confirmText, 'Select Direction');
 
-    const moodboardMessage = "Are you sure you want to select this visual direction? Once selected, this decision cannot be undone. (You can select multiple moodboards)";
-    assert.ok(moodboardMessage.includes("cannot be undone"), "Warns client about permanence");
+    const switchPrompt = createConfirmationPrompt('moodboard', { id: 'm-2', title: 'Warm Editorial', isSwitching: true });
+    assert.ok(switchPrompt.message.includes('switch your visual direction'));
+    assert.strictEqual(switchPrompt.title, 'Switch Visual Direction');
+    assert.strictEqual(switchPrompt.confirmText, 'Switch Direction');
   });
 });
 

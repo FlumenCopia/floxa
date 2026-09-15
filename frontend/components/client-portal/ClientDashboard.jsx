@@ -305,6 +305,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const [moodboardsMessage, setMoodboardsMessage] = useState("");
   const [feedbackMoodboardId, setFeedbackMoodboardId] = useState(null);
   const [moodboardFeedbackText, setMoodboardFeedbackText] = useState("");
+  const [confirmingMoodboard, setConfirmingMoodboard] = useState(null);
   const [deliverables, setDeliverables] = useState(project.deliverables || []);
   const [deliverablesLoading, setDeliverablesLoading] = useState(false);
   const [deliverablesError, setDeliverablesError] = useState("");
@@ -544,6 +545,18 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [notificationsOpen]);
+
+  useEffect(() => {
+    if (!confirmingMoodboard) return;
+
+    function handleEscape(e) {
+      if (e.key === "Escape" && !working) {
+        setConfirmingMoodboard(null);
+      }
+    }
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [confirmingMoodboard, working]);
 
   async function selectMoodboard(id) {
     setWorking(id);
@@ -1810,7 +1823,10 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                           <button
                             type="button"
                             disabled={working === item.id}
-                            onClick={() => selectMoodboard(item.id)}
+                            onClick={() => {
+                              setMoodboardsError("");
+                              setConfirmingMoodboard(item);
+                            }}
                             className="client-panel-action"
                             style={{ flex: 1 }}
                           >
@@ -1998,52 +2014,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                 <div className="client-delivery-empty">
                   <h3>Loading deliverables...</h3>
                   <p>Your consultant&apos;s shared files are being fetched.</p>
-                </div>
-              ) : null}
-
-              {/* Showcase Selected Moodboards */}
-              {moodboards.filter((m) => m.clientSelected || m.is_selected).length > 0 ? (
-                <div className="client-delivery-section">
-                  <h3>Selected Moodboard Direction</h3>
-                  <div className="client-panel-grid" style={{ marginTop: "0.5rem" }}>
-                    {moodboards.filter((m) => m.clientSelected || m.is_selected).map((item) => (
-                      <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
-                        {item.image_url ? (
-                          <ProtectedAssetImage
-                            src={item.image_url}
-                            asBackground
-                            className="client-panel-image"
-                            fallbackText="No image"
-                          />
-                        ) : null}
-                        <strong style={{ display: "block", marginTop: "8px", color: "#f8fafc" }}>{item.title}</strong>
-                        <small style={{ color: "#94a3b8" }}>{item.description || "Client-selected visual direction."}</small>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Showcase Approved Concepts */}
-              {concepts.filter((c) => c.status === "approved").length > 0 ? (
-                <div className="client-delivery-section">
-                  <h3>Approved Brand Concepts</h3>
-                  <div className="client-panel-grid" style={{ marginTop: "0.5rem" }}>
-                    {concepts.filter((c) => c.status === "approved").map((item) => (
-                      <div key={item.id} style={{ background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)" }}>
-                        {item.image_url ? (
-                          <ProtectedAssetImage
-                            src={item.image_url}
-                            asBackground
-                            className="client-panel-image"
-                            fallbackText="No image"
-                          />
-                        ) : null}
-                        <strong style={{ display: "block", marginTop: "8px", color: "#f8fafc" }}>{item.title} (v{item.version || 1})</strong>
-                        <small style={{ color: "#38bdf8" }}>Approved Identity</small>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               ) : null}
 
@@ -2605,6 +2575,88 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                 draggable={false}
                 onContextMenu={(event) => event.preventDefault()}
               />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmingMoodboard ? (
+        <div
+          className="client-confirm-dialog-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="client-confirm-title"
+          onClick={() => {
+            if (!working) setConfirmingMoodboard(null);
+          }}
+        >
+          <div
+            className="client-confirm-dialog"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="client-confirm-dialog-header">
+              <div className="client-confirm-dialog-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <h3 id="client-confirm-title" className="client-confirm-dialog-title">
+                {hasSelectedMoodboard ? "Switch Visual Direction" : "Select Visual Direction"}
+              </h3>
+              <button
+                type="button"
+                className="client-confirm-dialog-close"
+                onClick={() => setConfirmingMoodboard(null)}
+                disabled={Boolean(working)}
+                aria-label="Close confirmation"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="client-confirm-dialog-body">
+              <p className="client-confirm-dialog-message">
+                {hasSelectedMoodboard
+                  ? `Are you sure you want to switch your visual direction to "${confirmingMoodboard.name || confirmingMoodboard.title || "this moodboard"}"? Your consultant will proceed with designing your brand concepts based on this moodboard.`
+                  : `Are you sure you want to select "${confirmingMoodboard.name || confirmingMoodboard.title || "this moodboard"}" as your visual direction? Your consultant will proceed with designing your brand concepts based on this moodboard.`}
+              </p>
+              {confirmingMoodboard.description ? (
+                <div className="client-confirm-dialog-preview">
+                  <span className="client-confirm-dialog-desc">
+                    {confirmingMoodboard.description}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="client-confirm-dialog-actions">
+              <button
+                type="button"
+                className="client-panel-action secondary"
+                onClick={() => setConfirmingMoodboard(null)}
+                disabled={Boolean(working)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="client-panel-action"
+                disabled={working === confirmingMoodboard.id}
+                onClick={async () => {
+                  const targetId = confirmingMoodboard.id;
+                  await selectMoodboard(targetId);
+                  setConfirmingMoodboard(null);
+                }}
+                autoFocus
+              >
+                {working === confirmingMoodboard.id
+                  ? "Saving..."
+                  : hasSelectedMoodboard
+                    ? "Switch Direction"
+                    : "Select Direction"}
+              </button>
             </div>
           </div>
         </div>
