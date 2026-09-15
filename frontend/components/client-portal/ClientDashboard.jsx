@@ -1334,7 +1334,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
       <main className="client-dashboard-split-layout">
         {/* LEFT SIDE: SECTION (WORKSPACE) */}
-        <section className="client-dashboard-content-section">
+        <section className="client-dashboard-content-section" id="client-workspace-panel">
           <div className="client-panel-heading">
             <div className="client-panel-heading-title">
               <span className="client-panel-heading-kicker">

@@ -2301,35 +2301,291 @@
   width: 100%;
 }
 
-@media (max-width: 980px) {
+/* ==========================================================================
+   Responsive Breakpoints: Tablets & Mobile Devices
+   ========================================================================== */
+
+/* --- Tablet & Down: Stack 2-column layout to single scrollable flow (<= 1024px) --- */
+@media (max-width: 1024px) {
+  .client-portal-shell:has(.client-dashboard-screen) {
+    height: auto !important;
+    min-height: 100dvh;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+  }
+
+  .client-dashboard-screen {
+    height: auto !important;
+    min-height: 100dvh;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+  }
+
   .client-dashboard-split-layout {
-    grid-template-columns: 1fr;
-    min-height: auto;
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
   }
 
   .client-dashboard-content-section {
     border-right: none;
     border-bottom: 1px solid rgba(137, 172, 160, 0.08);
+    overflow: visible;
+    height: auto !important;
+    max-height: none !important;
+    padding: clamp(20px, 3.8vw, 36px);
   }
 
   .client-dashboard-visual-panel {
-    min-height: 460px;
+    min-height: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: clamp(32px, 5vw, 56px) clamp(20px, 4vw, 36px);
     justify-content: center;
-    gap: 32px;
-    padding: 36px 20px;
+    gap: clamp(24px, 4vw, 44px);
+  }
+
+  /* Profile & Discovery Screens Stack */
+  .client-profile-screen,
+  .client-discovery-screen {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: 100dvh;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden;
+  }
+
+  .client-profile-form-panel,
+  .client-discovery-content {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid rgba(137, 172, 160, 0.08);
+    padding: clamp(28px, 4.5vw, 52px) clamp(20px, 4vw, 44px);
+  }
+
+  .client-profile-visual-panel,
+  .client-discovery-preview {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: clamp(32px, 5vw, 56px) clamp(20px, 4vw, 36px);
+    justify-content: center;
+    gap: clamp(24px, 4vw, 44px);
+  }
+
+  /* Topbar compacting on tablet */
+  .client-dashboard-topbar {
+    padding: 14px clamp(16px, 3vw, 32px);
+    gap: 14px;
+  }
+
+  .client-dashboard-actions {
+    gap: 8px;
+  }
+
+  .client-dashboard-actions button {
+    padding: 7px 15px;
+    font-size: 12.5px;
   }
 }
 
-@media (max-width: 680px) {
+/* --- Mobile Landscape / Tablet Portrait (<= 768px) --- */
+@media (max-width: 768px) {
+  /* Visual Panel: Centered Orb + Stage Navigation */
   .client-dashboard-visual-panel,
   .client-profile-visual-panel {
-    flex-direction: column;
-    padding: 28px 16px;
-    gap: 24px;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: clamp(28px, 6vw, 44px) 16px !important;
+    gap: 28px !important;
+    text-align: center;
+  }
+
+  .client-luminous-disc-orb {
+    width: clamp(190px, 52vw, 240px) !important;
+    aspect-ratio: 1 !important;
+    margin: 0 auto !important;
+  }
+
+  .client-luminous-disc-orb span {
+    font-size: clamp(34px, 8vw, 48px) !important;
   }
 
   .client-stage-rail-wrapper {
-    margin-left: 0;
+    margin: 0 auto !important;
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .client-profile-stage-rail {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 320px !important;
+    margin: 0 auto !important;
+    align-items: center !important;
+    padding: 8px 0 !important;
+  }
+
+  .client-profile-stage-rail div,
+  .client-profile-stage-rail button {
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 6px 10px !important;
+  }
+
+  .client-profile-stage-rail strong,
+  .client-rail-stage-btn strong {
+    text-align: center !important;
+    flex: initial !important;
+    font-size: clamp(15px, 3.8vw, 18px) !important;
+  }
+
+  .client-profile-stage-rail .active strong,
+  .client-rail-stage-btn.active strong {
+    font-size: clamp(17px, 4.2vw, 21px) !important;
+  }
+
+  /* Topbar responsiveness on mobile/tablet */
+  .client-dashboard-topbar {
+    padding: 12px 16px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .client-dashboard-wordmark {
+    flex: 0 0 auto;
+  }
+
+  .client-dashboard-logo-img {
+    height: 24px;
+    max-width: 110px;
+  }
+
+  .client-dashboard-actions {
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .client-dashboard-actions button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .client-notification-dropdown {
+    position: fixed;
+    top: 60px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 80px);
+  }
+
+  /* Form & Workspace Layout Adjustments */
+  .client-discovery-details-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .client-panel-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+    gap: 16px;
+  }
+
+  .client-panel-stack article:not(.client-agreement-verified-card) {
+    padding: clamp(16px, 3.5vw, 22px);
+  }
+
+  .client-line-field input,
+  .client-line-field select {
+    font-size: 16px; /* prevent iOS Safari auto-zoom */
+  }
+
+  .client-field-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .client-delivery-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .client-delivery-row .client-panel-action {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* --- Mobile Phones (<= 520px) --- */
+@media (max-width: 520px) {
+  .client-dashboard-topbar {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .client-dashboard-logo-img {
+    height: 20px;
+    max-width: 90px;
+  }
+
+  .client-dashboard-actions {
+    gap: 5px;
+  }
+
+  .client-dashboard-actions button {
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .client-notification-button {
+    width: 32px;
+    height: 32px;
+  }
+
+  .client-notification-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .client-dashboard-content-section {
+    padding: 18px 14px;
+  }
+
+  .client-panel-heading h2 {
+    font-size: clamp(18px, 5vw, 22px);
+  }
+
+  .client-profile-form-panel {
+    padding: 24px 14px;
+  }
+
+  .client-profile-form-panel h1 {
+    font-size: clamp(22px, 6.5vw, 28px);
+  }
+
+  .client-form-actions {
+    flex-direction: row;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .client-form-actions button {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 13px;
+    text-align: center;
     justify-content: center;
   }
 }
@@ -3501,7 +3757,7 @@
   }
 
   .client-profile-visual-panel {
-    min-height: 520px;
+    min-height: auto;
     height: auto;
     max-height: none;
     overflow: visible;
