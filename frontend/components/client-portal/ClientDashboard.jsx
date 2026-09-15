@@ -1256,14 +1256,12 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
   return (
     <div className="client-dashboard-screen">
-      {/*
-      <header className="client-dashboard-header">
-        <div>
-          <div className="client-dashboard-wordmark">
-            <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-dashboard-logo-img" />
-          </div>
-          <p>Welcome back, {project.brandDNA?.clientName ?? "Client"}.</p>
+      {/* CANVAS TOPBAR: LEFT LOGO & RIGHT ACTIONS */}
+      <header className="client-dashboard-topbar">
+        <div className="client-dashboard-wordmark">
+          <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-dashboard-logo-img" />
         </div>
+
         <div className="client-dashboard-actions">
           <div className="client-notification-wrap" ref={notificationsRef}>
             <button
@@ -1274,7 +1272,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               onClick={toggleNotifications}
             >
               <span className="client-notification-icon" aria-hidden="true">
-                <Bell size={22} strokeWidth={2} />
+                <Bell size={20} strokeWidth={2} />
               </span>
               {unreadCount > 0 ? <span className="client-notification-count">{unreadCount}</span> : null}
             </button>
@@ -1333,7 +1331,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           </button>
         </div>
       </header>
-      */}
 
       <main className="client-dashboard-split-layout">
         {/* LEFT SIDE: SECTION (WORKSPACE) */}

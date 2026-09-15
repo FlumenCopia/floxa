@@ -1673,6 +1673,22 @@
   overflow-y: auto;
 }
 
+.client-dashboard-topbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px clamp(24px, 3.6vw, 44px);
+  background: rgba(3, 10, 7, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(137, 172, 160, 0.08);
+  position: relative;
+  z-index: 30;
+  flex-shrink: 0;
+}
+
 .client-dashboard-header {
   width: min(1320px, 100%);
   display: flex;
@@ -1703,6 +1719,7 @@
 
 .client-dashboard-actions {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 10px;
 }
