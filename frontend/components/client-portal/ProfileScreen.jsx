@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { clientPortalService } from "../../services/clientPortalService";
 
 const industries = [
@@ -120,6 +120,17 @@ export function ProfileScreen({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [offcanvasOpen, setOffcanvasOpen] = useState(false);
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === "Escape" && offcanvasOpen) {
+        setOffcanvasOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [offcanvasOpen]);
 
   const filledCount = Object.values(fields).filter((value) => value.trim()).length;
   const pct = Math.round((filledCount / 8) * 100);
@@ -197,8 +208,36 @@ export function ProfileScreen({
   return (
     <div className="client-profile-screen">
       <div className="client-profile-form-panel">
-        <div className="client-small-logo">
-          <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-small-logo-img" />
+        <div className="client-profile-top-bar">
+          <div className="client-small-logo">
+            <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-small-logo-img" />
+          </div>
+
+          <button
+            type="button"
+            className="client-offcanvas-toggle-btn"
+            onClick={() => setOffcanvasOpen(true)}
+            title="View Stages & Progress"
+            aria-label="Open stages drawer"
+          >
+            <span className="client-toggle-pct">{pct}%</span>
+            <span className="client-toggle-label">Stages</span>
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
         </div>
 
         <h1>
@@ -283,7 +322,24 @@ export function ProfileScreen({
         </div>
       </div>
 
-      <div className="client-profile-visual-panel">
+      {/* OFFCANVAS BACKDROP (MOBILE/TABLET) */}
+      <div
+        className={`client-offcanvas-backdrop ${offcanvasOpen ? "active" : ""}`}
+        onClick={() => setOffcanvasOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* RIGHT SIDE: VISUAL PANEL (OFFCANVAS ON TABLET/MOBILE, STATIC SPLIT ON DESKTOP) */}
+      <div className={`client-profile-visual-panel ${offcanvasOpen ? "offcanvas-open" : ""}`}>
+        <button
+          type="button"
+          className="client-offcanvas-close-btn"
+          onClick={() => setOffcanvasOpen(false)}
+          aria-label="Close stages drawer"
+        >
+          ✕
+        </button>
+
         <div className="client-luminous-disc-orb" style={{ "--orb-deg": `${pct * 3.6}deg` }}>
           <span>{pct}%</span>
         </div>

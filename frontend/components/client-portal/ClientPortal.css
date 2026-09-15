@@ -2301,12 +2301,166 @@
   width: 100%;
 }
 
+/* --- Offcanvas Toggle Button Base (Desktop: Hidden) --- */
+.client-profile-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  margin-bottom: 28px;
+}
+
+.client-profile-top-bar .client-small-logo {
+  margin-bottom: 0;
+}
+
+.client-offcanvas-toggle-btn {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid rgba(77, 255, 160, 0.35);
+  border-radius: 9999px;
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(20, 48, 36, 0.88), rgba(8, 24, 17, 0.92));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(77, 255, 160, 0.25);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: all 0.22s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.client-offcanvas-toggle-btn:hover {
+  border-color: rgba(77, 255, 160, 0.65);
+  background: linear-gradient(135deg, rgba(28, 64, 48, 0.95), rgba(12, 32, 22, 0.98));
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 0 16px rgba(77, 255, 160, 0.2);
+}
+
+.client-offcanvas-toggle-btn .client-toggle-pct {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(77, 255, 160, 0.2);
+  color: #4dffa0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.client-offcanvas-toggle-btn .client-toggle-label {
+  color: #f0f7f4;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.client-offcanvas-close-btn {
+  display: none;
+}
+
+.client-offcanvas-backdrop {
+  display: none;
+}
+
 /* ==========================================================================
    Responsive Breakpoints: Tablets & Mobile Devices
    ========================================================================== */
 
-/* --- Tablet & Down: Stack 2-column layout to single scrollable flow (<= 1024px) --- */
+/* --- Tablet & Down: Visual Panel becomes Offcanvas Drawer (<= 1024px) --- */
 @media (max-width: 1024px) {
+  .client-offcanvas-toggle-btn {
+    display: inline-flex;
+  }
+
+  .client-offcanvas-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .client-offcanvas-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Offcanvas Drawer for Visual Panel (Orb + Stage Rail) */
+  .client-dashboard-visual-panel,
+  .client-profile-visual-panel {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: min(390px, 86vw) !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 100dvh !important;
+    z-index: 999 !important;
+    background: linear-gradient(165deg, rgba(8, 24, 18, 0.98) 0%, rgba(3, 10, 7, 0.99) 100%) !important;
+    backdrop-filter: blur(28px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(140%) !important;
+    border-left: 1px solid rgba(137, 172, 160, 0.22) !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    box-shadow: -16px 0 50px rgba(0, 0, 0, 0.8) !important;
+    transform: translateX(105%) !important;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 70px 24px 36px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    gap: 32px !important;
+  }
+
+  .client-dashboard-visual-panel.offcanvas-open,
+  .client-profile-visual-panel.offcanvas-open {
+    transform: translateX(0) !important;
+  }
+
+  .client-offcanvas-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10;
+  }
+
+  .client-offcanvas-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(77, 255, 160, 0.4);
+    transform: scale(1.08);
+  }
+
+  /* Full Width Shell & Unlocked Page Scrolling */
   .client-portal-shell:has(.client-dashboard-screen) {
     height: auto !important;
     min-height: 100dvh;
@@ -2331,25 +2485,16 @@
   }
 
   .client-dashboard-content-section {
-    border-right: none;
-    border-bottom: 1px solid rgba(137, 172, 160, 0.08);
+    border-right: none !important;
+    border-bottom: none !important;
     overflow: visible;
     height: auto !important;
     max-height: none !important;
     padding: clamp(20px, 3.8vw, 36px);
+    width: 100% !important;
   }
 
-  .client-dashboard-visual-panel {
-    min-height: auto !important;
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-    padding: clamp(32px, 5vw, 56px) clamp(20px, 4vw, 36px);
-    justify-content: center;
-    gap: clamp(24px, 4vw, 44px);
-  }
-
-  /* Profile & Discovery Screens Stack */
+  /* Profile & Discovery Screens */
   .client-profile-screen,
   .client-discovery-screen {
     grid-template-columns: 1fr !important;
@@ -2360,17 +2505,25 @@
     overflow-x: hidden;
   }
 
-  .client-profile-form-panel,
+  .client-profile-form-panel {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible;
+    border-right: none !important;
+    border-bottom: none !important;
+    padding: clamp(28px, 4.5vw, 52px) clamp(20px, 4vw, 44px);
+    width: 100% !important;
+  }
+
   .client-discovery-content {
     height: auto !important;
     max-height: none !important;
     overflow: visible;
     border-right: none;
     border-bottom: 1px solid rgba(137, 172, 160, 0.08);
-    padding: clamp(28px, 4.5vw, 52px) clamp(20px, 4vw, 44px);
+    padding: clamp(24px, 4vw, 44px) clamp(18px, 3.5vw, 36px);
   }
 
-  .client-profile-visual-panel,
   .client-discovery-preview {
     height: auto !important;
     min-height: auto !important;
@@ -2381,8 +2534,11 @@
     gap: clamp(24px, 4vw, 44px);
   }
 
-  /* Topbar compacting on tablet */
+  /* Sticky Topbar on tablet & mobile */
   .client-dashboard-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
     padding: 14px clamp(16px, 3vw, 32px);
     gap: 14px;
   }
@@ -2397,15 +2553,35 @@
   }
 }
 
+@media (min-width: 1025px) {
+  .client-offcanvas-toggle-btn,
+  .client-offcanvas-close-btn,
+  .client-offcanvas-backdrop {
+    display: none !important;
+  }
+
+  .client-dashboard-visual-panel,
+  .client-profile-visual-panel {
+    position: relative !important;
+    transform: none !important;
+    width: auto !important;
+    height: 100% !important;
+    max-height: 100dvh !important;
+    border-left: none !important;
+    box-shadow: none !important;
+    z-index: auto !important;
+  }
+}
+
 /* --- Mobile Landscape / Tablet Portrait (<= 768px) --- */
 @media (max-width: 768px) {
-  /* Visual Panel: Centered Orb + Stage Navigation */
+  /* Visual Panel: Centered Orb + Stage Navigation in Offcanvas */
   .client-dashboard-visual-panel,
   .client-profile-visual-panel {
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: clamp(28px, 6vw, 44px) 16px !important;
+    padding: 72px 20px 36px !important;
     gap: 28px !important;
     text-align: center;
   }
@@ -2530,6 +2706,28 @@
 
 /* --- Mobile Phones (<= 520px) --- */
 @media (max-width: 520px) {
+  .client-offcanvas-toggle-btn {
+    padding: 5px 9px;
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .client-offcanvas-toggle-btn .client-toggle-pct {
+    padding: 1px 5px;
+    font-size: 9.5px;
+  }
+
+  .client-offcanvas-toggle-btn .client-toggle-label {
+    font-size: 11px;
+  }
+
+  .client-dashboard-visual-panel,
+  .client-profile-visual-panel {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    padding: 68px 18px 28px !important;
+  }
+
   .client-dashboard-topbar {
     padding: 10px 12px;
     gap: 8px;

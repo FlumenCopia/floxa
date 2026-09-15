@@ -251,6 +251,17 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const defaultPanel = phaseToPanelMap[phaseLabels[activePhaseIndex]] || "moodboards";
   const [panel, setPanel] = useState(defaultPanel);
   const [selectedStage, setSelectedStage] = useState(panelToDefaultStage[defaultPanel] || activePhaseLabel);
+  const [offcanvasOpen, setOffcanvasOpen] = useState(false);
+
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === "Escape" && offcanvasOpen) {
+        setOffcanvasOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [offcanvasOpen]);
   const currentActiveStage = panel
     ? (selectedStage && phaseToPanelMap[selectedStage] === panel
         ? selectedStage
@@ -1263,6 +1274,32 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
         </div>
 
         <div className="client-dashboard-actions">
+          <button
+            type="button"
+            className="client-offcanvas-toggle-btn"
+            onClick={() => setOffcanvasOpen(true)}
+            title="View Stages & Progress"
+            aria-label="Open stages drawer"
+          >
+            <span className="client-toggle-pct">{pct}%</span>
+            <span className="client-toggle-label">Stages</span>
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+
           <div className="client-notification-wrap" ref={notificationsRef}>
             <button
               type="button"
@@ -2491,8 +2528,24 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           </div>
         </section>
 
-        {/* RIGHT SIDE: NAV % (ORB + STAGE RAIL) */}
-        <aside className="client-dashboard-visual-panel">
+        {/* OFFCANVAS BACKDROP (MOBILE/TABLET) */}
+        <div
+          className={`client-offcanvas-backdrop ${offcanvasOpen ? "active" : ""}`}
+          onClick={() => setOffcanvasOpen(false)}
+          aria-hidden="true"
+        />
+
+        {/* RIGHT SIDE: NAV % (ORB + STAGE RAIL) - OFFCANVAS ON TABLET/MOBILE */}
+        <aside className={`client-dashboard-visual-panel ${offcanvasOpen ? "offcanvas-open" : ""}`}>
+          <button
+            type="button"
+            className="client-offcanvas-close-btn"
+            onClick={() => setOffcanvasOpen(false)}
+            aria-label="Close stages drawer"
+          >
+            ✕
+          </button>
+
           <div className="client-luminous-disc-orb" style={{ "--orb-deg": `${pct * 3.6}deg` }}>
             <span>{pct}%</span>
           </div>
@@ -2507,7 +2560,10 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                     type="button"
                     key={stage}
                     className={`client-rail-stage-btn ${isActive ? "active" : isComplete ? "complete" : ""}`.trim()}
-                    onClick={() => handleStageClick(stage)}
+                    onClick={() => {
+                      handleStageClick(stage);
+                      setOffcanvasOpen(false);
+                    }}
                     title={`Open ${stage} workspace`}
                   >
                     <strong>{stage}</strong>
