@@ -1253,20 +1253,20 @@
 
 .client-profile-stage-rail .active strong,
 .client-rail-stage-btn.active strong {
-  font-size: clamp(26px, 2.3vw, 34px);
-  font-weight: 800;
+  font-size: clamp(19px, 1.6vw, 23px);
+  font-weight: 700;
   color: #ffffff;
   letter-spacing: -0.01em;
-  text-shadow: 0 0 16px rgba(255, 255, 255, 0.3);
-  line-height: 1.15;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+  line-height: 1.2;
 }
 
 .client-profile-stage-rail .active span,
 .client-rail-stage-btn.active span {
   background: #ffffff;
-  box-shadow: 0 0 14px rgba(255, 255, 255, 0.85);
-  width: 3.5px;
-  height: 34px;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.85);
+  width: 3px;
+  height: 24px;
   border-radius: 2px;
 }
 
