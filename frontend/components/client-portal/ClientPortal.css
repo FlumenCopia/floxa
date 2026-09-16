@@ -4334,26 +4334,6 @@ td {
   border-radius: 0 !important;
 }
 
-/* Obsidian Emerald Theme Colors for Tables, Cards, and Sections */
-table,
-.table-wrap,
-[class*="-table"],
-[class*="table-"] {
-  background: rgba(3, 13, 9, 0.72);
-  border-color: rgba(137, 172, 160, 0.14);
-}
-
-table th {
-  background: rgba(5, 18, 13, 0.85);
-  color: var(--floxa-text);
-  border-bottom: 1px solid rgba(137, 172, 160, 0.16);
-}
-
-table td {
-  background: rgba(3, 13, 9, 0.55);
-  border-bottom: 1px solid rgba(137, 172, 160, 0.08);
-}
-
 /* ==========================================================================
    Live Consultant Assistance & Doubt Clearing Styles
    ========================================================================== */
