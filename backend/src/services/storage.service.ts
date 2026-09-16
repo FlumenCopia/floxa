@@ -175,9 +175,9 @@ export async function generateWatermarkedImage(
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
         <style>
           .tiled-text {
-            fill: rgba(255, 255, 255, 0.20);
-            stroke: rgba(0, 0, 0, 0.20);
-            stroke-width: 0.75px;
+            fill: rgba(255, 255, 255, 0.35);
+            stroke: rgba(0, 0, 0, 0.32);
+            stroke-width: 1px;
             paint-order: stroke fill;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: ${patternFontSize}px;
@@ -185,9 +185,9 @@ export async function generateWatermarkedImage(
             letter-spacing: 3.5px;
           }
           .tiled-sub {
-            fill: rgba(255, 255, 255, 0.14);
-            stroke: rgba(0, 0, 0, 0.15);
-            stroke-width: 0.6px;
+            fill: rgba(255, 255, 255, 0.24);
+            stroke: rgba(0, 0, 0, 0.22);
+            stroke-width: 0.8px;
             paint-order: stroke fill;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: ${subFontSize}px;
@@ -195,13 +195,13 @@ export async function generateWatermarkedImage(
             letter-spacing: 2.2px;
           }
           .lattice-line-light {
-            stroke: rgba(255, 255, 255, 0.07);
-            stroke-width: 0.75px;
+            stroke: rgba(255, 255, 255, 0.14);
+            stroke-width: 1px;
             stroke-dasharray: 12, 6;
           }
           .lattice-line-dark {
-            stroke: rgba(0, 0, 0, 0.07);
-            stroke-width: 0.75px;
+            stroke: rgba(0, 0, 0, 0.12);
+            stroke-width: 1px;
             stroke-dasharray: 12, 6;
           }
         </style>

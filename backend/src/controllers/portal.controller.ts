@@ -304,7 +304,12 @@ export async function selectPortalMoodboard(req: any, res: Response, next: NextF
   try {
     const { moodboard_id } = req.params;
 
-    // Clients can select multiple moodboards, and once selected, it remains locked
+    // Option A: Strict Single Direction - unselect any previously selected moodboard for this project
+    await Moodboard.updateMany(
+      { projectId: req.project.id, _id: { $ne: moodboard_id } },
+      { $set: { isSelected: false } }
+    );
+
     const selected = await Moodboard.findOneAndUpdate(
       { _id: moodboard_id, projectId: req.project.id },
       { $set: { isSelected: true } },
