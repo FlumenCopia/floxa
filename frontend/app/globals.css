@@ -1715,8 +1715,8 @@ textarea {
 }
 
 .dash-table thead {
-  background: rgba(5, 18, 13, 0.95);
-  border-bottom: 1px solid rgba(137, 172, 160, 0.18);
+  background: rgba(14, 52, 32, 0.65);
+  border-bottom: 1px solid rgba(77, 255, 160, 0.25);
 }
 
 .dash-table th {
@@ -1733,7 +1733,7 @@ textarea {
   padding: 15px 18px;
   font-size: 12px;
   color: #b6d0c3;
-  border-top: 1px solid rgba(137, 172, 160, 0.08);
+  border-top: 1px solid rgba(77, 255, 160, 0.06);
   vertical-align: middle;
 }
 
@@ -9224,16 +9224,16 @@ section:not(.client-welcome-stage)::after,
 .card2,
 [class*="-card"]:not(.login-card):not(.client-welcome-glass):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]),
 [class*="card-"]:not(.login-card):not(.client-welcome-glass):not(.airbrush-tooltip-card):not(.airbrush-tooltip-popover):not([class*="head"]):not([class*="header"]):not([class*="title"]):not([class*="action"]):not([class*="body"]):not([class*="meta"]):not([class*="footer"]):not([class*="icon"]):not([class*="top"]):not([class*="bottom"]):not([class*="inner"]):not([class*="arrow"]):not([class*="number"]):not([class*="close"]):not([class*="btn"]):not([class*="button"]) {
-  border-radius: 8px !important;
-  border: 1px solid rgba(137, 172, 160, 0.16) !important;
-  background: linear-gradient(145deg, rgba(77, 255, 160, 0.03) 0%, rgba(3, 13, 9, 0.92) 100%) !important;
-  backdrop-filter: blur(28px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(140%) !important;
+  border-radius: 5px !important;
+  border: 1px solid rgba(77, 255, 160, 0.28) !important;
+  background: linear-gradient(145deg, rgba(77, 255, 160, 0.16) 0%, rgba(14, 52, 32, 0.72) 45%, rgba(4, 20, 12, 0.85) 100%) !important;
+  backdrop-filter: blur(28px) saturate(160%) brightness(1.1) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) brightness(1.1) !important;
   box-shadow:
-    0 20px 50px rgba(0, 0, 0, 0.55),
-    0 0 20px rgba(77, 255, 160, 0.05),
-    inset 0 1px 1px rgba(255, 255, 255, 0.06),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.4) !important;
+    0 20px 50px rgba(0, 0, 0, 0.45),
+    0 0 30px rgba(77, 255, 160, 0.12),
+    inset 0 1px 1px rgba(77, 255, 160, 0.25),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.35) !important;
 }
 
 .kpi-card-header,
