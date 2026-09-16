@@ -728,8 +728,9 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: rgba(15, 20, 20, 0.55);
-  backdrop-filter: blur(13px);
+  background: rgba(3, 13, 9, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .client-profile-form-panel {
@@ -737,7 +738,7 @@
   height: 100%;
   max-height: 100dvh;
   padding: clamp(32px, 5vw, 64px) clamp(28px, 5vw, 68px);
-  background: rgba(4, 12, 9, 0.62);
+  background: rgba(3, 13, 9, 0.65);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-right: 1px solid rgba(137, 172, 160, 0.08);
@@ -925,7 +926,9 @@
   padding: clamp(14px, 1.5vw, 18px);
   border: 1px solid rgba(137, 172, 160, 0.14);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(3, 13, 9, 0.68);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .client-review-section-head {
@@ -1002,9 +1005,9 @@
   align-items: start;
   gap: 10px;
   padding: 9px 10px;
-  border: 1px solid rgba(137, 172, 160, 0.09);
+  border: 1px solid rgba(137, 172, 160, 0.12);
   border-radius: 10px;
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(6, 20, 14, 0.6);
 }
 
 .client-review-section article span {
@@ -1576,7 +1579,7 @@
   padding: 11px 14px;
   border: 1px solid rgba(137, 172, 160, 0.12);
   border-radius: 12px;
-  background: rgba(10, 25, 18, 0.35);
+  background: rgba(3, 13, 9, 0.7);
 }
 
 .client-competitor-card input {
@@ -2122,12 +2125,12 @@
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 22px;
   color: rgba(190, 221, 209, 0.34);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.48);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(3, 13, 9, 0.72);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   box-shadow:
     0 20px 48px rgba(0, 0, 0, 0.45),
-    inset 0 1px 1px rgba(255, 255, 255, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
     inset 0 -1px 2px rgba(0, 0, 0, 0.4);
   text-align: left;
   cursor: not-allowed;
@@ -2147,11 +2150,11 @@
 .client-journey-card.available:hover {
   transform: translateY(-4px) scale(1.01);
   border-color: rgba(255, 255, 255, 0.32);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 40%), rgba(14, 28, 42, 0.62);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(77, 255, 160, 0.03) 40%), rgba(6, 20, 14, 0.85);
   box-shadow:
     0 28px 60px rgba(0, 0, 0, 0.55),
     0 0 30px rgba(77, 255, 160, 0.12),
-    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
 }
 
 .client-card-number,
@@ -2186,14 +2189,14 @@
   overflow: hidden;
   margin-top: 14px;
   padding: clamp(24px, 4vw, 42px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(137, 172, 160, 0.18);
   border-radius: 26px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%), rgba(10, 22, 34, 0.52);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(3, 13, 9, 0.75);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   box-shadow:
     0 24px 60px rgba(0, 0, 0, 0.5),
-    inset 0 1px 1px rgba(255, 255, 255, 0.28),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2),
     inset 0 -1px 2px rgba(0, 0, 0, 0.4);
 }
 
@@ -2272,7 +2275,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: clamp(24px, 4vw, 48px);
-  background: rgba(4, 12, 9, 0.62);
+  background: rgba(3, 13, 9, 0.65);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-right: 1px solid rgba(137, 172, 160, 0.08);
@@ -2855,7 +2858,7 @@
   padding: 22px;
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(10, 24, 18, 0.65) 100%);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(3, 13, 9, 0.78) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -2871,7 +2874,7 @@
 
 .client-panel-grid article.selected {
   border-color: rgba(77, 255, 160, 0.6);
-  background: linear-gradient(145deg, rgba(77, 255, 160, 0.1) 0%, rgba(10, 28, 20, 0.85) 100%);
+  background: linear-gradient(145deg, rgba(77, 255, 160, 0.1) 0%, rgba(4, 16, 11, 0.88) 100%);
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 24px rgba(77, 255, 160, 0.16);
 }
 
@@ -2990,7 +2993,7 @@
   padding: 22px;
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(10, 24, 18, 0.65) 100%);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(3, 13, 9, 0.78) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
@@ -3342,7 +3345,7 @@
   padding: 18px 24px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(10, 22, 34, 0.45) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(3, 13, 9, 0.75) 100%);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
@@ -3356,13 +3359,13 @@
 
 .client-payment-card.is-requested {
   border-color: rgba(77, 255, 160, 0.35);
-  background: linear-gradient(135deg, rgba(77, 255, 160, 0.08) 0%, rgba(10, 26, 20, 0.65) 100%);
+  background: linear-gradient(135deg, rgba(77, 255, 160, 0.08) 0%, rgba(5, 18, 13, 0.85) 100%);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 20px rgba(77, 255, 160, 0.1);
 }
 
 .client-payment-card.is-paid {
   border-color: rgba(77, 255, 160, 0.18);
-  background: linear-gradient(135deg, rgba(77, 255, 160, 0.03) 0%, rgba(10, 22, 34, 0.45) 100%);
+  background: linear-gradient(135deg, rgba(77, 255, 160, 0.03) 0%, rgba(3, 13, 9, 0.75) 100%);
 }
 
 .client-payment-main {
@@ -3507,7 +3510,7 @@
   padding: 16px 20px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(10, 22, 34, 0.4);
+  background: rgba(3, 13, 9, 0.72);
 }
 
 .client-payment-error-message {
@@ -3661,7 +3664,7 @@
   padding: 24px 26px;
   border: 1px solid rgba(77, 255, 160, 0.22);
   border-radius: 20px;
-  background: linear-gradient(135deg, rgba(77, 255, 160, 0.05) 0%, rgba(10, 25, 18, 0.85) 100%);
+  background: linear-gradient(135deg, rgba(77, 255, 160, 0.05) 0%, rgba(4, 15, 10, 0.88) 100%);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(77, 255, 160, 0.15);
   backdrop-filter: blur(16px);
   margin-bottom: 20px;
@@ -4329,6 +4332,26 @@ tr,
 th,
 td {
   border-radius: 0 !important;
+}
+
+/* Obsidian Emerald Theme Colors for Tables, Cards, and Sections */
+table,
+.table-wrap,
+[class*="-table"],
+[class*="table-"] {
+  background: rgba(3, 13, 9, 0.88);
+  border-color: rgba(137, 172, 160, 0.16);
+}
+
+table th {
+  background: rgba(5, 18, 13, 0.95);
+  color: var(--floxa-text);
+  border-bottom: 1px solid rgba(137, 172, 160, 0.18);
+}
+
+table td {
+  background: rgba(3, 13, 9, 0.82);
+  border-bottom: 1px solid rgba(137, 172, 160, 0.08);
 }
 
 /* ==========================================================================
