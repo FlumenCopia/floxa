@@ -935,8 +935,13 @@ textarea {
 }
 
 .nav-badge.g {
-  background: var(--neon);
-  color: var(--bg);
+  background: transparent;
+  color: var(--neon);
+  border: none;
+  outline: none;
+  padding: 0;
+  min-width: auto;
+  height: auto;
 }
 
 .sidebar-footer {

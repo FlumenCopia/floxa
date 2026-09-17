@@ -197,6 +197,7 @@ function MobileTabItem({ item, onClick }) {
       >
         <Icon type={item.icon} />
         <span>{item.label}</span>
+        {item.badge ? <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span> : null}
       </Link>
     );
   }
@@ -205,6 +206,7 @@ function MobileTabItem({ item, onClick }) {
     <button className={`mobile-tab-item ${item.active ? "active" : ""}`.trim()} type="button" onClick={onClick}>
       <Icon type={item.icon} />
       <span>{item.label}</span>
+      {item.badge ? <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span> : null}
     </button>
   );
 }
@@ -252,11 +254,31 @@ export default function Floxaheader({
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const notificationsRequestRef = useRef(false);
   const resolvedActiveNav = pathname === "/project" ? "Projects" : pathname === "/chat" ? "Chat" : activeNav;
+  const visibleNotifications = headerNotifications.length ? headerNotifications : notifications;
+  const visibleNotificationsLoading = headerNotificationsLoading || notificationsLoading;
+  const visibleNotificationCount = headerNotifications.length
+    ? headerNotifications.filter((notification) => !notification.is_read && notification.visible_to_consultant !== false).length
+    : (notifications.length
+      ? notifications.filter((notification) => !notification.is_read && notification.visible_to_consultant !== false).length
+      : notificationCount);
+
   const resolvedPrimaryNavItems = primaryNavItems.map((item) => ({
     ...item,
     active: item.label.toLowerCase() === resolvedActiveNav.toLowerCase(),
-    badge: item.label === "CHAT" && unreadChatCount > 0 ? unreadChatCount : item.badge,
-    badgeClass: item.label === "CHAT" ? "nav-badge-chat" : item.badgeClass,
+    badge:
+      item.label === "CHAT" && unreadChatCount > 0
+        ? unreadChatCount
+        : item.label === "PROJECTS" && visibleNotificationCount > 0
+        ? visibleNotificationCount > 10
+          ? "10+"
+          : visibleNotificationCount
+        : item.badge,
+    badgeClass:
+      item.label === "CHAT"
+        ? "nav-badge-chat"
+        : item.label === "PROJECTS"
+        ? "g"
+        : item.badgeClass,
   }));
 
   const resolvedMobileTabItems = mobileTabItems.map((item) => ({
@@ -268,6 +290,20 @@ export default function Floxaheader({
       (resolvedActiveNav?.toLowerCase() === "ai suite" && item.label.toLowerCase() === "ai") ||
       (resolvedActiveNav?.toLowerCase() === "client portal" && item.label.toLowerCase() === "portal") ||
       (resolvedActiveNav?.toLowerCase() === "settings" && item.label.toLowerCase() === "settings"),
+    badge:
+      item.label === "Chat" && unreadChatCount > 0
+        ? unreadChatCount
+        : item.label === "Projects" && visibleNotificationCount > 0
+        ? visibleNotificationCount > 10
+          ? "10+"
+          : visibleNotificationCount
+        : item.badge,
+    badgeClass:
+      item.label === "Chat"
+        ? "nav-badge-chat"
+        : item.label === "Projects"
+        ? "g"
+        : item.badgeClass,
   }));
 
   useEffect(() => {
@@ -310,11 +346,6 @@ export default function Floxaheader({
       unsubChatRead();
     };
   }, []);
-  const visibleNotifications = headerNotifications.length ? headerNotifications : notifications;
-  const visibleNotificationsLoading = headerNotificationsLoading || notificationsLoading;
-  const visibleNotificationCount = headerNotifications.length
-    ? headerNotifications.filter((notification) => !notification.is_read).length
-    : notificationCount;
 
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
