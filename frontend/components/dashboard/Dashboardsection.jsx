@@ -5,8 +5,7 @@ import { getConsultantActivities, getProjects } from "@/lib/projectApi";
 import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
 import { useRouter } from "next/navigation";
 import ProjectCreateWizard from "./ProjectCreateWizard";
-import { FolderKanban, IndianRupee, Sparkles, Clock, Plus, Video } from "lucide-react";
-import { webRTCService } from "@/services/webRTCService";
+import { FolderKanban, IndianRupee, Sparkles, Clock, Plus } from "lucide-react";
 
 function KpiIcon({ type }) {
   switch (type) {
@@ -175,19 +174,18 @@ export default function Dashboardsection() {
                     <th>Client</th>
                     <th>Status</th>
                     <th>Progress</th>
-                    <th style={{ textAlign: "right", paddingRight: "14px" }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoadingProjects ? (
                     <tr>
-                      <td colSpan="4">Loading projects...</td>
+                      <td colSpan="3">Loading projects...</td>
                     </tr>
                   ) : null}
 
                   {!isLoadingProjects && recentProjects.length === 0 ? (
                     <tr>
-                      <td colSpan="4">No projects found.</td>
+                      <td colSpan="3">No projects found.</td>
                     </tr>
                   ) : null}
 
@@ -214,25 +212,6 @@ export default function Dashboardsection() {
                               </div>
                               <span className="progress-value">{Number(project.progress || 0)}%</span>
                             </div>
-                          </td>
-                          <td style={{ textAlign: "right", paddingRight: "16px" }}>
-                            <button
-                              type="button"
-                              className="project-table-call-btn"
-                              title={`Video call ${project.client_name || project.company_name}`}
-                              aria-label={`Video call ${project.client_name || project.company_name}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                webRTCService.initiateCall({
-                                  projectId: project.id,
-                                  clientName: project.client_name || project.company_name || "Client",
-                                  projectTitle: project.company_name || "Project",
-                                  role: "consultant",
-                                });
-                              }}
-                            >
-                              <Video size={20} strokeWidth={2} />
-                            </button>
                           </td>
                         </tr>
                       ))

@@ -1656,40 +1656,32 @@ textarea {
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 0;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: 0.02em;
   white-space: nowrap;
-}
-
-.badge::before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
+  background: transparent;
+  border: none;
 }
 
 .badge-green {
-  background: rgba(77, 255, 160, 0.14);
+  background: transparent;
   color: var(--neon);
-  border: 1px solid rgba(77, 255, 160, 0.28);
+  border: none;
 }
 
 .badge-amber {
-  background: rgba(240, 180, 41, 0.16);
+  background: transparent;
   color: var(--amber);
-  border: 1px solid rgba(240, 180, 41, 0.32);
+  border: none;
 }
 
 .badge-blue {
-  background: rgba(74, 158, 255, 0.16);
+  background: transparent;
   color: var(--cobalt);
-  border: 1px solid rgba(74, 158, 255, 0.32);
+  border: none;
 }
 
 .table-wrap {
@@ -1763,20 +1755,20 @@ textarea {
   min-width: 76px;
   height: 5px;
   border-radius: 999px;
-  background: rgba(128, 164, 148, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #35ff9a, #17d870);
-  box-shadow: 0 0 8px rgba(53, 255, 154, 0.35);
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
 }
 
 .progress-value {
   font-size: 11px;
-  color: #6f9283;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -1886,9 +1878,9 @@ textarea {
 }
 
 .badge-muted {
-  background: rgba(129, 160, 149, 0.14);
+  background: transparent;
   color: #8daea1;
-  border: 1px solid rgba(129, 160, 149, 0.22);
+  border: none;
 }
 
 .project-page-head {
@@ -2314,14 +2306,15 @@ textarea {
   width: 88px;
   height: 4px;
   border-radius: 999px;
-  background: rgba(128, 164, 148, 0.18);
+  background: rgba(255, 255, 255, 0.15);
   overflow: hidden;
 }
 
 .project-progress-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #35ff9a, #18dc74);
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
 }
 
 .project-empty-state {
@@ -7356,7 +7349,7 @@ textarea {
   }
 
   .badge {
-    padding: 2px 7px;
+    padding: 0;
     font-size: 9px;
   }
 
