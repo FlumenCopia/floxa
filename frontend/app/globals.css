@@ -3379,7 +3379,6 @@ textarea {
   border: 1px dashed rgba(77, 255, 160, 0.28);
   border-radius: 14px;
   background:
-    radial-gradient(circle at 50% 18%, rgba(77, 255, 160, 0.14), transparent 34%),
     linear-gradient(145deg, rgba(77, 255, 160, 0.07), rgba(255, 255, 255, 0.025)),
     rgba(0, 7, 4, 0.32);
   cursor: pointer;
@@ -3394,8 +3393,8 @@ textarea {
 .discovery-moodboard-dropzone:focus-within {
   border-color: rgba(77, 255, 160, 0.48);
   background:
-    radial-gradient(circle at 50% 18%, rgba(77, 255, 160, 0.2), transparent 36%),
-    rgba(77, 255, 160, 0.08);
+    linear-gradient(145deg, rgba(77, 255, 160, 0.1), rgba(255, 255, 255, 0.04)),
+    rgba(0, 7, 4, 0.42);
   transform: translateY(-1px);
 }
 
