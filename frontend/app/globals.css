@@ -9455,8 +9455,8 @@ section:not(.client-welcome-stage)::after,
 }
 
 .settings-profile-name {
-  font-size: clamp(1.15rem, 3vw, 1.45rem);
-  font-weight: 800;
+  font-size: clamp(1rem, 2.2vw, 1.12rem);
+  font-weight: 700;
   color: #f8fafc;
   margin: 0;
   letter-spacing: -0.01em;
@@ -9470,9 +9470,9 @@ section:not(.client-welcome-stage)::after,
   background: rgba(16, 185, 129, 0.15);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 0.75rem;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -9484,7 +9484,7 @@ section:not(.client-welcome-stage)::after,
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   color: #94a3b8;
   flex-wrap: wrap;
   word-break: break-word;
@@ -9521,11 +9521,11 @@ section:not(.client-welcome-stage)::after,
   }
 
   .settings-profile-name {
-    font-size: 1.15rem;
+    font-size: 0.98rem;
   }
 
   .settings-profile-subtitle {
-    font-size: 0.82rem;
+    font-size: 0.75rem;
     gap: 6px;
   }
 
@@ -9541,12 +9541,12 @@ section:not(.client-welcome-stage)::after,
   }
 
   .settings-profile-name {
-    font-size: 1.05rem;
+    font-size: 0.92rem;
   }
 
   .settings-profile-badge {
-    font-size: 0.7rem;
-    padding: 1px 8px;
+    font-size: 0.64rem;
+    padding: 1px 6px;
   }
 }
 
