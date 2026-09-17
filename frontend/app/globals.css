@@ -6174,7 +6174,7 @@ textarea {
   flex-direction: column;
   justify-content: space-between;
   height: 190px;
-  color: #77998a;
+  color: rgba(255, 255, 255, 0.65);
   font-size: 10px;
 }
 
@@ -6186,7 +6186,7 @@ textarea {
 .analytics-acceptance-grid {
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(to top, rgba(77, 255, 160, 0.08) 0 1px, transparent 1px 34px);
+  background: repeating-linear-gradient(to top, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 34px);
 }
 
 .analytics-acceptance-bars {
@@ -6220,31 +6220,42 @@ textarea {
 .analytics-acceptance-fill {
   width: 100%;
   border-radius: 3px 3px 0 0;
-  background: rgba(83, 247, 159, 0.28);
-  border: 1px solid rgba(83, 247, 159, 0.85);
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.65);
   border-bottom: none;
+  transition: all 0.2s ease;
 }
 
 .analytics-acceptance-col.active .analytics-acceptance-fill {
-  background: rgba(83, 247, 159, 0.48);
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid #ffffff;
+  border-bottom: none;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.3);
 }
 
 .analytics-acceptance-col.hovered .analytics-acceptance-fill {
-  background: rgba(83, 247, 159, 0.4);
+  background: rgba(255, 255, 255, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-bottom: none;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
 }
 
 .analytics-acceptance-label {
-  color: #88ab9c;
+  color: rgba(255, 255, 255, 0.65);
   font-size: 10px;
   text-align: center;
+  transition: color 0.2s ease;
 }
 
 .analytics-acceptance-col.active .analytics-acceptance-label {
-  color: #eef8f3;
+  color: #ffffff;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
 }
 
 .analytics-acceptance-col.hovered .analytics-acceptance-label {
-  color: #eef8f3;
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .analytics-acceptance-tooltip {
@@ -6253,9 +6264,11 @@ textarea {
   min-width: 110px;
   padding: 7px 9px;
   border-radius: 6px;
-  border: 1px solid rgba(77, 255, 160, 0.18);
-  background: rgba(10, 33, 21, 0.96);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(10, 20, 15, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
   transform: translate(-50%, calc(-100% - 12px));
   pointer-events: none;
 }
@@ -6267,22 +6280,23 @@ textarea {
   bottom: -5px;
   width: 10px;
   height: 10px;
-  background: rgba(10, 33, 21, 0.96);
-  border-right: 1px solid rgba(77, 255, 160, 0.18);
-  border-bottom: 1px solid rgba(77, 255, 160, 0.18);
+  background: rgba(10, 20, 15, 0.96);
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
   transform: translateX(-50%) rotate(45deg);
 }
 
 .analytics-acceptance-tooltip strong {
   display: block;
-  color: #eef8f3;
+  color: #ffffff;
   font-size: 10px;
+  font-weight: 700;
 }
 
 .analytics-acceptance-tooltip span {
   display: block;
   margin-top: 3px;
-  color: #7fe2a8;
+  color: rgba(255, 255, 255, 0.85);
   font-size: 10px;
 }
 
@@ -6292,13 +6306,17 @@ textarea {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  color: #8ab09f;
+  color: rgba(255, 255, 255, 0.75);
   font-size: 10px;
 }
 
 .analytics-module-summary strong {
-  color: #eef8f3;
+  color: #ffffff;
   font-size: 11px;
+}
+
+.analytics-table-card .analytics-card-head span {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .analytics-sector-list {
