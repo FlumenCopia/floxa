@@ -1371,9 +1371,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           <button type="button" onClick={() => onNext?.("profile")}>
             Edit profile
           </button>
-          <button type="button" onClick={() => onProjectRefresh?.()}>
-            Refresh
-          </button>
           <button type="button" onClick={() => onSignOut?.()}>
             Sign out
           </button>
