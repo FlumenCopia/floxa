@@ -10,40 +10,40 @@ import { Bell, Clock, FileText } from "lucide-react";
 
 const phaseLabels = [
   "Discovery",
+  "Payments",
   "Brand DNA",
   "Moodboards",
   "Concepts",
   "Agreement",
   "Delivery",
-  "Payments",
 ];
 
 const phaseToPanelMap = {
   Discovery: "discovery",
+  Payments: "payments",
   "Brand DNA": "discovery",
   Moodboards: "moodboards",
   Concepts: "concepts",
   Agreement: "agreement",
   Delivery: "delivery",
-  Payments: "payments",
 };
 
 const panelTitles = {
   discovery: "Discovery Report & Brand DNA",
+  payments: "Project Payments",
   moodboards: "Visual Moodboards",
   concepts: "Brand Concepts & Identity",
   agreement: "Client Agreement",
   delivery: "Deliverables & Assets",
-  payments: "Project Payments",
 };
 
 const panelToDefaultStage = {
   discovery: "Discovery",
+  payments: "Payments",
   moodboards: "Moodboards",
   concepts: "Concepts",
   agreement: "Agreement",
   delivery: "Delivery",
-  payments: "Payments",
 };
 
 const FINAL_PAYMENT_REQUIRED_MESSAGE = "Final payment must be completed before downloading deliverables.";
@@ -67,13 +67,13 @@ function getActivePhaseIndex(progress, workflowStatus) {
     const statusMap = {
       created: 0,
       discovery: 0,
-      advance_payment: 0,
-      advance_paid: 0,
-      brand_dna: 1,
-      moodboards: 2,
-      concepts: 3,
-      agreement: 4,
-      deliverables: 5,
+      advance_payment: 1,
+      advance_paid: 1,
+      brand_dna: 2,
+      moodboards: 3,
+      concepts: 4,
+      agreement: 5,
+      deliverables: 6,
       final_paid: 6,
       delivered: 6,
     };
