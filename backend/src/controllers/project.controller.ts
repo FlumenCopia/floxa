@@ -14,6 +14,7 @@ import { sendClientPortalInvite } from '../services/email.service.js';
 import { generateProjectAssistantReply } from '../services/gemini.service.js';
 import { serializeProject, serializeProjectActivity } from '../utils/serializer.js';
 import { hashPassword } from '../utils/crypto.js';
+import { getActiveHelpSession, broadcastProjectRead } from '../websocket/socketServer.js';
 
 export async function getProjects(req: any, res: Response, next: NextFunction) {
   try {
@@ -70,10 +71,66 @@ export async function getProjects(req: any, res: Response, next: NextFunction) {
         .limit(pageSize),
     ]);
 
+    const projectIds = projects.map((p) => p._id);
+
+    const unreadActivities = projectIds.length
+      ? await ProjectActivity.find({
+          projectId: { $in: projectIds },
+          isRead: false,
+          actorType: { $ne: 'consultant' },
+        }).sort({ createdAt: -1 })
+      : [];
+
+    const helpByProjectId = new Map<string, any>();
+    const unreadCountByProjectId = new Map<string, number>();
+    const latestActivityByProjectId = new Map<string, any>();
+
+    for (const act of unreadActivities) {
+      const pId = String(act.projectId);
+      unreadCountByProjectId.set(pId, (unreadCountByProjectId.get(pId) || 0) + 1);
+
+      if (!latestActivityByProjectId.has(pId)) {
+        latestActivityByProjectId.set(pId, {
+          action: act.action,
+          description: act.description,
+          created_at: act.createdAt,
+        });
+      }
+
+      if (act.action === 'client_help_requested' && !helpByProjectId.has(pId)) {
+        let meta: any = {};
+        try {
+          meta = typeof act.metadata === 'string' ? JSON.parse(act.metadata) : act.metadata || {};
+        } catch {
+          meta = {};
+        }
+        helpByProjectId.set(pId, {
+          question: meta.question || act.description,
+          page_id: meta.page_id || 'Step 1',
+          requested_at: act.createdAt,
+        });
+      }
+    }
+
     const results = projects.map((p) => {
       const progress = calculateProjectProgress(p);
       const workflowStatus = calculateProjectWorkflowStatus(p);
-      return serializeProject({ ...p.toObject(), progress }, workflowStatus);
+      const pId = String(p._id);
+      const activeHelp = getActiveHelpSession(pId) || helpByProjectId.get(pId) || null;
+      const unreadCount = unreadCountByProjectId.get(pId) || 0;
+      const latestActivity = latestActivityByProjectId.get(pId) || null;
+
+      return serializeProject(
+        {
+          ...p.toObject(),
+          progress,
+          has_help_request: Boolean(activeHelp),
+          help_request: activeHelp,
+          unread_count: unreadCount,
+          latest_activity: latestActivity,
+        },
+        workflowStatus
+      );
     });
 
     const nextUrl =
@@ -461,6 +518,13 @@ export async function markProjectActivitiesRead(req: any, res: Response, next: N
         readAt: new Date(),
       },
     });
+
+    const activeHelp = getActiveHelpSession(id);
+    if (activeHelp) {
+      activeHelp.is_active = false;
+    }
+
+    broadcastProjectRead(id, req.user?.id);
 
     res.json({
       detail: 'Activities marked as read.',

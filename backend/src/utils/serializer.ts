@@ -54,6 +54,10 @@ export function serializeProject(project: any, workflowStatus?: string) {
     client_signed_off: Boolean(project.clientSignedOff),
     signed_off_at: project.signedOffAt ? new Date(project.signedOffAt).toISOString() : null,
     is_archived: Boolean(project.isArchived),
+    has_help_request: Boolean(project.has_help_request),
+    help_request: project.help_request || null,
+    unread_count: Number(project.unread_count || 0),
+    latest_activity: project.latest_activity || null,
     created_at: project.createdAt ? new Date(project.createdAt).toISOString() : null,
     updated_at: project.updatedAt ? new Date(project.updatedAt).toISOString() : null,
   };

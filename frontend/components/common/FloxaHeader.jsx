@@ -164,6 +164,19 @@ function Icon({ type, size, strokeWidth }) {
 }
 
 function NavItem({ item, onClick }) {
+  const content = (
+    <>
+      <Icon type={item.icon} />
+      <span className="nav-label-wrap">
+        <span>{item.label}</span>
+        {item.dot ? <span className="nav-dot" aria-hidden="true" /> : null}
+      </span>
+      {!item.dot && item.badge ? (
+        <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span>
+      ) : null}
+    </>
+  );
+
   if (item.route) {
     return (
       <Link
@@ -171,23 +184,32 @@ function NavItem({ item, onClick }) {
         className={`nav-item ${item.active ? "active" : ""}`.trim()}
         onClick={onClick}
       >
-        <Icon type={item.icon} />
-        {item.label}
-        {item.badge ? <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span> : null}
+        {content}
       </Link>
     );
   }
 
   return (
     <button className={`nav-item ${item.active ? "active" : ""}`.trim()} type="button" onClick={onClick}>
-      <Icon type={item.icon} />
-      {item.label}
-      {item.badge ? <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span> : null}
+      {content}
     </button>
   );
 }
 
 function MobileTabItem({ item, onClick }) {
+  const content = (
+    <>
+      <Icon type={item.icon} />
+      <span className="nav-label-wrap">
+        <span>{item.label}</span>
+        {item.dot ? <span className="nav-dot" aria-hidden="true" /> : null}
+      </span>
+      {!item.dot && item.badge ? (
+        <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span>
+      ) : null}
+    </>
+  );
+
   if (item.route) {
     return (
       <Link
@@ -195,18 +217,14 @@ function MobileTabItem({ item, onClick }) {
         className={`mobile-tab-item ${item.active ? "active" : ""}`.trim()}
         onClick={onClick}
       >
-        <Icon type={item.icon} />
-        <span>{item.label}</span>
-        {item.badge ? <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span> : null}
+        {content}
       </Link>
     );
   }
 
   return (
     <button className={`mobile-tab-item ${item.active ? "active" : ""}`.trim()} type="button" onClick={onClick}>
-      <Icon type={item.icon} />
-      <span>{item.label}</span>
-      {item.badge ? <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span> : null}
+      {content}
     </button>
   );
 }
@@ -265,19 +283,16 @@ export default function Floxaheader({
   const resolvedPrimaryNavItems = primaryNavItems.map((item) => ({
     ...item,
     active: item.label.toLowerCase() === resolvedActiveNav.toLowerCase(),
+    dot: item.label === "PROJECTS" && visibleNotificationCount > 0,
     badge:
       item.label === "CHAT" && unreadChatCount > 0
         ? unreadChatCount
-        : item.label === "PROJECTS" && visibleNotificationCount > 0
-        ? visibleNotificationCount > 10
-          ? "10+"
-          : visibleNotificationCount
-        : item.badge,
+        : item.label !== "PROJECTS" && item.badge
+        ? item.badge
+        : null,
     badgeClass:
       item.label === "CHAT"
         ? "nav-badge-chat"
-        : item.label === "PROJECTS"
-        ? "g"
         : item.badgeClass,
   }));
 
@@ -290,19 +305,16 @@ export default function Floxaheader({
       (resolvedActiveNav?.toLowerCase() === "ai suite" && item.label.toLowerCase() === "ai") ||
       (resolvedActiveNav?.toLowerCase() === "client portal" && item.label.toLowerCase() === "portal") ||
       (resolvedActiveNav?.toLowerCase() === "settings" && item.label.toLowerCase() === "settings"),
+    dot: item.label === "Projects" && visibleNotificationCount > 0,
     badge:
       item.label === "Chat" && unreadChatCount > 0
         ? unreadChatCount
-        : item.label === "Projects" && visibleNotificationCount > 0
-        ? visibleNotificationCount > 10
-          ? "10+"
-          : visibleNotificationCount
-        : item.badge,
+        : item.label !== "Projects" && item.badge
+        ? item.badge
+        : null,
     badgeClass:
       item.label === "Chat"
         ? "nav-badge-chat"
-        : item.label === "Projects"
-        ? "g"
         : item.badgeClass,
   }));
 
@@ -563,11 +575,41 @@ export default function Floxaheader({
       }
     });
 
+    const unsubscribeLiveHelpResolved = supportSocket.on("help_resolved", (data) => {
+      if (!isMounted || !data?.project_id) return;
+      const targetId = String(data.project_id);
+      setHeaderNotifications((current) =>
+        current.map((n) => {
+          const pId = String(n.project_id || n.project || n.metadata?.project_id || "");
+          if (pId === targetId && n.action === "client_help_requested") {
+            return { ...n, is_read: true, read_at: new Date().toISOString() };
+          }
+          return n;
+        })
+      );
+    });
+
+    const unsubscribeProjectRead = supportSocket.on("project_read", (data) => {
+      if (!isMounted || !data?.projectId) return;
+      const targetId = String(data.projectId);
+      setHeaderNotifications((current) =>
+        current.map((n) => {
+          const pId = String(n.project_id || (typeof n.project === "object" ? n.project?.id : n.project) || n.metadata?.project_id || "");
+          if (pId === targetId) {
+            return { ...n, is_read: true, read_at: new Date().toISOString() };
+          }
+          return n;
+        })
+      );
+    });
+
     return () => {
       isMounted = false;
       window.clearTimeout(initialLoadId);
       window.clearInterval(intervalId);
       unsubscribeLiveHelp();
+      unsubscribeLiveHelpResolved();
+      unsubscribeProjectRead();
       unsubscribeLiveNotif();
     };
   }, [isAuthChecked, loadHeaderNotifications]);

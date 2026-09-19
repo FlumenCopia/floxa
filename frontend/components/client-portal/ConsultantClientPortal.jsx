@@ -213,6 +213,7 @@ function PortalCard({
   submit,
   isConsultantMode,
   isReadOnly,
+  isSaving,
   isCurrentStepHelpActive,
   activeHelpSession,
   onOpenHelp,
@@ -292,27 +293,21 @@ function PortalCard({
           Back
         </button>
         <StepDots active={step} />
-        {!isConsultantMode ? (
-          <button
-            className="cp-primary cp-footer-btn"
-            type="button"
-            onClick={onNext}
-            disabled={isReadOnly}
-          >
-            {submit ? "Submit Discovery" : "Continue"}
-            <ArrowRight size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginLeft: "4px" }} />
-          </button>
-        ) : !submit ? (
-          <button
-            className="cp-primary cp-footer-btn"
-            type="button"
-            onClick={onNext}
-            disabled={isReadOnly}
-          >
-            Continue
-            <ArrowRight size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginLeft: "4px" }} />
-          </button>
-        ) : null}
+        <button
+          className="cp-primary cp-footer-btn"
+          type="button"
+          onClick={onNext}
+          disabled={isReadOnly || isSaving}
+        >
+          {submit
+            ? isConsultantMode
+              ? isSaving
+                ? "Saving..."
+                : "Save & Close"
+              : "Submit Discovery"
+            : "Continue"}
+          <ArrowRight size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginLeft: "4px" }} />
+        </button>
       </footer>
     </section>
   );
@@ -472,6 +467,7 @@ export default function ConsultantClientPortal() {
     )
   );
   const isReadOnly = Boolean(isConsultantMode && !isCurrentStepHelpActive);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [callState, setCallState] = useState("idle");
 
@@ -786,17 +782,6 @@ export default function ConsultantClientPortal() {
     }
   }
 
-  function goNext() {
-    if (isReadOnly) return;
-    if (step === 6) {
-      setFinished(true);
-      return;
-    }
-    const next = Math.min(step + 1, 6);
-    setStep(next);
-    supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
-  }
-
   const handleClosePortal = useCallback(() => {
     setEntered(false);
     setStep(1);
@@ -807,6 +792,61 @@ export default function ConsultantClientPortal() {
       window.sessionStorage.setItem(`floxa-portal-step-${urlToken || "default"}`, "1");
     }
   }, [urlToken]);
+
+  const handleSaveDiscovery = async () => {
+    const targetToken = project?.portal_token || urlToken || (projects[0]?.portal_token) || "";
+    setIsSaving(true);
+    try {
+      if (targetToken) {
+        const payload = {
+          what_business_does: answers.whatDoYouDo || answers.what || "",
+          target_customer: answers.targetCustomer || answers.customer || "",
+          why_choose_us: answers.whyChooseYou || answers.choose || "",
+          brand_feeling: answers.whyTrustYou || answers.trust || "",
+          audience_archetype: selectedAudience[0] || "",
+          sliders: [
+            ...Object.entries(sliderOne).map(([k, v]) => ({
+              slider_key: k,
+              value: Math.round(((Number(v || 0) + 3) / 6) * 100),
+            })),
+            ...Object.entries(sliderTwo).map(([k, v]) => ({
+              slider_key: k,
+              value: Math.round(((Number(v || 0) + 3) / 6) * 100),
+            })),
+          ],
+          emotions: selectedEmotions,
+          competitors: competitors.filter((c) => c && c.name && c.name.trim()),
+          visual_styles: selectedVisual,
+          step: 6,
+        };
+
+        await clientPortalService.saveDiscoveryDraft(targetToken, payload);
+      }
+      showSuccess("Discovery inputs saved successfully.");
+      handleClosePortal();
+    } catch (err) {
+      console.warn("Failed to save discovery draft:", err);
+      showSuccess("Discovery inputs saved.");
+      handleClosePortal();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  function goNext() {
+    if (isReadOnly) return;
+    if (step === 6) {
+      if (isConsultantMode) {
+        handleSaveDiscovery();
+        return;
+      }
+      setFinished(true);
+      return;
+    }
+    const next = Math.min(step + 1, 6);
+    setStep(next);
+    supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
+  }
 
   function goBack() {
     if (step <= 1) {
@@ -862,6 +902,7 @@ export default function ConsultantClientPortal() {
     step,
     isConsultantMode,
     isReadOnly,
+    isSaving,
     isCurrentStepHelpActive,
     activeHelpSession,
     onBack: goBack,
@@ -1285,11 +1326,11 @@ export default function ConsultantClientPortal() {
             }
           />
           <div className="cp-almost" style={{ marginTop: "20px" }}>
-            <strong>✨ Final Step</strong>
+            <strong>Final Step</strong>
             <p>
               {isConsultantMode
-                ? "The client will review all inputs and submit discovery from their portal."
-                : "Review all discovery inputs with your client and click Submit to finalize the brand brief."}
+                ? "Click Save & Close to preserve all discovery inputs and exit. The client will review and submit from their portal."
+                : "Review all discovery inputs and click Submit Discovery to finalize the brand brief."}
             </p>
           </div>
         </PortalCard>

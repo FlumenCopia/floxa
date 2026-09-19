@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getProjects } from "@/lib/projectApi";
+import { getProjects, getConsultantActivities, markProjectActivitiesRead } from "@/lib/projectApi";
+import { supportSocket } from "@/services/supportSocketService";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
 import { ChevronDown, Plus } from "lucide-react";
@@ -96,6 +97,7 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
   const projectSearch = (searchParams.get("search") || "").trim();
 
   const [projects, setProjects] = useState([]);
+  const [projectNotifications, setProjectNotifications] = useState({});
   const [projectCount, setProjectCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -140,6 +142,20 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
         const total = Number(data.count || 0);
 
         setProjects(initialProjects);
+        setProjectNotifications((prev) => {
+          const next = { ...prev };
+          for (const p of initialProjects) {
+            const pId = String(p.id);
+            const existing = next[pId];
+            next[pId] = {
+              hasHelp: existing?.hasHelp !== undefined ? existing.hasHelp : Boolean(p.has_help_request),
+              helpInfo: existing?.helpInfo !== undefined ? existing.helpInfo : (p.help_request || null),
+              unreadCount: existing?.unreadCount !== undefined ? existing.unreadCount : (p.unread_count || 0),
+              latestActivity: existing?.latestActivity !== undefined ? existing.latestActivity : (p.latest_activity || null),
+            };
+          }
+          return next;
+        });
         setProjectCount(total);
         setHasMore(Boolean(data.has_more ?? data.next ?? (initialProjects.length < total)));
       } catch (error) {
@@ -192,10 +208,24 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
       const total = Number(data.count || 0);
 
       setProjects((prev) => {
-        // Prevent duplicate keys by id
         const existingIds = new Set(prev.map((p) => p.id));
         const filteredNew = newProjects.filter((p) => !existingIds.has(p.id));
         return [...prev, ...filteredNew];
+      });
+
+      setProjectNotifications((prev) => {
+        const next = { ...prev };
+        for (const p of newProjects) {
+          const pId = String(p.id);
+          const existing = next[pId];
+          next[pId] = {
+            hasHelp: existing?.hasHelp !== undefined ? existing.hasHelp : Boolean(p.has_help_request),
+            helpInfo: existing?.helpInfo !== undefined ? existing.helpInfo : (p.help_request || null),
+            unreadCount: existing?.unreadCount !== undefined ? existing.unreadCount : (p.unread_count || 0),
+            latestActivity: existing?.latestActivity !== undefined ? existing.latestActivity : (p.latest_activity || null),
+          };
+        }
+        return next;
       });
 
       setProjectCount(total);
@@ -207,6 +237,157 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
       setIsLoadingMore(false);
     }
   }, [currentPage, hasMore, isLoadingInitial, isLoadingMore, projectSearch, projects.length, selectedStatus]);
+
+  // Synchronize Unread Activities and Live WebSocket Notifications
+  useEffect(() => {
+    let isMounted = true;
+
+    async function syncActivities() {
+      try {
+        const activities = await getConsultantActivities();
+        if (!isMounted || !Array.isArray(activities)) return;
+
+        const unread = activities.filter((a) => !a.is_read && a.actor_type !== "consultant");
+        setProjectNotifications((prev) => {
+          const next = { ...prev };
+          for (const act of unread) {
+            const pId = String(act.project_id || act.project || act.metadata?.project_id || "");
+            if (!pId) continue;
+            if (!next[pId]) {
+              next[pId] = { hasHelp: false, helpInfo: null, unreadCount: 0, latestActivity: null };
+            }
+            next[pId].unreadCount = (next[pId].unreadCount || 0) + 1;
+            if (!next[pId].latestActivity) {
+              next[pId].latestActivity = {
+                action: act.action,
+                description: act.description,
+                created_at: act.created_at,
+              };
+            }
+            if (act.action === "client_help_requested") {
+              next[pId].hasHelp = true;
+              next[pId].helpInfo = {
+                question: act.metadata?.question || act.description,
+                page_id: act.metadata?.page_id || "Step",
+                requested_at: act.created_at,
+              };
+            }
+          }
+          return next;
+        });
+      } catch {
+        // ignore
+      }
+    }
+
+    syncActivities();
+
+    const unsubHelpReq = supportSocket.on("help_requested", (data) => {
+      if (!isMounted || !data?.project_id) return;
+      const pId = String(data.project_id);
+      setProjectNotifications((prev) => ({
+        ...prev,
+        [pId]: {
+          ...(prev[pId] || {}),
+          hasHelp: true,
+          helpInfo: {
+            question: data.question || "Client requested help",
+            page_id: data.page_id || "Step",
+            requested_at: data.requested_at || new Date().toISOString(),
+          },
+          unreadCount: ((prev[pId]?.unreadCount) || 0) + 1,
+          latestActivity: {
+            action: "client_help_requested",
+            description: `💬 ${data.client_name || "Client"} needs help: "${data.question || ""}"`,
+            created_at: new Date().toISOString(),
+          },
+        },
+      }));
+    });
+
+    const unsubHelpRes = supportSocket.on("help_resolved", (data) => {
+      if (!isMounted || !data?.project_id) return;
+      const pId = String(data.project_id);
+      setProjectNotifications((prev) => {
+        if (!prev[pId]) return prev;
+        return {
+          ...prev,
+          [pId]: {
+            ...prev[pId],
+            hasHelp: false,
+            helpInfo: null,
+            unreadCount: Math.max(0, (prev[pId].unreadCount || 1) - 1),
+          },
+        };
+      });
+    });
+
+    const unsubNotif = supportSocket.on("notification", (act) => {
+      if (!isMounted || !act) return;
+      const pId = String(act.project_id || act.project || act.metadata?.project_id || "");
+      if (!pId) return;
+
+      if (act.action === "client_help_resolved" || act.is_read) {
+        setProjectNotifications((prev) => {
+          if (!prev[pId]) return prev;
+          return {
+            ...prev,
+            [pId]: {
+              ...prev[pId],
+              hasHelp: act.action === "client_help_resolved" ? false : prev[pId].hasHelp,
+              unreadCount: Math.max(0, (prev[pId].unreadCount || 1) - 1),
+            },
+          };
+        });
+      } else if (act.actor_type !== "consultant" && !act.is_read) {
+        setProjectNotifications((prev) => ({
+          ...prev,
+          [pId]: {
+            ...(prev[pId] || {}),
+            hasHelp: act.action === "client_help_requested" ? true : (prev[pId]?.hasHelp || false),
+            helpInfo: act.action === "client_help_requested"
+              ? { question: act.metadata?.question || act.description, page_id: act.metadata?.page_id || "Step", requested_at: act.created_at }
+              : (prev[pId]?.helpInfo || null),
+            unreadCount: ((prev[pId]?.unreadCount) || 0) + 1,
+            latestActivity: {
+              action: act.action,
+              description: act.description,
+              created_at: act.created_at,
+            },
+          },
+        }));
+      }
+    });
+
+    const unsubProjectRead = supportSocket.on("project_read", (data) => {
+      if (!isMounted || !data?.projectId) return;
+      const pId = String(data.projectId);
+      setProjectNotifications((prev) => ({
+        ...prev,
+        [pId]: {
+          ...(prev[pId] || {}),
+          hasHelp: false,
+          helpInfo: null,
+          unreadCount: 0,
+        },
+      }));
+      setProjects((prev) =>
+        prev.map((p) =>
+          String(p.id) === pId
+            ? { ...p, has_help_request: false, help_request: null, unread_count: 0 }
+            : p
+        )
+      );
+    });
+
+    return () => {
+      isMounted = false;
+      unsubHelpReq();
+      unsubHelpRes();
+      unsubProjectRead();
+      unsubNotif();
+    };
+  }, []);
 
   // IntersectionObserver for Infinite Scroll Sentinel
   useEffect(() => {
@@ -319,33 +500,83 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                     ) : null}
 
                     {!isLoadingInitial &&
-                      projects.map((row) => (
-                        <tr
-                          key={row.id}
-                          onClick={() => router.push(`/discovery?projectId=${row.id}`)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <td>
-                            <div className="project-client-name">{row.client_name || row.company_name}</div>
-                            <div className="project-client-email">{row.client_email}</div>
-                          </td>
-                          <td>{row.sector}</td>
-                          <td>
-                            <span className={`badge ${getStatusClass(row.workflow_status || row.status)}`}>
-                              {getStatusLabel(row.workflow_status || row.status)}
-                            </span>
-                          </td>
-                          <td className="project-value">Rs {row.project_value}</td>
-                          <td>
-                            <div className="project-progress-cell">
-                              <div className="project-progress-track">
-                                <div className="project-progress-fill" style={{ width: `${row.progress}%` }} />
+                      projects.map((row) => {
+                        const notif = projectNotifications[String(row.id)];
+                        const hasHelp = notif?.hasHelp !== undefined ? Boolean(notif.hasHelp) : Boolean(row.has_help_request);
+                        const helpInfo = notif?.helpInfo !== undefined ? notif.helpInfo : row.help_request;
+                        const unreadCount = notif?.unreadCount !== undefined ? Number(notif.unreadCount) : Number(row.unread_count || 0);
+                        const latestActivity = notif?.latestActivity !== undefined ? notif.latestActivity : row.latest_activity;
+                        const hasNotification = hasHelp || unreadCount > 0;
+
+                        return (
+                          <tr
+                            key={row.id}
+                            onClick={() => {
+                              const pId = String(row.id);
+                              // Optimistically clear notification dot immediately on click
+                              setProjectNotifications((prev) => ({
+                                ...prev,
+                                [pId]: {
+                                  ...(prev[pId] || {}),
+                                  hasHelp: false,
+                                  helpInfo: null,
+                                  unreadCount: 0,
+                                },
+                              }));
+                              setProjects((prev) =>
+                                prev.map((p) =>
+                                  String(p.id) === pId
+                                    ? { ...p, has_help_request: false, help_request: null, unread_count: 0 }
+                                    : p
+                                )
+                              );
+                              // Broadcast project_read to FloxaHeader and WS
+                              supportSocket.markProjectRead?.({ projectId: row.id });
+                              supportSocket.emit("project_read", { projectId: row.id });
+                              // Call backend to persist read status
+                              markProjectActivitiesRead(row.id).catch(() => {});
+                              // Navigate to discovery
+                              router.push(`/discovery?projectId=${row.id}`);
+                            }}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <td>
+                              <div className="project-client-name-wrap">
+                                <span className="project-client-label-wrap">
+                                  <span className="project-client-name">{row.client_name || row.company_name}</span>
+                                  {hasNotification ? (
+                                    <span
+                                      className="project-unread-dot project-client-dot discovery-tab-dot"
+                                      title={
+                                        hasHelp
+                                          ? (helpInfo?.question ? `Help Requested: "${helpInfo.question}"` : "Client requested help on this project")
+                                          : (latestActivity?.description || `${unreadCount} unread client update${unreadCount > 1 ? "s" : ""}`)
+                                      }
+                                      aria-label="Unread notification"
+                                    />
+                                  ) : null}
+                                </span>
                               </div>
-                            </div>
-                          </td>
-                          <td>{new Date(row.created_at).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
+                              <div className="project-client-email">{row.client_email}</div>
+                            </td>
+                            <td>{row.sector}</td>
+                            <td>
+                              <span className={`badge ${getStatusClass(row.workflow_status || row.status)}`}>
+                                {getStatusLabel(row.workflow_status || row.status)}
+                              </span>
+                            </td>
+                            <td className="project-value">Rs {row.project_value}</td>
+                            <td>
+                              <div className="project-progress-cell">
+                                <div className="project-progress-track">
+                                  <div className="project-progress-fill" style={{ width: `${row.progress}%` }} />
+                                </div>
+                              </div>
+                            </td>
+                            <td>{new Date(row.created_at).toLocaleDateString()}</td>
+                          </tr>
+                        );
+                      })}
 
                     {!isLoadingInitial && projects.length === 0 ? (
                       <tr>

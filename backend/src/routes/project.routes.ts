@@ -67,11 +67,15 @@ router.post('/:id/moodboards/', upload.single('image'), creativeController.creat
 router.patch('/:id/moodboards/:moodboard_id/', upload.single('image'), creativeController.updateMoodboard);
 router.put('/:id/moodboards/:moodboard_id/', upload.single('image'), creativeController.updateMoodboard);
 router.delete('/:id/moodboards/:moodboard_id/', creativeController.deleteMoodboard);
+router.patch('/:id/moodboards/share-all/', creativeController.shareAllMoodboards);
+router.post('/:id/moodboards/share-all/', creativeController.shareAllMoodboards);
 router.patch('/:id/moodboards/:moodboard_id/share/', creativeController.shareMoodboard);
 router.post('/:id/moodboards/:moodboard_id/share/', creativeController.shareMoodboard);
 
 // Concepts
 router.get('/:id/concepts/', creativeController.getConcepts);
+router.patch('/:id/concepts/share-all/', creativeController.shareAllConcepts);
+router.post('/:id/concepts/share-all/', creativeController.shareAllConcepts);
 router.get('/:id/concepts/:concept_id/image/', creativeController.downloadConceptAsset);
 router.get('/:id/concepts/:concept_id/file/', creativeController.downloadConceptAsset);
 router.post(

@@ -71,4 +71,30 @@ test('Phase 3: FloxaHeader & API Contract Compatibility', async (t) => {
     assert.strictEqual(clientNotif.action, 'client_help_requested');
     assert.strictEqual(clientNotif.metadata.page_id, 'Step 2');
   });
+
+  await t.test('3.3 Project serialization includes real-time help and notification metadata', () => {
+    const mockProjectWithNotifs = {
+      _id: '65f000000000000000000001',
+      id: '65f000000000000000000001',
+      title: 'Active Help Project',
+      companyName: 'Help Corp',
+      has_help_request: true,
+      help_request: {
+        question: 'Need assistance on Step 2',
+        page_id: 'Step 2',
+      },
+      unread_count: 3,
+      latest_activity: {
+        action: 'client_help_requested',
+        description: 'Client requested help',
+      },
+      status: 'discovery',
+    };
+
+    const serialized = serializeProject(mockProjectWithNotifs);
+    assert.strictEqual(serialized.has_help_request, true);
+    assert.deepStrictEqual(serialized.help_request, { question: 'Need assistance on Step 2', page_id: 'Step 2' });
+    assert.strictEqual(serialized.unread_count, 3);
+    assert.deepStrictEqual(serialized.latest_activity, { action: 'client_help_requested', description: 'Client requested help' });
+  });
 });

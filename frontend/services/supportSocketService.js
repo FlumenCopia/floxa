@@ -192,6 +192,8 @@ class SupportSocketService {
       if (data.projectId) {
         this.emit(`client_presence_${data.projectId}`, data);
       }
+    } else if (type === "PROJECT_READ") {
+      this.emit("project_read", { projectId: data.projectId || data.project_id });
     } else if (type === "ERROR") {
       this.emit("server_error", data);
     }
@@ -268,6 +270,21 @@ class SupportSocketService {
       this.ws.send(JSON.stringify(payload));
     } else if (this.consultantWs && this.consultantWs.readyState === WebSocket.OPEN) {
       this.consultantWs.send(JSON.stringify(payload));
+    }
+  }
+
+  markProjectRead({ projectId }) {
+    if (!projectId) return;
+    const payload = {
+      type: "PROJECT_READ",
+      projectId: String(projectId),
+      project_id: String(projectId),
+    };
+    this.emit("project_read", payload);
+    if (this.consultantWs && this.consultantWs.readyState === WebSocket.OPEN) {
+      this.consultantWs.send(JSON.stringify(payload));
+    } else if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(payload));
     }
   }
 

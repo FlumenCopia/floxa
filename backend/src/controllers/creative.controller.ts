@@ -130,6 +130,54 @@ export async function shareMoodboard(req: AuthenticatedRequest, res: Response, n
   }
 }
 
+export async function shareAllMoodboards(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+
+    const project = await Project.findOne({
+      _id: id,
+      consultantId: req.user!.id,
+      isArchived: false,
+    });
+
+    if (!project) {
+      res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
+
+    const drafts = await Moodboard.find({ projectId: id, isShared: false, isSelected: false });
+    if (drafts.length === 0) {
+      res.json({ detail: 'No draft moodboards to share.', shared_count: 0 });
+      return;
+    }
+
+    await Moodboard.updateMany(
+      { projectId: id, isShared: false, isSelected: false },
+      { $set: { isShared: true } }
+    );
+
+    await logProjectActivity({
+      projectId: id,
+      consultantId: String(project.consultantId),
+      actorType: 'consultant',
+      action: 'moodboard_shared',
+      description: `Consultant shared ${drafts.length} moodboard${drafts.length > 1 ? 's' : ''} with client`,
+      visibleToClient: true,
+    });
+    await updateProjectProgress(id);
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const allMoodboards = await Moodboard.find({ projectId: id }).sort({ createdAt: -1 });
+    res.json({
+      detail: `Shared ${drafts.length} moodboard${drafts.length > 1 ? 's' : ''} with client.`,
+      shared_count: drafts.length,
+      moodboards: allMoodboards.map((m) => serializeMoodboard(m, baseUrl)),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function updateMoodboard(req: FileUploadRequest, res: Response, next: NextFunction) {
   try {
     const { id, moodboard_id } = req.params;
@@ -500,6 +548,54 @@ export async function shareConcept(req: AuthenticatedRequest, res: Response, nex
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     res.json(serializeConcept(concept, baseUrl));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function shareAllConcepts(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+
+    const project = await Project.findOne({
+      _id: id,
+      consultantId: req.user!.id,
+      isArchived: false,
+    });
+
+    if (!project) {
+      res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
+
+    const drafts = await Concept.find({ projectId: id, status: 'draft' });
+    if (drafts.length === 0) {
+      res.json({ detail: 'No draft concepts to share.', shared_count: 0 });
+      return;
+    }
+
+    await Concept.updateMany(
+      { projectId: id, status: 'draft' },
+      { $set: { status: 'shared' } }
+    );
+
+    await logProjectActivity({
+      projectId: id,
+      consultantId: String(project.consultantId),
+      actorType: 'consultant',
+      action: 'concept_shared',
+      description: `Consultant shared ${drafts.length} concept${drafts.length > 1 ? 's' : ''} with client`,
+      visibleToClient: true,
+    });
+    await updateProjectProgress(id);
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const allConcepts = await Concept.find({ projectId: id }).sort({ createdAt: -1 });
+    res.json({
+      detail: `Shared ${drafts.length} concept${drafts.length > 1 ? 's' : ''} with client.`,
+      shared_count: drafts.length,
+      concepts: allConcepts.map((c) => serializeConcept(c, baseUrl)),
+    });
   } catch (err) {
     next(err);
   }

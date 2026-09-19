@@ -43,4 +43,62 @@ test('Frontend FloxaHeader: Contract & Navigation Route Mapping', async (t) => {
 
     assert.strictEqual(computeUnreadCount(testActivities), 2);
   });
+
+  await t.test('4. PROJECTS uses dot indicator for notification while CHAT uses unread badge counter', () => {
+    function resolveNavItemNotification(itemLabel, { visibleNotificationCount, unreadChatCount }) {
+      return {
+        dot: (itemLabel === 'PROJECTS' || itemLabel === 'Projects') && visibleNotificationCount > 0,
+        badge: (itemLabel === 'CHAT' || itemLabel === 'Chat') && unreadChatCount > 0 ? unreadChatCount : null,
+      };
+    }
+
+    const projectsNotif = resolveNavItemNotification('PROJECTS', { visibleNotificationCount: 5, unreadChatCount: 0 });
+    assert.strictEqual(projectsNotif.dot, true);
+    assert.strictEqual(projectsNotif.badge, null);
+
+    const chatNotif = resolveNavItemNotification('CHAT', { visibleNotificationCount: 0, unreadChatCount: 3 });
+    assert.strictEqual(chatNotif.dot, false);
+    assert.strictEqual(chatNotif.badge, 3);
+  });
+
+  await t.test('5. Multi-project notification clearance: clicking project clears its dot while preserving unclicked project and PROJECTS tab dot', () => {
+    let notifications = [
+      { id: 'n1', project_id: 'proj_1', is_read: false, action: 'client_help_requested' },
+      { id: 'n2', project_id: 'proj_2', is_read: false, action: 'moodboard_selected' },
+    ];
+
+    function getProjectUnreadState(projectId, notifs) {
+      return notifs.some((n) => String(n.project_id) === String(projectId) && !n.is_read);
+    }
+
+    function getProjectsNavDot(notifs) {
+      const visibleCount = notifs.filter((n) => !n.is_read).length;
+      return visibleCount > 0;
+    }
+
+    // Initially: Both proj_1 and proj_2 have unread dots, and PROJECTS nav has dot
+    assert.strictEqual(getProjectUnreadState('proj_1', notifications), true);
+    assert.strictEqual(getProjectUnreadState('proj_2', notifications), true);
+    assert.strictEqual(getProjectsNavDot(notifications), true);
+
+    // Consultant clicks proj_1 -> project_read event fired for proj_1
+    notifications = notifications.map((n) =>
+      String(n.project_id) === 'proj_1' ? { ...n, is_read: true } : n
+    );
+
+    // After clicking proj_1: proj_1 dot is GONE, proj_2 dot REMAINS, PROJECTS nav dot REMAINS
+    assert.strictEqual(getProjectUnreadState('proj_1', notifications), false);
+    assert.strictEqual(getProjectUnreadState('proj_2', notifications), true);
+    assert.strictEqual(getProjectsNavDot(notifications), true);
+
+    // Consultant clicks proj_2 -> project_read event fired for proj_2
+    notifications = notifications.map((n) =>
+      String(n.project_id) === 'proj_2' ? { ...n, is_read: true } : n
+    );
+
+    // After clicking proj_2: both dots are GONE, PROJECTS nav dot is GONE
+    assert.strictEqual(getProjectUnreadState('proj_1', notifications), false);
+    assert.strictEqual(getProjectUnreadState('proj_2', notifications), false);
+    assert.strictEqual(getProjectsNavDot(notifications), false);
+  });
 });

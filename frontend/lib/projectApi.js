@@ -524,10 +524,24 @@ export async function shareMoodboard(projectId, moodboardId) {
   });
 }
 
+export async function shareAllMoodboards(projectId) {
+  invalidateConsultantActivitiesCache();
+  return apiRequest(`/projects/${projectId}/moodboards/share-all/`, {
+    method: "POST",
+  });
+}
+
 export async function shareConcept(projectId, conceptId) {
   invalidateConsultantActivitiesCache();
   return apiRequest(`/projects/${projectId}/concepts/${conceptId}/share/`, {
     method: "PATCH",
+  });
+}
+
+export async function shareAllConcepts(projectId) {
+  invalidateConsultantActivitiesCache();
+  return apiRequest(`/projects/${projectId}/concepts/share-all/`, {
+    method: "POST",
   });
 }
 

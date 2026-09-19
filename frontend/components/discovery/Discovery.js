@@ -38,8 +38,10 @@ import {
   retrySignedAgreementEmail,
   shareAgreement,
   shareConcept,
+  shareAllConcepts,
   shareDeliverable,
   shareMoodboard,
+  shareAllMoodboards,
   updateConcept,
   updateDeliverable,
   updateMoodboard,
@@ -1351,7 +1353,11 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [sharingMoodboardId, setSharingMoodboardId] = useState(null);
+  const [sharingAllMoodboards, setSharingAllMoodboards] = useState(false);
   const [moodboardToDelete, setMoodboardToDelete] = useState(null);
+
+  const draftMoodboards = moodboards.filter((m) => !m.is_shared && !m.is_selected);
+  const draftMoodboardsCount = draftMoodboards.length;
   const [statusText, setStatusText] = useState("");
   const [error, setError] = useState("");
   const imageInputRef = useRef(null);
@@ -1412,6 +1418,29 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
       showError(message);
     } finally {
       setSharingMoodboardId(null);
+    }
+  }
+
+  async function handleShareAllMoodboards() {
+    if (!projectId || draftMoodboardsCount === 0) return;
+    setSharingAllMoodboards(true);
+    setError("");
+    try {
+      await shareAllMoodboards(projectId);
+      setMoodboards((current) =>
+        current.map((item) =>
+          !item.is_selected ? { ...item, is_shared: true, isShared: true } : item
+        )
+      );
+      showSuccess(`All ${draftMoodboardsCount} moodboard direction${draftMoodboardsCount > 1 ? "s" : ""} shared with client.`);
+      await onProjectRefresh?.();
+    } catch (shareErr) {
+      console.error("Failed to share all moodboards:", shareErr);
+      const message = getApiErrorMessage(shareErr, "Unable to share all moodboards. Please try again.");
+      setError(message);
+      showError(message);
+    } finally {
+      setSharingAllMoodboards(false);
     }
   }
 
@@ -1660,6 +1689,16 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
             <h2 className="discovery-panel-title">Uploaded moodboards</h2>
             <p>Track shared directions and the client-selected option.</p>
           </div>
+          {draftMoodboardsCount > 0 ? (
+            <button
+              className="btn btn-primary discovery-share-all-btn"
+              type="button"
+              disabled={sharingAllMoodboards}
+              onClick={handleShareAllMoodboards}
+            >
+              {sharingAllMoodboards ? "Sharing all..." : `Share all (${draftMoodboardsCount})`}
+            </button>
+          ) : null}
         </div>
         <div className="discovery-moodboard-list">
           {loading ? (
@@ -1878,9 +1917,13 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sharingId, setSharingId] = useState(null);
+  const [sharingAllConcepts, setSharingAllConcepts] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [savingEditId, setSavingEditId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+
+  const draftConcepts = concepts.filter((c) => c.status === "draft");
+  const draftConceptsCount = draftConcepts.length;
   const [error, setError] = useState("");
   const conceptImageInputRef = useRef(null);
   const [form, setForm] = useState({
@@ -2002,6 +2045,25 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
       showError(message);
     } finally {
       setSharingId(null);
+    }
+  }
+
+  async function handleShareAllConcepts() {
+    if (!projectId || draftConceptsCount === 0) return;
+    setSharingAllConcepts(true);
+    setError("");
+    try {
+      await shareAllConcepts(projectId);
+      showSuccess(`All ${draftConceptsCount} concept${draftConceptsCount > 1 ? "s" : ""} shared with client.`);
+      await loadConcepts();
+      await onProjectRefresh?.();
+    } catch (shareErr) {
+      console.error("Failed to share all concepts:", shareErr);
+      const message = getApiErrorMessage(shareErr, "Unable to share all concepts. Please try again.");
+      setError(message);
+      showError(message);
+    } finally {
+      setSharingAllConcepts(false);
     }
   }
 
@@ -2196,6 +2258,16 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
             <h2 className="discovery-panel-title">Uploaded concepts</h2>
             <p>Review versions, status, client feedback, and available concept files.</p>
           </div>
+          {draftConceptsCount > 0 ? (
+            <button
+              className="btn btn-primary discovery-share-all-btn"
+              type="button"
+              disabled={sharingAllConcepts}
+              onClick={handleShareAllConcepts}
+            >
+              {sharingAllConcepts ? "Sharing all..." : `Share all (${draftConceptsCount})`}
+            </button>
+          ) : null}
         </div>
         <div className="discovery-moodboard-list">
           {loading ? (

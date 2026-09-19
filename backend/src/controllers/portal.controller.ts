@@ -1358,11 +1358,15 @@ export async function resolvePortalHelp(req: any, res: Response, next: NextFunct
       visibleToClient: true,
     });
 
-    broadcastHelpResolved(req.project.id, {
-      project_id: req.project.id,
-      page_id: pageId,
-      resolved_by: 'client',
-    });
+    broadcastHelpResolved(
+      req.project.id,
+      {
+        project_id: req.project.id,
+        page_id: pageId,
+        resolved_by: 'client',
+      },
+      consultantId
+    );
 
     res.json({ success: true, message: 'Help session resolved.' });
   } catch (err) {

@@ -314,7 +314,8 @@ export function broadcastHelpResolved(
     project_id: string;
     page_id: string;
     resolved_by: string;
-  }
+  },
+  consultantId?: string
 ) {
   if (ACTIVE_HELP_SESSIONS[projectId]) {
     ACTIVE_HELP_SESSIONS[projectId].is_active = false;
@@ -330,6 +331,45 @@ export function broadcastHelpResolved(
       c.ws.send(resolveMsg);
     }
   });
+
+  if (consultantId && consultantSockets.has(consultantId)) {
+    consultantSockets.get(consultantId)?.forEach((cws) => {
+      if (cws.readyState === WebSocket.OPEN) {
+        cws.send(resolveMsg);
+      }
+    });
+  }
+}
+
+/**
+ * Broadcasts project read event to consultant sockets and deactivates active help
+ */
+export function broadcastProjectRead(projectId: string, consultantId?: string) {
+  if (ACTIVE_HELP_SESSIONS[projectId]) {
+    ACTIVE_HELP_SESSIONS[projectId].is_active = false;
+  }
+
+  const payload = JSON.stringify({
+    type: 'PROJECT_READ',
+    projectId,
+    project_id: projectId,
+  });
+
+  if (consultantId && consultantSockets.has(consultantId)) {
+    consultantSockets.get(consultantId)?.forEach((cws) => {
+      if (cws.readyState === WebSocket.OPEN) {
+        cws.send(payload);
+      }
+    });
+  } else {
+    consultantSockets.forEach((sockets) => {
+      sockets.forEach((cws) => {
+        if (cws.readyState === WebSocket.OPEN) {
+          cws.send(payload);
+        }
+      });
+    });
+  }
 }
 
 /**
@@ -677,6 +717,11 @@ export function setupWebSocketServer(server: Server) {
                 cws.send(readPayload);
               }
             });
+          } else if (content.type === 'PROJECT_READ') {
+            const projectId = content.projectId || content.project_id;
+            if (projectId) {
+              broadcastProjectRead(String(projectId), consultant.id);
+            }
           }
         } catch {}
       });
@@ -1015,11 +1060,24 @@ export function setupWebSocketServer(server: Server) {
             visibleToClient: true,
           });
 
-          broadcastHelpResolved(currentProjectId, {
-            project_id: currentProjectId,
-            page_id: pageId,
-            resolved_by: role,
-          });
+          broadcastHelpResolved(
+            currentProjectId,
+            {
+              project_id: currentProjectId,
+              page_id: pageId,
+              resolved_by: role,
+            },
+            consId
+          );
+        }
+
+        // 2b. PROJECT READ
+        else if (msgType === 'PROJECT_READ') {
+          const pId = content.projectId || content.project_id || currentProjectId;
+          const projectConsId = String(currentProject?.consultantId || '');
+          if (pId) {
+            broadcastProjectRead(String(pId), projectConsId);
+          }
         }
 
         // 3. FIELD SYNC (CO-EDITING)
