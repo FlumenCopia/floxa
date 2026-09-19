@@ -269,16 +269,16 @@ export default function Floxaheader({
       item.label === "CHAT" && unreadChatCount > 0
         ? unreadChatCount
         : item.label === "PROJECTS" && visibleNotificationCount > 0
-        ? visibleNotificationCount > 10
-          ? "10+"
-          : visibleNotificationCount
-        : item.badge,
+          ? visibleNotificationCount > 10
+            ? "10+"
+            : visibleNotificationCount
+          : item.badge,
     badgeClass:
       item.label === "CHAT"
         ? "nav-badge-chat"
         : item.label === "PROJECTS"
-        ? "g"
-        : item.badgeClass,
+          ? "g"
+          : item.badgeClass,
   }));
 
   const resolvedMobileTabItems = mobileTabItems.map((item) => ({
@@ -294,16 +294,16 @@ export default function Floxaheader({
       item.label === "Chat" && unreadChatCount > 0
         ? unreadChatCount
         : item.label === "Projects" && visibleNotificationCount > 0
-        ? visibleNotificationCount > 10
-          ? "10+"
-          : visibleNotificationCount
-        : item.badge,
+          ? visibleNotificationCount > 10
+            ? "10+"
+            : visibleNotificationCount
+          : item.badge,
     badgeClass:
       item.label === "Chat"
         ? "nav-badge-chat"
         : item.label === "Projects"
-        ? "g"
-        : item.badgeClass,
+          ? "g"
+          : item.badgeClass,
   }));
 
   useEffect(() => {
@@ -316,7 +316,7 @@ export default function Floxaheader({
           setUnreadChatCount(totalUnread);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const unsubChatMsg = supportSocket.on("chat_message_new", (msg) => {
       if (!isMounted) return;
@@ -336,7 +336,7 @@ export default function Floxaheader({
               setUnreadChatCount(total);
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     });
 
@@ -354,8 +354,8 @@ export default function Floxaheader({
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem("floxa_jwt") ||
-          localStorage.getItem("floxa_token") ||
-          "active"
+        localStorage.getItem("floxa_token") ||
+        "active"
         : "";
     if (token || consultant?.id) {
       supportSocket.connectConsultantNotifications({ consultantToken: token, consultantId: consultant?.id });
@@ -664,7 +664,7 @@ export default function Floxaheader({
 
       const projectId = getNotificationProjectId(notification);
       if (projectId) {
-        markProjectActivitiesRead(projectId, notification.action ? [notification.action] : undefined).catch(() => {});
+        markProjectActivitiesRead(projectId, notification.action ? [notification.action] : undefined).catch(() => { });
       }
     }
 
@@ -873,21 +873,20 @@ export default function Floxaheader({
                 <span
                   style={{
                     position: "absolute",
-                    top: "3px",
-                    right: "3px",
+                    top: "-2px",
+                    right: "-2px",
                     minWidth: "16px",
                     height: "16px",
-                    padding: "0 4px",
-                    borderRadius: "999px",
-                    background: "#10b981",
-                    color: "#02231c",
+                    padding: "0 2px",
+                    background: "transparent",
+                    color: "#10b981",
                     fontSize: "10px",
                     fontWeight: "800",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     lineHeight: 1,
-                    boxShadow: "0 0 8px rgba(16, 185, 129, 0.6)",
+                    boxShadow: "none",
                     pointerEvents: "none",
                   }}
                 >
