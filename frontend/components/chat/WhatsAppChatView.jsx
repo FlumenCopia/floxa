@@ -830,6 +830,24 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
     setCapturedPhoto(null);
   };
 
+  // Keep camera stream attached to video element across renders / retakes
+  useEffect(() => {
+    if (cameraModalOpen && cameraStream && videoRef.current && !capturedPhoto) {
+      if (videoRef.current.srcObject !== cameraStream) {
+        videoRef.current.srcObject = cameraStream;
+      }
+    }
+  }, [cameraModalOpen, cameraStream, capturedPhoto]);
+
+  // Clean up camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((t) => t.stop());
+      }
+    };
+  }, [cameraStream]);
+
   const sendCapturedPhoto = async () => {
     if (!capturedPhoto?.blob || !selectedConversation?.projectId) return;
 
@@ -1667,7 +1685,7 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
                           title="Capture Snapshot"
                           aria-label="Capture Snapshot"
                         >
-                          <span style={{ width: 48, height: 48, borderRadius: "50%", background: "#fff", display: "block" }} />
+                          <span className="wa-camera-shutter-inner" />
                         </button>
                       </div>
                     ) : (

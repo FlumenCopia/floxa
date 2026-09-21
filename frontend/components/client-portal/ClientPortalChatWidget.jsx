@@ -307,6 +307,22 @@ export function ClientPortalChatWidget({ project = null, token = null }) {
     };
   }, [cameraStream]);
 
+  // Keep camera stream attached to video element across renders / retakes
+  useEffect(() => {
+    if (cameraModalOpen && cameraStream && videoRef.current && !capturedPhoto) {
+      if (videoRef.current.srcObject !== cameraStream) {
+        videoRef.current.srcObject = cameraStream;
+      }
+    }
+  }, [cameraModalOpen, cameraStream, capturedPhoto]);
+
+  // Automatically close camera if chat widget is closed
+  useEffect(() => {
+    if (!isOpen && cameraModalOpen) {
+      closeCameraModal();
+    }
+  }, [isOpen, cameraModalOpen]);
+
   const handleInputChange = (e) => {
     const val = e.target.value;
     setInputText(val);
@@ -1081,7 +1097,6 @@ export function ClientPortalChatWidget({ project = null, token = null }) {
             <div
               className="wa-camera-modal-backdrop"
               onClick={closeCameraModal}
-              style={{ position: "fixed", inset: 0, zIndex: 2000 }}
             >
               <div className="wa-camera-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="wa-camera-modal-header">
@@ -1127,7 +1142,7 @@ export function ClientPortalChatWidget({ project = null, token = null }) {
                         title="Capture Snapshot"
                         aria-label="Capture Snapshot"
                       >
-                        <span style={{ width: 48, height: 48, borderRadius: "50%", background: "#fff", display: "block" }} />
+                        <span className="wa-camera-shutter-inner" />
                       </button>
                     </div>
                   ) : (
@@ -1176,7 +1191,6 @@ export function ClientPortalChatWidget({ project = null, token = null }) {
             <div
               className="wa-lightbox-backdrop"
               onClick={() => setLightboxImage(null)}
-              style={{ position: "fixed", inset: 0, zIndex: 2100 }}
             >
               <div className="wa-lightbox-header">
                 <a

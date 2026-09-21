@@ -1260,29 +1260,55 @@
 }
 
 /* =========================================================================
-   CAMERA SNAPSHOT MODAL
+   CAMERA SNAPSHOT MODAL (RESPONSIVE)
    ========================================================================= */
 .wa-camera-modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.88);
-  z-index: 1000;
+  z-index: 2500;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(8px);
+  padding: 16px;
+  box-sizing: border-box;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: waCameraFadeIn 0.22s ease-out;
+}
+
+@keyframes waCameraFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .wa-camera-modal {
-  width: 90%;
-  max-width: 580px;
+  width: 100%;
+  max-width: 540px;
+  max-height: min(94vh, 720px);
   background: #111b21;
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.85), 0 0 25px rgba(0, 168, 132, 0.15);
   display: flex;
   flex-direction: column;
+  animation: waCameraModalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes waCameraModalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .wa-camera-modal-header {
@@ -1292,6 +1318,7 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 .wa-camera-modal-title {
@@ -1305,19 +1332,21 @@
 
 .wa-camera-viewfinder-box {
   width: 100%;
-  height: 360px;
+  height: clamp(240px, 48vh, 380px);
   background: #000;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex: 1 1 auto;
 }
 
 .wa-camera-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
 .wa-camera-preview-img {
@@ -1325,6 +1354,7 @@
   height: 100%;
   object-fit: contain;
   background: #000;
+  display: block;
 }
 
 .wa-camera-controls {
@@ -1332,45 +1362,76 @@
   background: #202c33;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .wa-camera-shutter-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 24px;
+  padding: 4px 0;
 }
 
 .wa-camera-shutter-btn {
-  width: 64px;
-  height: 64px;
+  width: 66px;
+  height: 66px;
+  min-width: 66px;
+  min-height: 66px;
   border-radius: 50%;
-  background: #fff;
-  border: 4px solid #111b21;
-  box-shadow: 0 0 0 3px #fff;
+  background: transparent;
+  border: 4px solid #fff;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.5);
   cursor: pointer;
-  transition: transform 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.wa-camera-shutter-btn span,
+.wa-camera-shutter-inner {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  display: block;
+  transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
 .wa-camera-shutter-btn:hover {
   transform: scale(1.08);
+  border-color: #25d366;
+  box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.4), 0 6px 20px rgba(37, 211, 102, 0.35);
+}
+
+.wa-camera-shutter-btn:hover span,
+.wa-camera-shutter-btn:hover .wa-camera-shutter-inner {
+  transform: scale(0.92);
+  background: #f0f7f4;
 }
 
 .wa-camera-shutter-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.94);
+}
+
+.wa-camera-shutter-btn:active span,
+.wa-camera-shutter-btn:active .wa-camera-shutter-inner {
+  transform: scale(0.85);
+  background: #25d366;
 }
 
 .wa-camera-caption-input-wrap {
   display: flex;
   align-items: center;
   background: #2a3942;
-  border-radius: 8px;
-  padding: 8px 14px;
+  border-radius: 10px;
+  padding: 10px 14px;
   gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .wa-camera-caption-input {
@@ -1382,49 +1443,120 @@
   outline: none;
 }
 
+.wa-camera-caption-input::placeholder {
+  color: #8696a0;
+}
+
 .wa-camera-action-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  width: 100%;
 }
 
 .wa-camera-retake-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   color: #e9edef;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 13px;
+  padding: 10px 18px;
+  min-height: 42px;
+  border-radius: 10px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: all 0.2s ease;
+  flex: 1;
+  max-width: 180px;
 }
 
 .wa-camera-retake-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.26);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.wa-camera-retake-btn:active {
+  transform: translateY(0);
 }
 
 .wa-camera-send-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   background: #00a884;
   border: none;
   color: #111b21;
-  padding: 8px 20px;
-  border-radius: 8px;
+  padding: 10px 22px;
+  min-height: 42px;
+  border-radius: 10px;
   font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(0, 168, 132, 0.35);
+  flex: 1;
+  max-width: 220px;
 }
 
 .wa-camera-send-btn:hover {
   background: #25d366;
-  transform: scale(1.03);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 6px 18px rgba(37, 211, 102, 0.45);
+}
+
+.wa-camera-send-btn:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 540px) {
+  .wa-camera-modal-backdrop {
+    padding: 8px;
+  }
+
+  .wa-camera-modal {
+    max-height: calc(100vh - 16px);
+    border-radius: 12px;
+  }
+
+  .wa-camera-viewfinder-box {
+    height: clamp(200px, 42vh, 320px);
+  }
+
+  .wa-camera-controls {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .wa-camera-shutter-btn {
+    width: 58px;
+    height: 58px;
+    min-width: 58px;
+    min-height: 58px;
+  }
+
+  .wa-camera-shutter-btn span,
+  .wa-camera-shutter-inner {
+    width: 42px;
+    height: 42px;
+  }
+
+  .wa-camera-action-row {
+    gap: 8px;
+  }
+
+  .wa-camera-retake-btn,
+  .wa-camera-send-btn {
+    max-width: none;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
 }
 
 /* =========================================================================
