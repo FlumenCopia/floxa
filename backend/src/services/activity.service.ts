@@ -10,6 +10,7 @@ export interface LogActivityParams {
   metadata?: Record<string, any>;
   visibleToClient?: boolean;
   clientIsRead?: boolean;
+  isRead?: boolean;
 }
 
 export type ActivityNotificationListener = (activity: IProjectActivity) => void | Promise<void>;
