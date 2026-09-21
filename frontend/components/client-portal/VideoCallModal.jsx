@@ -39,16 +39,30 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
   const attachAndPlayRemote = async (stream) => {
     if (!stream) return;
 
+    const videoTracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
     const hasLiveVideoTrack = Boolean(
-      stream.getVideoTracks().length > 0 &&
-      stream.getVideoTracks().some((t) => t.readyState === "live" && t.enabled)
+      videoTracks.length > 0 &&
+      videoTracks.some((t) => t.readyState === "live" && t.enabled)
     );
-    setIsRemoteVideoActive(hasLiveVideoTrack);
 
     if (remoteVideoRef.current) {
-      if (remoteVideoRef.current.srcObject !== stream) {
+      if (
+        remoteVideoRef.current.srcObject !== stream ||
+        !remoteVideoRef.current.srcObject?.getVideoTracks()?.length
+      ) {
         remoteVideoRef.current.srcObject = stream;
       }
+
+      // Attach un-mute listeners to incoming video tracks
+      videoTracks.forEach((t) => {
+        t.onunmute = () => {
+          setIsRemoteVideoActive(true);
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.play().catch(() => {});
+          }
+        };
+      });
+
       try {
         await remoteVideoRef.current.play();
         setIsAutoplayMuted(false);
@@ -63,6 +77,10 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
             console.error("[VideoCallModal] Secondary play failed:", e2);
           }
         }
+      }
+
+      if (hasLiveVideoTrack || (remoteVideoRef.current.videoWidth > 0)) {
+        setIsRemoteVideoActive(true);
       }
     }
 
@@ -579,16 +597,36 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
         </div>
 
         <div className="floxa-video-viewport">
-          {/* Remote Video (Main View) */}
+          {/* Remote Video (Main View) - Always mounted in DOM layout to keep video decoding pipeline alive */}
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
             onLoadedMetadata={(e) => {
               e.currentTarget.play().catch(() => {});
+              if (e.currentTarget.videoWidth > 0) {
+                setIsRemoteVideoActive(true);
+              }
+            }}
+            onLoadedData={(e) => {
+              if (e.currentTarget.videoWidth > 0) {
+                setIsRemoteVideoActive(true);
+              }
+            }}
+            onPlaying={(e) => {
+              if (e.currentTarget.videoWidth > 0) {
+                setIsRemoteVideoActive(true);
+              }
             }}
             className="floxa-remote-video"
-            style={{ display: isRemoteVideoActive ? "block" : "none" }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              zIndex: 1,
+            }}
           />
 
           {/* Placeholder while remote video stream is connecting or remote camera is off */}

@@ -7,8 +7,19 @@ const ICE_SERVERS = {
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
     { urls: "stun:stun.cloudflare.com:3478" },
     { urls: "stun:global.stun.twilio.com:3478" },
+    {
+      urls: [
+        "turn:openrelay.metered.ca:80",
+        "turn:openrelay.metered.ca:443",
+        "turn:openrelay.metered.ca:443?transport=tcp",
+      ],
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
   ],
   iceCandidatePoolSize: 10,
   bundlePolicy: "max-bundle",
@@ -292,12 +303,19 @@ class WebRTCService {
     if (!this.peerConnection || !this.localStream) return;
     try {
       const senders = this.peerConnection.getSenders ? this.peerConnection.getSenders() : [];
+      const transceivers = this.peerConnection.getTransceivers ? this.peerConnection.getTransceivers() : [];
+
       this.localStream.getTracks().forEach((track) => {
         const existingSender = senders.find((s) => s.track && s.track.id === track.id);
         if (!existingSender) {
-          const emptySender = senders.find((s) => !s.track && s.track?.kind === track.kind);
-          if (emptySender && emptySender.replaceTrack) {
-            emptySender.replaceTrack(track);
+          const reusableTransceiver = transceivers.find(
+            (t) => (!t.sender.track) && t.receiver?.track?.kind === track.kind && t.direction !== "stopped"
+          );
+          if (reusableTransceiver && reusableTransceiver.sender && reusableTransceiver.sender.replaceTrack) {
+            reusableTransceiver.sender.replaceTrack(track);
+            if (reusableTransceiver.direction !== "sendrecv") {
+              reusableTransceiver.direction = "sendrecv";
+            }
           } else {
             this.peerConnection.addTrack(track, this.localStream);
           }
@@ -405,28 +423,36 @@ class WebRTCService {
         this.remoteStream = new MediaStream();
       }
 
-      if (event.streams && event.streams[0]) {
-        event.streams[0].getTracks().forEach((track) => {
-          if (!this.remoteStream.getTracks().some((t) => t.id === track.id)) {
-            this.remoteStream.addTrack(track);
-          }
-        });
-      } else if (event.track) {
-        if (!this.remoteStream.getTracks().some((t) => t.id === event.track.id)) {
-          this.remoteStream.addTrack(event.track);
+      const incomingTracks = (event.streams && event.streams[0])
+        ? event.streams[0].getTracks()
+        : (event.track ? [event.track] : []);
+
+      incomingTracks.forEach((track) => {
+        if (!this.remoteStream.getTracks().some((t) => t.id === track.id)) {
+          this.remoteStream.addTrack(track);
         }
-      }
+      });
+
+      const notifyRemoteStream = () => {
+        const tracks = this.remoteStream.getTracks();
+        if (tracks.length > 0) {
+          const fresh = new MediaStream(tracks);
+          this.emit("remote_stream", fresh);
+        } else {
+          this.emit("remote_stream", this.remoteStream);
+        }
+      };
 
       if (event.track) {
         event.track.onunmute = () => {
-          this.emit("remote_stream", this.remoteStream);
+          notifyRemoteStream();
         };
         event.track.onended = () => {
-          this.emit("remote_stream", this.remoteStream);
+          notifyRemoteStream();
         };
       }
 
-      this.emit("remote_stream", this.remoteStream);
+      notifyRemoteStream();
     };
 
     // ICE Candidate handler

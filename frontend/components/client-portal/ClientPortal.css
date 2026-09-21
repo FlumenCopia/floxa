@@ -5321,6 +5321,8 @@ td {
 
 /* Remote Participant Placeholder (when connecting or camera off) */
 .floxa-remote-placeholder {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -5329,6 +5331,7 @@ td {
   z-index: 2;
   text-align: center;
   padding: 24px;
+  background: #020617;
 }
 
 .floxa-remote-placeholder-avatar {

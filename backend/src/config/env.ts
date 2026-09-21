@@ -42,12 +42,12 @@ export const ENV = {
   RAZORPAY_CURRENCY: process.env.RAZORPAY_CURRENCY || 'INR',
 
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
-  GEMINI_MODELS: (process.env.GEMINI_MODELS || 'gemini-3.1-flash-lite,gemini-flash-lite-latest')
+  GEMINI_MODELS: (process.env.GEMINI_MODELS || 'gemini-3.1-flash-lite,gemini-3.5-flash,gemini-3.6-flash,gemini-3.7-flash')
     .split(',')
     .map((m) => m.trim())
     .filter(Boolean),
-  GEMINI_TIMEOUT_SECONDS: parseInt(process.env.GEMINI_TIMEOUT_SECONDS || '20', 10),
-  GEMINI_MAX_OUTPUT_TOKENS: parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS || '700', 10),
+  GEMINI_TIMEOUT_SECONDS: parseInt(process.env.GEMINI_TIMEOUT_SECONDS || '12', 10),
+  GEMINI_MAX_OUTPUT_TOKENS: parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS || '1200', 10),
 
   EMAIL_HOST: process.env.EMAIL_HOST || 'smtp.gmail.com',
   EMAIL_PORT: parseInt(process.env.EMAIL_PORT || '587', 10),

@@ -5,6 +5,44 @@ import { buildBrandDNAData, calculateCluster } from './discovery.service.js';
 
 let aiClient: GoogleGenAI | null = null;
 
+export const PREFERRED_MODELS = [
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-3.6-flash',
+  'gemini-3.7-flash',
+];
+
+export function getActiveModels(): string[] {
+  let list = (ENV.GEMINI_MODELS && ENV.GEMINI_MODELS.length > 0)
+    ? [...ENV.GEMINI_MODELS]
+    : [...PREFERRED_MODELS];
+
+  // Exclude deprecated models that return 404
+  list = list.filter((m) => {
+    const lower = m.toLowerCase();
+    return !lower.includes('1.5') && !lower.includes('2.0') && !lower.includes('2.5') && !lower.includes('latest');
+  });
+
+  // Ensure all preferred models are in the pool
+  for (const m of PREFERRED_MODELS) {
+    if (!list.includes(m)) {
+      list.push(m);
+    }
+  }
+
+  // Sort by PREFERRED_MODELS index so fastest models (e.g. gemini-3.1-flash-lite ~1.4s) are tried first
+  list.sort((a, b) => {
+    const idxA = PREFERRED_MODELS.indexOf(a);
+    const idxB = PREFERRED_MODELS.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return 0;
+  });
+
+  return list;
+}
+
 function getAiClient(): GoogleGenAI {
   if (!ENV.GEMINI_API_KEY) {
     throw new Error('Gemini API is not configured.');
@@ -15,6 +53,104 @@ function getAiClient(): GoogleGenAI {
   }
 
   return aiClient;
+}
+
+async function callModelWithTimeout<T>(
+  actionPromise: Promise<T>,
+  modelName: string,
+  timeoutMs: number
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Model ${modelName} timed out after ${Math.round(timeoutMs / 1000)}s`));
+    }, timeoutMs);
+
+    actionPromise
+      .then((result) => {
+        clearTimeout(timer);
+        resolve(result);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
+function generateContextualProjectFallback(project: any, userMessage: string): string {
+  const title = project?.title || 'Brand Project';
+  const clientName = project?.client?.name || project?.companyName || 'Client';
+  const sector = project?.sector || 'Brand';
+  const d = project?.discovery;
+  const b = project?.brandDNA;
+  const moodboards = project?.moodboards || [];
+  const concepts = project?.concepts || [];
+  const progress = project?.progress ?? 0;
+  const lower = (userMessage || '').toLowerCase();
+
+  const isMoodboardReq = lower.includes('moodboard') || lower.includes('aesthetic') || lower.includes('visual');
+  const isConceptReq = lower.includes('concept') || lower.includes('poster') || lower.includes('direction');
+
+  if (isMoodboardReq && moodboards.length > 0) {
+    let res = `**Moodboard Direction & Client Feedback**\n\n`;
+    res += `* **Project:** ${title} (${sector})\n`;
+    res += `* **Total Moodboards:** ${moodboards.length}\n`;
+    moodboards.forEach((m: any, idx: number) => {
+      const statusStr = m.isSelected ? 'Approved by Client' : m.isShared ? 'Shared with Client' : 'Internal Draft';
+      res += `* **${idx + 1}. ${m.title}:** ${statusStr}${m.clientFeedback ? ` — Note: "${m.clientFeedback}"` : ''}\n`;
+    });
+    res += `\n**Strategic Recommendation:** Incorporate client feedback into the concept development phase and maintain visual continuity with approved direction.`;
+    return res;
+  }
+
+  if (isConceptReq && concepts.length > 0) {
+    let res = `**Concept Status & Visual Execution**\n\n`;
+    res += `* **Project:** ${title} (${sector})\n`;
+    res += `* **Total Concepts:** ${concepts.length}\n`;
+    concepts.forEach((c: any, idx: number) => {
+      res += `* **${idx + 1}. ${c.title} (v${c.version || 1}):** Status: ${String(c.status).toUpperCase()}${c.clientFeedback ? ` — Feedback: "${c.clientFeedback}"` : ''}\n`;
+    });
+    res += `\n**Next Milestone:** Refine selected concept based on review feedback prior to final deliverable rollout.`;
+    return res;
+  }
+
+  // Primary Discovery / Project Summary
+  let summary = `**Project Overview & Discovery Synthesis**\n\n`;
+  summary += `* **Client & Project:** ${title} (${clientName}) — **Sector:** ${sector}\n`;
+  summary += `* **Current Stage:** ${String(project?.status || 'Discovery').toUpperCase()} (${progress}% Complete)\n`;
+
+  if (!d) {
+    summary += `* **Discovery Status:** NOT STARTED. The client has not begun the questionnaire yet.\n\n`;
+    summary += `**Recommended Advisory:**\n`;
+    summary += `* Invite the client to complete their discovery intake questionnaire before generating Brand DNA or locked concepts.\n`;
+    return summary;
+  }
+
+  const isSubmitted = Boolean(d.submittedAt);
+  summary += `* **Discovery Intake:** ${isSubmitted ? `Officially Submitted on ${new Date(d.submittedAt).toLocaleDateString()}` : 'Draft In Progress (Client has unsubmitted answers)'}\n\n`;
+
+  summary += `**Core Discovery Insights**\n`;
+  if (d.whatBusinessDoes) summary += `* **What the Business Does:** ${d.whatBusinessDoes}\n`;
+  if (d.targetCustomer) summary += `* **Target Audience:** ${d.targetCustomer}\n`;
+  if (d.whyChooseUs) summary += `* **Core Value Proposition (UVP):** ${d.whyChooseUs}\n`;
+  if (d.brandFeeling) summary += `* **Desired Brand Feeling:** ${d.brandFeeling}\n`;
+  if (d.emotions?.length) summary += `* **Selected Emotions:** ${d.emotions.join(', ')}\n`;
+  if (d.visualStyles?.length) summary += `* **Visual Aesthetics:** ${d.visualStyles.join(', ')}\n`;
+  if (d.competitors?.length) {
+    const compStr = d.competitors.map((c: any) => `${c.name} (${c.rating || 'neutral'})`).join(', ');
+    summary += `* **Competitors:** ${compStr}\n`;
+  }
+
+  summary += `\n**Strategic Advisory & Next Steps**\n`;
+  if (!b) {
+    summary += `* **Generate Brand DNA:** Go to the Brand DNA tab to generate strategic positioning and poster concepts based on these answers.\n`;
+  } else {
+    summary += `* **Brand DNA Archetype:** **${b.brandPersonalityCluster || 'Defined'}** — Ready for visual translation.\n`;
+  }
+  summary += `* **Moodboards:** ${moodboards.length > 0 ? `${moodboards.length} active board(s).` : 'Create visual moodboards reflecting the selected styles.'}\n`;
+  summary += `* **Execution Roadmap:** Ensure all stakeholders align with the UVP and emotional cues before proceeding to final design delivery.`;
+
+  return summary;
 }
 
 export async function buildProjectContext(projectId: string): Promise<string> {
@@ -132,9 +268,35 @@ export async function buildProjectContext(projectId: string): Promise<string> {
 }
 
 export async function generateProjectAssistantReply(projectId: string, userMessage: string): Promise<string> {
-  const projectContext = await buildProjectContext(projectId);
-  const client = getAiClient();
+  const project: any = await Project.findById(projectId)
+    .populate('client')
+    .populate('clientProfile')
+    .populate('discovery')
+    .populate('brandDNA')
+    .populate('moodboards')
+    .populate('concepts')
+    .populate('deliverables')
+    .populate('paymentMilestones')
+    .lean();
 
+  if (!project) {
+    return 'Project context is unavailable. Please verify the project ID.';
+  }
+
+  let client: GoogleGenAI | null = null;
+  try {
+    client = getAiClient();
+  } catch (err: any) {
+    console.warn('[FLOXA AI Assistant] Google Gemini API client unavailable:', err?.message);
+  }
+
+  // If no Gemini API key is configured, instantly use the intelligent contextual fallback
+  if (!client) {
+    console.log('[FLOXA AI Assistant] Serving intelligent project-aware contextual summary (No API Key configured).');
+    return generateContextualProjectFallback(project, userMessage);
+  }
+
+  const projectContext = await buildProjectContext(projectId);
   const systemInstruction = `You are FLOXA's senior Brand Strategy & Project Director Assistant.
 You advise the creative consultant on brand strategy, client communication, design direction, discovery analysis, and project lifecycle milestones.
 
@@ -157,30 +319,50 @@ AGENCY WORKFLOW & STAGE-AWARE RULES:
    - Use clean bullet points with bold keywords at the beginning of each point.
 `;
 
-  const models = ENV.GEMINI_MODELS.length > 0 ? ENV.GEMINI_MODELS : ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash'];
+  const models = getActiveModels();
+  const timeoutMs = (ENV.GEMINI_TIMEOUT_SECONDS || 12) * 1000;
   let lastError: any = null;
 
-  for (const model of models) {
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    const startTime = Date.now();
     try {
-      const response = await client.models.generateContent({
+      console.log(`[FLOXA AI Assistant] Trying model [${i + 1}/${models.length}]: ${model}...`);
+      const response: any = await callModelWithTimeout(
+        client.models.generateContent({
+          model,
+          contents: [
+            { role: 'user', parts: [{ text: `${systemInstruction}\n\nUser Question: ${userMessage}` }] }
+          ],
+          config: {
+            maxOutputTokens: ENV.GEMINI_MAX_OUTPUT_TOKENS,
+          }
+        }),
         model,
-        contents: [
-          { role: 'user', parts: [{ text: `${systemInstruction}\n\nUser Question: ${userMessage}` }] }
-        ],
-        config: {
-          maxOutputTokens: ENV.GEMINI_MAX_OUTPUT_TOKENS,
-        }
-      });
+        timeoutMs
+      );
 
       const reply = response.text?.trim();
-      if (reply) return reply;
-    } catch (err) {
+      if (reply) {
+        console.log(`[FLOXA AI Assistant] Model ${model} succeeded in ${Date.now() - startTime}ms`);
+        return reply;
+      }
+    } catch (err: any) {
       lastError = err;
-      console.warn(`Gemini model ${model} failed, trying next fallback:`, err);
+      const elapsed = Date.now() - startTime;
+      const nextModel = models[i + 1];
+      console.warn(
+        `[FLOXA AI Assistant] Model ${model} failed after ${elapsed}ms (${err.message || err}). ${
+          nextModel ? `Falling back to ${nextModel}...` : 'All Gemini models exhausted.'
+        }`
+      );
     }
   }
 
-  throw lastError || new Error('Gemini service is temporarily unavailable.');
+  // Graceful fallback: If all models in the fallback chain fail (or rate-limit / outage occurs),
+  // provide the studio consultant with a high-fidelity contextual synthesis instead of a 502 crash!
+  console.warn('[FLOXA AI Assistant] All Gemini models exhausted. Delivering high-fidelity project fallback.');
+  return generateContextualProjectFallback(project, userMessage);
 }
 
 export async function generateAiBrandDNA(project: any, discovery: any): Promise<any> {
@@ -329,22 +511,31 @@ JSON STRUCTURE REQUIRED:
       "What the designer must strictly avoid 3"
     ]
   }
-}`;
+}
+`;
 
-  const models = ENV.GEMINI_MODELS.length > 0 ? ENV.GEMINI_MODELS : ['gemini-2.5-flash', 'gemini-1.5-flash'];
+  const models = getActiveModels();
+  const timeoutMs = (ENV.GEMINI_TIMEOUT_SECONDS || 12) * 1000;
 
-  for (const model of models) {
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    const startTime = Date.now();
     try {
-      const response = await client.models.generateContent({
+      console.log(`[FLOXA Brand DNA] Trying model [${i + 1}/${models.length}]: ${model}...`);
+      const response: any = await callModelWithTimeout(
+        client.models.generateContent({
+          model,
+          contents: [
+            { role: 'user', parts: [{ text: prompt }] }
+          ],
+          config: {
+            maxOutputTokens: 2500,
+            responseMimeType: 'application/json',
+          }
+        }),
         model,
-        contents: [
-          { role: 'user', parts: [{ text: prompt }] }
-        ],
-        config: {
-          maxOutputTokens: 2500,
-          responseMimeType: 'application/json',
-        }
-      });
+        timeoutMs
+      );
 
       const reply = response.text?.trim();
       if (reply) {
@@ -352,6 +543,7 @@ JSON STRUCTURE REQUIRED:
         const parsed = JSON.parse(cleaned);
 
         if (parsed.businessSummary && Array.isArray(parsed.posterConcepts) && parsed.posterConcepts.length > 0) {
+          console.log(`[FLOXA Brand DNA] Model ${model} succeeded in ${Date.now() - startTime}ms`);
           return {
             ...fallback,
             ...parsed,
@@ -360,11 +552,11 @@ JSON STRUCTURE REQUIRED:
           };
         }
       }
-    } catch (err) {
-      console.warn(`[Gemini Brand DNA] Model ${model} generation failed, trying next:`, err);
+    } catch (err: any) {
+      console.warn(`[FLOXA Brand DNA] Model ${model} failed (${err.message || err}), trying next fallback...`);
     }
   }
 
-  console.warn('[Gemini Brand DNA] Gemini generation exhausted fallbacks. Using strategic fallback generator.');
+  console.warn('[FLOXA Brand DNA] Gemini generation exhausted fallbacks. Using strategic fallback generator.');
   return fallback;
 }
