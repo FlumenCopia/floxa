@@ -56,14 +56,20 @@ const mobileTabItems = [
 ];
 
 const notificationTabByAction = {
-  client_help_requested: "discovery",
-  client_profile_submitted: "discovery",
-  client_profile_updated: "discovery",
-  discovery_submitted: "discovery",
-  discovery_updated: "discovery",
+  client_help_requested: "overview",
+  client_help_resolved: "overview",
+  client_profile_submitted: "overview",
+  client_profile_updated: "overview",
+  discovery_submitted: "overview",
+  discovery_updated: "overview",
   moodboard_selected: "moodboards",
+  moodboard_feedback_submitted: "moodboards",
+  moodboard_shared: "moodboards",
+  moodboard_created: "moodboards",
   concept_approved: "concepts",
   concept_changes_requested: "concepts",
+  concept_shared: "concepts",
+  concept_created: "concepts",
   agreement_uploaded: "agreement",
   agreement_updated: "agreement",
   agreement_removed: "agreement",
@@ -71,6 +77,9 @@ const notificationTabByAction = {
   agreement_downloaded: "agreement",
   agreement_signed: "agreement",
   agreement_accepted: "agreement",
+  agreement_shared: "agreement",
+  agreement_draft_generated: "agreement",
+  deliverable_uploaded: "deliverables",
   deliverable_shared: "deliverables",
   deliverable_reshared: "deliverables",
   deliverable_removed: "deliverables",
@@ -80,13 +89,22 @@ const notificationTabByAction = {
   payment_requested: "payments",
   payment_received: "payments",
   payment_paid: "payments",
+  project_created: "overview",
 };
 
 let cachedConsultant = null;
 let hasValidatedSession = false;
 
 function getNotificationProjectId(notification) {
-  return notification?.project_id || notification?.metadata?.project_id || notification?.metadata?.project?.id;
+  const pid =
+    notification?.project_id ||
+    notification?.projectId ||
+    (typeof notification?.project === "string" ? notification.project : notification?.project?.id || notification?.project?._id) ||
+    notification?.metadata?.project_id ||
+    notification?.metadata?.projectId ||
+    notification?.metadata?.project?.id ||
+    notification?.metadata?.project?._id;
+  return pid ? String(pid) : null;
 }
 
 function formatRelativeTimeString(value, unit) {
@@ -719,13 +737,19 @@ export default function Floxaheader({
       return;
     }
 
-    if (firstNotification?.project_id) {
-      router.push(`/discovery?projectId=${firstNotification.project_id}&tab=activity`);
+    const projectId = getNotificationProjectId(firstNotification);
+    if (projectId) {
+      router.push(`/discovery?projectId=${encodeURIComponent(projectId)}&tab=activity`);
+      return;
     }
+
+    router.push("/project");
   };
 
   const handleNotificationItemClick = async (notification) => {
     setIsNotificationOpen(false);
+
+    const projectId = getNotificationProjectId(notification);
 
     if (notification?.id) {
       setHeaderNotifications((current) =>
@@ -734,29 +758,33 @@ export default function Floxaheader({
         )
       );
 
-      const projectId = getNotificationProjectId(notification);
       if (projectId) {
         markProjectActivitiesRead(projectId, notification.action ? [notification.action] : undefined).catch(() => { });
       }
     }
 
-    if (notification?.action === "client_help_requested" && (notification?.portal_token || notification?.metadata?.portal_token)) {
-      const token = notification.portal_token || notification.metadata.portal_token;
-      router.push(`/client/${token}?mode=consultant&consultant=true`);
+    if (onNotificationClick) {
+      onNotificationClick(notification);
       return;
     }
 
-    const projectId = getNotificationProjectId(notification);
-    const tab = notificationTabByAction[notification?.action];
+    const action = notification?.action;
 
-    if (projectId && tab) {
+    // Route chat messages directly to consultant chat view
+    if (action === "chat_message_received" || action === "chat" || action === "message_received") {
+      router.push("/chat");
+      return;
+    }
+
+    const tab = (action && notificationTabByAction[action]) || "overview";
+
+    if (projectId) {
       router.push(`/discovery?projectId=${encodeURIComponent(projectId)}&tab=${tab}`);
       return;
     }
 
-    if (onNotificationClick) {
-      onNotificationClick(notification);
-    }
+    // Always keep consultant within consultant portal
+    router.push("/project");
   };
 
   const handleNotificationToggle = async () => {
