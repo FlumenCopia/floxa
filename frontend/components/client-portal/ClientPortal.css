@@ -2849,7 +2849,7 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 380px));
   gap: 24px;
   width: 100%;
-  align-items: stretch;
+  align-items: start;
 }
 
 .client-panel-grid article {
@@ -5810,6 +5810,245 @@ td {
   -webkit-user-select: none;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+/* Moodboard / Concept Selection Confirmation Dialog */
+.client-confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(8, 12, 16, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: clientConfirmFadeIn 0.15s ease-out;
+}
+
+@keyframes clientConfirmFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.client-confirm-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  background: rgba(18, 24, 32, 0.98);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+  padding: 24px;
+  gap: 16px;
+  animation: clientConfirmScaleUp 0.15s ease-out;
+}
+
+@keyframes clientConfirmScaleUp {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.client-confirm-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.client-confirm-dialog-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(77, 255, 160, 0.12);
+  border: 1px solid rgba(77, 255, 160, 0.3);
+  color: #34d399;
+  flex-shrink: 0;
+}
+
+.client-confirm-dialog-title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  flex: 1;
+}
+
+.client-confirm-dialog-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.client-confirm-dialog-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.client-confirm-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.client-confirm-dialog-message {
+  margin: 0;
+  color: rgba(220, 235, 229, 0.85);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.client-confirm-dialog-preview {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.client-confirm-dialog-desc {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12.5px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.client-confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.client-confirm-dialog-actions .client-panel-action {
+  min-height: 38px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   CLIENT PORTAL SIGN OUT CONFIRMATION MODAL
+   ========================================================================== */
+
+.client-signout-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  padding: 20px;
+}
+
+.client-signout-card {
+  width: min(90vw, 410px);
+  padding: 38px 30px 32px 30px;
+  background: #111a15;
+  border: 1px solid rgba(77, 255, 160, 0.2);
+  border-radius: 24px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #ffffff;
+  animation: floxaCardPop 0.25s ease-out;
+}
+
+.client-signout-icon-wrap {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(77, 255, 160, 0.12);
+  border: 1.5px solid rgba(77, 255, 160, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.client-signout-title {
+  margin: 0 0 10px 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+}
+
+.client-signout-text {
+  margin: 0 0 28px 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.client-signout-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.client-signout-btn {
+  flex: 1;
+  padding: 13px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.client-signout-btn-cancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.client-signout-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.client-signout-btn-confirm {
+  background: #10b981;
+  color: #032010;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+}
+
+.client-signout-btn-confirm:hover {
+  background: #34d399;
+  transform: translateY(-1px);
 }
 
 @media print {

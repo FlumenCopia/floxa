@@ -161,6 +161,7 @@ export async function regenerateGeneratedAgreementPdf(
         version: snapshot.version,
         pdf_file: snapshot.pdfFile,
       },
+      visibleToClient: false,
     });
 
     const pdfUrl = `/api/projects/${project.id}/generated-agreement/pdf/`;

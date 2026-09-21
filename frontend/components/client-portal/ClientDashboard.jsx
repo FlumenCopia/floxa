@@ -117,6 +117,22 @@ function getActivePhaseIndex(progress, workflowStatus) {
 }
 
 const conceptNotificationActions = new Set(["concept_shared", "concept_reshared", "concept_removed"]);
+const clientNotificationActions = new Set([
+  "concept_approved",
+  "concept_changes_requested",
+  "moodboard_selected",
+  "moodboard_feedback_submitted",
+  "discovery_submitted",
+  "agreement_signed",
+  "deliverable_downloaded",
+  "client_help_requested",
+  "client_profile_submitted",
+  "client_profile_updated",
+]);
+const internalDraftNotificationActions = new Set([
+  "agreement_draft_generated",
+  "agreement_pdf_generated",
+]);
 const RAZORPAY_CHECKOUT_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
 
 let razorpayCheckoutScriptPromise = null;
@@ -497,6 +513,16 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     const unsubscribeNotif = supportSocket.on("notification", (newActivity) => {
       if (!newActivity) return;
 
+      const isInternalDraft =
+        newActivity.visible_to_client === false ||
+        newActivity.visibleToClient === false ||
+        internalDraftNotificationActions.has(newActivity.action);
+
+      // Do not store or display internal system draft events in client portal
+      if (isInternalDraft) {
+        return;
+      }
+
       setNotifications((current) => {
         const exists = current.some((n) => n.id === newActivity.id);
         if (exists) {
@@ -505,7 +531,12 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
         return [newActivity, ...current];
       });
 
-      if (newActivity.description) {
+      // ONLY show toast for incoming updates from consultant/system!
+      // Filter out client's own actions (they already have direct inline UI feedback)
+      const actorType = newActivity.actor_type || newActivity.actorType;
+      const isClientAction = actorType === "client" || clientNotificationActions.has(newActivity.action);
+
+      if (!isClientAction && newActivity.description) {
         const notifId = newActivity.id || newActivity._id || newActivity.description;
         showSuccess(newActivity.description, { toastId: `notif-${notifId}` });
       }
@@ -1220,8 +1251,24 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
-  const visibleNotifications = notifications.slice(0, 5);
-  const unreadCount = notifications.filter((item) => item.client_is_read === false).length;
+  const visibleNotifications = notifications
+    .filter(
+      (item) =>
+        !internalDraftNotificationActions.has(item.action) &&
+        item.visible_to_client !== false &&
+        item.visibleToClient !== false
+    )
+    .slice(0, 5);
+  const unreadCount = notifications.filter(
+    (item) =>
+      item.client_is_read === false &&
+      item.actor_type !== "client" &&
+      item.actorType !== "client" &&
+      !clientNotificationActions.has(item.action) &&
+      !internalDraftNotificationActions.has(item.action) &&
+      item.visible_to_client !== false &&
+      item.visibleToClient !== false
+  ).length;
   const hasSharedDelivery = deliverables.some((item) => item.status === "shared" || item.file_url || item.fileUrl);
   const allPaymentsPaid = payments.length > 0 && payments.every((item) => item.status === "paid");
   const signOffDisabledReason = !hasSharedDelivery

@@ -6,6 +6,8 @@ import { Concept } from '../models/concept.model.js';
 import { Deliverable } from '../models/deliverable.model.js';
 import { Project } from '../models/project.model.js';
 import { PaymentMilestone } from '../models/paymentMilestone.model.js';
+import { BrandDNA } from '../models/brandDNA.model.js';
+import { ProjectAgreement } from '../models/agreement.model.js';
 import {
   saveFile,
   optimizeImageBuffer,
@@ -50,6 +52,22 @@ export async function createMoodboard(req: FileUploadRequest, res: Response, nex
 
     if (!title || !req.file) {
       res.status(400).json({ detail: 'Title and image file are required.' });
+      return;
+    }
+
+    // Enforce Brand DNA and Agreement completion prerequisites
+    const brandDna = await BrandDNA.findOne({ projectId: id });
+    if (!brandDna) {
+      res.status(400).json({ detail: 'Brand DNA must be completed before uploading moodboards.' });
+      return;
+    }
+
+    const agreement = await ProjectAgreement.findOne({ projectId: id });
+    const isAgreementSigned = Boolean(
+      agreement?.signedAt || ['signed', 'active', 'completed', 'locked'].includes(agreement?.status || '')
+    );
+    if (!isAgreementSigned) {
+      res.status(400).json({ detail: 'Agreement must be completed and signed before uploading moodboards.' });
       return;
     }
 
@@ -352,6 +370,22 @@ export async function createConcept(req: AuthenticatedRequest, res: Response, ne
 
     if (!title) {
       res.status(400).json({ detail: 'Concept title is required.' });
+      return;
+    }
+
+    // Enforce Brand DNA and Agreement completion prerequisites
+    const brandDna = await BrandDNA.findOne({ projectId: id });
+    if (!brandDna) {
+      res.status(400).json({ detail: 'Brand DNA must be completed before uploading concepts.' });
+      return;
+    }
+
+    const agreement = await ProjectAgreement.findOne({ projectId: id });
+    const isAgreementSigned = Boolean(
+      agreement?.signedAt || ['signed', 'active', 'completed', 'locked'].includes(agreement?.status || '')
+    );
+    if (!isAgreementSigned) {
+      res.status(400).json({ detail: 'Agreement must be completed and signed before uploading concepts.' });
       return;
     }
 

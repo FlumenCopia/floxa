@@ -54,19 +54,19 @@ import {
 const discoveryTabs = [
   "Overview",
   "Agreement",
+  "Payments",
   "Brand DNA",
-  "Discovery",
+  // "Discovery",
   "Moodboards",
   "Concepts",
   "Deliverables",
-  "Payments",
   "Activity",
 ];
 
 const discoveryTabByQuery = {
   overview: "Overview",
   "brand-dna": "Brand DNA",
-  discovery: "Discovery",
+  discovery: "Overview",
   moodboards: "Moodboards",
   concepts: "Concepts",
   deliverables: "Deliverables",
@@ -1340,7 +1340,90 @@ function DiscoveryAnswersPanel({ summary, loading }) {
   );
 }
 
-function MoodboardsPanel({ projectId, onProjectRefresh }) {
+function UploadPrerequisiteLockedCard({
+  itemType = "moodboards",
+  hasBrandDna = false,
+  isAgreementCompleted = false,
+  onNavigateTab,
+}) {
+  const displayType = itemType === "moodboards" ? "moodboards" : "concepts";
+  const displayTypeCapitalized = itemType === "moodboards" ? "Moodboards" : "Concepts";
+
+  return (
+    <div className="discovery-upload-locked-card">
+      <div className="discovery-upload-locked-badge">
+        <Lock className="discovery-upload-locked-icon" size={15} />
+        <span>Upload Locked</span>
+      </div>
+      <div className="discovery-upload-locked-body">
+        <h3 className="discovery-upload-locked-title">
+          Prerequisites Required to Upload {displayTypeCapitalized}
+        </h3>
+        <p className="discovery-upload-locked-desc">
+          To maintain workflow integrity, {displayType} can only be uploaded after both <strong>Brand DNA</strong> and the client <strong>Agreement</strong> are completed.
+        </p>
+
+        <div className="discovery-upload-locked-steps">
+          <div className={`discovery-locked-step ${hasBrandDna ? "completed" : "pending"}`}>
+            <div className="discovery-locked-step-main">
+              <div className="discovery-locked-step-indicator">
+                {hasBrandDna ? (
+                  <CheckCircle2 size={18} />
+                ) : (
+                  <AlertCircle size={18} />
+                )}
+              </div>
+              <div className="discovery-locked-step-info">
+                <span className="discovery-locked-step-name">1. Brand DNA</span>
+                <span className="discovery-locked-step-status">
+                  {hasBrandDna ? "Completed" : "Must be generated"}
+                </span>
+              </div>
+            </div>
+            {!hasBrandDna && onNavigateTab ? (
+              <button
+                type="button"
+                className="discovery-locked-step-btn"
+                onClick={() => onNavigateTab("Brand DNA")}
+              >
+                Go to Brand DNA <ArrowRight size={13} />
+              </button>
+            ) : null}
+          </div>
+
+          <div className={`discovery-locked-step ${isAgreementCompleted ? "completed" : "pending"}`}>
+            <div className="discovery-locked-step-main">
+              <div className="discovery-locked-step-indicator">
+                {isAgreementCompleted ? (
+                  <CheckCircle2 size={18} />
+                ) : (
+                  <AlertCircle size={18} />
+                )}
+              </div>
+              <div className="discovery-locked-step-info">
+                <span className="discovery-locked-step-name">2. Client Agreement</span>
+                <span className="discovery-locked-step-status">
+                  {isAgreementCompleted ? "Signed & completed" : "Client signature pending"}
+                </span>
+              </div>
+            </div>
+            {!isAgreementCompleted && onNavigateTab ? (
+              <button
+                type="button"
+                className="discovery-locked-step-btn"
+                onClick={() => onNavigateTab("Agreement")}
+              >
+                Go to Agreement <ArrowRight size={13} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MoodboardsPanel({ projectId, project, onProjectRefresh, onNavigateTab }) {
   const [moodboards, setMoodboards] = useState([]);
   const [loading, setLoading] = useState(Boolean(projectId));
   const [prevProjectId, setPrevProjectId] = useState(projectId);
@@ -1355,6 +1438,65 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
   const [sharingMoodboardId, setSharingMoodboardId] = useState(null);
   const [sharingAllMoodboards, setSharingAllMoodboards] = useState(false);
   const [moodboardToDelete, setMoodboardToDelete] = useState(null);
+
+  const [hasBrandDna, setHasBrandDna] = useState(Boolean(project?.has_brand_dna));
+  const [isAgreementCompleted, setIsAgreementCompleted] = useState(Boolean(project?.is_agreement_completed));
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!projectId) return;
+
+    async function checkPrerequisites() {
+      try {
+        const [brandDnaRes, agreementRes] = await Promise.allSettled([
+          getBrandDNA(projectId),
+          getAgreement(projectId),
+        ]);
+
+        if (!isMounted) return;
+
+        let brandDnaOk = false;
+        if (brandDnaRes.status === "fulfilled" && brandDnaRes.value) {
+          brandDnaOk = Boolean(
+            brandDnaRes.value &&
+            (brandDnaRes.value.id || brandDnaRes.value._id || Object.keys(brandDnaRes.value).length > 0)
+          );
+        } else if (project?.has_brand_dna) {
+          brandDnaOk = true;
+        }
+
+        let agreementOk = false;
+        if (agreementRes.status === "fulfilled" && agreementRes.value) {
+          const agreement = agreementRes.value;
+          agreementOk = Boolean(
+            agreement.signed_at ||
+            agreement.signedAt ||
+            ["signed", "active", "completed", "locked"].includes(agreement.status)
+          );
+        } else if (project?.is_agreement_completed) {
+          agreementOk = true;
+        }
+
+        setHasBrandDna(brandDnaOk);
+        setIsAgreementCompleted(agreementOk);
+      } catch (err) {
+        console.error("Error checking moodboard prerequisites:", err);
+      }
+    }
+
+    checkPrerequisites();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId, project?.has_brand_dna, project?.is_agreement_completed]);
+
+  useEffect(() => {
+    if (project?.has_brand_dna) setHasBrandDna(true);
+    if (project?.is_agreement_completed) setIsAgreementCompleted(true);
+  }, [project?.has_brand_dna, project?.is_agreement_completed]);
+
+  const isUploadAllowed = hasBrandDna && isAgreementCompleted;
 
   const draftMoodboards = moodboards.filter((m) => !m.is_shared && !m.is_selected);
   const draftMoodboardsCount = draftMoodboards.length;
@@ -1562,6 +1704,16 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
     event.preventDefault();
     const uploadForm = event.currentTarget;
 
+    if (!isUploadAllowed) {
+      const missing = [];
+      if (!hasBrandDna) missing.push("Brand DNA");
+      if (!isAgreementCompleted) missing.push("Client Agreement");
+      const message = `Upload locked: Please complete ${missing.join(" and ")} before uploading moodboards.`;
+      setError(message);
+      showError(message);
+      return;
+    }
+
     if (!projectId || !form.title.trim() || !form.image) {
       const message = "Please add a title and image before uploading.";
       setError(message);
@@ -1627,61 +1779,70 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
           </div>
           <span>{moodboards.length} uploaded</span>
         </div>
-        <form className="discovery-moodboard-upload" onSubmit={handleUpload}>
-          <div className="discovery-moodboard-fields">
-            <label>
-              <span>Title</span>
+        {!isUploadAllowed ? (
+          <UploadPrerequisiteLockedCard
+            itemType="moodboards"
+            hasBrandDna={hasBrandDna}
+            isAgreementCompleted={isAgreementCompleted}
+            onNavigateTab={onNavigateTab}
+          />
+        ) : (
+          <form className="discovery-moodboard-upload" onSubmit={handleUpload}>
+            <div className="discovery-moodboard-fields">
+              <label>
+                <span>Title</span>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                  placeholder="Moodboard title"
+                />
+              </label>
+              <label>
+                <span>Description</span>
+                <textarea
+                  value={form.description}
+                  onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                  placeholder="Short direction note"
+                />
+              </label>
+            </div>
+            <label className={`discovery-moodboard-dropzone ${form.image ? "has-file" : ""}`}>
               <input
-                type="text"
-                value={form.title}
-                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Moodboard title"
+                ref={imageInputRef}
+                className="discovery-moodboard-file-input"
+                type="file"
+                accept="image/*"
+                onChange={(event) => setForm((current) => ({ ...current, image: event.target.files?.[0] || null }))}
               />
+              <span>Image upload</span>
+              <strong>{form.image ? "Image ready to upload" : "Choose or drop moodboard image"}</strong>
+              <small>{form.image ? "Review the selected file below." : "PNG, JPG, or WebP recommended under 10 MB."}</small>
             </label>
-            <label>
-              <span>Description</span>
-              <textarea
-                value={form.description}
-                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Short direction note"
-              />
-            </label>
-          </div>
-          <label className={`discovery-moodboard-dropzone ${form.image ? "has-file" : ""}`}>
-            <input
-              ref={imageInputRef}
-              className="discovery-moodboard-file-input"
-              type="file"
-              accept="image/*"
-              onChange={(event) => setForm((current) => ({ ...current, image: event.target.files?.[0] || null }))}
-            />
-            <span>Image upload</span>
-            <strong>{form.image ? "Image ready to upload" : "Choose or drop moodboard image"}</strong>
-            <small>{form.image ? "Review the selected file below." : "PNG, JPG, or WebP recommended under 10 MB."}</small>
-          </label>
-          {form.image ? (
-            <div className="discovery-moodboard-selected-file">
-              <div>
-                <span>Selected file</span>
-                <strong>{form.image.name}</strong>
-                <small>{form.image.type || "Image"} - {formatFileSize(form.image.size)}</small>
+            {form.image ? (
+              <div className="discovery-moodboard-selected-file">
+                <div>
+                  <span>Selected file</span>
+                  <strong>{form.image.name}</strong>
+                  <small>{form.image.type || "Image"} - {formatFileSize(form.image.size)}</small>
+                </div>
+                <button type="button" onClick={handleClearMoodboardImage}>
+                  Remove
+                </button>
               </div>
-              <button type="button" onClick={handleClearMoodboardImage}>
-                Remove
+            ) : null}
+            {error ? (
+              <div className="discovery-moodboard-error">
+                {error}
+              </div>
+            ) : null}
+            <div className="discovery-moodboard-actions">
+              <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
+                {saving ? (statusText || "Uploading...") : "Upload moodboard"}
               </button>
             </div>
-          ) : null}
-          {error ? (
-            <div className="discovery-moodboard-error">
-              {error}
-            </div>
-          ) : null}
-          <div className="discovery-moodboard-actions">
-            <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
-              {saving ? (statusText || "Uploading...") : "Upload moodboard"}
-            </button>
-          </div>
-        </form>
+          </form>
+        )}
       </section>
       <section className="discovery-card discovery-panel">
         <div className="discovery-moodboard-head">
@@ -1819,8 +1980,6 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
                         >
                           {sharingMoodboardId === item.id ? "Sharing..." : "Share with Client"}
                         </button>
-                      ) : item.is_shared && !item.is_selected ? (
-                        <span className="badge badge-green">Shared</span>
                       ) : null}
 
                       {item.is_selected ? (
@@ -1912,7 +2071,7 @@ function MoodboardsPanel({ projectId, onProjectRefresh }) {
   );
 }
 
-function ConceptsPanel({ projectId, onProjectRefresh }) {
+function ConceptsPanel({ projectId, project, onProjectRefresh, onNavigateTab }) {
   const [concepts, setConcepts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1921,6 +2080,65 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
   const [editingId, setEditingId] = useState(null);
   const [savingEditId, setSavingEditId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+
+  const [hasBrandDna, setHasBrandDna] = useState(Boolean(project?.has_brand_dna));
+  const [isAgreementCompleted, setIsAgreementCompleted] = useState(Boolean(project?.is_agreement_completed));
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!projectId) return;
+
+    async function checkPrerequisites() {
+      try {
+        const [brandDnaRes, agreementRes] = await Promise.allSettled([
+          getBrandDNA(projectId),
+          getAgreement(projectId),
+        ]);
+
+        if (!isMounted) return;
+
+        let brandDnaOk = false;
+        if (brandDnaRes.status === "fulfilled" && brandDnaRes.value) {
+          brandDnaOk = Boolean(
+            brandDnaRes.value &&
+            (brandDnaRes.value.id || brandDnaRes.value._id || Object.keys(brandDnaRes.value).length > 0)
+          );
+        } else if (project?.has_brand_dna) {
+          brandDnaOk = true;
+        }
+
+        let agreementOk = false;
+        if (agreementRes.status === "fulfilled" && agreementRes.value) {
+          const agreement = agreementRes.value;
+          agreementOk = Boolean(
+            agreement.signed_at ||
+            agreement.signedAt ||
+            ["signed", "active", "completed", "locked"].includes(agreement.status)
+          );
+        } else if (project?.is_agreement_completed) {
+          agreementOk = true;
+        }
+
+        setHasBrandDna(brandDnaOk);
+        setIsAgreementCompleted(agreementOk);
+      } catch (err) {
+        console.error("Error checking concept prerequisites:", err);
+      }
+    }
+
+    checkPrerequisites();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [projectId, project?.has_brand_dna, project?.is_agreement_completed]);
+
+  useEffect(() => {
+    if (project?.has_brand_dna) setHasBrandDna(true);
+    if (project?.is_agreement_completed) setIsAgreementCompleted(true);
+  }, [project?.has_brand_dna, project?.is_agreement_completed]);
+
+  const isUploadAllowed = hasBrandDna && isAgreementCompleted;
 
   const draftConcepts = concepts.filter((c) => c.status === "draft");
   const draftConceptsCount = draftConcepts.length;
@@ -1981,6 +2199,16 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
   async function handleUpload(event) {
     event.preventDefault();
     const uploadForm = event.currentTarget;
+
+    if (!isUploadAllowed) {
+      const missing = [];
+      if (!hasBrandDna) missing.push("Brand DNA");
+      if (!isAgreementCompleted) missing.push("Client Agreement");
+      const message = `Upload locked: Please complete ${missing.join(" and ")} before uploading concepts.`;
+      setError(message);
+      showError(message);
+      return;
+    }
 
     if (!projectId || !form.title.trim() || !form.image) {
       const message = "Please add a title and upload a preview image.";
@@ -2194,63 +2422,72 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
           </div>
           <span>{concepts.length} uploaded</span>
         </div>
-        <form className="discovery-concept-upload" onSubmit={handleUpload}>
-          <div className="discovery-moodboard-fields">
-            <label>
-              <span>Title</span>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Concept title"
-              />
-            </label>
-            <label>
-              <span>Description</span>
-              <textarea
-                value={form.description}
-                onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-                placeholder="Short concept note"
-              />
-            </label>
-          </div>
-          <div className="discovery-concept-upload-files">
-            <label className={`discovery-moodboard-dropzone ${form.image ? "has-file" : ""}`}>
-              <input
-                ref={conceptImageInputRef}
-                className="discovery-moodboard-file-input"
-                type="file"
-                accept="image/*"
-                onChange={(event) => setForm((current) => ({ ...current, image: event.target.files?.[0] || null }))}
-              />
-              <span>Preview image</span>
-              <strong>{form.image ? "Preview image selected" : "Choose preview image"}</strong>
-              <small>{form.image ? "This image will represent the concept card." : "PNG, JPG, or WebP recommended."}</small>
-            </label>
-          </div>
-          {form.image ? (
-            <div className="discovery-moodboard-selected-file">
-              <div>
-                <span>Selected preview</span>
-                <strong>{form.image.name}</strong>
-                <small>{form.image.type || "Image"} - {formatFileSize(form.image.size)}</small>
+        {!isUploadAllowed ? (
+          <UploadPrerequisiteLockedCard
+            itemType="concepts"
+            hasBrandDna={hasBrandDna}
+            isAgreementCompleted={isAgreementCompleted}
+            onNavigateTab={onNavigateTab}
+          />
+        ) : (
+          <form className="discovery-concept-upload" onSubmit={handleUpload}>
+            <div className="discovery-moodboard-fields">
+              <label>
+                <span>Title</span>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                  placeholder="Concept title"
+                />
+              </label>
+              <label>
+                <span>Description</span>
+                <textarea
+                  value={form.description}
+                  onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                  placeholder="Short concept note"
+                />
+              </label>
+            </div>
+            <div className="discovery-concept-upload-files">
+              <label className={`discovery-moodboard-dropzone ${form.image ? "has-file" : ""}`}>
+                <input
+                  ref={conceptImageInputRef}
+                  className="discovery-moodboard-file-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setForm((current) => ({ ...current, image: event.target.files?.[0] || null }))}
+                />
+                <span>Preview image</span>
+                <strong>{form.image ? "Preview image selected" : "Choose preview image"}</strong>
+                <small>{form.image ? "This image will represent the concept card." : "PNG, JPG, or WebP recommended."}</small>
+              </label>
+            </div>
+            {form.image ? (
+              <div className="discovery-moodboard-selected-file">
+                <div>
+                  <span>Selected preview</span>
+                  <strong>{form.image.name}</strong>
+                  <small>{form.image.type || "Image"} - {formatFileSize(form.image.size)}</small>
+                </div>
+                <button type="button" onClick={handleClearConceptImage}>
+                  Remove
+                </button>
               </div>
-              <button type="button" onClick={handleClearConceptImage}>
-                Remove
+            ) : null}
+            {error ? (
+              <div className="discovery-moodboard-error">
+                {error}
+              </div>
+            ) : null}
+            <div className="discovery-moodboard-actions">
+              <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
+                {saving ? "Uploading..." : "Upload concept"}
               </button>
             </div>
-          ) : null}
-          {error ? (
-            <div className="discovery-moodboard-error">
-              {error}
-            </div>
-          ) : null}
-          <div className="discovery-moodboard-actions">
-            <button className="btn btn-secondary discovery-upload-btn" type="submit" disabled={saving}>
-              {saving ? "Uploading..." : "Upload concept"}
-            </button>
-          </div>
-        </form>
+          </form>
+        )}
       </section>
       <section className="discovery-card discovery-panel">
         <div className="discovery-moodboard-head">
@@ -2384,8 +2621,6 @@ function ConceptsPanel({ projectId, onProjectRefresh }) {
                         >
                           {sharingId === item.id ? "Sharing..." : "Share with Client"}
                         </button>
-                      ) : item.status === "shared" ? (
-                        <span className="badge badge-green">Shared</span>
                       ) : null}
                       {item.status === "approved" ? (
                         <span className="badge badge-green">Locked</span>
@@ -3916,7 +4151,8 @@ function renderTabPanel(
   paymentItems,
   consultantActivities,
   consultantActivitiesLoading,
-  onProjectRefresh
+  onProjectRefresh,
+  onNavigateTab
 ) {
   switch (activeTab) {
     case "Overview":
@@ -3942,12 +4178,26 @@ function renderTabPanel(
           companyName={project?.company_name || project?.title}
         />
       );
-    case "Discovery":
-      return <DiscoveryAnswersPanel summary={discoverySummary} loading={discoverySummaryLoading} />;
+    // case "Discovery":
+    //   return <DiscoveryAnswersPanel summary={discoverySummary} loading={discoverySummaryLoading} />;
     case "Moodboards":
-      return <MoodboardsPanel projectId={project?.id} onProjectRefresh={onProjectRefresh} />;
+      return (
+        <MoodboardsPanel
+          projectId={project?.id}
+          project={project}
+          onProjectRefresh={onProjectRefresh}
+          onNavigateTab={onNavigateTab}
+        />
+      );
     case "Concepts":
-      return <ConceptsPanel projectId={project?.id} onProjectRefresh={onProjectRefresh} />;
+      return (
+        <ConceptsPanel
+          projectId={project?.id}
+          project={project}
+          onProjectRefresh={onProjectRefresh}
+          onNavigateTab={onNavigateTab}
+        />
+      );
     case "Deliverables":
       return <DeliverablesPanel projectId={project?.id} onProjectRefresh={onProjectRefresh} />;
     case "Agreement":
@@ -4055,7 +4305,7 @@ export default function Discovery() {
   }, [refreshProject]);
 
   useEffect(() => {
-    if (!["Brand DNA", "Discovery"].includes(activeTab) || !project?.id) {
+    if (!["Brand DNA"].includes(activeTab) || !project?.id) {
       return;
     }
 
@@ -4401,7 +4651,8 @@ export default function Discovery() {
                 overviewPaymentItems,
                 consultantActivities,
                 consultantActivitiesLoading,
-                refreshProject
+                refreshProject,
+                setActiveTab
               )}
             </div>
 

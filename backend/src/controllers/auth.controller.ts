@@ -221,6 +221,14 @@ export async function updateMe(
       const { buffer, filename, contentType } = await validateAndProcessAvatar(req.file);
       newlySavedAvatar = await saveFile('consultant_avatars', filename, buffer, contentType);
       updateData.avatar = newlySavedAvatar;
+    } else if (
+      req.body.avatar === '' ||
+      req.body.avatar === null ||
+      req.body.avatar === 'null' ||
+      req.body.remove_avatar === 'true' ||
+      req.body.remove_avatar === true
+    ) {
+      updateData.avatar = null;
     }
 
     let updated: any;
@@ -233,8 +241,10 @@ export async function updateMe(
       throw dbErr;
     }
 
-    // Only delete previous avatar if replacement succeeded
+    // Only delete previous avatar if replacement succeeded or avatar was removed
     if (newlySavedAvatar && oldAvatar && oldAvatar !== newlySavedAvatar) {
+      await deleteStoredFile(oldAvatar);
+    } else if (updateData.avatar === null && oldAvatar) {
       await deleteStoredFile(oldAvatar);
     }
 

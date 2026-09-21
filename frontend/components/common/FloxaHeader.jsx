@@ -24,6 +24,8 @@ import {
   Phone,
   PhoneOff,
   MessageSquare,
+  CheckCheck,
+  ArrowRight,
 } from "lucide-react";
 import { supportSocket } from "@/services/supportSocketService";
 import { webRTCService } from "@/services/webRTCService";
@@ -275,9 +277,9 @@ export default function Floxaheader({
   const visibleNotifications = headerNotifications.length ? headerNotifications : notifications;
   const visibleNotificationsLoading = headerNotificationsLoading || notificationsLoading;
   const visibleNotificationCount = headerNotifications.length
-    ? headerNotifications.filter((notification) => !notification.is_read && notification.visible_to_consultant !== false).length
+    ? headerNotifications.filter((notification) => !notification.is_read && notification.visible_to_consultant !== false && notification.actor_type !== "consultant").length
     : (notifications.length
-      ? notifications.filter((notification) => !notification.is_read && notification.visible_to_consultant !== false).length
+      ? notifications.filter((notification) => !notification.is_read && notification.visible_to_consultant !== false && notification.actor_type !== "consultant").length
       : notificationCount);
 
   const resolvedPrimaryNavItems = primaryNavItems.map((item) => ({
@@ -288,8 +290,8 @@ export default function Floxaheader({
       item.label === "CHAT" && unreadChatCount > 0
         ? unreadChatCount
         : item.label !== "PROJECTS" && item.badge
-        ? item.badge
-        : null,
+          ? item.badge
+          : null,
     badgeClass:
       item.label === "CHAT"
         ? "nav-badge-chat"
@@ -310,8 +312,8 @@ export default function Floxaheader({
       item.label === "Chat" && unreadChatCount > 0
         ? unreadChatCount
         : item.label !== "Projects" && item.badge
-        ? item.badge
-        : null,
+          ? item.badge
+          : null,
     badgeClass:
       item.label === "Chat"
         ? "nav-badge-chat"
@@ -328,7 +330,7 @@ export default function Floxaheader({
           setUnreadChatCount(totalUnread);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const unsubChatMsg = supportSocket.on("chat_message_new", (msg) => {
       if (!isMounted) return;
@@ -348,7 +350,7 @@ export default function Floxaheader({
               setUnreadChatCount(total);
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     });
 
@@ -366,8 +368,8 @@ export default function Floxaheader({
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem("floxa_jwt") ||
-          localStorage.getItem("floxa_token") ||
-          "active"
+        localStorage.getItem("floxa_token") ||
+        "active"
         : "";
     if (token || consultant?.id) {
       supportSocket.connectConsultantNotifications({ consultantToken: token, consultantId: consultant?.id });
@@ -407,7 +409,35 @@ export default function Floxaheader({
     };
   }, []);
 
+  useEffect(() => {
+    const activeId = String(projectId || project?.id || "");
+    if (!activeId) {
+      return;
+    }
 
+    const readAt = new Date().toISOString();
+    setHeaderNotifications((currentNotifications) =>
+      currentNotifications.map((notification) => {
+        const notifProjectId = String(
+          notification.project_id ||
+          (typeof notification.project === "object" ? notification.project?.id : notification.project) ||
+          notification.metadata?.project_id ||
+          ""
+        );
+        if (notifProjectId === activeId) {
+          return {
+            ...notification,
+            is_read: true,
+            read_at: notification.read_at || readAt,
+          };
+        }
+        return notification;
+      })
+    );
+
+    markProjectActivitiesRead(activeId).catch(() => { });
+    supportSocket.markProjectRead?.({ projectId: activeId });
+  }, [projectId, project?.id]);
 
   useEffect(() => {
     if (!readActivityIds.length) {
@@ -706,7 +736,7 @@ export default function Floxaheader({
 
       const projectId = getNotificationProjectId(notification);
       if (projectId) {
-        markProjectActivitiesRead(projectId, notification.action ? [notification.action] : undefined).catch(() => {});
+        markProjectActivitiesRead(projectId, notification.action ? [notification.action] : undefined).catch(() => { });
       }
     }
 
@@ -940,49 +970,78 @@ export default function Floxaheader({
             {isNotificationOpen ? (
               <div className="notification-dropdown">
                 <div className="notification-head">
-                  <div>
-                    <span>Notifications</span>
-                    <strong>{visibleNotificationCount} unread</strong>
+                  <div className="notification-head-info">
+                    <div className="notification-title-row">
+                      <span className="notification-title">Notifications</span>
+                      {visibleNotificationCount > 0 ? (
+                        <span className="notification-pill unread-pill">{visibleNotificationCount} new</span>
+                      ) : (
+                        <span className="notification-pill caught-up-pill">All caught up</span>
+                      )}
+                    </div>
                   </div>
-                  <button type="button" onClick={handleMarkAllRead}>Mark all read</button>
+                  <button
+                    type="button"
+                    className="notification-mark-all-btn"
+                    onClick={handleMarkAllRead}
+                    title="Mark all as read"
+                  >
+                    <CheckCheck size={13} className="notification-check-icon" />
+                    <span>Mark all read</span>
+                  </button>
                 </div>
                 <div className="notification-list">
                   {visibleNotificationsLoading ? (
                     <div className="notification-empty">
+                      <div className="notification-empty-icon-wrap is-loading">
+                        <Bell size={22} />
+                      </div>
                       <strong>Loading notifications...</strong>
                       <span>Checking recent project activity.</span>
                     </div>
                   ) : null}
                   {!visibleNotificationsLoading && visibleNotifications.length === 0 ? (
                     <div className="notification-empty">
+                      <div className="notification-empty-icon-wrap">
+                        <Bell size={22} />
+                      </div>
                       <strong>No notifications yet.</strong>
-                      <span>Client actions will appear here.</span>
+                      <span>Client actions and updates will appear here.</span>
                     </div>
                   ) : null}
-                  {!visibleNotificationsLoading && visibleNotifications.slice(0, 5).map((notification) => (
-                    <div
-                      className="notification-item"
-                      key={notification.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => handleNotificationItemClick(notification)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          handleNotificationItemClick(notification);
-                        }
-                      }}
-                    >
-                      <div className="notification-copy">
-                        <p>{notification.description || notification.action}</p>
-                        {notification.actor_type ? <small>{notification.actor_type}</small> : null}
+                  {!visibleNotificationsLoading && visibleNotifications.slice(0, 5).map((notification) => {
+                    const isUnread = !notification.is_read;
+
+                    return (
+                      <div
+                        className={`notification-item ${isUnread ? "is-unread" : ""}`}
+                        key={notification.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleNotificationItemClick(notification)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            handleNotificationItemClick(notification);
+                          }
+                        }}
+                      >
+                        <div className="notification-copy">
+                          <p>{notification.description || notification.action}</p>
+                          <time className="notification-timestamp">
+                            {getRelativeTime(notification.created_at)}
+                          </time>
+                        </div>
+                        {isUnread ? (
+                          <span className="notification-status-dot" title="Unread" />
+                        ) : null}
                       </div>
-                      <time>{getRelativeTime(notification.created_at)}</time>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <button className="notification-view-all" type="button" onClick={handleNotificationViewAll}>
-                  View All
+                  <span>View all activity</span>
+                  <ArrowRight size={14} className="notification-arrow-icon" />
                 </button>
               </div>
             ) : null}

@@ -349,6 +349,7 @@ export async function maybeGenerateAgreementSnapshot(projectId: string) {
       version: draft.version,
       status: draft.status,
     },
+    visibleToClient: false,
   });
 
   return draft;

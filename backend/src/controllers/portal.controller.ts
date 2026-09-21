@@ -62,12 +62,20 @@ export async function getClientList(req: any, res: Response, next: NextFunction)
       .sort({ updatedAt: -1 })
       .limit(50);
 
-    const data = projects.map((p) => ({
+    const data = projects.map((p: any) => ({
       id: p.id,
       title: p.title,
       company_name: p.companyName,
       portal_token: p.portalToken,
       client_name: p.client?.name || p.companyName || 'Client',
+      client_email: p.client?.email || p.clientEmail || '',
+      client: p.client
+        ? {
+            id: p.client.id || p.client._id,
+            name: p.client.name,
+            email: p.client.email,
+          }
+        : null,
     }));
 
     res.json({ success: true, data });

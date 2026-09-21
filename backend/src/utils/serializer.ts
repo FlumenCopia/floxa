@@ -58,6 +58,12 @@ export function serializeProject(project: any, workflowStatus?: string) {
     help_request: project.help_request || null,
     unread_count: Number(project.unread_count || 0),
     latest_activity: project.latest_activity || null,
+    has_brand_dna: Boolean(project.brandDNA || project.brand_dna || project.has_brand_dna),
+    is_agreement_completed: Boolean(
+      project.projectAgreement?.signedAt ||
+      ['signed', 'active', 'completed', 'locked'].includes(project.projectAgreement?.status || '')
+    ),
+    agreement_status: project.projectAgreement?.status || 'not_generated',
     created_at: project.createdAt ? new Date(project.createdAt).toISOString() : null,
     updated_at: project.updatedAt ? new Date(project.updatedAt).toISOString() : null,
   };
@@ -373,6 +379,8 @@ export function serializeClientPortalActivity(activity: any) {
     action: activity.action,
     description: activity.description || '',
     metadata: sanitizedMetadata,
+    actor_type: activity.actorType || activity.actor_type || '',
+    visible_to_client: Boolean(activity.visibleToClient),
     client_is_read: Boolean(activity.clientIsRead),
     client_read_at: activity.clientReadAt ? new Date(activity.clientReadAt).toISOString() : null,
     created_at: activity.createdAt ? new Date(activity.createdAt).toISOString() : null,

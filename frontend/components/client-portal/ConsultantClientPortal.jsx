@@ -218,19 +218,32 @@ function PortalCard({
   activeHelpSession,
   onOpenHelp,
   onResolveHelp,
+  onClose,
 }) {
   return (
     <section className="cp-card">
+      {onClose ? (
+        <button
+          type="button"
+          className="cp-entry-card-close"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+          Close
+        </button>
+      ) : null}
+
       {isConsultantMode ? (
         isReadOnly ? (
-          <div className="consultant-mode-banner read-only">
+          <div className="consultant-mode-banner read-only" style={{ marginRight: onClose ? "80px" : "0" }}>
             <div>
               <strong><Eye size={13} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "5px" }} />View Mode:</strong> Client has not requested help on Frame {step}. Inputs are locked.
             </div>
             <div className="consultant-mode-banner-badge">Read Only</div>
           </div>
         ) : (
-          <div className="consultant-mode-banner live-edit">
+          <div className="consultant-mode-banner live-edit" style={{ marginRight: onClose ? "80px" : "0" }}>
             <div>
               <strong><span className="banner-pulse-dot" style={{ display: "inline-block", marginRight: "6px" }} />Live Assistance Active:</strong> Assisting client on Frame {step} in real-time.
               {activeHelpSession?.question ? (
@@ -425,7 +438,7 @@ export default function ConsultantClientPortal() {
     return window.sessionStorage.getItem(`floxa-portal-entered-${urlToken || "default"}`) === "true";
   });
   const [finished, setFinished] = useState(() => {
-    if (typeof window === "undefined") return false;
+    if (typeof window === "undefined" || isConsultantMode) return false;
     return window.sessionStorage.getItem(`floxa-portal-finished-${urlToken || "default"}`) === "true";
   });
   const [step, setStep] = useState(() => {
@@ -437,10 +450,14 @@ export default function ConsultantClientPortal() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.sessionStorage.setItem(`floxa-portal-entered-${urlToken || "default"}`, String(entered));
-      window.sessionStorage.setItem(`floxa-portal-finished-${urlToken || "default"}`, String(finished));
+      if (!isConsultantMode) {
+        window.sessionStorage.setItem(`floxa-portal-finished-${urlToken || "default"}`, String(finished));
+      } else {
+        window.sessionStorage.removeItem("floxa-portal-finished-default");
+      }
       window.sessionStorage.setItem(`floxa-portal-step-${urlToken || "default"}`, String(step));
     }
-  }, [entered, finished, step, urlToken]);
+  }, [entered, finished, step, urlToken, isConsultantMode]);
   const [email, setEmail] = useState("");
   const [answers, setAnswers] = useState(defaultAnswers);
   const [sliderOne, setSliderOne] = useState(() => makeSliderState(personalityOne));
@@ -629,7 +646,9 @@ export default function ConsultantClientPortal() {
             setSelectedVisual(disc.visual_styles.map((v) => (typeof v === "string" ? v : v.style)).filter(Boolean));
           }
           if (disc.is_submitted || disc.isSubmitted) {
-            setFinished(true);
+            if (!isConsultantMode) {
+              setFinished(true);
+            }
             if (urlToken) setEntered(true);
           } else if (typeof disc.step === "number" && disc.step >= 1 && disc.step <= 6) {
             setStep(disc.step);
@@ -898,6 +917,11 @@ export default function ConsultantClientPortal() {
     showSuccess("Help session marked as resolved.");
   };
 
+  const handleExitPortal = useCallback(() => {
+    handleClosePortal();
+    router.push("/");
+  }, [handleClosePortal, router]);
+
   const cardProps = {
     step,
     isConsultantMode,
@@ -909,9 +933,10 @@ export default function ConsultantClientPortal() {
     onNext: goNext,
     onOpenHelp: () => setShowHelpModal(true),
     onResolveHelp: resolveCurrentHelp,
+    onClose: handleExitPortal,
   };
 
-  if (finished) {
+  if (finished && !isConsultantMode) {
     const closeFinished = () => {
       handleClosePortal();
       router.push("/");
@@ -992,91 +1017,114 @@ export default function ConsultantClientPortal() {
                   cursor: "pointer",
                 }}
                 onChange={async (e) => {
-                  const selected = projects.find((p) => p.portal_token === e.target.value);
+                  const val = e.target.value;
+                  const selected = projects.find((p) => String(p.id) === val || p.portal_token === val);
                   if (selected) {
                     setProject(selected);
-                    const clientMail = selected.client?.email || selected.client_email || "";
-                    if (clientMail) setEmail(clientMail);
+                    const clientMail =
+                      selected.client?.email ||
+                      selected.client_email ||
+                      selected.clientEmail ||
+                      "";
+                    if (clientMail) {
+                      setEmail(clientMail);
+                    } else if (selected.portal_token) {
+                      clientPortalService
+                        .checkPortalAccess(selected.portal_token)
+                        .then((res) => {
+                          const fetchedMail =
+                            res?.data?.clientEmail ||
+                            res?.data?.client_email ||
+                            res?.data?.client?.email ||
+                            "";
+                          if (fetchedMail) {
+                            setEmail(fetchedMail);
+                          }
+                        })
+                        .catch(() => {});
+                    }
 
-                    clientPortalService.getHelpStatus(selected.portal_token).then((res) => {
-                      if (res?.success && res?.active_help) {
-                        setActiveHelpSession(res.active_help);
-                        const match = String(res.active_help.page_id || "").match(/\d+/);
-                        if (match) {
-                          const f = parseInt(match[0], 10);
-                          if (f >= 1 && f <= 9) setStep(f);
+                    if (selected.portal_token) {
+                      clientPortalService.getHelpStatus(selected.portal_token).then((res) => {
+                        if (res?.success && res?.active_help) {
+                          setActiveHelpSession(res.active_help);
+                          const match = String(res.active_help.page_id || "").match(/\d+/);
+                          if (match) {
+                            const f = parseInt(match[0], 10);
+                            if (f >= 1 && f <= 9) setStep(f);
+                          }
                         }
-                      }
-                    });
+                      });
 
-                    clientPortalService.getDiscoveryDraft(selected.portal_token).then((res) => {
-                      if (res?.success && res.data) {
-                        const disc = res.data;
-                        const whatText = disc.what_business_does || disc.business_description || disc.businessDescription || disc.whatDo || disc.whatDoYouDo || "";
-                        const customerText = disc.target_customer || disc.targetCustomer || "";
-                        const whyChooseText = disc.why_choose_us || disc.whyChooseUs || disc.whyChooseYou || "";
-                        const brandFeelingText = disc.brand_feeling || disc.brandFeeling || disc.whyTrustYou || "";
+                      clientPortalService.getDiscoveryDraft(selected.portal_token).then((res) => {
+                        if (res?.success && res.data) {
+                          const disc = res.data;
+                          const whatText = disc.what_business_does || disc.business_description || disc.businessDescription || disc.whatDo || disc.whatDoYouDo || "";
+                          const customerText = disc.target_customer || disc.targetCustomer || "";
+                          const whyChooseText = disc.why_choose_us || disc.whyChooseUs || disc.whyChooseYou || "";
+                          const brandFeelingText = disc.brand_feeling || disc.brandFeeling || disc.whyTrustYou || "";
 
-                        setAnswers((prev) => ({
-                          ...prev,
-                          what: whatText || prev.what,
-                          whatDoYouDo: whatText || prev.whatDoYouDo,
-                          customer: customerText || prev.customer,
-                          targetCustomer: customerText || prev.targetCustomer,
-                          choose: whyChooseText || prev.choose,
-                          whyChooseYou: whyChooseText || prev.whyChooseYou,
-                          trust: brandFeelingText || prev.trust,
-                          whyTrustYou: brandFeelingText || prev.whyTrustYou,
-                        }));
+                          setAnswers((prev) => ({
+                            ...prev,
+                            what: whatText || prev.what,
+                            whatDoYouDo: whatText || prev.whatDoYouDo,
+                            customer: customerText || prev.customer,
+                            targetCustomer: customerText || prev.targetCustomer,
+                            choose: whyChooseText || prev.choose,
+                            whyChooseYou: whyChooseText || prev.whyChooseYou,
+                            trust: brandFeelingText || prev.trust,
+                            whyTrustYou: brandFeelingText || prev.whyTrustYou,
+                          }));
 
-                        if (Array.isArray(disc.personality_sliders) || Array.isArray(disc.sliders)) {
-                          const serverSliders = disc.personality_sliders || disc.sliders;
-                          setSliderOne((prev) => {
-                            const updated = { ...prev };
-                            serverSliders.forEach((s) => {
-                              const pairKey = sliderKeyToPair[s.slider_key] || s.slider_key;
-                              if (updated[pairKey] !== undefined) {
-                                updated[pairKey] = s.value !== undefined ? Math.round((s.value / 100) * 6 - 3) : 0;
-                              }
+                          if (Array.isArray(disc.personality_sliders) || Array.isArray(disc.sliders)) {
+                            const serverSliders = disc.personality_sliders || disc.sliders;
+                            setSliderOne((prev) => {
+                              const updated = { ...prev };
+                              serverSliders.forEach((s) => {
+                                const pairKey = sliderKeyToPair[s.slider_key] || s.slider_key;
+                                if (updated[pairKey] !== undefined) {
+                                  updated[pairKey] = s.value !== undefined ? Math.round((s.value / 100) * 6 - 3) : 0;
+                                }
+                              });
+                              return updated;
                             });
-                            return updated;
-                          });
-                          setSliderTwo((prev) => {
-                            const updated = { ...prev };
-                            serverSliders.forEach((s) => {
-                              const pairKey = sliderKeyToPair[s.slider_key] || s.slider_key;
-                              if (updated[pairKey] !== undefined) {
-                                updated[pairKey] = s.value !== undefined ? Math.round((s.value / 100) * 6 - 3) : 0;
-                              }
+                            setSliderTwo((prev) => {
+                              const updated = { ...prev };
+                              serverSliders.forEach((s) => {
+                                const pairKey = sliderKeyToPair[s.slider_key] || s.slider_key;
+                                if (updated[pairKey] !== undefined) {
+                                  updated[pairKey] = s.value !== undefined ? Math.round((s.value / 100) * 6 - 3) : 0;
+                                }
+                              });
+                              return updated;
                             });
-                            return updated;
-                          });
-                        }
+                          }
 
-                        if (Array.isArray(disc.emotions)) {
-                          const mappedEmotions = disc.emotions
-                            .map((e) => (typeof e === "string" ? e : e.emotion))
-                            .filter(Boolean);
-                          setSelectedEmotions(mappedEmotions);
+                          if (Array.isArray(disc.emotions)) {
+                            const mappedEmotions = disc.emotions
+                              .map((e) => (typeof e === "string" ? e : e.emotion))
+                              .filter(Boolean);
+                            setSelectedEmotions(mappedEmotions);
+                          }
+                          if (disc.audience_archetype || disc.persona) {
+                            setSelectedAudience([disc.audience_archetype || disc.persona]);
+                          }
+                          if (Array.isArray(disc.competitors) && disc.competitors.length > 0) {
+                            const loadedComps = [0, 1, 2].map((i) => {
+                              const c = disc.competitors[i];
+                              if (c && typeof c === "object") {
+                                return { name: c.name || "", rating: c.rating || "", reason: c.reason || "" };
+                              }
+                              return { name: typeof c === "string" ? c : "", rating: "", reason: "" };
+                            });
+                            setCompetitors(loadedComps);
+                          }
+                          if (Array.isArray(disc.visual_styles) && disc.visual_styles.length > 0) {
+                            setSelectedVisual(disc.visual_styles.map((v) => (typeof v === "string" ? v : v.style)).filter(Boolean));
+                          }
                         }
-                        if (disc.audience_archetype || disc.persona) {
-                          setSelectedAudience([disc.audience_archetype || disc.persona]);
-                        }
-                        if (Array.isArray(disc.competitors) && disc.competitors.length > 0) {
-                          const loadedComps = [0, 1, 2].map((i) => {
-                            const c = disc.competitors[i];
-                            if (c && typeof c === "object") {
-                              return { name: c.name || "", rating: c.rating || "", reason: c.reason || "" };
-                            }
-                            return { name: typeof c === "string" ? c : "", rating: "", reason: "" };
-                          });
-                          setCompetitors(loadedComps);
-                        }
-                        if (Array.isArray(disc.visual_styles) && disc.visual_styles.length > 0) {
-                          setSelectedVisual(disc.visual_styles.map((v) => (typeof v === "string" ? v : v.style)).filter(Boolean));
-                        }
-                      }
-                    });
+                      });
+                    }
                   }
                 }}
                 defaultValue=""
@@ -1084,11 +1132,15 @@ export default function ConsultantClientPortal() {
                 <option value="" disabled>
                   -- Select a client to auto-fill --
                 </option>
-                {projects.map((p) => (
-                  <option key={p.portal_token} value={p.portal_token}>
-                    {p.company_name || p.title} ({p.client?.name || p.client_name || p.client_email || "Client"})
-                  </option>
-                ))}
+                {projects.map((p) => {
+                  const optVal = String(p.id || p.portal_token);
+                  const optLabel = `${p.company_name || p.title} (${p.client?.name || p.client_name || p.client_email || "Client"})`;
+                  return (
+                    <option key={optVal} value={optVal}>
+                      {optLabel}
+                    </option>
+                  );
+                })}
               </select>
             </label>
           ) : null}
@@ -1099,11 +1151,12 @@ export default function ConsultantClientPortal() {
               onChange={(event) => setEmail(event.target.value)}
               type="email"
               value={email}
+              placeholder="Select client above or enter email"
             />
           </label>
           <button
             className="cp-primary cp-enter"
-            disabled={!canStart}
+            disabled={!Boolean((email && email.includes("@")) || (isConsultantMode && project))}
             onClick={() => setEntered(true)}
             type="button"
           >
@@ -1117,11 +1170,7 @@ export default function ConsultantClientPortal() {
 
   return (
     <main className="cp-screen">
-      <PortalHeader
-        onClose={handleClosePortal}
-        onVideoCall={isConsultantMode ? handleConsultantVideoCall : undefined}
-        callState={callState}
-      />
+      <PortalHeader />
 
       {step === 1 ? (
         <PortalCard

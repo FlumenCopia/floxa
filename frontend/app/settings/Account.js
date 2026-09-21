@@ -146,12 +146,13 @@ export default function Account() {
   const handleAvatarRemove = async () => {
     const payload = new FormData();
     payload.append("avatar", "");
+    payload.append("remove_avatar", "true");
 
     setUploadingAvatar(true);
     setMenuOpen(false);
     try {
       const updated = await updateCurrentConsultant(payload);
-      setAvatarUrl("");
+      setAvatarUrl(updated?.avatar_url || updated?.avatar || "");
       showSuccess("Profile picture removed.");
     } catch (err) {
       console.error("Failed to remove avatar:", err);

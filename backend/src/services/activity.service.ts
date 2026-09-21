@@ -48,7 +48,8 @@ export async function logProjectActivity(
     description: params.description,
     metadata: JSON.stringify(params.metadata || {}),
     visibleToClient: params.visibleToClient ?? false,
-    clientIsRead: params.clientIsRead ?? false,
+    clientIsRead: params.clientIsRead !== undefined ? params.clientIsRead : (params.actorType === 'client'),
+    isRead: params.isRead !== undefined ? params.isRead : (params.actorType === 'consultant'),
     createdAt: new Date(),
   };
 
