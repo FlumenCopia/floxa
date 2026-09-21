@@ -268,8 +268,8 @@ export function DiscoveryFlow({
   );
   const isReadOnly = Boolean(isConsultantMode && !isCurrentStepHelpActive);
 
-  const pcts = [28, 36, 44, 54, 64, 75];
-  const pct = pcts[step - 1];
+  const pcts = [17, 33, 50, 67, 83, 100];
+  const pct = pcts[step - 1] ?? 100;
 
   useEffect(() => {
     if (!targetPortalToken) return;

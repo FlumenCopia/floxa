@@ -2304,12 +2304,18 @@ textarea {
 }
 
 .project-progress-cell {
-  width: 88px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 150px;
 }
 
 .project-progress-track {
-  width: 88px;
-  height: 4px;
+  flex: 1;
+  width: 100%;
+  min-width: 76px;
+  height: 5px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.15);
   overflow: hidden;
@@ -2320,6 +2326,17 @@ textarea {
   border-radius: inherit;
   background: #ffffff;
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+  transition: width 0.3s ease;
+}
+
+.project-progress-value {
+  font-size: 11px;
+  color: #ffffff;
+  font-weight: 500;
+  min-width: 28px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 
 .project-empty-state {

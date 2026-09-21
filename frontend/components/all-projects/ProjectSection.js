@@ -569,8 +569,14 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                             <td>
                               <div className="project-progress-cell">
                                 <div className="project-progress-track">
-                                  <div className="project-progress-fill" style={{ width: `${row.progress}%` }} />
+                                  <div
+                                    className="project-progress-fill"
+                                    style={{ width: `${Math.min(100, Math.max(0, Math.round(Number(row.progress || 0))))}%` }}
+                                  />
                                 </div>
+                                <span className="project-progress-value">
+                                  {Math.min(100, Math.max(0, Math.round(Number(row.progress || 0))))}%
+                                </span>
                               </div>
                             </td>
                             <td>{new Date(row.created_at).toLocaleDateString()}</td>

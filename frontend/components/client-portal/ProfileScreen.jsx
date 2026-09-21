@@ -241,7 +241,7 @@ export function ProfileScreen({
         <h1>
           Let&apos;s Know More
           <br />
-          About You <span>R</span>
+          About You
         </h1>
         <p>Your brand clarity journey starts with knowing who you are.</p>
 
