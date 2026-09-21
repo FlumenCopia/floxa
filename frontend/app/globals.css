@@ -1921,7 +1921,7 @@ textarea {
   animation: pageFadeIn 0.16s ease both;
 }
 
-@keyframes pageFadeIn {
+/* @keyframes pageFadeIn {
   from {
     opacity: 0.92;
   }
@@ -1929,7 +1929,7 @@ textarea {
   to {
     opacity: 1;
   }
-}
+} */
 
 .project-filter-btn {
   min-width: 164px;
@@ -10153,4 +10153,4 @@ input[type="file"]:hover::-webkit-file-upload-button {
   font-size: 12px;
   color: #93baa9;
   line-height: 1.45;
-}
+}
