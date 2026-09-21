@@ -17,9 +17,16 @@ class SupportSocketService {
 
   getHost() {
     if (typeof window === "undefined") return "127.0.0.1:5000";
-    if (process.env.NEXT_PUBLIC_WS_HOST) return process.env.NEXT_PUBLIC_WS_HOST;
-    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      return `${window.location.hostname}:5000`;
+    const hostname = window.location.hostname;
+    // Local development
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return process.env.NEXT_PUBLIC_WS_HOST || `${hostname}:5000`;
+    }
+    // Deployed production environment (e.g. floxa.flumenx.in)
+    // Ignore baked-in "localhost:5000" and connect to the active domain
+    const envHost = process.env.NEXT_PUBLIC_WS_HOST;
+    if (envHost && !envHost.includes("localhost") && !envHost.includes("127.0.0.1")) {
+      return envHost;
     }
     return window.location.host;
   }
