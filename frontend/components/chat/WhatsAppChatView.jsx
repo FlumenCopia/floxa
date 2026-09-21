@@ -305,7 +305,10 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
             const match = data.conversations.find((c) => c.projectId === initialProjectId);
             if (match) setSelectedConversation(match);
           } else if (data.conversations.length > 0) {
-            setSelectedConversation(data.conversations[0]);
+            const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+            if (!isMobile) {
+              setSelectedConversation(data.conversations[0]);
+            }
           }
         }
       } catch (err) {
@@ -927,7 +930,7 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
   }, [messages, chatSearchOpen, chatSearchQuery]);
 
   return (
-    <div className="wa-chat-container">
+    <div className={`wa-chat-container ${selectedConversation ? "has-active-chat" : "no-active-chat"}`}>
       {/* Hidden File Pickers */}
       <input
         ref={fileInputRef}
@@ -1075,62 +1078,73 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
           <>
             {/* Top Bar with WhatsApp Controls */}
             <div className="wa-chat-header">
-              <div
-                className="wa-chat-header-info"
-                style={{ cursor: "pointer" }}
-                onClick={() => setIsContactDrawerOpen(true)}
-              >
-                <div style={{ position: "relative", display: "inline-flex" }}>
-                  <div className="wa-avatar gradient-1">
-                    {getInitials(selectedConversation.clientName)}
-                  </div>
-                  {selectedConversation.isOnline && (
-                    <span
-                      style={{
-                        position: "absolute",
-                        bottom: 0,
-                        right: 0,
-                        width: 10,
-                        height: 10,
-                        borderRadius: "50%",
-                        background: "#25d366",
-                        border: "2px solid #202c33",
-                        boxShadow: "0 0 6px #25d366",
-                      }}
-                      title="Online"
-                    />
-                  )}
-                </div>
-                <div className="wa-chat-header-text">
-                  <div className="wa-chat-header-name">
-                    {selectedConversation.clientName}
-                  </div>
-                  <div className="wa-chat-header-subtitle">
-                    <span>{selectedConversation.projectTitle}</span>
-                    <span>•</span>
-                    {clientIsTyping ? (
-                      <span style={{ color: "#25d366", fontStyle: "italic", fontWeight: 500 }}>
-                        typing...
-                      </span>
-                    ) : selectedConversation.isOnline ? (
-                      <span style={{ color: "#25d366", display: "inline-flex", alignItems: "center", gap: "5px" }}>
-                        <span
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: "50%",
-                            background: "#25d366",
-                            display: "inline-block",
-                            boxShadow: "0 0 6px #25d366",
-                          }}
-                        />
-                        <span>online</span>
-                      </span>
-                    ) : (
-                      <span style={{ color: "#8696a0" }}>
-                        {formatLastSeen(selectedConversation.lastSeen)}
-                      </span>
+              <div className="wa-chat-header-left">
+                <button
+                  type="button"
+                  className="wa-mobile-back-btn"
+                  onClick={() => setSelectedConversation(null)}
+                  title="Back to chats"
+                  aria-label="Back to conversations list"
+                >
+                  <ArrowLeft size={20} />
+                </button>
+                <div
+                  className="wa-chat-header-info"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setIsContactDrawerOpen(true)}
+                >
+                  <div style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+                    <div className="wa-avatar gradient-1">
+                      {getInitials(selectedConversation.clientName)}
+                    </div>
+                    {selectedConversation.isOnline && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          right: 0,
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          background: "#25d366",
+                          border: "2px solid #202c33",
+                          boxShadow: "0 0 6px #25d366",
+                        }}
+                        title="Online"
+                      />
                     )}
+                  </div>
+                  <div className="wa-chat-header-text">
+                    <div className="wa-chat-header-name">
+                      {selectedConversation.clientName}
+                    </div>
+                    <div className="wa-chat-header-subtitle">
+                      <span>{selectedConversation.projectTitle}</span>
+                      <span>•</span>
+                      {clientIsTyping ? (
+                        <span style={{ color: "#25d366", fontStyle: "italic", fontWeight: 500 }}>
+                          typing...
+                        </span>
+                      ) : selectedConversation.isOnline ? (
+                        <span style={{ color: "#25d366", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              background: "#25d366",
+                              display: "inline-block",
+                              boxShadow: "0 0 6px #25d366",
+                            }}
+                          />
+                          <span>online</span>
+                        </span>
+                      ) : (
+                        <span style={{ color: "#8696a0" }}>
+                          {formatLastSeen(selectedConversation.lastSeen)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

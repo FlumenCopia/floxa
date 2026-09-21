@@ -13,6 +13,7 @@ import {
   HeartHandshake,
   BarChart2,
   Bot,
+  ChevronDown,
 } from "lucide-react";
 
 const tools = [
@@ -396,26 +397,29 @@ export default function AiSuite() {
       <div className="screen">
         <div className="ai-suite-shell">
           <div className="ai-suite-head">
-            <div>
+            <div className="ai-suite-head-titles">
               <div className="ai-suite-kicker">AI Suite</div>
               <h1 className="ai-suite-title">9 intelligent brand tools</h1>
             </div>
 
             <label className="ai-suite-project-picker">
               <span className="ai-suite-project-label">Project</span>
-              <select value={selectedProject} onChange={handleProjectChange}>
-                {projectsLoading ? (
-                  <option value="">Loading projects...</option>
-                ) : projects.length > 0 ? (
-                  projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.company_name || project.title || project.client_name || `Project ${project.id}`}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">No projects available</option>
-                )}
-              </select>
+              <div className="ai-suite-select-wrap">
+                <select value={selectedProject} onChange={handleProjectChange}>
+                  {projectsLoading ? (
+                    <option value="">Loading projects...</option>
+                  ) : projects.length > 0 ? (
+                    projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.company_name || project.title || project.client_name || `Project ${project.id}`}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No projects available</option>
+                  )}
+                </select>
+                <ChevronDown size={14} className="ai-suite-select-chevron" />
+              </div>
             </label>
           </div>
 

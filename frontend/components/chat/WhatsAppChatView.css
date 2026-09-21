@@ -4,8 +4,11 @@
 
 .wa-chat-container {
   display: flex;
-  height: calc(100vh - 84px);
-  max-height: calc(100vh - 84px);
+  height: 100%;
+  max-height: 100%;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
   width: 100%;
   background: #0c1317;
   border-radius: 0;
@@ -312,10 +315,23 @@
   z-index: 2;
 }
 
+.wa-chat-header-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  gap: 8px;
+}
+
+.wa-mobile-back-btn {
+  display: none;
+}
+
 .wa-chat-header-info {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
 }
 
 .wa-chat-header-text {
@@ -1607,4 +1623,254 @@
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+}
+
+/* =========================================================================
+   RESPONSIVE DESIGN & MOBILE OPTIMIZATIONS
+   ========================================================================= */
+@media (max-width: 768px) {
+  .wa-chat-container {
+    height: 100%;
+    max-height: 100%;
+    border: none;
+    box-shadow: none;
+  }
+
+  /* When no active chat selected: show sidebar full width, hide chat pane */
+  .wa-chat-container.no-active-chat .wa-sidebar {
+    display: flex;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    flex: 1;
+    border-right: none;
+  }
+
+  .wa-chat-container.no-active-chat .wa-chat-main {
+    display: none;
+  }
+
+  /* When active chat is selected: hide sidebar, show chat thread full width */
+  .wa-chat-container.has-active-chat .wa-sidebar {
+    display: none;
+  }
+
+  .wa-chat-container.has-active-chat .wa-chat-main {
+    display: flex;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    flex: 1;
+  }
+
+  /* Mobile Back Button */
+  .wa-mobile-back-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: #aebac1;
+    cursor: pointer;
+    padding: 0;
+    margin-right: 2px;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .wa-mobile-back-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e9edef;
+  }
+
+  .wa-mobile-back-btn:active {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  /* Header adjustments */
+  .wa-chat-header {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .wa-chat-header-info {
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .wa-chat-header-info .wa-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 13px;
+  }
+
+  .wa-chat-header-name {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .wa-chat-header-subtitle {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    gap: 4px;
+  }
+
+  .wa-chat-header-actions {
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .wa-header-icon-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    padding: 0;
+  }
+
+  /* Messages area adjustments */
+  .wa-messages-area {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .wa-bubble {
+    max-width: 86%;
+    font-size: 13.5px;
+    padding: 7px 10px 5px 10px;
+  }
+
+  .wa-bubble-text {
+    margin-right: 36px;
+  }
+
+  .wa-voice-bubble {
+    min-width: 200px;
+    max-width: 100%;
+  }
+
+  .wa-file-card {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Composer bar adjustments */
+  .wa-composer-bar {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .wa-composer-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+
+  .wa-send-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+  }
+
+  .wa-composer-input-wrap {
+    padding: 6px 12px;
+  }
+
+  .wa-composer-textarea {
+    font-size: 14px;
+  }
+
+  /* Contact info drawer full width */
+  .wa-contact-drawer {
+    width: 100%;
+    border-left: none;
+  }
+
+  .wa-inchat-search-bar {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .wa-attachment-menu {
+    bottom: 50px;
+    left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .wa-chat-header {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .wa-chat-header-left {
+    gap: 4px;
+  }
+
+  .wa-mobile-back-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+  }
+
+  .wa-chat-header-info .wa-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 12px;
+  }
+
+  .wa-chat-header-name {
+    font-size: 13.5px;
+  }
+
+  .wa-chat-header-subtitle {
+    font-size: 10.5px;
+  }
+
+  .wa-chat-header-actions {
+    gap: 0;
+  }
+
+  .wa-header-icon-btn {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+  }
+
+  .wa-messages-area {
+    padding: 8px 8px;
+  }
+
+  .wa-bubble {
+    max-width: 90%;
+  }
+
+  .wa-conv-item {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .wa-conv-item .wa-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 13.5px;
+  }
+
+  .wa-recording-bar {
+    padding: 4px 8px;
+    gap: 8px;
+  }
+
+  .wa-recording-left {
+    gap: 8px;
+  }
 }
