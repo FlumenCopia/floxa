@@ -765,16 +765,24 @@ export function setupWebSocketServer(server: Server) {
     let role: 'client' | 'consultant' = 'client';
     let consultantId: string | null = null;
 
-    const consultantToken =
+    // Only authenticate as consultant if explicitly requested via query parameter
+    // This prevents client portal tabs from being misclassified as consultants due to background cookies
+    const explicitConsultantToken =
       (query.consultant_token as string) ||
-      (query.token as string) ||
-      cookies[ENV.AUTH_ACCESS_COOKIE_NAME] ||
-      cookies['floxa_access'] ||
-      cookies['access'] ||
-      cookies['jwt'];
+      (query.role === 'consultant' ? (query.token as string) : null) ||
+      (query.mode === 'consultant' ? (query.token as string) : null);
 
-    if (consultantToken) {
-      consultantId = verifyConsultantToken(consultantToken);
+    if (explicitConsultantToken) {
+      let rawToken = explicitConsultantToken;
+      if (rawToken === 'active') {
+        rawToken =
+          cookies[ENV.AUTH_ACCESS_COOKIE_NAME] ||
+          cookies['floxa_access'] ||
+          cookies['access'] ||
+          cookies['jwt'] ||
+          '';
+      }
+      consultantId = verifyConsultantToken(rawToken);
       if (consultantId) {
         const ownerId = String(project.consultantId || '');
         if (consultantId !== ownerId) {
@@ -1213,9 +1221,10 @@ export function setupWebSocketServer(server: Server) {
           if (role === 'client' && action === 'call_initiate') {
             const consId = String(currentProject.consultantId || '');
             const consSockets = consultantSockets.get(consId);
+            const projectRoomConns = projectSockets.get(currentProjectId);
             const hasConnectedConsultant =
-              consSockets &&
-              Array.from(consSockets).some((cws) => cws.readyState === WebSocket.OPEN);
+              (consSockets && Array.from(consSockets).some((cws) => cws.readyState === WebSocket.OPEN)) ||
+              (projectRoomConns && Array.from(projectRoomConns).some((c) => c.role === 'consultant' && c.ws.readyState === WebSocket.OPEN));
 
             if (!hasConnectedConsultant) {
               ws.send(

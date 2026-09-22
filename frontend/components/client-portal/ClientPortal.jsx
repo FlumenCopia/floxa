@@ -487,11 +487,11 @@ export function ClientPortal({ token, isConsultant = false }) {
         />
       ) : null}
 
-      {screen !== "splash" && screen !== "login" ? (
-        <>
-          <ClientPortalChatWidget project={project} token={token} />
-          <VideoCallModal currentRole="client" project={project} />
-        </>
+      {/* VideoCallModal mounted globally across all portal screens so incoming calls are received anywhere */}
+      <VideoCallModal currentRole="client" project={project} />
+
+      {screen !== "login" ? (
+        <ClientPortalChatWidget project={project} token={token} />
       ) : null}
 
       {/* Centered Sign Out Confirmation Modal */}

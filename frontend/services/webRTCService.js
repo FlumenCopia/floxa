@@ -216,11 +216,9 @@ class WebRTCService {
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280, max: 1280, min: 640 },
-          height: { ideal: 720, max: 720, min: 360 },
-          frameRate: { ideal: 30, max: 30, min: 24 },
           facingMode: "user",
-          aspectRatio: { ideal: 1.7777777778 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
         },
         audio: {
           echoCancellation: true,
@@ -229,10 +227,6 @@ class WebRTCService {
           channelCount: 1, // Mono: halves payload and eliminates stereo phase processing delay
           sampleRate: 48000,
           latency: 0, // Direct real-time audio pipeline hint
-          googEchoCancellation: true,
-          googAutoGainControl: true,
-          googNoiseSuppression: true,
-          googHighpassFilter: true,
         },
       });
       this.isAudioMuted = false;
@@ -240,6 +234,19 @@ class WebRTCService {
       this.emit("local_stream", this.localStream);
       return this.localStream;
     } catch (err) {
+      // If overconstrained or failed, attempt resilient generic capture fallback before audio-only
+      if (err.name === "OverconstrainedError" || err.name === "ConstraintNotSatisfiedError") {
+        try {
+          this.localStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          });
+          this.isAudioMuted = false;
+          this.isVideoMuted = false;
+          this.emit("local_stream", this.localStream);
+          return this.localStream;
+        } catch {}
+      }
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
         this.emit("media_error", {
           type: "permission_denied",
