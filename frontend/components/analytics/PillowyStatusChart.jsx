@@ -15,8 +15,9 @@ function degToRad(deg) {
 // Generates the smooth rounded-wedge path for each sector
 function createRoundedWedge(cx, cy, r, startAngle, sweepAngle, cornerRadius) {
   if (sweepAngle <= 0) return "";
-  const endAngle = startAngle + sweepAngle;
-  const midAngle = startAngle + sweepAngle / 2;
+  const safeSweep = Math.min(sweepAngle, 359.9);
+  const endAngle = startAngle + safeSweep;
+  const midAngle = startAngle + safeSweep / 2;
 
   const radMid = degToRad(midAngle);
   const ox = cx + Math.cos(radMid) * gapOffset;
@@ -98,7 +99,7 @@ function getMarkerPoints(angleDeg) {
 
 export default function PillowyStatusChart({
   statusSegments = [],
-  totalProjects = 25,
+  totalProjects = 0,
   onSelectStatus,
   selectedStatusLabel,
 }) {
@@ -106,29 +107,29 @@ export default function PillowyStatusChart({
   const svgWrapRef = useRef(null);
 
   // Exact 4-sector configuration from user reference:
-  // Green: Top-Left (In Progress 18%)
-  // Blue: Top-Right (Deliverables 22%)
-  // Pink: Bottom-Right (Created 12% or 24%)
-  // Yellow: Bottom-Left (Delivered 48% or 36%)
+  // Green: Top-Left (In Progress)
+  // Blue: Top-Right (Payment Pending)
+  // Pink: Bottom-Right (Created)
+  // Yellow: Bottom-Left (Delivered)
   const segmentsData = useMemo(() => {
-    const findPct = (label, defaultPct, defaultCount) => {
+    const findSegment = (label) => {
       const match = statusSegments.find(
         (s) => s.label?.toLowerCase() === label.toLowerCase()
       );
       return {
-        pct: match ? match.value : defaultPct,
-        count: match ? match.count : defaultCount,
+        pct: match ? match.value : 0,
+        count: match ? match.count : 0,
         label: match?.label || label,
       };
     };
 
-    const blue = findPct("Deliverables", 22, 6);
-    const pink = findPct("Created", 12, 3);
-    const yellow = findPct("Delivered", 48, 12);
-    const green = findPct("In Progress", 18, 4);
+    const blue = findSegment("Payment Pending");
+    const pink = findSegment("Created");
+    const yellow = findSegment("Delivered");
+    const green = findSegment("In Progress");
 
     return {
-      blue: { ...blue, id: "blue", title: "Deliverables", color: "#0ea5e9" },
+      blue: { ...blue, id: "blue", title: "Payment Pending", color: "#0ea5e9" },
       pink: { ...pink, id: "pink", title: "Created", color: "#ec4899" },
       yellow: { ...yellow, id: "yellow", title: "Delivered", color: "#f59e0b" },
       green: { ...green, id: "green", title: "In Progress", color: "#22c55e" },
@@ -140,12 +141,13 @@ export default function PillowyStatusChart({
     segmentsData.pink.pct +
     segmentsData.yellow.pct +
     segmentsData.green.pct;
-  const factor = 360 / (total > 0 ? total : 1);
+  const isAllZero = total === 0;
+  const factor = isAllZero ? 1 : 360 / total;
 
-  const sweepBlue = segmentsData.blue.pct * factor;
-  const sweepPink = segmentsData.pink.pct * factor;
-  const sweepYellow = segmentsData.yellow.pct * factor;
-  const sweepGreen = segmentsData.green.pct * factor;
+  const sweepBlue = isAllZero ? 90 : segmentsData.blue.pct * factor;
+  const sweepPink = isAllZero ? 90 : segmentsData.pink.pct * factor;
+  const sweepYellow = isAllZero ? 90 : segmentsData.yellow.pct * factor;
+  const sweepGreen = isAllZero ? 90 : segmentsData.green.pct * factor;
 
   const sectors = useMemo(
     () => [
@@ -157,7 +159,7 @@ export default function PillowyStatusChart({
         pct: segmentsData.blue.pct,
         count: segmentsData.blue.count,
         badgeClass: "badge-tr",
-        badgeSub: "DELIVERABLES",
+        badgeSub: "PAYMENT PENDING",
       },
       {
         id: "pink",
@@ -431,38 +433,46 @@ export default function PillowyStatusChart({
 
             {/* 4 Perimeter Boundary Pointer Markers (Dark Triangles from Reference) */}
             <g id="markersGroup">
-              <polygon
-                id="marker-top"
-                className="airbrush-marker-arrow"
-                points={getMarkerPoints(0)}
-                fill="#07130c"
-                stroke="rgba(255, 255, 255, 0.25)"
-                strokeWidth="0.5"
-              />
-              <polygon
-                id="marker-right"
-                className="airbrush-marker-arrow"
-                points={getMarkerPoints(sweepBlue)}
-                fill="#07130c"
-                stroke="rgba(255, 255, 255, 0.25)"
-                strokeWidth="0.5"
-              />
-              <polygon
-                id="marker-bottom"
-                className="airbrush-marker-arrow"
-                points={getMarkerPoints(sweepBlue + sweepPink)}
-                fill="#07130c"
-                stroke="rgba(255, 255, 255, 0.25)"
-                strokeWidth="0.5"
-              />
-              <polygon
-                id="marker-left"
-                className="airbrush-marker-arrow"
-                points={getMarkerPoints(sweepBlue + sweepPink + sweepYellow)}
-                fill="#07130c"
-                stroke="rgba(255, 255, 255, 0.25)"
-                strokeWidth="0.5"
-              />
+              {(isAllZero || sweepGreen > 0) && (
+                <polygon
+                  id="marker-top"
+                  className="airbrush-marker-arrow"
+                  points={getMarkerPoints(0)}
+                  fill="#07130c"
+                  stroke="rgba(255, 255, 255, 0.25)"
+                  strokeWidth="0.5"
+                />
+              )}
+              {(isAllZero || sweepBlue > 0) && (
+                <polygon
+                  id="marker-right"
+                  className="airbrush-marker-arrow"
+                  points={getMarkerPoints(sweepBlue)}
+                  fill="#07130c"
+                  stroke="rgba(255, 255, 255, 0.25)"
+                  strokeWidth="0.5"
+                />
+              )}
+              {(isAllZero || sweepPink > 0) && (
+                <polygon
+                  id="marker-bottom"
+                  className="airbrush-marker-arrow"
+                  points={getMarkerPoints(sweepBlue + sweepPink)}
+                  fill="#07130c"
+                  stroke="rgba(255, 255, 255, 0.25)"
+                  strokeWidth="0.5"
+                />
+              )}
+              {(isAllZero || sweepYellow > 0) && (
+                <polygon
+                  id="marker-left"
+                  className="airbrush-marker-arrow"
+                  points={getMarkerPoints(sweepBlue + sweepPink + sweepYellow)}
+                  fill="#07130c"
+                  stroke="rgba(255, 255, 255, 0.25)"
+                  strokeWidth="0.5"
+                />
+              )}
             </g>
           </svg>
         </div>

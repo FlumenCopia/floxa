@@ -41,50 +41,96 @@ function formatCurrency(value) {
 }
 
 function buildStatusSegments(statusCounts = {}, totalProjects = 0) {
-  const grouped = Object.entries(statusCounts || {}).reduce((result, [status, count]) => {
-    const label = getStatusLabel(status);
-    return {
-      ...result,
-      [label]: toNumber(result[label]) + toNumber(count),
-    };
-  }, {});
+  let createdCount = 0;
+  let inProgressCount = 0;
+  let paymentPendingCount = 0;
+  let deliveredCount = 0;
 
-  const activeSegments = analyticsStatusLabels
-    .map((label) => ({
-      label,
-      value: Math.round((toNumber(grouped[label]) / (totalProjects || 1)) * 100),
-      count: toNumber(grouped[label]),
-    }))
-    .filter((item) => item.count > 0);
+  if (
+    statusCounts &&
+    (statusCounts.payment_pending !== undefined || statusCounts.in_progress !== undefined)
+  ) {
+    createdCount = toNumber(statusCounts.created);
+    inProgressCount = toNumber(statusCounts.in_progress);
+    paymentPendingCount = toNumber(statusCounts.payment_pending);
+    deliveredCount = toNumber(statusCounts.delivered);
+  } else {
+    Object.entries(statusCounts || {}).forEach(([status, count]) => {
+      const s = String(status || "").toLowerCase();
+      const c = toNumber(count);
+      if (s === "created") {
+        createdCount += c;
+      } else if (
+        s === "payment_pending" ||
+        s === "advance_payment" ||
+        s === "pending_payment" ||
+        s === "deliverables"
+      ) {
+        paymentPendingCount += c;
+      } else if (s === "delivered" || s === "completed") {
+        deliveredCount += c;
+      } else {
+        inProgressCount += c;
+      }
+    });
+  }
 
-  // If there is no project data or fewer than 2 active statuses, display the balanced 4-phase
-  // green gradient range matching the reference image so the ring always displays the 4 colors
-  if (!totalProjects || activeSegments.length < 2) {
+  const total =
+    totalProjects > 0
+      ? totalProjects
+      : createdCount + inProgressCount + paymentPendingCount + deliveredCount;
+
+  if (!total) {
     return [
-      { label: "Delivered", value: 48, count: 12, color: STATUS_RANGE_COLORS[0] },
-      { label: "Deliverables", value: 22, count: 6, color: STATUS_RANGE_COLORS[1] },
-      { label: "In Progress", value: 18, count: 4, color: STATUS_RANGE_COLORS[2] },
-      { label: "Created", value: 12, count: 3, color: STATUS_RANGE_COLORS[3] },
+      { label: "Delivered", value: 0, count: 0, color: "#f59e0b" },
+      { label: "Payment Pending", value: 0, count: 0, color: "#0ea5e9" },
+      { label: "In Progress", value: 0, count: 0, color: "#22c55e" },
+      { label: "Created", value: 0, count: 0, color: "#ec4899" },
     ];
   }
 
-  return activeSegments.map((item, index) => ({
-    ...item,
-    color: STATUS_RANGE_COLORS[index % STATUS_RANGE_COLORS.length],
-  }));
+  return [
+    {
+      label: "Delivered",
+      value: Math.round((deliveredCount / total) * 100),
+      count: deliveredCount,
+      color: "#f59e0b",
+    },
+    {
+      label: "Payment Pending",
+      value: Math.round((paymentPendingCount / total) * 100),
+      count: paymentPendingCount,
+      color: "#0ea5e9",
+    },
+    {
+      label: "In Progress",
+      value: Math.round((inProgressCount / total) * 100),
+      count: inProgressCount,
+      color: "#22c55e",
+    },
+    {
+      label: "Created",
+      value: Math.round((createdCount / total) * 100),
+      count: createdCount,
+      color: "#ec4899",
+    },
+  ];
 }
 
 function buildProjectProgressRows(projects = []) {
-  if (!projects.length) {
+  if (!projects || !projects.length) {
     return [{ label: "No project data", width: 0 }];
   }
 
   return projects.map((project) => {
-    const progress = Math.max(0, Math.min(100, Math.round(toNumber(project.progress))));
+    const progress = Math.max(
+      0,
+      Math.min(100, Math.round(toNumber(project.progress ?? project.width)))
+    );
 
     return {
       id: project.id,
-      label: project.name || "Untitled project",
+      label: project.label || project.name || "Untitled project",
       width: progress,
     };
   });
@@ -96,7 +142,7 @@ function buildAnalyticsData(data, loading, error) {
   const totalProjects = toNumber(data?.total_projects);
   const revenueMonths = data?.revenue_last_6_months || [];
   const maxRevenue = Math.max(...revenueMonths.map((item) => toNumber(item.amount)), 0);
-  const revenueAxisMax = maxRevenue || 1;
+  const revenueAxisMax = maxRevenue > 0 ? maxRevenue : 0;
 
   return {
     summary: loading
@@ -142,9 +188,11 @@ function buildAnalyticsData(data, loading, error) {
     modules: aiModulePerformance,
     status: buildStatusSegments(data?.project_status_counts, totalProjects),
     sectors: buildProjectProgressRows(data?.project_progress),
-    revenueAxisLabels: [1, 0.8, 0.6, 0.4, 0.2, 0].map((multiplier) =>
-      formatCurrency(revenueAxisMax * multiplier)
-    ),
+    revenueAxisLabels: revenueAxisMax > 0
+      ? [1, 0.8, 0.6, 0.4, 0.2, 0].map((multiplier) =>
+          formatCurrency(revenueAxisMax * multiplier)
+        )
+      : ["Rs50,000", "Rs40,000", "Rs30,000", "Rs20,000", "Rs10,000", "Rs0"],
   };
 }
 
@@ -153,7 +201,7 @@ export default function Analytics() {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState("");
   const [selectedRange] = useState(timeframeOptions[0]);
-  const [selectedTrendIndex, setSelectedTrendIndex] = useState(0);
+  const [selectedTrendIndex, setSelectedTrendIndex] = useState(5);
   const [selectedStatusLabel, setSelectedStatusLabel] = useState("Delivered");
   const [selectedModuleName, setSelectedModuleName] = useState("Moodboard");
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState(null);
@@ -207,7 +255,7 @@ export default function Analytics() {
     return analyticsData.summary;
   }, [analyticsData]);
 
-  const selectedTrendPoint = trendBars[selectedTrendIndex] || trendBars[0];
+  const selectedTrendPoint = trendBars[selectedTrendIndex] || trendBars[trendBars.length - 1] || trendBars[0];
   const selectedStatus =
     statusSegments.find((item) => item.label === selectedStatusLabel) || statusSegments[0] || null;
   const selectedModule = modulePerformance.find((item) => item.name === selectedModuleName) || modulePerformance[0];
@@ -295,7 +343,7 @@ export default function Analytics() {
             <section className="analytics-card analytics-chart-card">
               <div className="analytics-card-head">
                 <h2>Revenue — last 6 months</h2>
-                <span>{selectedTrendPoint.amount}</span>
+                <span>{selectedTrendPoint ? `${selectedTrendPoint.label}: ${selectedTrendPoint.amount}` : ""}</span>
               </div>
               <div className="analytics-line-chart">
                 <div className="analytics-line-yaxis">
@@ -359,11 +407,11 @@ export default function Analytics() {
             <section className="analytics-card analytics-module-card">
               <div className="analytics-card-head">
                 <h2>Projects by status</h2>
-                <span>{toNumber(analytics?.total_projects) || 25} Total Projects</span>
+                <span>{analyticsLoading ? "--" : `${toNumber(analytics?.total_projects)} Total Projects`}</span>
               </div>
               <PillowyStatusChart
                 statusSegments={statusSegments}
-                totalProjects={toNumber(analytics?.total_projects) || 25}
+                totalProjects={toNumber(analytics?.total_projects)}
                 selectedStatusLabel={selectedStatusLabel}
                 onSelectStatus={(label) => setSelectedStatusLabel(label)}
               />
