@@ -11,6 +11,10 @@ export interface IConsultant {
   avatar: string | null;
   isActive: boolean;
   isStaff: boolean;
+  aiUsage?: {
+    plan?: string;
+    toolRuns?: Record<string, number>;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -55,6 +59,16 @@ const consultantSchema = new Schema<IConsultant>(
     isStaff: {
       type: Boolean,
       default: false,
+    },
+    aiUsage: {
+      plan: {
+        type: String,
+        default: 'free',
+      },
+      toolRuns: {
+        type: Schema.Types.Mixed,
+        default: {},
+      },
     },
   },
   {
