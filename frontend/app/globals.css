@@ -3293,13 +3293,20 @@ textarea {
   display: inline-flex;
   align-items: center;
   padding: 0 12px;
-  border: 1px solid rgba(77, 255, 160, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
-  color: #4dffa0;
-  background: rgba(77, 255, 160, 0.07);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.discovery-concept-actions a:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #ffffff;
 }
 
 .discovery-value {
