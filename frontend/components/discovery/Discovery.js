@@ -508,6 +508,20 @@ function OverviewPanel({
         <h2 className="discovery-panel-title">Payment schedule</h2>
         {paymentItems.length > 0 ? (
           <>
+            <div className="discovery-payment-bar" role="progressbar" aria-label="Payment Milestones Breakdown">
+              {paymentItems.map((item, idx) => {
+                const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
+                const widthPercent = Number(item.split) || (idx === 0 ? 40 : idx === 1 ? 50 : 10);
+                return (
+                  <span
+                    key={item.label || typeClass}
+                    className={`discovery-payment-segment ${typeClass}`}
+                    style={{ width: `${widthPercent}%`, flex: `${widthPercent} 0 auto` }}
+                    title={`${item.label}: ${widthPercent}% (${item.value})`}
+                  />
+                );
+              })}
+            </div>
             <div className="discovery-payment-legend">
               {paymentItems.map((item, idx) => {
                 const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
@@ -3750,6 +3764,31 @@ function PaymentsPanel({ project, onProjectRefresh }) {
         ) : null}
         {paymentItems.length > 0 ? (
           <>
+            <div className="discovery-payment-bar" role="progressbar" aria-label="Payment Milestones Breakdown">
+              {paymentItems.map((item, idx) => {
+                const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
+                const widthPercent = Number(item.split) || (idx === 0 ? 40 : idx === 1 ? 50 : 10);
+                return (
+                  <span
+                    key={item.label || typeClass}
+                    className={`discovery-payment-segment ${typeClass}`}
+                    style={{ width: `${widthPercent}%`, flex: `${widthPercent} 0 auto` }}
+                    title={`${item.label}: ${widthPercent}% (${item.value})`}
+                  />
+                );
+              })}
+            </div>
+            <div className="discovery-payment-legend">
+              {paymentItems.map((item, idx) => {
+                const typeClass = (item.key || item.label || (idx === 0 ? "advance" : idx === 1 ? "mid" : "final")).toLowerCase();
+                return (
+                  <span key={item.label || typeClass} className={`discovery-payment-pill ${typeClass}`}>
+                    <i className={`discovery-payment-dot ${typeClass}`} aria-hidden="true" />
+                    {item.label} {item.split}%
+                  </span>
+                );
+              })}
+            </div>
             <div className="discovery-payment-list">
               {paymentItems.map((item) => (
                 <div className="discovery-payment-item discovery-payment-item-rich" key={item.id || item.label}>
