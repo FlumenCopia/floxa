@@ -3648,10 +3648,10 @@
   flex-direction: column;
   gap: 20px;
   width: 100%;
-  padding: 24px 28px;
-  background: rgba(10, 24, 18, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   box-sizing: border-box;
 }
 
@@ -3720,10 +3720,9 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.25);
+  padding: 0;
+  border: none;
+  background: transparent;
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -3762,10 +3761,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 16px;
-  padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .client-signature-inputs {
@@ -3859,16 +3857,9 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.client-agreement-meta-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 
 .client-agreement-meta-item span {
