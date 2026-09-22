@@ -3513,7 +3513,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(137, 172, 160, 0.6);
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -3545,19 +3545,19 @@
   letter-spacing: 0.2px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(137, 172, 160, 0.6);
+  color: #ffffff;
 }
 
 .client-payment-badge.paid {
   background: rgba(77, 255, 160, 0.12);
   border-color: rgba(77, 255, 160, 0.3);
-  color: var(--floxa-neon, #4dffa0);
+  color: #ffffff;
 }
 
 .client-payment-badge.requested {
   background: rgba(250, 204, 21, 0.12);
   border-color: rgba(250, 204, 21, 0.3);
-  color: #facc15;
+  color: #ffffff;
 }
 
 .client-payment-pay-btn {
