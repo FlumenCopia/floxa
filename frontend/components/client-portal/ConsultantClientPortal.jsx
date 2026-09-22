@@ -432,32 +432,42 @@ export default function ConsultantClientPortal() {
   const searchParams = useSearchParams();
   const isConsultantMode = searchParams?.get("mode") !== "client";
   const urlToken = searchParams?.get("token") || "";
+  const urlProjectId = searchParams?.get("projectId") || "";
+  const urlStep = searchParams?.get("step") ? parseInt(searchParams.get("step"), 10) : null;
 
   const [entered, setEntered] = useState(() => {
+    if (urlToken || urlProjectId) return true;
     if (typeof window === "undefined") return false;
-    return window.sessionStorage.getItem(`floxa-portal-entered-${urlToken || "default"}`) === "true";
+    return window.sessionStorage.getItem(`floxa-portal-entered-${urlToken || urlProjectId || "default"}`) === "true";
   });
   const [finished, setFinished] = useState(() => {
     if (typeof window === "undefined" || isConsultantMode) return false;
-    return window.sessionStorage.getItem(`floxa-portal-finished-${urlToken || "default"}`) === "true";
+    return window.sessionStorage.getItem(`floxa-portal-finished-${urlToken || urlProjectId || "default"}`) === "true";
   });
   const [step, setStep] = useState(() => {
+    if (urlStep && urlStep >= 1 && urlStep <= 6) return urlStep;
     if (typeof window === "undefined") return 1;
-    const saved = parseInt(window.sessionStorage.getItem(`floxa-portal-step-${urlToken || "default"}`) || "1", 10);
+    const saved = parseInt(window.sessionStorage.getItem(`floxa-portal-step-${urlToken || urlProjectId || "default"}`) || "1", 10);
     return saved >= 1 && saved <= 6 ? saved : 1;
   });
 
   useEffect(() => {
+    if (urlStep && urlStep >= 1 && urlStep <= 6) {
+      setStep(urlStep);
+    }
+  }, [urlStep]);
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(`floxa-portal-entered-${urlToken || "default"}`, String(entered));
+      window.sessionStorage.setItem(`floxa-portal-entered-${urlToken || urlProjectId || "default"}`, String(entered));
       if (!isConsultantMode) {
-        window.sessionStorage.setItem(`floxa-portal-finished-${urlToken || "default"}`, String(finished));
+        window.sessionStorage.setItem(`floxa-portal-finished-${urlToken || urlProjectId || "default"}`, String(finished));
       } else {
         window.sessionStorage.removeItem("floxa-portal-finished-default");
       }
-      window.sessionStorage.setItem(`floxa-portal-step-${urlToken || "default"}`, String(step));
+      window.sessionStorage.setItem(`floxa-portal-step-${urlToken || urlProjectId || "default"}`, String(step));
     }
-  }, [entered, finished, step, urlToken, isConsultantMode]);
+  }, [entered, finished, step, urlToken, urlProjectId, isConsultantMode]);
   const [email, setEmail] = useState("");
   const [answers, setAnswers] = useState(defaultAnswers);
   const [sliderOne, setSliderOne] = useState(() => makeSliderState(personalityOne));
@@ -525,10 +535,25 @@ export default function ConsultantClientPortal() {
         }
         if (Array.isArray(list) && list.length > 0) {
           setProjects(list);
-          const first = list[0];
-          setProject(first);
-          const clientMail = first.client_email || first.client?.email || "";
+          const matched = urlProjectId
+            ? list.find((p) => String(p.id) === String(urlProjectId) || String(p._id) === String(urlProjectId))
+            : (urlToken ? list.find((p) => p.portal_token === urlToken) : null);
+          const target = matched || list[0];
+          setProject(target);
+          const clientMail = target.client_email || target.client?.email || "";
           if (clientMail) setEmail(clientMail);
+
+          if (matched && matched.portal_token) {
+            try {
+              const resp = await clientPortalService.checkPortalAccess(matched.portal_token);
+              if (resp?.success && resp?.data) {
+                setProject(resp.data);
+                const cm = resp.data.clientEmail || resp.data.client_email || "";
+                if (cm) setEmail(cm);
+              }
+            } catch {}
+            setEntered(true);
+          }
         }
 
         if (urlToken) {
@@ -545,7 +570,7 @@ export default function ConsultantClientPortal() {
       }
     }
     loadProjectContext();
-  }, [urlToken]);
+  }, [urlToken, urlProjectId]);
 
   // Connect to WebSocket for real-time live assistance
   useEffect(() => {
@@ -995,11 +1020,56 @@ export default function ConsultantClientPortal() {
             <X size={15} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
             Close
           </button>
-          <h1>{"Let's discover your brand."}</h1>
+          <h1>{isConsultantMode ? "Consultant Portal — Client Discovery" : "Let's discover your brand."}</h1>
           <p>
-            {"You've"} been invited to complete a 12-minute brand discovery session. Your answers
-            help craft your unique brand identity.
+            {isConsultantMode
+              ? "Select a client project below to review their discovery inputs or co-work with them live."
+              : "You've been invited to complete a 12-minute brand discovery session. Your answers help craft your unique brand identity."}
           </p>
+
+          {isConsultantMode && projects.some((p) => p.has_help_request) ? (
+            <div
+              style={{
+                backgroundColor: "rgba(245, 158, 11, 0.15)",
+                border: "1px solid rgba(245, 158, 11, 0.5)",
+                borderRadius: "10px",
+                padding: "10px 14px",
+                marginBottom: "16px",
+                fontSize: "13px",
+                color: "#fde68a",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "8px",
+              }}
+            >
+              <span>💬 A client is currently requesting live assistance!</span>
+              <button
+                type="button"
+                style={{
+                  background: "#f59e0b",
+                  color: "#000",
+                  fontWeight: 600,
+                  padding: "4px 12px",
+                  borderRadius: "6px",
+                  border: "none",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+                onClick={() => {
+                  const hp = projects.find((p) => p.has_help_request);
+                  if (hp) {
+                    setProject(hp);
+                    const stepMatch = String(hp.help_request?.page_id || "").match(/\d+/);
+                    if (stepMatch) setStep(parseInt(stepMatch[0], 10));
+                    setEntered(true);
+                  }
+                }}
+              >
+                Join Live
+              </button>
+            </div>
+          ) : null}
 
           {projects.length > 0 ? (
             <label className="cp-field" style={{ marginBottom: "16px" }}>
@@ -1127,14 +1197,14 @@ export default function ConsultantClientPortal() {
                     }
                   }
                 }}
-                defaultValue=""
+                value={project?.id || project?.portal_token || ""}
               >
                 <option value="" disabled>
                   -- Select a client to auto-fill --
                 </option>
                 {projects.map((p) => {
                   const optVal = String(p.id || p.portal_token);
-                  const optLabel = `${p.company_name || p.title} (${p.client?.name || p.client_name || p.client_email || "Client"})`;
+                  const optLabel = `${p.company_name || p.title} (${p.client?.name || p.client_name || p.client_email || "Client"})${p.has_help_request ? " 💬 [Help Requested]" : ""}`;
                   return (
                     <option key={optVal} value={optVal}>
                       {optLabel}
@@ -1145,22 +1215,31 @@ export default function ConsultantClientPortal() {
             </label>
           ) : null}
 
-          <label className="cp-field">
-            <span>Your email address</span>
-            <input
-              onChange={(event) => setEmail(event.target.value)}
-              type="email"
-              value={email}
-              placeholder="Select client above or enter email"
-            />
-          </label>
+          {!isConsultantMode ? (
+            <label className="cp-field">
+              <span>Your email address</span>
+              <input
+                onChange={(event) => setEmail(event.target.value)}
+                type="email"
+                value={email}
+                placeholder="Select client above or enter email"
+              />
+            </label>
+          ) : null}
           <button
             className="cp-primary cp-enter"
-            disabled={!Boolean((email && email.includes("@")) || (isConsultantMode && project))}
-            onClick={() => setEntered(true)}
+            disabled={isConsultantMode ? !project : !Boolean(email && email.includes("@"))}
+            onClick={() => {
+              if (project?.portal_token) {
+                clientPortalService.checkPortalAccess(project.portal_token).then((res) => {
+                  if (res?.success && res.data) setProject(res.data);
+                }).catch(() => {});
+              }
+              setEntered(true);
+            }}
             type="button"
           >
-            {"Enter portal"}
+            {isConsultantMode ? "Open Client Portal" : "Enter portal"}
           </button>
           <small>Answers are shared only with your consultant and kept securely encrypted.</small>
         </section>
