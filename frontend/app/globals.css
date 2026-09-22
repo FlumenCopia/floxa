@@ -3349,7 +3349,7 @@ textarea {
   margin: 16px 0 8px;
   font-size: 32px;
   line-height: 1;
-  color: #4dffa0;
+  color: #ffffff;
 }
 
 .discovery-brand-pill {
@@ -3359,9 +3359,24 @@ textarea {
   min-height: 32px;
   padding: 0 16px;
   border-radius: 999px;
-  border: 1px solid rgba(77, 255, 160, 0.3);
-  color: #58ffaf;
-  background: rgba(77, 255, 160, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.discovery-brand-pill:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+}
+
+.discovery-brand-pill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .discovery-brand-copy {
@@ -10436,9 +10451,10 @@ input[type="file"]:hover::-webkit-file-upload-button {
   font-size: 11px;
   font-weight: 600;
   color: #4dffa0;
-  background: rgba(77, 255, 160, 0.06);
-  padding: 2px 8px;
-  border-radius: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
 }
 
 .brand-dna-hook-headline {
