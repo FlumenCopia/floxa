@@ -776,6 +776,33 @@ export default function Floxaheader({
       return;
     }
 
+    // Route client live help requests directly to client portal in consultant mode
+    if (action === "client_help_requested") {
+      let portalToken = notification?.portal_token || notification?.metadata?.portal_token;
+      let pageId = notification?.page_id || notification?.metadata?.page_id;
+
+      if (!portalToken && typeof notification?.metadata === "string") {
+        try {
+          const parsed = JSON.parse(notification.metadata);
+          portalToken = parsed?.portal_token;
+          pageId = pageId || parsed?.page_id;
+        } catch {}
+      }
+
+      const stepMatch = String(pageId || "").match(/\d+/);
+      const stepParam = stepMatch ? `&step=${stepMatch[0]}` : "";
+
+      if (portalToken) {
+        router.push(`/client-portal?token=${encodeURIComponent(portalToken)}&mode=consultant${stepParam}`);
+        return;
+      }
+
+      if (projectId) {
+        router.push(`/client-portal?projectId=${encodeURIComponent(projectId)}&mode=consultant${stepParam}`);
+        return;
+      }
+    }
+
     const tab = (action && notificationTabByAction[action]) || "overview";
 
     if (projectId) {

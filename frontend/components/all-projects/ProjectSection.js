@@ -535,6 +535,15 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                               supportSocket.emit("project_read", { projectId: row.id });
                               // Call backend to persist read status
                               markProjectActivitiesRead(row.id).catch(() => {});
+
+                              // If client requested live assistance, route directly to live portal
+                              if (hasHelp && row.portal_token) {
+                                const stepMatch = String(helpInfo?.page_id || "").match(/\d+/);
+                                const stepParam = stepMatch ? `&step=${stepMatch[0]}` : "";
+                                router.push(`/client-portal?token=${encodeURIComponent(row.portal_token)}&mode=consultant${stepParam}`);
+                                return;
+                              }
+
                               // Navigate to discovery
                               router.push(`/discovery?projectId=${row.id}`);
                             }}
