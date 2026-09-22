@@ -1532,7 +1532,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                                 fontWeight: 700,
                                 letterSpacing: "0.1em",
                                 textTransform: "uppercase",
-                                color: "#4dffa0",
+                                color: "#ffffff",
                                 background: "transparent",
                                 padding: 0,
                                 border: "none",
