@@ -1527,13 +1527,20 @@
   color: var(--floxa-muted);
   background: rgba(10, 25, 18, 0.4);
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.floxa-chip:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
 }
 
 .floxa-chip.active {
-  border-color: rgba(77, 255, 160, 0.38);
-  color: var(--floxa-neon);
-  background: rgba(77, 255, 160, 0.08);
-  font-weight: 500;
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
 }
 
 .client-helper-text {
