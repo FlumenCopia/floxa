@@ -3753,13 +3753,13 @@
   gap: 8px;
   padding: 6px 14px;
   border-radius: 999px;
-  background: rgba(77, 255, 160, 0.12);
-  border: 1px solid rgba(77, 255, 160, 0.35);
-  color: var(--floxa-neon, #4dffa0);
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #ffffff;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.3px;
-  box-shadow: 0 0 12px rgba(77, 255, 160, 0.15);
+  box-shadow: none;
 }
 
 .client-verified-version {
