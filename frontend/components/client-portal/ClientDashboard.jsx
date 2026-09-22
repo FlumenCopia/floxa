@@ -2422,6 +2422,34 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         </button>
                       </div>
                     ) : null}
+                    <div className="client-agreement-meta-grid">
+                      <div className="client-agreement-meta-item">
+                        <span>Document</span>
+                        <strong>Basic Agreement</strong>
+                      </div>
+                      {agreement.generated_at ? (
+                        <div className="client-agreement-meta-item">
+                          <span>Generated</span>
+                          <strong>{new Date(agreement.generated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</strong>
+                        </div>
+                      ) : null}
+                      {agreement.isProjectAgreement ? (
+                        <div className="client-agreement-meta-item">
+                          <span>Version</span>
+                          <strong>v{agreement.current_version || 1}.0</strong>
+                        </div>
+                      ) : null}
+                      {agreement.isProjectAgreement && agreement.last_updated_at ? (
+                        <div className="client-agreement-meta-item">
+                          <span>Last Updated</span>
+                          <strong>{new Date(agreement.last_updated_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</strong>
+                        </div>
+                      ) : null}
+                      <div className="client-agreement-meta-item">
+                        <span>Status</span>
+                        <strong>{getAgreementStatusLabel(agreement)}</strong>
+                      </div>
+                    </div>
                   </div>
                 </article>
               ) : null}
