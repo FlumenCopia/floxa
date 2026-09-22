@@ -4494,20 +4494,12 @@ textarea {
 }
 
 .discovery-agreement-history li {
-  display: grid;
-  grid-template-columns: 12px 1fr;
-  gap: 10px;
-  align-items: start;
+  display: block;
   color: #f4f8f2;
 }
 
 .discovery-agreement-history li span {
-  width: 8px;
-  height: 8px;
-  margin-top: 6px;
-  border-radius: 999px;
-  background: var(--floxa-neon);
-  box-shadow: 0 0 0 4px rgba(77, 255, 160, 0.12);
+  display: none;
 }
 
 .discovery-agreement-history li strong {

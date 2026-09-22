@@ -3621,7 +3621,6 @@ function AgreementPanel({ projectId, onProjectRefresh }) {
                   <ul>
                     {versionHistory.map((item) => (
                       <li key={`${item.version}-${item.event_type}`}>
-                        <span />
                         <strong>{formatAgreementHistoryLabel(item)}</strong>
                       </li>
                     ))}
