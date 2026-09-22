@@ -9467,7 +9467,7 @@ section:not(.client-welcome-stage)::after,
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 20px;
-  color: #94a3b8;
+  color: #ffffff;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -9475,9 +9475,15 @@ section:not(.client-welcome-stage)::after,
   backdrop-filter: blur(6px);
 }
 
+.client-help-trigger-btn .client-help-text,
+.client-help-trigger-btn svg {
+  color: #ffffff;
+  stroke: #ffffff;
+}
+
 .client-help-trigger-btn:hover {
   background: rgba(255, 255, 255, 0.12);
-  color: #f8fafc;
+  color: #ffffff;
   border-color: rgba(255, 255, 255, 0.25);
   transform: translateY(-1px);
 }
@@ -9485,7 +9491,7 @@ section:not(.client-welcome-stage)::after,
 .client-help-trigger-btn.active-help {
   background: rgba(16, 185, 129, 0.12);
   border-color: rgba(16, 185, 129, 0.4);
-  color: #10b981;
+  color: #ffffff;
 }
 
 .client-help-modal-overlay {
