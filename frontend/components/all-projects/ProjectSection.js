@@ -91,7 +91,7 @@ export function getStatusColorByLabel(label) {
 
 const PROJECT_PAGE_SIZE = 12;
 
-export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen = () => {} }) {
+export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen = () => { } }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectSearch = (searchParams.get("search") || "").trim();
@@ -534,17 +534,10 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
                               supportSocket.markProjectRead?.({ projectId: row.id });
                               supportSocket.emit("project_read", { projectId: row.id });
                               // Call backend to persist read status
-                              markProjectActivitiesRead(row.id).catch(() => {});
+                              markProjectActivitiesRead(row.id).catch(() => { });
 
-                              // If client requested live assistance, route directly to live portal
-                              if (hasHelp && row.portal_token) {
-                                const stepMatch = String(helpInfo?.page_id || "").match(/\d+/);
-                                const stepParam = stepMatch ? `&step=${stepMatch[0]}` : "";
-                                router.push(`/client-portal?token=${encodeURIComponent(row.portal_token)}&mode=consultant${stepParam}`);
-                                return;
-                              }
 
-                              // Navigate to discovery
+                              // Navigate to discovery for this project (identical to dashboard)
                               router.push(`/discovery?projectId=${row.id}`);
                             }}
                             style={{ cursor: "pointer" }}
