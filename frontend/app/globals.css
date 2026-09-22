@@ -2609,11 +2609,15 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #4dffa0;
+  color: #ffffff;
   font-size: 13px;
   font-weight: 700;
   box-shadow: none;
   padding: 0 4px;
+}
+
+.discovery-progress-ring span {
+  color: #ffffff;
 }
 
 .discovery-link-btn {
