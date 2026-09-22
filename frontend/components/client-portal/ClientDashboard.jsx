@@ -2301,28 +2301,11 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               ) : null}
 
               {!agreementLoading && agreement && agreement.status !== "signed" ? (
-                <article className="client-delivery-row">
-                  <div>
-                    {agreement.isProjectAgreement && agreement.status === "signature_requested" ? (
-                      <p>New Agreement Available</p>
-                    ) : null}
-                    {agreement.isProjectAgreement && agreement.status !== "shared" && Number(agreement.current_version || 1) > 1 ? (
-                      <p>Agreement Updated</p>
-                    ) : null}
-                    <h3>{agreement.title || "Service Agreement"}</h3>
-                    <p>
-                      Basic Agreement
-                      {agreement.generated_at ? ` - ${new Date(agreement.generated_at).toLocaleString()}` : ""}
-                    </p>
-                    {agreement.isProjectAgreement ? (
-                      <p>Current Version - v{agreement.current_version || 1}</p>
-                    ) : null}
-                    {agreement.isProjectAgreement && agreement.last_updated_at ? (
-                      <p>Last Updated - {new Date(agreement.last_updated_at).toLocaleString()}</p>
-                    ) : null}
-                    <p>Status - {getAgreementStatusLabel(agreement)}</p>
-                  </div>
-                  <div className="client-agreement-workspace">
+                <article className="client-agreement-card">
+                  <div className="client-agreement-header">
+                    <div className="client-agreement-summary">
+                      <h3>{agreement.title || "Service Agreement"}</h3>
+                    </div>
                     <div className="client-agreement-actions">
                       <button
                         type="button"
@@ -2341,6 +2324,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         {working === "agreement" ? "Downloading..." : "Download"}
                       </button>
                     </div>
+                  </div>
+                  <div className="client-agreement-workspace">
                     {agreement.isProjectAgreement && agreement.status === "signature_requested" ? (
                       <div className="client-signature-box">
                         {agreement.file_url ? (
@@ -2352,69 +2337,73 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         ) : null}
                         <div className="client-signature-heading">
                           <strong>eSignature</strong>
+                          <p>Review the agreement above and complete your digital signature.</p>
                         </div>
-                        <label className="client-panel-check">
-                          <span>Full legal name</span>
-                          <input
-                            value={signerName}
-                            onChange={(event) => setSignerName(event.target.value)}
-                            type="text"
-                            placeholder="Type your full legal name"
-                          />
-                        </label>
-                        <label className="client-panel-check">
-                          <input
-                            checked={signatureMethod === "typed"}
-                            onChange={() => setSignatureMethod("typed")}
-                            type="radio"
-                            name="signature-method"
-                          />
-                          <span>Type Name</span>
-                        </label>
-                        <label className="client-panel-check">
-                          <input
-                            checked={signatureMethod === "drawn"}
-                            onChange={() => setSignatureMethod("drawn")}
-                            type="radio"
-                            name="signature-method"
-                          />
-                          <span>Draw Signature</span>
-                        </label>
-                        {signatureMethod === "drawn" ? (
-                          <div>
-                            <canvas
-                              ref={signatureCanvasRef}
-                              width="320"
-                              height="120"
-                              onMouseDown={startDrawingSignature}
-                              onMouseMove={drawSignature}
-                              onMouseUp={stopDrawingSignature}
-                              onMouseLeave={stopDrawingSignature}
-                              onTouchStart={startDrawingSignature}
-                              onTouchMove={drawSignature}
-                              onTouchEnd={stopDrawingSignature}
-                              style={{ border: "1px solid rgba(255,255,255,0.25)", width: "100%", maxWidth: 320 }}
-                            />
-                            <button type="button" className="client-panel-action secondary" onClick={clearDrawnSignature}>
-                              Clear
-                            </button>
-                          </div>
-                        ) : null}
-                        <label className="client-panel-check">
-                          <input
-                            checked={signatureMethod === "uploaded"}
-                            onChange={() => setSignatureMethod("uploaded")}
-                            type="radio"
-                            name="signature-method"
-                          />
-                          <span>Upload Signature Image</span>
-                        </label>
-                        {signatureMethod === "uploaded" ? (
+                        <div className="client-signature-method-selector">
                           <label className="client-panel-check">
-                            <input accept="image/png,image/jpeg,image/webp" onChange={readSignatureUpload} type="file" />
-                            <span>{uploadedSignature ? "Signature image selected" : "Choose signature image"}</span>
+                            <input
+                              checked={signatureMethod === "typed"}
+                              onChange={() => setSignatureMethod("typed")}
+                              type="radio"
+                              name="signature-method"
+                            />
+                            <span>Type Name</span>
                           </label>
-                        ) : null}
+                          <label className="client-panel-check">
+                            <input
+                              checked={signatureMethod === "drawn"}
+                              onChange={() => setSignatureMethod("drawn")}
+                              type="radio"
+                              name="signature-method"
+                            />
+                            <span>Draw Signature</span>
+                          </label>
+                          <label className="client-panel-check">
+                            <input
+                              checked={signatureMethod === "uploaded"}
+                              onChange={() => setSignatureMethod("uploaded")}
+                              type="radio"
+                              name="signature-method"
+                            />
+                            <span>Upload Image</span>
+                          </label>
+                        </div>
+                        <div className="client-signature-inputs">
+                          <label className="client-signature-name-field">
+                            <span>Full legal name</span>
+                            <input
+                              value={signerName}
+                              onChange={(event) => setSignerName(event.target.value)}
+                              type="text"
+                              placeholder="Type your full legal name"
+                            />
+                          </label>
+                          {signatureMethod === "drawn" ? (
+                            <div className="client-signature-draw-area">
+                              <canvas
+                                ref={signatureCanvasRef}
+                                width="320"
+                                height="120"
+                                onMouseDown={startDrawingSignature}
+                                onMouseMove={drawSignature}
+                                onMouseUp={stopDrawingSignature}
+                                onMouseLeave={stopDrawingSignature}
+                                onTouchStart={startDrawingSignature}
+                                onTouchMove={drawSignature}
+                                onTouchEnd={stopDrawingSignature}
+                              />
+                              <button type="button" className="client-panel-action secondary" onClick={clearDrawnSignature} style={{ alignSelf: "flex-start" }}>
+                                Clear Canvas
+                              </button>
+                            </div>
+                          ) : null}
+                          {signatureMethod === "uploaded" ? (
+                            <label className="client-signature-upload-field">
+                              <input accept="image/png,image/jpeg,image/webp" onChange={readSignatureUpload} type="file" />
+                              <span>{uploadedSignature ? "Signature image selected" : "Choose signature image"}</span>
+                            </label>
+                          ) : null}
+                        </div>
                         <label className="client-panel-check client-signature-consent">
                           <input
                             checked={hasReadAgreement}
@@ -2427,7 +2416,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                           type="button"
                           disabled={working === "agreement-sign"}
                           onClick={signAgreement}
-                          className="client-panel-action"
+                          className="client-panel-action client-signature-submit-btn"
                         >
                           {working === "agreement-sign" ? "Signing..." : "Finish Signing"}
                         </button>
