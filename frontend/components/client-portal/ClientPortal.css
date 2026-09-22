@@ -3219,17 +3219,24 @@
   justify-content: center;
   min-height: 40px;
   padding: 8px 15px;
-  border: 1px solid rgba(177, 239, 215, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
-  color: var(--floxa-neon);
-  background: rgba(77, 255, 160, 0.06);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
   cursor: pointer;
   text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.client-panel-action:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
 }
 
 .client-panel-action.secondary {
-  color: rgba(220, 235, 229, 0.64);
-  border-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.16);
   background: transparent;
 }
 
@@ -3657,10 +3664,10 @@
   width: fit-content;
   margin-bottom: 10px;
   padding: 5px 10px;
-  border: 1px solid rgba(77, 255, 160, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
-  color: var(--floxa-neon);
-  background: rgba(77, 255, 160, 0.08);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.2;
