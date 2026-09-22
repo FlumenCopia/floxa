@@ -75,10 +75,10 @@ export async function getProjects(req: any, res: Response, next: NextFunction) {
 
     const unreadActivities = projectIds.length
       ? await ProjectActivity.find({
-          projectId: { $in: projectIds },
-          isRead: false,
-          actorType: { $ne: 'consultant' },
-        }).sort({ createdAt: -1 })
+        projectId: { $in: projectIds },
+        isRead: false,
+        actorType: { $ne: 'consultant' },
+      }).sort({ createdAt: -1 })
       : [];
 
     const helpByProjectId = new Map<string, any>();
@@ -385,28 +385,117 @@ export async function getAnalytics(req: any, res: Response, next: NextFunction) 
       isArchived: false,
     }).populate('paymentMilestones');
 
-    const activeProjects = projects.filter((p) => p.status !== 'delivered').length;
-    const completedProjects = projects.filter((p) => p.status === 'delivered').length;
+    const totalProjects = projects.length;
+    const completedProjects = projects.filter(
+      (p) => p.status === 'delivered' || Boolean(p.clientSignedOff)
+    ).length;
+    const activeProjects = totalProjects - completedProjects;
 
-    let totalRevenue = 0;
-    let pendingRevenue = 0;
+    let totalPaidRevenue = 0;
+    let paymentPendingAmount = 0;
+    let totalProjectValues = 0;
+
+    // 4 Canonical status counts for dashboard
+    const statusCounts: Record<string, number> = {
+      created: 0,
+      in_progress: 0,
+      payment_pending: 0,
+      delivered: 0,
+    };
+
+    // Revenue by last 6 calendar months
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const now = new Date();
+    const monthlyBuckets: Array<{ label: string; amount: number; year: number; month: number }> = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthlyBuckets.push({
+        label: monthNames[d.getMonth()],
+        amount: 0,
+        year: d.getFullYear(),
+        month: d.getMonth(),
+      });
+    }
+
+    // Projects progress list for sectors chart
+    const projectProgress = projects.map((p) => {
+      const sectorStr = p.sector ? ` (${p.sector})` : '';
+      const label = `${p.companyName || p.title || 'Untitled'}${sectorStr}`;
+      const progress = Math.max(0, Math.min(100, Math.round(Number(p.progress || 0))));
+      return {
+        id: p.id,
+        name: label,
+        label,
+        progress,
+        width: progress,
+      };
+    });
 
     projects.forEach((p) => {
-      (p.paymentMilestones || []).forEach((m: any) => {
+      const isDelivered = p.status === 'delivered' || Boolean(p.clientSignedOff);
+      const isCreated = p.status === 'created';
+      const milestones = p.paymentMilestones || [];
+      const hasPendingPayment =
+        !isDelivered &&
+        !isCreated &&
+        ((p.status as string) === 'advance_payment' ||
+          milestones.some(
+            (m: any) =>
+              m.status === 'requested' ||
+              (m.type === 'advance' && m.status === 'pending')
+          ));
+
+      if (isDelivered) {
+        statusCounts.delivered++;
+      } else if (isCreated) {
+        statusCounts.created++;
+      } else if (hasPendingPayment) {
+        statusCounts.payment_pending++;
+      } else {
+        statusCounts.in_progress++;
+      }
+
+      // Aggregate project value
+      totalProjectValues += Number(p.projectValue || 0);
+
+      // Aggregate milestones
+      milestones.forEach((m: any) => {
+        const amt = Number(m.amount || 0);
         if (m.status === 'paid') {
-          totalRevenue += Number(m.amount || 0);
+          totalPaidRevenue += amt;
+
+          const paidDate = new Date(m.paidAt || m.updatedAt || m.createdAt || now);
+          const bucket = monthlyBuckets.find(
+            (b) => b.year === paidDate.getFullYear() && b.month === paidDate.getMonth()
+          );
+          if (bucket) {
+            bucket.amount += amt;
+          }
         } else {
-          pendingRevenue += Number(m.amount || 0);
+          paymentPendingAmount += amt;
         }
       });
     });
 
+    const averageProjectValue = totalProjects > 0 ? Math.round(totalProjectValues / totalProjects) : 0;
+    const revenueLast6Months = monthlyBuckets.map((b) => ({
+      label: b.label,
+      amount: b.amount,
+    }));
+
     res.json({
       active_projects: activeProjects,
       completed_projects: completedProjects,
-      total_revenue: totalRevenue,
-      pending_revenue: pendingRevenue,
-      total_projects: projects.length,
+      total_projects: totalProjects,
+      total_paid_revenue: totalPaidRevenue,
+      payment_pending_amount: paymentPendingAmount,
+      total_revenue: totalPaidRevenue, // Backward compatibility
+      pending_revenue: paymentPendingAmount, // Backward compatibility
+      average_project_value: averageProjectValue,
+      project_status_counts: statusCounts,
+      revenue_last_6_months: revenueLast6Months,
+      project_progress: projectProgress,
     });
   } catch (err) {
     next(err);
