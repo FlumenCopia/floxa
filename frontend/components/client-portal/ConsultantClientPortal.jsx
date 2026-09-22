@@ -676,7 +676,9 @@ export default function ConsultantClientPortal() {
             }
             if (urlToken) setEntered(true);
           } else if (typeof disc.step === "number" && disc.step >= 1 && disc.step <= 6) {
-            setStep(disc.step);
+            if (!activeHelpSession?.is_active) {
+              setStep(disc.step);
+            }
             if (urlToken) setEntered(true);
           }
         }
@@ -1215,17 +1217,15 @@ export default function ConsultantClientPortal() {
             </label>
           ) : null}
 
-          {!isConsultantMode ? (
-            <label className="cp-field">
-              <span>Your email address</span>
-              <input
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                value={email}
-                placeholder="Select client above or enter email"
-              />
-            </label>
-          ) : null}
+          <label className="cp-field">
+            <span>Your email address</span>
+            <input
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              value={email}
+              placeholder="Select client above or enter email"
+            />
+          </label>
           <button
             className="cp-primary cp-enter"
             disabled={isConsultantMode ? !project : !Boolean(email && email.includes("@"))}

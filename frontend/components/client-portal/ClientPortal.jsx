@@ -34,6 +34,8 @@ function getResumeScreen(status) {
   return "profile";
 }
 
+const VALID_SCREENS = ["splash", "login", "profile", "discovery", "review", "dashboard"];
+
 function getScreenStorageKey(token) {
   return `floxa-client-screen-${token || "test-token"}`;
 }
@@ -43,12 +45,40 @@ function readStoredScreen(token) {
     return "";
   }
 
-  return window.sessionStorage.getItem(getScreenStorageKey(token)) || "";
+  const s =
+    window.sessionStorage.getItem(getScreenStorageKey(token)) ||
+    window.localStorage.getItem(getScreenStorageKey(token)) ||
+    "";
+  return VALID_SCREENS.includes(s) ? s : "";
 }
 
 function writeStoredScreen(token, screen) {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && screen && VALID_SCREENS.includes(screen)) {
     window.sessionStorage.setItem(getScreenStorageKey(token), screen);
+    window.localStorage.setItem(getScreenStorageKey(token), screen);
+  }
+}
+
+function getStepStorageKey(token) {
+  return `floxa-client-step-${token || "test-token"}`;
+}
+
+function readStoredStep(token) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const val =
+    window.sessionStorage.getItem(getStepStorageKey(token)) ||
+    window.localStorage.getItem(getStepStorageKey(token));
+  const parsed = parseInt(val, 10);
+  return parsed >= 1 && parsed <= 6 ? parsed : null;
+}
+
+function writeStoredStep(token, step) {
+  if (typeof window !== "undefined" && typeof step === "number" && step >= 1 && step <= 6) {
+    window.sessionStorage.setItem(getStepStorageKey(token), String(step));
+    window.localStorage.setItem(getStepStorageKey(token), String(step));
   }
 }
 
@@ -221,11 +251,12 @@ export function ClientPortal({ token, isConsultant = false }) {
     return portalProject;
   }, [applyProject, token]);
 
-  const [editStep, setEditStep] = useState(1);
+  const [editStep, setEditStep] = useState(() => readStoredStep(token) || 1);
 
   const goToScreen = (nextScreen, options = {}) => {
     if (typeof options?.step === "number") {
       setEditStep(options.step);
+      writeStoredStep(token, options.step);
     }
     setProfileReturnScreen(
       nextScreen === "profile" && ["dashboard", "review"].includes(screen) ? screen : ""
@@ -263,14 +294,14 @@ export function ClientPortal({ token, isConsultant = false }) {
 
     const projectWithSavedData = savedProfile
       ? {
-          ...portalProject,
-          clientEmail: savedProfile.clientEmail || portalProject.clientEmail,
-          brandDNA: {
-            ...portalProject.brandDNA,
-            ...savedProfile,
-            ...(savedDiscovery?.clientData || {}),
-          },
-        }
+        ...portalProject,
+        clientEmail: savedProfile.clientEmail || portalProject.clientEmail,
+        brandDNA: {
+          ...portalProject.brandDNA,
+          ...savedProfile,
+          ...(savedDiscovery?.clientData || {}),
+        },
+      }
       : portalProject;
 
     if (savedDiscovery && !savedDiscovery.isSubmitted && !savedDiscovery.is_submitted) {
@@ -367,14 +398,19 @@ export function ClientPortal({ token, isConsultant = false }) {
               const nextScreen = await loadSavedPortalProgress(verifiedProject);
               setResumeTargetScreen(nextScreen);
               const stored = readStoredScreen(token);
-              const isDiscoverySubmitted = nextScreen === "dashboard";
-              const finalScreen =
-                stored &&
-                !["splash", "login"].includes(stored) &&
-                (isDiscoverySubmitted || stored !== "dashboard") &&
-                (nextScreen !== "profile" || stored === "profile")
-                  ? stored
-                  : nextScreen;
+              let finalScreen = nextScreen;
+
+              if (stored && VALID_SCREENS.includes(stored) && !["splash", "login"].includes(stored)) {
+                finalScreen = stored;
+              }
+
+              if (finalScreen === "discovery") {
+                const storedStep = readStoredStep(token);
+                if (storedStep) {
+                  setEditStep(storedStep);
+                }
+              }
+
               writeStoredScreen(token, finalScreen);
               setScreen(finalScreen);
             } catch {
@@ -468,19 +504,30 @@ export function ClientPortal({ token, isConsultant = false }) {
     onProjectRefresh: refreshProject,
   };
 
+  const currentScreen = VALID_SCREENS.includes(screen) ? screen : "splash";
+
   return (
     <main className="client-portal-shell">
       <ClientSecurityShield isConsultant={isConsultantMode} />
-      {screen === "splash" || screen === "login" ? (
+      {currentScreen === "splash" || currentScreen === "login" ? (
         <WelcomeStage
           {...screenProps}
-          initialMode={screen === "login" ? "login" : "splash"}
+          initialMode={currentScreen === "login" ? "login" : "splash"}
         />
       ) : null}
-      {screen === "profile" ? <ProfileScreen {...screenProps} /> : null}
-      {screen === "discovery" ? <DiscoveryFlow key={`discovery-step-${editStep}`} {...screenProps} /> : null}
-      {screen === "review" ? <DiscoveryReview key="review-stage" {...screenProps} /> : null}
-      {screen === "dashboard" ? (
+      {currentScreen === "profile" ? <ProfileScreen {...screenProps} /> : null}
+      {currentScreen === "discovery" ? (
+        <DiscoveryFlow
+          key={`discovery-flow-${token || project?.portal_token || "portal"}`}
+          {...screenProps}
+          onStepChange={(newStep) => {
+            setEditStep(newStep);
+            writeStoredStep(token, newStep);
+          }}
+        />
+      ) : null}
+      {currentScreen === "review" ? <DiscoveryReview key="review-stage" {...screenProps} /> : null}
+      {currentScreen === "dashboard" ? (
         <ClientDashboard
           {...screenProps}
           onSignOut={() => setIsSignOutModalOpen(true)}

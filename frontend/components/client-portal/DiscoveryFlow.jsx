@@ -212,6 +212,7 @@ export function DiscoveryFlow({
   token,
   portalToken,
   onNext,
+  onStepChange,
   isConsultantMode = false,
   consultantToken = "",
   initialStep,
@@ -219,11 +220,23 @@ export function DiscoveryFlow({
   const targetPortalToken = portalToken || token || project?.portal_token || project?.portalToken || "";
   const draftKey = `floxa-discovery-${project?.id || "draft"}`;
   const [step, setStep] = useState(() => {
+    if (typeof window !== "undefined" && targetPortalToken) {
+      const stored =
+        window.sessionStorage.getItem(`floxa-client-step-${targetPortalToken}`) ||
+        window.localStorage.getItem(`floxa-client-step-${targetPortalToken}`);
+      const parsed = parseInt(stored, 10);
+      if (parsed >= 1 && parsed <= 6) {
+        return parsed;
+      }
+    }
+    const draft = readStoredDraft(draftKey);
+    if (typeof draft?.step === "number" && draft.step >= 1 && draft.step <= 6) {
+      return draft.step;
+    }
     if (typeof initialStep === "number" && initialStep >= 1 && initialStep <= 6) {
       return initialStep;
     }
-    const draft = readStoredDraft(draftKey);
-    return Math.min(6, Math.max(1, draft.step ?? 1));
+    return 1;
   });
   const [sliders, setSliders] = useState(() => readStoredDraft(draftKey).sliders ?? {});
   const [emotions, setEmotions] = useState(() => {
@@ -270,6 +283,22 @@ export function DiscoveryFlow({
 
   const pcts = [17, 33, 50, 67, 83, 100];
   const pct = pcts[step - 1] ?? 100;
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && targetPortalToken && typeof step === "number") {
+      window.sessionStorage.setItem(`floxa-client-step-${targetPortalToken}`, String(step));
+      window.localStorage.setItem(`floxa-client-step-${targetPortalToken}`, String(step));
+    }
+    if (typeof onStepChange === "function") {
+      onStepChange(step);
+    }
+  }, [targetPortalToken, step, onStepChange]);
+
+  useEffect(() => {
+    if (typeof initialStep === "number" && initialStep >= 1 && initialStep <= 6 && initialStep !== step) {
+      setStep(initialStep);
+    }
+  }, [initialStep]);
 
   useEffect(() => {
     if (!targetPortalToken) return;
@@ -400,6 +429,9 @@ export function DiscoveryFlow({
 
     const draft = { basics, sliders, emotions, persona, styles, comps, step };
     window.localStorage.setItem(draftKey, JSON.stringify(draft));
+    if (targetPortalToken) {
+      window.localStorage.setItem(`floxa-discovery-${targetPortalToken}`, JSON.stringify(draft));
+    }
 
     const timeout = window.setTimeout(() => {
       const payload = buildDiscoveryPayload({
@@ -715,15 +747,15 @@ export function DiscoveryFlow({
       (step !== 1 ||
         Boolean(
           basics.whatDo &&
-            basics.targetCustomer &&
-            basics.whyChooseUs &&
-            basics.brandFeeling
+          basics.targetCustomer &&
+          basics.whyChooseUs &&
+          basics.brandFeeling
         )) &&
       (step !== 4 || emotions.length > 0) &&
       (step !== 5 ||
         Boolean(
           persona &&
-            comps.some((item) => getCompetitorNameForPayload(item) && item.rating)
+          comps.some((item) => getCompetitorNameForPayload(item) && item.rating)
         ));
 
     if (!valid) {
@@ -740,6 +772,13 @@ export function DiscoveryFlow({
       if (data.success) {
         const next = step + 1;
         setStep(next);
+        if (typeof onStepChange === "function") {
+          onStepChange(next);
+        }
+        if (typeof window !== "undefined" && targetPortalToken) {
+          window.sessionStorage.setItem(`floxa-client-step-${targetPortalToken}`, String(next));
+          window.localStorage.setItem(`floxa-client-step-${targetPortalToken}`, String(next));
+        }
         supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
       } else {
         setMessage(data.error ?? "Something went wrong.");
@@ -756,6 +795,13 @@ export function DiscoveryFlow({
     if (step <= 1) return;
     const prev = step - 1;
     setStep(prev);
+    if (typeof onStepChange === "function") {
+      onStepChange(prev);
+    }
+    if (typeof window !== "undefined" && targetPortalToken) {
+      window.sessionStorage.setItem(`floxa-client-step-${targetPortalToken}`, String(prev));
+      window.localStorage.setItem(`floxa-client-step-${targetPortalToken}`, String(prev));
+    }
     supportSocket.navigateStep({ step: prev, pageId: `frame_${prev}` });
   }
 
