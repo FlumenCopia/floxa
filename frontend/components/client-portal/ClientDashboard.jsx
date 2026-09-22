@@ -1752,9 +1752,9 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "8px",
-                        background: "linear-gradient(135deg, #1f4d38 0%, #102e21 100%)",
-                        color: "#4dffa0",
-                        border: "1px solid rgba(77, 255, 160, 0.4)",
+                        background: "transparent",
+                        color: "#ffffff",
+                        border: "1px solid rgba(255, 255, 255, 0.4)",
                         borderRadius: "10px",
                         padding: "10px 20px",
                         fontSize: "0.9rem",
@@ -1765,7 +1765,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       onClick={handleDownloadBrandDnaPdf}
                       disabled={downloadingBrandDna}
                     >
-                      <FileText size={16} style={{ flexShrink: 0 }} /> {downloadingBrandDna ? "Downloading PDF..." : "Download Brand DNA Brief (PDF)"}
+                      <FileText size={16} color="#ffffff" style={{ flexShrink: 0 }} /> {downloadingBrandDna ? "Downloading PDF..." : "Download Brand DNA Brief (PDF)"}
                     </button>
                   </div>
                 </>
