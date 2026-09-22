@@ -1334,30 +1334,6 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
         </div>
 
         <div className="client-dashboard-actions">
-          <button
-            type="button"
-            className="client-offcanvas-toggle-btn"
-            onClick={() => setOffcanvasOpen(true)}
-            title="Toggle Menu"
-            aria-label="Toggle Menu"
-          >
-            <svg
-              width="26"
-              height="26"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="4" y1="7" x2="20" y2="7" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="17" x2="20" y2="17" />
-            </svg>
-          </button>
-
           <div className="client-notification-wrap" ref={notificationsRef}>
             <button
               type="button"
@@ -1421,6 +1397,29 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
           {/* <button type="button" onClick={() => onSignOut?.()}>
             Sign out
           </button> */}
+          <button
+            type="button"
+            className="client-offcanvas-toggle-btn"
+            onClick={() => setOffcanvasOpen(true)}
+            title="Toggle Menu"
+            aria-label="Toggle Menu"
+          >
+            <svg
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </button>
         </div>
       </header>
 
