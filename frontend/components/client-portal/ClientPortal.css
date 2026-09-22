@@ -1318,11 +1318,19 @@
 .client-discovery-dots {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   margin-bottom: 24px;
 }
 
-.client-discovery-dots span,
+.client-discovery-dots span {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
 .client-section-label,
 .client-textarea-field span {
   color: var(--floxa-muted);
@@ -1333,21 +1341,25 @@
 }
 
 .client-discovery-dots i {
-  width: 6px;
-  height: 6px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: rgba(137, 172, 160, 0.15);
+  background: rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
+  display: block;
 }
 
 .client-discovery-dots i.active {
-  width: 18px;
-  border-radius: 3px;
-  background: var(--floxa-text);
+  width: 28px;
+  height: 9px;
+  border-radius: 5px;
+  background: #ffffff;
 }
 
 .client-discovery-dots i.complete {
-  background: var(--floxa-neon);
+  width: 9px;
+  height: 9px;
+  background: var(--floxa-neon, #4dffa0);
 }
 
 .client-discovery-content h2 {
