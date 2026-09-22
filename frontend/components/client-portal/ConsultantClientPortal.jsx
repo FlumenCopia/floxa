@@ -301,24 +301,22 @@ function PortalCard({
         {children}
       </div>
       <footer className="cp-card-footer">
-        <button className="cp-back" type="button" onClick={onBack}>
-          <ArrowLeft size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
-          Back
-        </button>
+        {!isConsultantMode && onBack ? (
+          <button className="cp-back" type="button" onClick={onBack}>
+            <ArrowLeft size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }} />
+            Back
+          </button>
+        ) : (
+          <div />
+        )}
         <StepDots active={step} />
         <button
           className="cp-primary cp-footer-btn"
           type="button"
           onClick={onNext}
-          disabled={isReadOnly || isSaving}
+          disabled={isSaving}
         >
-          {submit
-            ? isConsultantMode
-              ? isSaving
-                ? "Saving..."
-                : "Save & Close"
-              : "Submit Discovery"
-            : "Continue"}
+          {isSaving ? "Saving..." : "Continue"}
           <ArrowRight size={14} strokeWidth={2} style={{ display: "inline-block", verticalAlign: "-2px", marginLeft: "4px" }} />
         </button>
       </footer>
@@ -879,20 +877,65 @@ export default function ConsultantClientPortal() {
     }
   };
 
-  function goNext() {
-    if (isReadOnly) return;
-    if (step === 6) {
-      if (isConsultantMode) {
-        handleSaveDiscovery();
+  const goNext = async () => {
+    if (isReadOnly) {
+      if (step === 6) {
+        if (isConsultantMode) {
+          handleClosePortal();
+          return;
+        }
+        setFinished(true);
         return;
       }
+      const next = Math.min(step + 1, 6);
+      setStep(next);
+      supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
+      return;
+    }
+
+    if (isConsultantMode) {
+      const targetToken = project?.portal_token || urlToken || "";
+      if (targetToken) {
+        setIsSaving(true);
+        try {
+          await clientPortalService.saveDiscoveryDraft(targetToken, {
+            whatDo: answers.what || answers.whatDoYouDo,
+            business_description: answers.what || answers.whatDoYouDo,
+            targetCustomer: answers.customer || answers.targetCustomer,
+            whyChooseUs: answers.choose || answers.whyChooseYou,
+            brandFeeling: answers.trust || answers.whyTrustYou,
+            step,
+          });
+        } catch (e) {
+          console.warn("Save discovery draft on continue error:", e);
+        } finally {
+          setIsSaving(false);
+        }
+
+        clientPortalService.resolveHelp(targetToken, { pageId }).catch(() => undefined);
+      }
+      supportSocket.resolveHelp({ pageId });
+      setActiveHelpSession(null);
+
+      // Advance to next page with read-only mode instead of closing
+      if (step === 6) {
+        handleClosePortal();
+        return;
+      }
+      const next = Math.min(step + 1, 6);
+      setStep(next);
+      supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
+      return;
+    }
+
+    if (step === 6) {
       setFinished(true);
       return;
     }
     const next = Math.min(step + 1, 6);
     setStep(next);
     supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
-  }
+  };
 
   function goBack() {
     if (step <= 1) {
@@ -1457,7 +1500,7 @@ export default function ConsultantClientPortal() {
             <strong>Final Step</strong>
             <p>
               {isConsultantMode
-                ? "Click Save & Close to preserve all discovery inputs and exit. The client will review and submit from their portal."
+                ? "Click Continue to preserve all discovery inputs and exit. The client will review and submit from their portal."
                 : "Review all discovery inputs and click Submit Discovery to finalize the brand brief."}
             </p>
           </div>

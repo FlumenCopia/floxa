@@ -770,6 +770,15 @@ export function DiscoveryFlow({
       const data = await saveDiscoveryProgress();
 
       if (data.success) {
+        if (activeHelpSession?.is_active) {
+          const stepTitle = stepTitles[step] || `Step ${step}`;
+          supportSocket.resolveHelp({ pageId: stepTitle });
+          if (targetPortalToken) {
+            clientPortalService.resolveHelp(targetPortalToken, { pageId: stepTitle }).catch(() => undefined);
+          }
+          setActiveHelpSession(null);
+        }
+
         const next = step + 1;
         setStep(next);
         if (typeof onStepChange === "function") {
