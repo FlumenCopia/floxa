@@ -1533,10 +1533,9 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                                 letterSpacing: "0.1em",
                                 textTransform: "uppercase",
                                 color: "#4dffa0",
-                                background: "rgba(77, 255, 160, 0.12)",
-                                padding: "3px 8px",
-                                borderRadius: "999px",
-                                border: "1px solid rgba(77, 255, 160, 0.25)",
+                                background: "transparent",
+                                padding: 0,
+                                border: "none",
                               }}
                             >
                               {concept.angle || `Angle ${idx + 1}`}

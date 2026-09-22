@@ -10182,11 +10182,11 @@ input[type="file"]:hover::-webkit-file-upload-button {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(77, 255, 160, 0.12);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
   color: #58ffaf;
-  border: 1px solid rgba(77, 255, 160, 0.28);
+  border: none;
 }
 
 .brand-dna-concept-title {
