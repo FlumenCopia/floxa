@@ -3458,19 +3458,19 @@
   font-weight: 700;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(137, 172, 160, 0.7);
+  color: #ffffff;
 }
 
 .client-payment-card.is-paid .client-payment-index {
   background: rgba(77, 255, 160, 0.14);
   border-color: rgba(77, 255, 160, 0.35);
-  color: var(--floxa-neon, #4dffa0);
+  color: #ffffff;
 }
 
 .client-payment-card.is-requested .client-payment-index {
   background: rgba(250, 204, 21, 0.14);
   border-color: rgba(250, 204, 21, 0.35);
-  color: #facc15;
+  color: #ffffff;
 }
 
 .client-payment-details {
