@@ -29,6 +29,7 @@ import {
   getMoodboards,
   getPaymentMilestones,
   getProject,
+  getProjects,
   getProjectActivities,
   initializePaymentMilestones,
   markPaymentMilestonePaid,
@@ -1714,8 +1715,22 @@ function MoodboardsPanel({ projectId, project, onProjectRefresh, onNavigateTab }
       return;
     }
 
-    if (!projectId || !form.title.trim() || !form.image) {
-      const message = "Please add a title and image before uploading.";
+    if (!projectId) {
+      const message = "No project selected. Please select a project first.";
+      setError(message);
+      showError(message);
+      return;
+    }
+
+    if (!form.title.trim()) {
+      const message = "Please add a title before uploading.";
+      setError(message);
+      showError(message);
+      return;
+    }
+
+    if (!form.image) {
+      const message = "Please select an image before uploading.";
       setError(message);
       showError(message);
       return;
@@ -2210,8 +2225,22 @@ function ConceptsPanel({ projectId, project, onProjectRefresh, onNavigateTab }) 
       return;
     }
 
-    if (!projectId || !form.title.trim() || !form.image) {
-      const message = "Please add a title and upload a preview image.";
+    if (!projectId) {
+      const message = "No project selected. Please select a project first.";
+      setError(message);
+      showError(message);
+      return;
+    }
+
+    if (!form.title.trim()) {
+      const message = "Please add a title for the concept.";
+      setError(message);
+      showError(message);
+      return;
+    }
+
+    if (!form.image) {
+      const message = "Please upload a preview image.";
       setError(message);
       showError(message);
       return;
@@ -2755,8 +2784,22 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
     event.preventDefault();
     const uploadForm = event.currentTarget;
 
-    if (!projectId || !form.title.trim() || !form.file) {
-      const message = "Please add a title and upload a deliverable file.";
+    if (!projectId) {
+      const message = "No project selected. Please select a project first.";
+      setError(message);
+      showError(message);
+      return;
+    }
+
+    if (!form.title.trim()) {
+      const message = "Please add a deliverable title.";
+      setError(message);
+      showError(message);
+      return;
+    }
+
+    if (!form.file) {
+      const message = "Please choose a deliverable file to upload.";
       setError(message);
       showError(message);
       return;
@@ -2839,7 +2882,14 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
   async function handleEditDeliverable(event, deliverableId) {
     event.preventDefault();
 
-    if (!projectId || !deliverableId || !editForm.title.trim()) {
+    if (!projectId) {
+      const message = "No project selected. Please select a project first.";
+      setError(message);
+      showError(message);
+      return;
+    }
+
+    if (!deliverableId || !editForm.title.trim()) {
       const message = "Please add a title before saving changes.";
       setError(message);
       showError(message);
@@ -4274,15 +4324,32 @@ export default function Discovery() {
   }, [activeTab]);
 
   const refreshProject = useCallback(async () => {
-    const projectId = new URLSearchParams(window.location.search).get("projectId");
+    const searchParams = new URLSearchParams(window.location.search);
+    const projectId = searchParams.get("projectId") || searchParams.get("id");
 
     if (!projectId) {
+      try {
+        const data = await getProjects();
+        const projectRows = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+        if (projectRows.length > 0) {
+          const firstProj = projectRows[0];
+          setProject(firstProj);
+          const currentTab = requestedTab || new URLSearchParams(window.location.search).get("tab") || "Overview";
+          router.replace(`/discovery?projectId=${firstProj.id}&tab=${currentTab}`);
+        }
+      } catch (err) {
+        console.error("Failed to auto-select initial project:", err);
+      }
       return;
     }
 
-    const data = await getProject(projectId);
-    setProject(data);
-  }, []);
+    try {
+      const data = await getProject(projectId);
+      setProject(data);
+    } catch (err) {
+      console.error("Failed to load project:", err);
+    }
+  }, [requestedTab, router]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
