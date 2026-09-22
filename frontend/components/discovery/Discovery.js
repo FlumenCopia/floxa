@@ -2191,25 +2191,8 @@ function ConceptsPanel({ projectId, project, onProjectRefresh, onNavigateTab }) 
   }, [projectId]);
 
   useEffect(() => {
-    let isMounted = true;
-    if (projectId) {
-      getConcepts(projectId)
-        .then((data) => {
-          if (isMounted) {
-            setConcepts(Array.isArray(data) ? data : data?.results || []);
-          }
-        })
-        .catch((loadError) => {
-          if (isMounted) {
-            console.error("Failed to load concepts:", loadError);
-            setError("Unable to load project concepts.");
-          }
-        });
-    }
-    return () => {
-      isMounted = false;
-    };
-  }, [projectId]);
+    loadConcepts();
+  }, [loadConcepts]);
 
   async function handleUpload(event) {
     event.preventDefault();
@@ -3132,26 +3115,30 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
                   justifyContent: "space-between",
                   gap: "14px",
                   boxShadow: "0 4px 14px rgba(0, 0, 0, 0.2)",
+                  overflow: "hidden",
+                  minWidth: 0,
                 }}
               >
-                <div>
+                <div style={{ minWidth: 0, overflow: "hidden" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px", marginBottom: "8px" }}>
                     <h3 style={{ fontSize: "1.05rem", fontWeight: "700", color: "#f8fafc", margin: 0, wordBreak: "break-word" }}>
                       {item.title}
                     </h3>
-                    <span className={`badge ${getDeliverableStatusClass(item.status)}`}>
+                    <span className={`badge ${getDeliverableStatusClass(item.status)}`} style={{ flexShrink: 0 }}>
                       {getDeliverableStatusLabel(item.status)}
                     </span>
                   </div>
 
-                  <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: "0 0 12px", lineHeight: 1.4 }}>
+                  <p style={{ fontSize: "0.85rem", color: "#94a3b8", margin: "0 0 12px", lineHeight: 1.4, wordBreak: "break-word" }}>
                     {item.description || "No description provided."}
                   </p>
 
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", fontSize: "0.78rem", color: "#6ee7b7" }}>
-                    <span>📁 {item.file_name || "File attached"}</span>
-                    <span>• {formatFileSize(item.file_size)}</span>
-                    <span>• {formatActivityDate(item.created_at)}</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", fontSize: "0.78rem", color: "#6ee7b7", maxWidth: "100%", overflow: "hidden" }}>
+                    <span style={{ maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-block" }} title={item.file_name}>
+                      📁 {item.file_name || "File attached"}
+                    </span>
+                    <span style={{ flexShrink: 0 }}>• {formatFileSize(item.file_size)}</span>
+                    <span style={{ flexShrink: 0 }}>• {formatActivityDate(item.created_at)}</span>
                   </div>
                 </div>
 
