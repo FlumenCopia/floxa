@@ -29,7 +29,7 @@ import {
   completePaymentMilestone,
   PaymentCompletionError,
 } from '../services/payment.service.js';
-import { generateSignedAgreementPdf, generateBrandDnaBriefPdf } from '../services/pdf.service.js';
+import { generateSignedAgreementPdf, generateBrandDnaBriefPdf, generateBrandDeliverablesPdf } from '../services/pdf.service.js';
 import { maybeGenerateAgreementSnapshot } from '../services/agreement.service.js';
 import fs from 'fs';
 import {
@@ -756,6 +756,56 @@ export async function downloadPortalDeliverableFile(req: any, res: Response, nex
     if (!safePath) {
       res.status(404).json({ detail: 'Asset not found.' });
       return;
+    }
+
+    const isBrandPackage =
+      deliverable.title === 'Brand Delivery Package & Strategy Guide.pdf' ||
+      (deliverable.file && deliverable.file.includes('brand_deliverables_'));
+
+    if (isBrandPackage) {
+      try {
+        const fullProject = await Project.findById(req.project.id).populate([
+          'clientProfile',
+          'discovery',
+          'brandDNA',
+          'moodboards',
+          'concepts',
+          'deliverables',
+          'paymentMilestones',
+        ]);
+        if (fullProject) {
+          const freshPdfBuffer = await generateBrandDeliverablesPdf(fullProject);
+          try {
+            if (fs.existsSync(path.dirname(safePath))) {
+              fs.writeFileSync(safePath, freshPdfBuffer);
+            }
+          } catch (writeErr) {
+            console.warn('Failed to cache fresh deliverable PDF to disk:', writeErr);
+          }
+
+          await logProjectActivity({
+            projectId: req.project.id,
+            consultantId: req.project.consultantId?.toString() || req.project.consultantId,
+            actorType: 'client',
+            action: 'deliverable_downloaded',
+            description: `Client downloaded deliverable: ${deliverable.title}`,
+            metadata: {
+              deliverable_id: deliverable.id,
+              deliverable_title: deliverable.title,
+            },
+            visibleToClient: true,
+          });
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('X-Content-Type-Options', 'nosniff');
+          res.setHeader('Content-Disposition', `attachment; filename="${path.basename(deliverable.file)}"`);
+          return res.send(freshPdfBuffer);
+        }
+      } catch (genErr) {
+        console.warn('Dynamic deliverable PDF generation fallback:', genErr);
+      }
     }
 
     await logProjectActivity({

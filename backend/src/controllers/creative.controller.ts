@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import path from 'path';
+import fs from 'fs';
 import { Moodboard } from '../models/moodboard.model.js';
 import { Concept } from '../models/concept.model.js';
 import { Deliverable } from '../models/deliverable.model.js';
@@ -866,6 +867,43 @@ export async function downloadDeliverableFile(req: AuthenticatedRequest, res: Re
     if (!safePath) {
       res.status(404).json({ detail: 'File not found.' });
       return;
+    }
+
+    const isBrandPackage =
+      deliverable.title === 'Brand Delivery Package & Strategy Guide.pdf' ||
+      (deliverable.file && deliverable.file.includes('brand_deliverables_'));
+
+    if (isBrandPackage) {
+      try {
+        const fullProject = await Project.findById(project.id).populate([
+          'clientProfile',
+          'discovery',
+          'brandDNA',
+          'moodboards',
+          'concepts',
+          'deliverables',
+          'paymentMilestones',
+        ]);
+        if (fullProject) {
+          const freshPdfBuffer = await generateBrandDeliverablesPdf(fullProject);
+          try {
+            if (fs.existsSync(path.dirname(safePath))) {
+              fs.writeFileSync(safePath, freshPdfBuffer);
+            }
+          } catch (writeErr) {
+            console.warn('Failed to cache fresh deliverable PDF to disk:', writeErr);
+          }
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('X-Content-Type-Options', 'nosniff');
+          res.setHeader('Content-Disposition', `attachment; filename="${path.basename(deliverable.file)}"`);
+          return res.send(freshPdfBuffer);
+        }
+      } catch (genErr) {
+        console.warn('Dynamic deliverable PDF generation fallback:', genErr);
+      }
     }
 
     streamLocalFile(safePath, res, {

@@ -605,3 +605,13 @@ async function uploadProjectFormData(endpoint, formData, method = "POST") {
   return parseApiResponse(response);
 }
 
+export async function getAiSuiteUsage() {
+  return apiRequest('/ai-suite/usage/');
+}
+
+export async function runAiSuiteTool(projectId, toolId) {
+  return apiRequest('/ai-suite/run/', {
+    method: 'POST',
+    body: JSON.stringify({ projectId, toolId }),
+  });
+}

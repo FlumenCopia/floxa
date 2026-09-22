@@ -317,15 +317,205 @@ export async function generateGeneratedAgreementPdf(snapshot: any): Promise<Buff
   });
 }
 
+interface BrandThemeToken {
+  role: string;
+  name: string;
+  hex: string;
+}
+
+interface ProjectBrandTheme {
+  dominant60: BrandThemeToken;
+  secondary30: BrandThemeToken;
+  accent10: BrandThemeToken;
+  cluster: string;
+  isDark: boolean;
+  pageBg: string;
+  cardBg: string;
+  cardBorder: string;
+  tableHeaderBg: string;
+  textHeading: string;
+  textBody: string;
+  textMuted: string;
+  divider: string;
+}
+
+function sanitizeHex(hex: string | undefined, fallback: string): string {
+  if (!hex || typeof hex !== 'string') return fallback;
+  const clean = hex.trim();
+  if (/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(clean)) return clean;
+  return fallback;
+}
+
+function isColorDark(hex: string): boolean {
+  const clean = hex.replace('#', '');
+  if (clean.length !== 6 && clean.length !== 3) return true;
+  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+  const r = parseInt(full.substring(0, 2), 16);
+  const g = parseInt(full.substring(2, 4), 16);
+  const b = parseInt(full.substring(4, 6), 16);
+  const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luma < 140;
+}
+
+function buildBrandThemeTokens(
+  dominant: BrandThemeToken,
+  secondary: BrandThemeToken,
+  accent: BrandThemeToken,
+  cluster: string
+): ProjectBrandTheme {
+  const isDark = isColorDark(dominant.hex);
+  if (isDark) {
+    return {
+      dominant60: dominant,
+      secondary30: secondary,
+      accent10: accent,
+      cluster,
+      isDark: true,
+      pageBg: dominant.hex,
+      cardBg: secondary.hex,
+      cardBorder: secondary.hex,
+      tableHeaderBg: secondary.hex,
+      textHeading: '#FFFFFF',
+      textBody: '#E2E8F0',
+      textMuted: '#94A3B8',
+      divider: secondary.hex,
+    };
+  } else {
+    return {
+      dominant60: dominant,
+      secondary30: secondary,
+      accent10: accent,
+      cluster,
+      isDark: false,
+      pageBg: dominant.hex,
+      cardBg: '#FFFFFF',
+      cardBorder: secondary.hex,
+      tableHeaderBg: secondary.hex,
+      textHeading: '#0F172A',
+      textBody: '#334155',
+      textMuted: '#64748B',
+      divider: secondary.hex,
+    };
+  }
+}
+
+function calculateDiscoveryCluster(sliders: any[] = []): string {
+  if (!sliders || sliders.length === 0) return 'Balanced Clarity';
+  const scores = sliders.map((s: any) => (((s.value || 50) / 100) * 6 - 3));
+  const avg = scores.reduce((sum: number, v: number) => sum + v, 0) / scores.length;
+  if (avg < -1.5) return 'Soft Minimalist';
+  if (avg < -0.4) return 'Quiet Specialist';
+  if (avg < 0.8) return 'Balanced Clarity';
+  if (avg < 2.1) return 'Bold Challenger';
+  return 'Electric Leader';
+}
+
+function extractProjectBrandTheme(project: any): ProjectBrandTheme {
+  const dna = project.brandDNA || {};
+  const discovery = project.discovery || {};
+
+  const palette = Array.isArray(dna.colorPalette) && dna.colorPalette.length > 0 ? dna.colorPalette : null;
+
+  if (palette) {
+    const dominantItem =
+      palette.find((p: any) => p.role && (p.role.includes('60') || p.role.toLowerCase().includes('dominant'))) ||
+      palette[0];
+    const secondaryItem =
+      palette.find((p: any) => p.role && (p.role.includes('30') || p.role.toLowerCase().includes('secondary'))) ||
+      palette[1] ||
+      palette[0];
+    const accentItem =
+      palette.find((p: any) => p.role && (p.role.includes('10') || p.role.toLowerCase().includes('accent'))) ||
+      palette[2] ||
+      palette[palette.length - 1];
+
+    const cluster = dna.brandPersonalityCluster || 'Defensible Identity';
+    const domToken = {
+      role: 'Dominant (60%)',
+      name: dominantItem?.name || 'Primary Brand Tone',
+      hex: sanitizeHex(dominantItem?.hex, '#0A1912'),
+    };
+    const secToken = {
+      role: 'Secondary (30%)',
+      name: secondaryItem?.name || 'Structural Depth Tone',
+      hex: sanitizeHex(secondaryItem?.hex, '#163325'),
+    };
+    const accToken = {
+      role: 'Accent (10%)',
+      name: accentItem?.name || 'Kinetic Focal Accent',
+      hex: sanitizeHex(accentItem?.hex, '#34D399'),
+    };
+    return buildBrandThemeTokens(domToken, secToken, accToken, cluster);
+  }
+
+  const cluster = dna.brandPersonalityCluster || (discovery.sliders ? calculateDiscoveryCluster(discovery.sliders) : 'Balanced Clarity');
+
+  switch (cluster) {
+    case 'Electric Leader':
+      return buildBrandThemeTokens(
+        { role: 'Dominant (60%)', name: 'Deep Void Obsidian', hex: '#060E0A' },
+        { role: 'Secondary (30%)', name: 'Emerald Slate', hex: '#132A1E' },
+        { role: 'Accent (10%)', name: 'Neon Hypergreen', hex: '#10B981' },
+        cluster
+      );
+    case 'Soft Minimalist':
+      return buildBrandThemeTokens(
+        { role: 'Dominant (60%)', name: 'Warm Alabaster', hex: '#F7F5F0' },
+        { role: 'Secondary (30%)', name: 'Muted Sage Slate', hex: '#89ACA0' },
+        { role: 'Accent (10%)', name: 'Forest Deep', hex: '#0A1912' },
+        cluster
+      );
+    case 'Quiet Specialist':
+      return buildBrandThemeTokens(
+        { role: 'Dominant (60%)', name: 'Deep Navy Charcoal', hex: '#0B1320' },
+        { role: 'Secondary (30%)', name: 'Slate Quartz', hex: '#1E293B' },
+        { role: 'Accent (10%)', name: 'Precision Cyan', hex: '#0284C7' },
+        cluster
+      );
+    case 'Bold Challenger':
+      return buildBrandThemeTokens(
+        { role: 'Dominant (60%)', name: 'Carbon Black', hex: '#0A0D12' },
+        { role: 'Secondary (30%)', name: 'Deep Slate Forest', hex: '#1C2E24' },
+        { role: 'Accent (10%)', name: 'Kinetic Emerald', hex: '#059669' },
+        cluster
+      );
+    case 'Balanced Clarity':
+    default:
+      return buildBrandThemeTokens(
+        { role: 'Dominant (60%)', name: 'Emerald Obsidian', hex: '#0A1912' },
+        { role: 'Secondary (30%)', name: 'Mineral Forest', hex: '#163325' },
+        { role: 'Accent (10%)', name: 'Vibrant Mint', hex: '#34D399' },
+        cluster || 'Balanced Clarity'
+      );
+  }
+}
+
 export async function generateBrandDeliverablesPdf(project: any): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
-      margin: 45,
+      margin: 40,
       autoFirstPage: true,
       bufferPages: true,
       size: 'A4',
     });
     const buffers: Buffer[] = [];
+
+    // Extract dynamic 60-30-10 brand theme from client Discovery & Brand DNA
+    const theme = extractProjectBrandTheme(project);
+
+    // Full-bleed page background renderer
+    const drawPageBg = () => {
+      const curX = doc.x;
+      const curY = doc.y;
+      doc.save();
+      doc.rect(0, 0, doc.page.width, doc.page.height).fill(theme.pageBg);
+      doc.restore();
+      doc.x = curX;
+      doc.y = curY;
+    };
+
+    drawPageBg();
+    doc.on('pageAdded', drawPageBg);
 
     doc.on('data', (chunk) => buffers.push(chunk));
     doc.on('end', () => {
@@ -333,104 +523,246 @@ export async function generateBrandDeliverablesPdf(project: any): Promise<Buffer
         const range = doc.bufferedPageRange();
         for (let i = range.start; i < range.start + range.count; i++) {
           doc.switchToPage(i);
-          doc.font('Helvetica').fontSize(8).fillColor('#64748B');
+
+          // Running header on page 2 and later
+          if (i > range.start) {
+            doc.rect(40, 16, 515, 18).fill(theme.cardBg);
+            doc.font('Helvetica-Bold').fontSize(7.5).fillColor(theme.textHeading)
+              .text(`${companyName.toUpperCase()}   |   OFFICIAL BRAND DELIVERABLES`, 50, 21);
+            doc.font('Helvetica-Bold').fontSize(7.5).fillColor(theme.accent10.hex)
+              .text('CONFIDENTIAL SPECIFICATION', 50, 21, { align: 'right', width: 495 });
+            doc.strokeColor(theme.divider).lineWidth(1).moveTo(40, 34).lineTo(555, 34).stroke();
+          }
+
+          // Bottom footer on all pages
+          doc.font('Helvetica').fontSize(8).fillColor(theme.textMuted);
           doc.text(
-            `Page ${i + 1} of ${range.count}  •  Floxa Brand Delivery Package`,
-            45,
-            doc.page.height - 35,
-            { align: 'center', width: doc.page.width - 90 }
+            `Page ${i + 1} of ${range.count}   •   FLOXA Brand Delivery & Strategy Package   •   Confidential`,
+            40,
+            doc.page.height - 28,
+            { align: 'center', width: doc.page.width - 80 }
           );
         }
       } catch (pageErr) {
-        // Continue if page range decoration encounters any issue
+        // ignore
       }
       resolve(Buffer.concat(buffers));
     });
     doc.on('error', (err) => reject(err));
 
-    const companyName = project.companyName || project.title || 'Brand Project';
-    const clientName = project.client?.name || project.companyName || 'Client';
+    const companyName = project.clientProfile?.companyName || project.companyName || project.title || 'Brand Project';
+    const clientName = project.client?.name || project.clientProfile?.clientName || project.companyName || 'Client';
+    const sector = project.clientProfile?.industry || project.sector || 'Brand Identity & Design';
     const dateStr = new Date().toLocaleDateString('en-GB', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     });
 
-    const renderSectionHeader = (title: string) => {
-      doc.moveDown(0.8);
-      doc.fontSize(12).font('Helvetica-Bold').fillColor('#1E3A34').text(title.toUpperCase());
-      doc.strokeColor('#94A3B8').lineWidth(0.75).moveTo(45, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown(0.4);
-      doc.font('Helvetica').fontSize(9.5).fillColor('#334155');
+    const contentWidth = 515;
+
+    // 1. Modern Luxury Header Banner (Dynamically Themed to Brand Tone)
+    doc.roundedRect(40, 30, contentWidth, 54, 6)
+      .fillAndStroke(theme.cardBg, theme.isDark ? theme.accent10.hex : theme.secondary30.hex);
+
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(theme.accent10.hex).text('FLOXA STUDIO   •   OFFICIAL BRAND DELIVERABLES & ASSET HANDOVER', 56, 42);
+    doc.font('Helvetica-Bold').fontSize(13.5).fillColor(theme.textHeading).text(`${companyName.toUpperCase()} — BRAND IDENTITY SPECIFICATION`, 56, 56, { width: 365, ellipsis: true });
+
+    // Status Pill
+    doc.roundedRect(436, 44, 104, 24, 4).fillAndStroke(theme.accent10.hex, theme.accent10.hex);
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(theme.isDark ? '#060E0A' : '#FFFFFF').text('FINAL RELEASE', 436, 51.5, { align: 'center', width: 104 });
+
+    // 2. Project Metadata Card
+    const infoY = 92;
+    doc.roundedRect(40, infoY, contentWidth, 50, 6).fillAndStroke(theme.cardBg, theme.cardBorder);
+
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(theme.textMuted).text('PREPARED FOR:', 54, infoY + 11);
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(theme.textHeading).text(`${clientName} (${companyName})`, 54, infoY + 25, { width: 230, ellipsis: true });
+
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(theme.textMuted).text('SECTOR / DOMAIN:', 300, infoY + 11);
+    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(theme.textHeading).text(sector, 300, infoY + 25, { width: 140, ellipsis: true });
+
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(theme.textMuted).text('HANDOVER DATE:', 446, infoY + 11);
+    doc.font('Helvetica').fontSize(9).fillColor(theme.textHeading).text(dateStr, 446, infoY + 25, { width: 95 });
+
+    doc.y = infoY + 62;
+    doc.x = 40;
+
+    const renderSectionHeader = (title: string, minSpaceNeeded: number = 90) => {
+      if (doc.y > doc.page.height - minSpaceNeeded) {
+        doc.addPage();
+        doc.y = 42;
+      } else {
+        doc.moveDown(0.65);
+      }
+      const curY = doc.y;
+      // 10% Accent marker ribbon
+      doc.rect(40, curY, 4, 14).fill(theme.accent10.hex);
+      // Section title
+      doc.fontSize(10).font('Helvetica-Bold').fillColor(theme.textHeading).text(title.toUpperCase(), 50, curY + 2);
+      doc.moveDown(0.25);
+      doc.strokeColor(theme.divider).lineWidth(1).moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+      doc.moveDown(0.35);
+      doc.font('Helvetica').fontSize(9).fillColor(theme.textBody);
+      doc.x = 40;
     };
 
     const renderBullet = (text: string, boldPrefix?: string) => {
-      doc.font('Helvetica').fontSize(9).fillColor('#334155');
-      if (boldPrefix) {
-        doc.font('Helvetica-Bold').text(`  •  ${boldPrefix}: `, { continued: true });
-        doc.font('Helvetica').text(text);
-      } else {
-        doc.text(`  •  ${text}`);
+      if (doc.y > doc.page.height - 45) {
+        doc.addPage();
+        doc.y = 42;
       }
-      doc.moveDown(0.2);
+      doc.circle(45, doc.y + 4.5, 2.2).fill(theme.accent10.hex);
+      doc.font('Helvetica').fontSize(8.5).fillColor(theme.textBody);
+      if (boldPrefix) {
+        doc.font('Helvetica-Bold').fillColor(theme.accent10.hex).text(`    ${boldPrefix}: `, 52, doc.y, { continued: true });
+        doc.font('Helvetica').fillColor(theme.textBody).text(text);
+      } else {
+        doc.text(`    ${text}`, 52, doc.y);
+      }
+      doc.moveDown(0.18);
     };
 
-    // Header / Title Block
-    doc.fontSize(17).font('Helvetica-Bold').fillColor('#1E293B').text('BRAND DESIGN & IDENTITY STRATEGY PROPOSAL');
-    doc.moveDown(0.2);
-    doc.fontSize(13).font('Helvetica-Bold').fillColor('#334155').text(`${companyName.toUpperCase()} & ASSOCIATED ASSETS`);
-    doc.moveDown(0.5);
+    // Bounded Card Renderer for Images (100% Anti-Overlap with Themed Containers)
+    const renderAssetCard = (
+      imagePath: string | null | undefined,
+      title: string,
+      badgeText: string,
+      description?: string,
+      clientFeedback?: string
+    ) => {
+      let safePath: string | null = null;
+      let openedImg: any = null;
+      let imgWidth = 0;
+      let imgHeight = 0;
 
-    doc.fontSize(9.5).font('Helvetica-Bold').fillColor('#1E293B').text('Prepared For: ', { continued: true });
-    doc.font('Helvetica').fillColor('#334155').text(`${clientName} (${companyName})`);
+      if (imagePath) {
+        safePath = resolveSafeMediaPath(imagePath);
+        if (safePath && fs.existsSync(safePath)) {
+          try {
+            openedImg = (doc as any).openImage(safePath);
+            imgWidth = openedImg?.width || 0;
+            imgHeight = openedImg?.height || 0;
+          } catch {
+            safePath = null;
+            openedImg = null;
+          }
+        } else {
+          safePath = null;
+        }
+      }
 
-    doc.font('Helvetica-Bold').fillColor('#1E293B').text('Project: ', { continued: true });
-    doc.font('Helvetica').fillColor('#334155').text(project.sector || 'Brand Strategy, Visual Identity & Deliverable Assets');
+      const maxCardW = 515;
+      const maxImgW = 485;
+      const maxImgH = 150;
 
-    doc.font('Helvetica-Bold').fillColor('#1E293B').text('Date: ', { continued: true });
-    doc.font('Helvetica').fillColor('#334155').text(dateStr);
-    doc.moveDown(0.4);
+      let renderImgW = 0;
+      let renderImgH = 0;
+      if (safePath && imgWidth > 0 && imgHeight > 0) {
+        const scale = Math.min(maxImgW / imgWidth, maxImgH / imgHeight, 1);
+        renderImgW = Math.round(imgWidth * scale);
+        renderImgH = Math.round(imgHeight * scale);
+      }
 
-    doc.strokeColor('#94A3B8').lineWidth(1).moveTo(45, doc.y).lineTo(550, doc.y).stroke();
-    doc.moveDown(0.6);
+      let extraTextH = 24;
+      if (description) extraTextH += 14;
+      if (clientFeedback) extraTextH += 15;
+
+      const totalCardH = extraTextH + (renderImgH > 0 ? renderImgH + 16 : 8);
+
+      if (doc.y + totalCardH > doc.page.height - 50) {
+        doc.addPage();
+        doc.y = 42;
+      }
+
+      const cardX = 40;
+      const cardY = doc.y + 4;
+
+      // Card container outline & fill
+      doc.roundedRect(cardX, cardY, maxCardW, totalCardH, 6)
+        .fillAndStroke(theme.cardBg, theme.cardBorder);
+
+      // Title
+      doc.font('Helvetica-Bold').fontSize(9.5).fillColor(theme.textHeading)
+        .text(title, cardX + 14, cardY + 8, { width: 340, ellipsis: true });
+
+      if (badgeText) {
+        const isApproved = badgeText.toLowerCase().includes('approved') || badgeText.toLowerCase().includes('selected');
+        const badgeBg = isApproved ? theme.accent10.hex : theme.secondary30.hex;
+        const badgeBorder = theme.accent10.hex;
+        const badgeColor = isApproved && theme.isDark ? '#060E0A' : '#FFFFFF';
+
+        doc.roundedRect(cardX + 360, cardY + 6, 140, 16, 3).fillAndStroke(badgeBg, badgeBorder);
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor(badgeColor)
+          .text(badgeText.toUpperCase(), cardX + 360, cardY + 9.5, { align: 'center', width: 140 });
+      }
+
+      let currentTextY = cardY + 24;
+      if (description) {
+        doc.font('Helvetica').fontSize(8.5).fillColor(theme.textBody)
+          .text(description, cardX + 14, currentTextY, { width: 485, ellipsis: true });
+        currentTextY += 14;
+      }
+
+      if (clientFeedback) {
+        doc.font('Helvetica-Oblique').fontSize(8.5).fillColor(theme.accent10.hex)
+          .text(`Client Feedback: "${clientFeedback}"`, cardX + 14, currentTextY, { width: 485, ellipsis: true });
+        currentTextY += 15;
+      }
+
+      if (openedImg && renderImgH > 0) {
+        const imgX = cardX + (maxCardW - renderImgW) / 2;
+        const imgY = currentTextY + 4;
+
+        // Image container background frame
+        doc.roundedRect(imgX - 1, imgY - 1, renderImgW + 2, renderImgH + 2, 4)
+          .fillAndStroke(theme.isDark ? '#060E0A' : '#FFFFFF', theme.accent10.hex);
+
+        doc.image(openedImg, imgX, imgY, { width: renderImgW, height: renderImgH });
+      }
+
+      // Explicitly advance doc.y well beyond the bottom of the card
+      doc.y = cardY + totalCardH + 12;
+      doc.x = 40;
+    };
 
     // 1. PROJECT SUMMARY
-    renderSectionHeader('1. PROJECT SUMMARY');
-    doc.text(
-      `The proposed project involves the strategic brand positioning, identity engineering, ` +
-      `and production-ready asset creation for ${companyName} and its associated brand collateral. ` +
-      `The engagement delivers a modern, high-impact visual design ecosystem tailored for sustainable market leadership.`
+    renderSectionHeader('1. EXECUTIVE SUMMARY & ENGAGEMENT SCOPE', 90);
+    doc.font('Helvetica').fontSize(8.5).fillColor(theme.textBody).text(
+      `This document certifies the successful design execution, identity engineering, and final deliverable package ` +
+      `prepared for ${companyName}. The brand identity framework codified within this delivery provides an authoritative, ` +
+      `coherent visual language engineered for high market distinction and sustainable commercial scale.`
     );
-    doc.moveDown(0.5);
+    doc.moveDown(0.3);
 
     // 2. PROJECT OBJECTIVES
-    renderSectionHeader('2. PROJECT OBJECTIVES');
+    renderSectionHeader('2. DELIVERABLE STANDARDS & OBJECTIVES MET', 90);
     const objectives = [
-      `Stabilize and establish a distinct, premium market positioning for ${companyName}.`,
-      'Engineer scalable vector logo marks and typography assets for digital, print, and corporate applications.',
-      'Ensure aesthetic consistency across all touchpoints, visual collateral, and digital channels.',
-      'Facilitate client-approved concept selection with structured revision and feedback iterations.',
-      'Guarantee 100% intellectual property and copyright handover upon final milestone settlement.',
+      `Established a defensible, premium market positioning and visual authority for ${companyName}.`,
+      'Engineered scalable vector logo marks, typography hierarchies, and color tokens for digital and physical deployment.',
+      'Completed client-approved visual direction and concept iterations through collaborative sign-offs.',
+      'Full, irrevocable transfer of intellectual property and commercial copyright upon milestone completion.',
     ];
     objectives.forEach((obj) => renderBullet(obj));
-    doc.moveDown(0.5);
+    doc.moveDown(0.3);
 
-    // 3. SCOPE OF WORK & BRAND STRATEGY
-    renderSectionHeader('3. SCOPE OF WORK & BRAND STRATEGY');
+    // 3. BRAND STRATEGY ARCHITECTURE
+    renderSectionHeader('3. BRAND STRATEGY & IDENTITY ARCHITECTURE', 100);
     const dna = project.brandDNA || {};
     if (dna && (dna.brandPersonalityCluster || dna.positioningSummary || dna.businessSummary)) {
-      renderBullet(dna.brandPersonalityCluster || 'Custom Strategic Direction', 'Personality Cluster');
-      renderBullet(dna.positioningSummary || 'Strategic identity tailored for market leadership.', 'Positioning Summary');
-      renderBullet(dna.businessSummary || 'Building innovative solutions for modern customers.', 'Business & Mission');
-      renderBullet(dna.targetAudienceSummary || 'Forward-thinking consumers and business clients.', 'Target Audience');
-      renderBullet(dna.brandFeelingSummary || 'Professional, confident, inspiring.', 'Brand Voice & Tone');
+      renderBullet(dna.brandPersonalityCluster || theme.cluster, 'Personality Archetype');
+      renderBullet(dna.positioningSummary || 'Defensible identity tailored for market leadership.', 'Positioning Statement');
+      renderBullet(dna.businessSummary || 'Purpose-driven execution designed for discerning customers.', 'Elevated Mission');
+      renderBullet(dna.targetAudienceSummary || 'Target discerning consumers and institutional partners.', 'Target Audience');
+      renderBullet(dna.brandFeelingSummary || 'Authoritative, clear, sophisticated, and trusted.', 'Voice & Emotional Tone');
     } else {
-      renderBullet('Full brand identity design, logo package, and visual direction.', 'Strategic Scope');
+      renderBullet(`${theme.cluster} identity engineered for defensible market leadership.`, 'Personality Archetype');
+      renderBullet('Full brand identity design, logo package, and visual direction system.', 'Strategic Scope');
     }
-    doc.moveDown(0.5);
+    doc.moveDown(0.4);
 
-    // 4. SELECTED VISUAL MOODBOARDS (ONLY CLIENT SELECTED)
-    renderSectionHeader('4. SELECTED VISUAL MOODBOARDS');
+    // 4. SELECTED VISUAL MOODBOARDS
+    renderSectionHeader('4. SELECTED VISUAL MOODBOARDS & ART DIRECTION', 230);
     const allMoodboards = project.moodboards || [];
     const selectedMoodboards = allMoodboards.filter((m: any) => m.isSelected === true);
     const moodboardsToShow = selectedMoodboards.length > 0 ? selectedMoodboards : allMoodboards;
@@ -438,33 +770,20 @@ export async function generateBrandDeliverablesPdf(project: any): Promise<Buffer
     if (moodboardsToShow.length > 0) {
       moodboardsToShow.forEach((mb: any) => {
         const isSel = Boolean(mb.isSelected);
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(isSel ? '#047857' : '#1E293B');
-        doc.text(`• ${mb.title || 'Moodboard Direction'} ${isSel ? '[CLIENT SELECTED DIRECTION]' : '[Direction Concept]'}`);
-        if (mb.description) {
-          doc.font('Helvetica').fontSize(9).fillColor('#475569').text(`  ${mb.description}`);
-        }
-        if (mb.image) {
-          const safePath = resolveSafeMediaPath(mb.image);
-          if (safePath && fs.existsSync(safePath)) {
-            try {
-              if (doc.y > doc.page.height - 200) doc.addPage();
-              doc.moveDown(0.3);
-              doc.image(safePath, { fit: [470, 160], align: 'center' });
-              doc.moveDown(0.4);
-            } catch {
-              // Image rendering fallback
-            }
-          }
-        }
-        doc.moveDown(0.4);
+        renderAssetCard(
+          mb.image,
+          mb.title || 'Moodboard Direction',
+          isSel ? 'Client Selected Direction' : 'Visual Exploration',
+          mb.description || 'Color palettes, typography pairings, and imagery language.'
+        );
       });
     } else {
-      doc.font('Helvetica').fontSize(9).fillColor('#64748B').text('Visual directions and moodboards recorded in project workspace.');
-      doc.moveDown(0.4);
+      doc.font('Helvetica').fontSize(8.5).fillColor(theme.textMuted).text('Visual moodboard directions recorded in project workspace.');
+      doc.moveDown(0.3);
     }
 
-    // 5. APPROVED BRAND CONCEPTS & IDENTITY (ONLY CLIENT APPROVED)
-    renderSectionHeader('5. APPROVED BRAND CONCEPTS & IDENTITY');
+    // 5. APPROVED BRAND CONCEPTS & IDENTITY
+    renderSectionHeader('5. APPROVED BRAND CONCEPTS & IDENTITY ASSETS', 230);
     const allConcepts = project.concepts || [];
     const approvedConcepts = allConcepts.filter((c: any) => c.status === 'approved');
     const conceptsToShow = approvedConcepts.length > 0 ? approvedConcepts : allConcepts;
@@ -472,92 +791,117 @@ export async function generateBrandDeliverablesPdf(project: any): Promise<Buffer
     if (conceptsToShow.length > 0) {
       conceptsToShow.forEach((c: any) => {
         const isApp = c.status === 'approved';
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(isApp ? '#047857' : '#1E293B');
-        doc.text(`• ${c.title || 'Brand Concept'} (v${c.version || 1}) ${isApp ? '[APPROVED BY CLIENT]' : `[${(c.status || 'draft').toUpperCase()}]`}`);
-        if (c.description) {
-          doc.font('Helvetica').fontSize(9).fillColor('#334155').text(`  Design Notes: ${c.description}`);
-        }
-        if (c.clientFeedback) {
-          doc.font('Helvetica-Oblique').fontSize(9).fillColor('#047857').text(`  Client Feedback: "${c.clientFeedback}"`);
-        }
-        if (c.image) {
-          const safePath = resolveSafeMediaPath(c.image);
-          if (safePath && fs.existsSync(safePath)) {
-            try {
-              if (doc.y > doc.page.height - 200) doc.addPage();
-              doc.moveDown(0.3);
-              doc.image(safePath, { fit: [470, 160], align: 'center' });
-              doc.moveDown(0.4);
-            } catch {
-              // Image rendering fallback
-            }
-          }
-        }
-        doc.moveDown(0.4);
+        renderAssetCard(
+          c.image,
+          `${c.title || 'Brand Concept'} (v${c.version || 1})`,
+          isApp ? 'Approved by Client' : String(c.status || 'Draft').toUpperCase(),
+          c.description ? `Design Notes: ${c.description}` : undefined,
+          c.clientFeedback || undefined
+        );
       });
     } else {
-      doc.font('Helvetica').fontSize(9).fillColor('#64748B').text('Final concept specifications recorded in project workspace.');
-      doc.moveDown(0.4);
+      doc.font('Helvetica').fontSize(8.5).fillColor(theme.textMuted).text('Final concept specifications recorded in project workspace.');
+      doc.moveDown(0.3);
     }
 
     // 6. PROJECT BUDGET & PAYMENT SETTLEMENT
-    renderSectionHeader('6. PROJECT BUDGET & PAYMENT SETTLEMENT');
+    renderSectionHeader('6. PROJECT BUDGET & PAYMENT SETTLEMENT AUDIT', 140);
     const milestones = project.paymentMilestones || [];
     const totalVal = project.projectValue || milestones.reduce((sum: number, m: any) => sum + (m.amount || 0), 0) || 0;
     let totalPaid = 0;
 
+    // Render Clean Payment Summary Card
+    const budgetCardH = 34 + (milestones.length > 0 ? milestones.length * 18 : 20);
+    if (doc.y + budgetCardH > doc.page.height - 50) {
+      doc.addPage();
+      doc.y = 42;
+    }
+
+    const budgetY = doc.y + 2;
+    doc.roundedRect(40, budgetY, contentWidth, budgetCardH, 6)
+      .fillAndStroke(theme.cardBg, theme.cardBorder);
+
+    // Table Header Bar: Solid Secondary color fill with crisp white text
+    doc.roundedRect(40, budgetY, contentWidth, 20, 4)
+      .fill(theme.tableHeaderBg);
+
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#FFFFFF')
+      .text('MILESTONE STAGE', 54, budgetY + 6)
+      .text('PERCENT', 260, budgetY + 6)
+      .text('AMOUNT (INR)', 340, budgetY + 6)
+      .text('STATUS', 445, budgetY + 6);
+
+    let rowY = budgetY + 25;
     if (milestones.length > 0) {
       milestones.forEach((m: any) => {
         const amt = m.amount || 0;
         const isPaid = m.status === 'paid';
         if (isPaid) totalPaid += amt;
         const statusLabel = isPaid ? 'PAID (Settled)' : (m.status || 'pending').toUpperCase();
-        const typeLabel = (m.type || 'Milestone').toUpperCase();
-        renderBullet(`${m.percentage}% | ₹${amt.toLocaleString('en-IN')} | Status: ${statusLabel}`, `${typeLabel} Milestone`);
+
+        doc.font('Helvetica-Bold').fontSize(8).fillColor(theme.textHeading).text((m.type || 'Milestone').toUpperCase(), 54, rowY, { width: 190 });
+        doc.font('Helvetica').fontSize(8).fillColor(theme.textBody).text(`${m.percentage}%`, 260, rowY);
+        doc.font('Helvetica-Bold').fontSize(8).fillColor(theme.textHeading).text(`INR ${amt.toLocaleString('en-IN')}`, 340, rowY);
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor(isPaid ? theme.accent10.hex : theme.textMuted).text(statusLabel, 445, rowY);
+        rowY += 17;
       });
     } else {
       totalPaid = totalVal;
-      renderBullet(`100% | ₹${totalVal.toLocaleString('en-IN')} | Status: PAID (Settled)`, 'Full Brand Engagement');
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(theme.textHeading).text('FULL BRAND ENGAGEMENT', 54, rowY);
+      doc.font('Helvetica').fontSize(8).fillColor(theme.textBody).text('100%', 260, rowY);
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(theme.textHeading).text(`INR ${totalVal.toLocaleString('en-IN')}`, 340, rowY);
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor(theme.accent10.hex).text('PAID (Settled)', 445, rowY);
+      rowY += 17;
     }
 
-    doc.moveDown(0.3);
-    doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#1E293B').text(`Total Project Investment: ₹${totalVal.toLocaleString('en-IN')}`);
+    doc.y = budgetY + budgetCardH + 8;
+    doc.x = 40;
+
     const isFullyPaid = totalPaid >= totalVal && totalVal > 0;
-    doc.font('Helvetica-Bold').fontSize(9.5).fillColor(isFullyPaid ? '#047857' : '#1E293B')
-      .text(`Total Settled Amount: ₹${totalPaid.toLocaleString('en-IN')} ${isFullyPaid ? '(100% Cleared)' : ''}`);
-    doc.moveDown(0.5);
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(theme.textHeading)
+      .text(`Total Investment: INR ${totalVal.toLocaleString('en-IN')}   |   `, 40, doc.y, { continued: true });
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(isFullyPaid ? theme.accent10.hex : theme.textMuted)
+      .text(`Total Settled: INR ${totalPaid.toLocaleString('en-IN')} ${isFullyPaid ? '(100% Cleared)' : ''}`);
+    doc.moveDown(0.35);
 
     // 7. PLATFORM & BRAND DELIVERABLES
-    renderSectionHeader('7. PLATFORM & BRAND DELIVERABLES');
+    renderSectionHeader('7. DELIVERABLE ASSET PACKAGE CHECKLIST', 150);
     const platformDeliverables = [
-      'Master Vector Logo Assets (.AI, .SVG, .EPS)',
-      'Digital Web & Screen PNG Logo Suite (Transparent, Dark/Light modes)',
-      'Brand Guidelines & Design Tokens Specification (.PDF)',
-      'Typography & Hierarchy System Documentation',
-      'Color Palette Hex / RGB / CMYK Standardization',
-      'Client Selected Moodboard & Visual Direction Deck',
-      'Complete Project Source Archive (.ZIP)',
-      'Verified Final Payment Receipts & Settlement Audit',
+      'Master Vector Logo Suite (Scalable .SVG, .AI, .EPS formats)',
+      'Digital Screen & Web PNG Suite (Transparent, Dark & Light Mode assets)',
+      'Brand Style Guide & Design Tokens Specification Document',
+      'Typography Hierarchy & Google / Web Font Standardization',
+      'Color Palette System with Verified HEX, RGB & CMYK Codes',
+      'Client Approved Moodboard Deck & Aesthetic Guidelines',
+      'Complete Project Master Source Archive (.ZIP)',
+      'Verified Settlement Audit & Certificate of Delivery',
     ];
     platformDeliverables.forEach((deliv) => renderBullet(deliv));
-    doc.moveDown(0.5);
+    doc.moveDown(0.3);
 
-    // 8. CONCLUSION
-    renderSectionHeader('8. CONCLUSION');
-    doc.font('Helvetica').fontSize(9.5).fillColor('#334155').text(
-      `This delivery document confirms the successful completion of the strategic branding and design ` +
-      `engagement for ${companyName}. By leveraging structured discovery, AI-assisted Brand DNA analysis, ` +
-      `and collaborative concept refinement, the resulting brand identity delivers a distinctive, scalable market presence.`
+    // 8. IP TRANSFER & LEGAL HANDOVER
+    renderSectionHeader('8. INTELLECTUAL PROPERTY ASSIGNMENT & TRANSFER', 140);
+    doc.font('Helvetica').fontSize(8.5).fillColor(theme.textBody).text(
+      `Upon receipt of settled project fees, the Consultant hereby irrevocably assigns and transfers to ${clientName} ` +
+      `(${companyName}) all right, title, and interest in and to the approved final design deliverables and identity marks. ` +
+      `The Client holds full commercial, digital, and print reproduction rights worldwide.`
     );
     doc.moveDown(0.5);
 
-    // 9. DISCLAIMER & LEGAL CONSIDERATIONS
-    renderSectionHeader('9. DISCLAIMER & LEGAL CONSIDERATIONS');
-    doc.font('Helvetica').fontSize(9.5).fillColor('#334155').text(
-      `Upon confirmation of all project milestone settlements, all intellectual property, trademark designs, ` +
-      `and final delivered visual assets are irrevocably assigned and transferred to ${clientName} (${companyName}). ` +
-      `The consultant retains the non-exclusive right to showcase the finalized work in professional design portfolios.`
-    );
+    // Signature Block
+    if (doc.y > doc.page.height - 95) {
+      doc.addPage();
+      doc.y = 42;
+    }
+
+    const signY = doc.y;
+    doc.strokeColor(theme.divider).lineWidth(1).moveTo(40, signY).lineTo(250, signY).stroke();
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(theme.textHeading).text('For the Creative Consultant / FLOXA Studio', 40, signY + 5);
+    doc.font('Helvetica').fontSize(8).fillColor(theme.textMuted).text('Authorized Design Lead', 40, signY + 17);
+
+    doc.strokeColor(theme.divider).lineWidth(1).moveTo(345, signY).lineTo(555, signY).stroke();
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(theme.textHeading).text(`For the Client: ${clientName}`, 345, signY + 5);
+    doc.font('Helvetica').fontSize(8).fillColor(theme.textMuted).text(`${companyName} — Authorized Representative`, 345, signY + 17);
 
     doc.end();
   });

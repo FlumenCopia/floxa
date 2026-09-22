@@ -560,3 +560,457 @@ JSON STRUCTURE REQUIRED:
   console.warn('[FLOXA Brand DNA] Gemini generation exhausted fallbacks. Using strategic fallback generator.');
   return fallback;
 }
+
+// ---------------------------------------------------------------------------
+// AI SUITE POWER GENERATORS (Moodboard Directions, Brand DNA, Proposal)
+// ---------------------------------------------------------------------------
+
+export interface AiSuiteGenResult {
+  text: string;
+  isInsufficient: boolean;
+}
+
+export function isDummyOrGibberish(text: string): boolean {
+  if (!text || typeof text !== 'string') return true;
+  const cleaned = text.trim().toLowerCase();
+  if (cleaned.length < 5) return true;
+
+  const placeholders = [
+    'test', 'dummy', 'asdf', 'qwerty', 'sample', 'fake', 'placeholder',
+    'none', 'n/a', 'nothing', 'bla', 'blah', 'xxx', 'abc', 'temp', 'random',
+    'shdfksjfd', 'asdfgh', 'zxcvbn', 'foobar'
+  ];
+  if (placeholders.some((p) => cleaned === p || (cleaned.includes(p) && cleaned.length < 18))) {
+    return true;
+  }
+
+  const lettersOnly = cleaned.replace(/[^a-z]/g, '');
+  if (/^(.)\1+$/.test(lettersOnly)) return true;
+
+  if (lettersOnly.length >= 6) {
+    const vowels = lettersOnly.match(/[aeiou]/g);
+    const vowelCount = vowels ? vowels.length : 0;
+    const vowelRatio = vowelCount / lettersOnly.length;
+    if (vowelRatio < 0.15) {
+      return true; // No or almost no vowels in a long sequence (keyboard smash)
+    }
+  }
+
+  return false;
+}
+
+function getDiscoveryValidationAdvisory(companyName: string, flaggedText: string, toolName: string): string {
+  const displayFlag = flaggedText && flaggedText.trim() ? `"${flaggedText.trim()}"` : '(Empty / Not filled yet)';
+  return [
+    `⚠️ INSUFFICIENT DISCOVERY INPUT — AUTHENTIC STRATEGY LOCKED`,
+    `Project: ${companyName.toUpperCase()}`,
+    `Tool: ${toolName}`,
+    '',
+    `DETECTED ISSUE:`,
+    `• The client's business description was flagged as placeholder or dummy text: ${displayFlag}.`,
+    '',
+    `STRICT SAAS ANTI-HALLUCINATION POLICY:`,
+    `FLOXA is a commercial brand operating platform built for real agencies. FLOXA AI will NOT fabricate fictional business capabilities or make up claims when placeholder text is submitted.`,
+    '',
+    `HOW TO UNLOCK FULL AI GENERATION:`,
+    `1. Ask your client to open their private Client Portal link.`,
+    `2. In the Discovery questionnaire, submit real company details:`,
+    `   • What the business actually creates, provides, or sells.`,
+    `   • Who their real target customers/audience are.`,
+    `   • Why customers choose them over alternatives (UVP).`,
+    `3. Save or submit the discovery form.`,
+    `4. Return to the AI Suite and click "${toolName}" again.`,
+    '',
+    `* Note: Because your input was incomplete, this run was NOT counted against your free trial limit.`,
+  ].join('\n');
+}
+
+function getSectorHexPalette(sector = ''): string[] {
+  const value = sector.toLowerCase();
+  if (value.includes('tech') || value.includes('saas') || value.includes('software')) {
+    return ['#0B192C', '#1E3E62', '#00ADB5', '#EEEEEE'];
+  }
+  if (value.includes('beauty') || value.includes('wellness') || value.includes('health')) {
+    return ['#1F2937', '#9370DB', '#FBCFE8', '#FFF1F2'];
+  }
+  if (value.includes('food') || value.includes('beverage') || value.includes('restaurant')) {
+    return ['#2C1810', '#C85A17', '#E5A93C', '#FFF8EB'];
+  }
+  if (value.includes('finance') || value.includes('legal') || value.includes('consult')) {
+    return ['#0F172A', '#1E293B', '#38BDF8', '#F8FAFC'];
+  }
+  return ['#111827', '#059669', '#34D399', '#F0FDF4'];
+}
+
+export async function generateAiMoodboardDirections(projectId: string): Promise<AiSuiteGenResult> {
+  const project: any = await Project.findById(projectId)
+    .populate('client')
+    .populate('clientProfile')
+    .populate('discovery')
+    .populate('brandDNA')
+    .lean();
+
+  if (!project) return { text: 'Selected project was not found.', isInsufficient: true };
+
+  const companyName = project.clientProfile?.companyName || project.companyName || project.title || 'Brand';
+  const sector = project.clientProfile?.industry || project.sector || 'Design';
+  const d = project.discovery || {};
+  const b = project.brandDNA || {};
+
+  const whatBusinessDoes = d.whatBusinessDoes || '';
+  if (isDummyOrGibberish(whatBusinessDoes)) {
+    return {
+      text: getDiscoveryValidationAdvisory(companyName, whatBusinessDoes, 'Moodboard Directions'),
+      isInsufficient: true,
+    };
+  }
+
+  const targetCustomer = d.targetCustomer || b.targetAudienceSummary || 'Discerning clients';
+  const brandFeeling = d.brandFeeling || b.brandFeelingSummary || 'Professional, modern and memorable';
+  const whyChooseUs = d.whyChooseUs || b.positioningSummary || 'Exceptional craftsmanship and precision';
+  const emotions = (d.emotions || []).map((e: any) => (typeof e === 'string' ? e : e?.emotion)).filter(Boolean).join(', ') || 'Clarity, Confidence, Refinement';
+  const visualStyles = (d.visualStyles || []).map((s: any) => (typeof s === 'string' ? s : s?.style)).filter(Boolean).join(', ') || 'Clean, Minimal, Authoritative';
+  const palette = getSectorHexPalette(sector);
+
+  const fallbackOutput = [
+    `MOODBOARD DIRECTIONS — ${companyName.toUpperCase()}`,
+    `Strategic Context: Sector: ${sector} | Activity: ${whatBusinessDoes} | Audience: ${targetCustomer}`,
+    '',
+    `DIRECTION 1: MINIMAL PRECISION & CREDIBILITY`,
+    `• Visual Theme: A high-trust, structured aesthetic grounded in ${whatBusinessDoes}.`,
+    `• Color Palette: ${palette[0]} (Anchor Dark), ${palette[1]} (Primary Surface), ${palette[2]} (Electric Contrast), ${palette[3]} (Warm Tint).`,
+    `• Typography System: Sharp Geometric Sans headline paired with open Humanist body typography.`,
+    `• Photography Style: High-definition product details, natural architectural light, clean un-distracted negative space.`,
+    `• Materials & Texture: Subtle technical gridlines, frosted glass layering, matte smooth surfaces.`,
+    `• What To Avoid: Cluttered compositions, generic stock handshakes, over-saturated gradient washes.`,
+    `• Strategic Rationale: Validates ${whyChooseUs} by making the company feel dependable and clear.`,
+    '',
+    `DIRECTION 2: WARM EDITORIAL & HUMAN CONNECTION`,
+    `• Visual Theme: Relational, tactile aesthetic focused on emotional resonance (${emotions}).`,
+    `• Color Palette: ${palette[3]}, #D97706 (Warm Clay), #78350F (Deep Umber), #F8FAFC (Soft Pearl).`,
+    `• Typography System: Modern Editorial Serif headlines paired with refined Swiss Sans for body copy.`,
+    `• Photography Style: Candid documentary portraits, authentic process moments, warm sidelight, warm shadows.`,
+    `• Materials & Texture: Tactile paper texture, soft drop shadows, natural organic crops.`,
+    `• What To Avoid: Cold corporate blue gradients, artificial stock smiles, clinical grey-outs.`,
+    `• Strategic Rationale: Engages ${targetCustomer} on a personal, trusting level while preserving prestige.`,
+    '',
+    `DIRECTION 3: BOLD CONTEMPORARY EDGE`,
+    `• Visual Theme: A high-contrast, modern visual route built to dominate category recall in ${sector}.`,
+    `• Color Palette: #09090B (Onyx Black), ${palette[2]} (Hyper Accent), #FAFAFA (Pure Signal), #27272A (Carbon).`,
+    `• Typography System: Condensed Heavy Headline type paired with clean Monospace metadata details.`,
+    `• Photography Style: Dynamic angles, dramatic selective lighting, high contrast crops.`,
+    `• Materials & Texture: Deep panel layering, sharp dividing lines, high-gloss accents against matte charcoal.`,
+    `• What To Avoid: Timid spacing, dated serif tropes, muddy low-contrast palettes.`,
+    `• Strategic Rationale: Elevates ${companyName} directly above traditional competitors into category leadership.`,
+  ].join('\n');
+
+  let client: GoogleGenAI | null = null;
+  try {
+    client = getAiClient();
+  } catch {
+    client = null;
+  }
+
+  if (!client) {
+    return { text: fallbackOutput, isInsufficient: false };
+  }
+
+  const prompt = `You are FLOXA's Executive Creative Director & Visual Identity Lead.
+Using this verified project context:
+- Company Name: ${companyName}
+- Industry / Sector: ${sector}
+- What the Business Actually Does: ${whatBusinessDoes}
+- Target Audience: ${targetCustomer}
+- Core UVP: ${whyChooseUs}
+- Desired Brand Feeling: ${brandFeeling}
+- Emotional Cues: ${emotions}
+- Visual Aesthetics: ${visualStyles}
+
+ANTI-HALLUCINATION INSTRUCTIONS:
+All visual directions, color palettes, and typography pairings MUST be directly grounded in the real business ("${whatBusinessDoes}"). Do not invent unrelated industries.
+
+Generate 3 complete, distinct Visual Moodboard Directions for the designer.
+Format with clean uppercase section headers:
+MOODBOARD DIRECTIONS — ${companyName.toUpperCase()}
+Followed by DIRECTION 1, DIRECTION 2, DIRECTION 3 with bullet points for:
+• Visual Theme
+• Color Palette (include 4 exact HEX codes with descriptive roles)
+• Typography System (Headline font pairing + body font style)
+• Photography Style
+• Materials & Texture
+• What To Avoid
+• Strategic Rationale
+
+Return only clean formatted plain text with bullet points, no conversational preamble.`;
+
+  const models = getActiveModels();
+  const timeoutMs = (ENV.GEMINI_TIMEOUT_SECONDS || 12) * 1000;
+
+  for (const model of models) {
+    try {
+      const response: any = await callModelWithTimeout(
+        client.models.generateContent({
+          model,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: { maxOutputTokens: 2500 },
+        }),
+        model,
+        timeoutMs
+      );
+      const text = response.text?.trim();
+      if (text) return { text, isInsufficient: false };
+    } catch {
+      // Continue to next model fallback
+    }
+  }
+
+  return { text: fallbackOutput, isInsufficient: false };
+}
+
+export async function generateAiBrandDNAOverview(projectId: string): Promise<AiSuiteGenResult> {
+  const project: any = await Project.findById(projectId)
+    .populate('client')
+    .populate('clientProfile')
+    .populate('discovery')
+    .populate('brandDNA')
+    .lean();
+
+  if (!project) return { text: 'Selected project was not found.', isInsufficient: true };
+
+  const companyName = project.clientProfile?.companyName || project.companyName || project.title || 'Brand';
+  const sector = project.clientProfile?.industry || project.sector || 'Design';
+  const d = project.discovery || {};
+  const b = project.brandDNA || {};
+
+  const whatBusinessDoes = d.whatBusinessDoes || '';
+  if (isDummyOrGibberish(whatBusinessDoes)) {
+    return {
+      text: getDiscoveryValidationAdvisory(companyName, whatBusinessDoes, 'Enhance Brand DNA'),
+      isInsufficient: true,
+    };
+  }
+
+  const targetCustomer = d.targetCustomer || b.targetAudienceSummary || 'Discerning clients';
+  const whyChooseUs = d.whyChooseUs || b.positioningSummary || 'Exceptional craftsmanship and precision';
+  const brandFeeling = d.brandFeeling || b.brandFeelingSummary || 'Empowered, confident, visionary';
+  const cluster = b.brandPersonalityCluster || 'The Creator / The Craftsperson';
+
+  const fallbackOutput = [
+    `ENHANCE BRAND DNA — ${companyName.toUpperCase()}`,
+    `Strategic Foundation & Grounded Market Architecture`,
+    '',
+    `1. BRAND ARCHETYPE & ESSENCE`,
+    `• Primary Archetype: ${cluster}`,
+    `• Archetype Essence: Grounded in deliberate craftsmanship and clear value delivery.`,
+    `• Personality Traits: Visionary, Methodical, Authoritative, Dependable, Authentic.`,
+    '',
+    `2. ELEVATED BUSINESS PURPOSE`,
+    `• Core Purpose: Delivering distinguished excellence in ${sector} by focusing on what truly matters: ${whatBusinessDoes}.`,
+    `• Operational Focus: ${whatBusinessDoes}`,
+    '',
+    `3. TARGET AUDIENCE PSYCHOLOGICAL PROFILE`,
+    `• Primary Persona: ${targetCustomer}`,
+    `• Psychological Drivers: Desires clarity, seamless execution, and partners who uphold uncompromising standards.`,
+    `• Core Pain Point: Frustration with hollow promises, vague deliverables, and inconsistent results.`,
+    '',
+    `4. MARKET POSITIONING & CORE UVP`,
+    `• Value Proposition: ${whyChooseUs}`,
+    `• Competitive Stance: Positioned directly around authentic execution in ${sector}, outperforming generic alternatives.`,
+    '',
+    `5. TAGLINE & SLOGAN CONCEPTS`,
+    `• Concept 1 (Direct): "${companyName}: Deliberate Excellence."`,
+    `• Concept 2 (Visionary): "${companyName}: Crafting the Future."`,
+    `• Concept 3 (Clarity): "${companyName}: Precision Where It Counts."`,
+    `• Concept 4 (Minimal): "${companyName}: Built with Purpose."`,
+    `• Concept 5 (Impact): "${companyName}: Define Your Standard."`,
+    '',
+    `6. BRAND VOICE & COMMUNICATION PRINCIPLES`,
+    `• Tone: Direct, grounded, confident, and free of artificial jargon.`,
+    `• Language Dos: Emphasize genuine substance, speak clearly about real outcomes, highlight specific craftsmanship.`,
+    `• Language Don'ts: Never use inflated buzzwords or claim capabilities outside ${whatBusinessDoes}.`,
+  ].join('\n');
+
+  let client: GoogleGenAI | null = null;
+  try {
+    client = getAiClient();
+  } catch {
+    client = null;
+  }
+
+  if (!client) {
+    return { text: fallbackOutput, isInsufficient: false };
+  }
+
+  const prompt = `You are FLOXA's Chief Brand Strategist.
+Transform this verified client project into an executive Brand DNA strategy brief:
+- Company Name: ${companyName}
+- Industry: ${sector}
+- What the Business Actually Does: ${whatBusinessDoes}
+- Target Audience: ${targetCustomer}
+- Core UVP: ${whyChooseUs}
+- Desired Feeling: ${brandFeeling}
+
+CRITICAL ANTI-HALLUCINATION & FACTUAL GROUNDING RULES:
+1. PURE GROUNDING: You MUST strictly ground all insights, archetypes, mission, and taglines on the REAL business description provided above: "${whatBusinessDoes}".
+2. ZERO FABRICATION: Under NO circumstances should you fabricate unrelated industries or technologies. (For example, NEVER invent "digital analytics", "software intelligence", or "big data" unless the client specifically described doing analytics/software).
+3. ELEVATED STRATEGY: Elevate their authentic trade, craftsmanship, and audience into executive strategy without changing what they actually do.
+
+Generate a complete, structured Brand DNA document with these 6 sections:
+1. BRAND ARCHETYPE & ESSENCE (identify primary archetype grounded in ${sector})
+2. ELEVATED BUSINESS PURPOSE
+3. TARGET AUDIENCE PSYCHOLOGICAL PROFILE (drivers & pain points of ${targetCustomer})
+4. MARKET POSITIONING & CORE UVP (defensible value based on ${whyChooseUs})
+5. TAGLINE & SLOGAN CONCEPTS (5 distinct, creative tagline options tailored to ${companyName})
+6. BRAND VOICE & COMMUNICATION PRINCIPLES (tone, language dos & don'ts)
+
+Return only clean formatted plain text with bullet points, no conversational preamble.`;
+
+  const models = getActiveModels();
+  const timeoutMs = (ENV.GEMINI_TIMEOUT_SECONDS || 12) * 1000;
+
+  for (const model of models) {
+    try {
+      const response: any = await callModelWithTimeout(
+        client.models.generateContent({
+          model,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: { maxOutputTokens: 2500 },
+        }),
+        model,
+        timeoutMs
+      );
+      const text = response.text?.trim();
+      if (text) return { text, isInsufficient: false };
+    } catch {
+      // Continue to next model fallback
+    }
+  }
+
+  return { text: fallbackOutput, isInsufficient: false };
+}
+
+export async function generateAiProposal(projectId: string): Promise<AiSuiteGenResult> {
+  const project: any = await Project.findById(projectId)
+    .populate('client')
+    .populate('clientProfile')
+    .populate('discovery')
+    .populate('paymentMilestones')
+    .lean();
+
+  if (!project) return { text: 'Selected project was not found.', isInsufficient: true };
+
+  const companyName = project.clientProfile?.companyName || project.companyName || project.title || 'Client Partner';
+  const clientName = project.client?.name || project.clientName || 'Valued Client';
+  const sector = project.clientProfile?.industry || project.sector || 'Branding & Identity';
+  const projectValue = Number(project.projectValue || 85000).toLocaleString('en-IN');
+  const d = project.discovery || {};
+
+  const whatBusinessDoes = d.whatBusinessDoes || '';
+  if (isDummyOrGibberish(whatBusinessDoes)) {
+    return {
+      text: getDiscoveryValidationAdvisory(companyName, whatBusinessDoes, 'Proposal Generator'),
+      isInsufficient: true,
+    };
+  }
+
+  const targetCustomer = d.targetCustomer || 'discerning clients in the modern marketplace';
+  const whyChooseUs = d.whyChooseUs || 'market-leading positioning and creative excellence';
+
+  const fallbackOutput = [
+    `CLIENT PROPOSAL & STATEMENT OF WORK — ${companyName.toUpperCase()}`,
+    `Prepared by FLOXA Studio | Confidential & Bespoke`,
+    '',
+    `SECTION 1: EXECUTIVE SUMMARY & PROJECT VISION`,
+    `• Client: ${clientName} (${companyName}) | Sector: ${sector}`,
+    `• Scope Basis: Tailored identity strategy for ${whatBusinessDoes}.`,
+    `• Vision: Partnering with ${companyName} to craft a commanding brand identity that communicates ${whyChooseUs} and drives engagement with ${targetCustomer}.`,
+    `• Core Objective: Transitioning ${companyName} into a category-defining brand with high perceived market equity.`,
+    '',
+    `SECTION 2: STRATEGIC APPROACH & METHODOLOGY`,
+    `• Discovery Synthesis: Analyzing company goals, customer psychology, and competitive landscape.`,
+    `• Brand Positioning: Codifying the unique market positioning, brand archetypes, and tone of voice based on real business operations.`,
+    `• Visual Art Direction: Developing moodboards, color palettes, and typography frameworks tailored to high-trust customer decisions.`,
+    '',
+    `SECTION 3: SCOPE OF WORK & KEY DELIVERABLES`,
+    `• 1. Brand Strategy Blueprint: Archetype definition, mission, audience persona, and positioning statement.`,
+    `• 2. Primary & Secondary Logo System: Vector master files (.SVG, .PNG, .PDF, .AI) in full-color, mono, and inverted configurations.`,
+    `• 3. Color & Typography Identity: Curated HEX/RGB/CMYK palettes and responsive web/print font pairings.`,
+    `• 4. Visual Identity Guidelines: Brand style manual documenting logo clear-space, improper usage, and aesthetic rules.`,
+    `• 5. Launch Collateral Assets: Social media kit, brand presentation template, and digital stationery.`,
+    '',
+    `SECTION 4: TIMELINE & IMPLEMENTATION PHASES`,
+    `• Phase 1 (Week 1): Discovery Intake, Strategic Analysis & Brand DNA Blueprint.`,
+    `• Phase 2 (Week 2): Visual Directions, Moodboard Exploration & Client Feedback Alignment.`,
+    `• Phase 3 (Weeks 3-4): Logo Concept Exploration, Iteration, and Final Client Selection.`,
+    `• Phase 4 (Week 5): Brand Manual Documentation, Asset Package Generation & Final Handover.`,
+    '',
+    `SECTION 5: COMMERCIAL INVESTMENT & MILESTONES`,
+    `• Total Investment: Rs ${projectValue} (Exclusive of applicable taxes)`,
+    `• Milestone 1: 40% Advance Deposit — Project initiation and Discovery kickoff.`,
+    `• Milestone 2: 30% Progress Payment — Upon approved Moodboard and Concept Selection.`,
+    `• Milestone 3: 30% Final Settlement — Upon final asset packaging, source file delivery, and sign-off.`,
+    `• Payment Mode: Secure instant settlement via FLOXA Client Portal (Razorpay).`,
+    '',
+    `SECTION 6: WHY CHOOSE FLOXA & NEXT STEPS`,
+    `• Dedicated Creative Collaboration: Live portal transparency, real-time feedback loops, and milestone sign-offs.`,
+    `• Complete IP Ownership: Full copyright and commercial source file transfer upon final settlement.`,
+    `• Next Step: Review this proposal in your Client Portal, approve agreement terms, and settle kickoff deposit to lock your studio schedule.`,
+  ].join('\n');
+
+  let client: GoogleGenAI | null = null;
+  try {
+    client = getAiClient();
+  } catch {
+    client = null;
+  }
+
+  if (!client) {
+    return { text: fallbackOutput, isInsufficient: false };
+  }
+
+  const prompt = `You are FLOXA's Agency Commercial Director.
+Create a comprehensive, persuasive 6-section Client Proposal based on:
+- Company Name: ${companyName}
+- Client Name: ${clientName}
+- Industry / Sector: ${sector}
+- Project Value: Rs ${projectValue}
+- What the Business Actually Does: ${whatBusinessDoes}
+- Target Audience: ${targetCustomer}
+- Core UVP: ${whyChooseUs}
+
+ANTI-HALLUCINATION INSTRUCTION:
+All scope, methodology, and positioning must be strictly grounded in the client's actual operations: "${whatBusinessDoes}". Do not invent unrelated services.
+
+The proposal must contain 6 distinct sections:
+SECTION 1: EXECUTIVE SUMMARY & PROJECT VISION
+SECTION 2: STRATEGIC APPROACH & METHODOLOGY
+SECTION 3: SCOPE OF WORK & KEY DELIVERABLES
+SECTION 4: TIMELINE & IMPLEMENTATION PHASES (week by week)
+SECTION 5: COMMERCIAL INVESTMENT & MILESTONES (Rs ${projectValue} with advance deposit & milestone terms)
+SECTION 6: WHY CHOOSE FLOXA & NEXT STEPS
+
+Return only clean formatted plain text with bullet points, no conversational preamble.`;
+
+  const models = getActiveModels();
+  const timeoutMs = (ENV.GEMINI_TIMEOUT_SECONDS || 12) * 1000;
+
+  for (const model of models) {
+    try {
+      const response: any = await callModelWithTimeout(
+        client.models.generateContent({
+          model,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: { maxOutputTokens: 2500 },
+        }),
+        model,
+        timeoutMs
+      );
+      const text = response.text?.trim();
+      if (text) return { text, isInsufficient: false };
+    } catch {
+      // Continue to next model fallback
+    }
+  }
+
+  return { text: fallbackOutput, isInsufficient: false };
+}
