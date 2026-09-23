@@ -26,6 +26,9 @@ backend/dist/
 frontend/.next/
 frontend/out/
 frontend/.vercel/
+superadmin-api/dist/
+superadmin-ui/.next/
+superadmin-ui/out/
 
 # Test and tool caches
 coverage/
