@@ -221,7 +221,7 @@ function PortalCard({
   onClose,
 }) {
   return (
-    <section className="cp-card">
+    <section className="cp-card" onClick={(e) => e.stopPropagation()}>
       {onClose ? (
         <button
           type="button"
@@ -1291,8 +1291,8 @@ export default function ConsultantClientPortal() {
   }
 
   return (
-    <main className="cp-screen">
-      <PortalHeader />
+    <main className="cp-screen" onClick={handleExitPortal}>
+      <PortalHeader onClose={handleExitPortal} />
 
       {step === 1 ? (
         <PortalCard
@@ -1508,7 +1508,13 @@ export default function ConsultantClientPortal() {
       ) : null}
 
       {showHelpModal ? (
-        <div className="client-help-modal-overlay" onClick={() => setShowHelpModal(false)}>
+        <div
+          className="client-help-modal-overlay"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowHelpModal(false);
+          }}
+        >
           <div className="client-help-modal-card" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ display: "flex", alignItems: "center", gap: "8px" }}><MessageSquare size={18} /> Ask Consultant for Assistance</h3>
             <p>
