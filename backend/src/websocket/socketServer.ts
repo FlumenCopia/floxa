@@ -1173,11 +1173,13 @@ export function setupWebSocketServer(server: Server) {
         else if (msgType === 'STEP_NAVIGATE') {
           const step = Number(content.step);
           const pageId = String(content.page_id || `Step ${step}`);
+          const frameData = content.frameData || content.data || null;
 
           const navMsg = JSON.stringify({
             type: 'STEP_NAVIGATE',
             step,
             page_id: pageId,
+            frameData,
             sender_role: role,
           });
 

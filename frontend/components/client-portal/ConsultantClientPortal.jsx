@@ -169,11 +169,42 @@ function StepDots({ active, total = 6 }) {
   );
 }
 
-function PortalHeader({ onClose, onVideoCall, callState }) {
+function PortalHeader({ onClose, onVideoCall, callState, project, projects, onSelectProject }) {
   return (
     <header className="cp-header">
-      <div className="cp-logo">
+      <div className="cp-logo" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
         <img src="/image/FLOXA_log.png" alt="FLOXA" className="cp-logo-img" />
+        {projects && projects.length > 1 && onSelectProject ? (
+          <select
+            className="floxa-project-header-select"
+            value={project?.portal_token || project?.id || project?._id || ""}
+            onChange={(e) => onSelectProject(e.target.value)}
+            style={{
+              background: "#18181b",
+              color: "#e4e4e7",
+              border: "1px solid rgba(255, 255, 255, 0.18)",
+              borderRadius: "6px",
+              padding: "4px 10px",
+              fontSize: "12px",
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            {projects.map((p) => {
+              const val = p.portal_token || p.id || p._id;
+              const name = p.title || p.company_name || "Project";
+              return (
+                <option key={val} value={val}>
+                  Project: {name}
+                </option>
+              );
+            })}
+          </select>
+        ) : project?.title ? (
+          <span style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.6)", fontWeight: 500 }}>
+            {project.title}
+          </span>
+        ) : null}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
         {onVideoCall ? (
@@ -570,6 +601,99 @@ export default function ConsultantClientPortal() {
     loadProjectContext();
   }, [urlToken, urlProjectId]);
 
+  // Fetch existing discovery draft from server
+  const fetchDiscovery = useCallback(async () => {
+    const portalToken = project?.portal_token || urlToken;
+    if (!portalToken) return;
+
+    try {
+      const res = await clientPortalService.getDiscoveryDraft(portalToken);
+      if (res?.success && res.data) {
+        const disc = res.data;
+        const whatText = disc.what_business_does || disc.business_description || disc.businessDescription || disc.whatDo || disc.whatDoYouDo || "";
+        const customerText = disc.target_customer || disc.targetCustomer || "";
+        const whyChooseText = disc.why_choose_us || disc.whyChooseUs || disc.whyChooseYou || "";
+        const brandFeelingText = disc.brand_feeling || disc.brandFeeling || disc.whyTrustYou || "";
+
+        setAnswers((prev) => ({
+          ...prev,
+          what: whatText || prev.what,
+          whatDoYouDo: whatText || prev.whatDoYouDo,
+          customer: customerText || prev.customer,
+          targetCustomer: customerText || prev.targetCustomer,
+          choose: whyChooseText || prev.choose,
+          whyChooseYou: whyChooseText || prev.whyChooseYou,
+          trust: brandFeelingText || prev.trust,
+          whyTrustYou: brandFeelingText || prev.whyTrustYou,
+        }));
+
+        if (Array.isArray(disc.personality_sliders) || Array.isArray(disc.sliders)) {
+          const serverSliders = disc.personality_sliders || disc.sliders;
+          setSliderOne((prev) => {
+            const updated = { ...prev };
+            serverSliders.forEach((s) => {
+              const pairKey = sliderKeyToPair[s.slider_key] || s.slider_key;
+              if (updated[pairKey] !== undefined) {
+                updated[pairKey] = s.value !== undefined ? Math.round((s.value / 100) * 6 - 3) : 0;
+              }
+            });
+            return updated;
+          });
+          setSliderTwo((prev) => {
+            const updated = { ...prev };
+            serverSliders.forEach((s) => {
+              const pairKey = sliderKeyToPair[s.slider_key] || s.slider_key;
+              if (updated[pairKey] !== undefined) {
+                updated[pairKey] = s.value !== undefined ? Math.round((s.value / 100) * 6 - 3) : 0;
+              }
+            });
+            return updated;
+          });
+        }
+
+        if (Array.isArray(disc.emotions)) {
+          const mappedEmotions = disc.emotions
+            .map((e) => (typeof e === "string" ? e : e.emotion))
+            .filter(Boolean);
+          setSelectedEmotions(mappedEmotions);
+        }
+        if (disc.audience_archetype || disc.persona) {
+          setSelectedAudience([disc.audience_archetype || disc.persona]);
+        }
+        if (Array.isArray(disc.competitors) && disc.competitors.length > 0) {
+          const loadedComps = [0, 1, 2].map((i) => {
+            const c = disc.competitors[i];
+            if (c && typeof c === "object") {
+              return {
+                name: c.name || "",
+                rating: c.rating || "",
+                reason: c.reason || "",
+              };
+            }
+            return { name: typeof c === "string" ? c : "", rating: "", reason: "" };
+          });
+          setCompetitors(loadedComps);
+        }
+        if (Array.isArray(disc.visual_styles) && disc.visual_styles.length > 0) {
+          setSelectedVisual(disc.visual_styles.map((v) => (typeof v === "string" ? v : v.style)).filter(Boolean));
+        }
+        if (disc.is_submitted || disc.isSubmitted) {
+          if (!isConsultantMode) {
+            setFinished(true);
+          }
+          if (urlToken) setEntered(true);
+        } else if (typeof disc.step === "number" && disc.step >= 1 && disc.step <= 6) {
+          if (!activeHelpSession?.is_active) {
+            setStep(disc.step);
+          }
+          if (urlToken) setEntered(true);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not prefill discovery draft in portal:", err);
+    }
+  }, [project?.portal_token, urlToken, isConsultantMode, activeHelpSession?.is_active]);
+
   // Connect to WebSocket for real-time live assistance
   useEffect(() => {
     const portalToken = project?.portal_token || urlToken;
@@ -595,95 +719,6 @@ export default function ConsultantClientPortal() {
       }
     });
 
-    // Fetch existing discovery draft from server
-    const fetchDiscovery = async () => {
-      try {
-        const res = await clientPortalService.getDiscoveryDraft(portalToken);
-        if (res?.success && res.data) {
-          const disc = res.data;
-          const whatText = disc.what_business_does || disc.business_description || disc.businessDescription || disc.whatDo || disc.whatDoYouDo || "";
-          const customerText = disc.target_customer || disc.targetCustomer || "";
-          const whyChooseText = disc.why_choose_us || disc.whyChooseUs || disc.whyChooseYou || "";
-          const brandFeelingText = disc.brand_feeling || disc.brandFeeling || disc.whyTrustYou || "";
-
-          setAnswers((prev) => ({
-            ...prev,
-            what: whatText || prev.what,
-            whatDoYouDo: whatText || prev.whatDoYouDo,
-            customer: customerText || prev.customer,
-            targetCustomer: customerText || prev.targetCustomer,
-            choose: whyChooseText || prev.choose,
-            whyChooseYou: whyChooseText || prev.whyChooseYou,
-            trust: brandFeelingText || prev.trust,
-            whyTrustYou: brandFeelingText || prev.whyTrustYou,
-          }));
-
-          if (Array.isArray(disc.personality_sliders) || Array.isArray(disc.sliders)) {
-            const serverSliders = disc.personality_sliders || disc.sliders;
-            setSliderOne((prev) => {
-              const updated = { ...prev };
-              serverSliders.forEach((s) => {
-                const pairKey = sliderKeyToPair[s.slider_key] || s.slider_key;
-                if (updated[pairKey] !== undefined) {
-                  updated[pairKey] = s.value !== undefined ? Math.round((s.value / 100) * 6 - 3) : 0;
-                }
-              });
-              return updated;
-            });
-            setSliderTwo((prev) => {
-              const updated = { ...prev };
-              serverSliders.forEach((s) => {
-                const pairKey = sliderKeyToPair[s.slider_key] || s.slider_key;
-                if (updated[pairKey] !== undefined) {
-                  updated[pairKey] = s.value !== undefined ? Math.round((s.value / 100) * 6 - 3) : 0;
-                }
-              });
-              return updated;
-            });
-          }
-
-          if (Array.isArray(disc.emotions)) {
-            const mappedEmotions = disc.emotions
-              .map((e) => (typeof e === "string" ? e : e.emotion))
-              .filter(Boolean);
-            setSelectedEmotions(mappedEmotions);
-          }
-          if (disc.audience_archetype || disc.persona) {
-            setSelectedAudience([disc.audience_archetype || disc.persona]);
-          }
-          if (Array.isArray(disc.competitors) && disc.competitors.length > 0) {
-            const loadedComps = [0, 1, 2].map((i) => {
-              const c = disc.competitors[i];
-              if (c && typeof c === "object") {
-                return {
-                  name: c.name || "",
-                  rating: c.rating || "",
-                  reason: c.reason || "",
-                };
-              }
-              return { name: typeof c === "string" ? c : "", rating: "", reason: "" };
-            });
-            setCompetitors(loadedComps);
-          }
-          if (Array.isArray(disc.visual_styles) && disc.visual_styles.length > 0) {
-            setSelectedVisual(disc.visual_styles.map((v) => (typeof v === "string" ? v : v.style)).filter(Boolean));
-          }
-          if (disc.is_submitted || disc.isSubmitted) {
-            if (!isConsultantMode) {
-              setFinished(true);
-            }
-            if (urlToken) setEntered(true);
-          } else if (typeof disc.step === "number" && disc.step >= 1 && disc.step <= 6) {
-            if (!activeHelpSession?.is_active) {
-              setStep(disc.step);
-            }
-            if (urlToken) setEntered(true);
-          }
-        }
-      } catch (err) {
-        console.warn("Could not prefill discovery draft in portal:", err);
-      }
-    };
     fetchDiscovery();
 
     const consultantToken = isConsultantMode
@@ -754,6 +789,49 @@ export default function ConsultantClientPortal() {
     const unsubscribeStepNav = supportSocket.on("step_navigate", (data) => {
       if (typeof data.step === "number" && data.step >= 1 && data.step <= 9) {
         setStep(data.step);
+
+        // Instantly reflect incoming completed frame snapshot in consultant view
+        if (data.frameData) {
+          const fd = data.frameData;
+          if (fd.basics) {
+            setAnswers((prev) => ({
+              ...prev,
+              what: fd.basics.whatDo || prev.what,
+              whatDoYouDo: fd.basics.whatDo || prev.whatDoYouDo,
+              customer: fd.basics.targetCustomer || prev.customer,
+              targetCustomer: fd.basics.targetCustomer || prev.targetCustomer,
+              choose: fd.basics.whyChooseUs || prev.choose,
+              whyChooseYou: fd.basics.whyChooseUs || prev.whyChooseYou,
+              trust: fd.basics.brandFeeling || prev.trust,
+              whyTrustYou: fd.basics.brandFeeling || prev.whyTrustYou,
+            }));
+          }
+          if (fd.sliders) {
+            setSliderOne((prev) => {
+              const updated = { ...prev };
+              Object.entries(fd.sliders).forEach(([k, val]) => {
+                const pairKey = sliderKeyToPair[k] || k;
+                if (updated[pairKey] !== undefined) updated[pairKey] = Number(val);
+              });
+              return updated;
+            });
+            setSliderTwo((prev) => {
+              const updated = { ...prev };
+              Object.entries(fd.sliders).forEach(([k, val]) => {
+                const pairKey = sliderKeyToPair[k] || k;
+                if (updated[pairKey] !== undefined) updated[pairKey] = Number(val);
+              });
+              return updated;
+            });
+          }
+          if (fd.emotions) setSelectedEmotions(fd.emotions);
+          if (fd.persona) setSelectedAudience([fd.persona]);
+          if (fd.comps) setCompetitors(fd.comps);
+          if (fd.styles) setSelectedVisual(fd.styles);
+        }
+
+        // Re-fetch the saved draft from server to ensure 100% sync
+        fetchDiscovery();
       }
     });
 
@@ -764,7 +842,7 @@ export default function ConsultantClientPortal() {
       unsubscribeFieldSync();
       unsubscribeStepNav();
     };
-  }, [project?.portal_token, urlToken, isConsultantMode, entered]);
+  }, [project?.portal_token, urlToken, isConsultantMode, entered, fetchDiscovery]);
 
   // Auto-save consultant assisted changes to database
   useEffect(() => {
@@ -890,6 +968,7 @@ export default function ConsultantClientPortal() {
       const next = Math.min(step + 1, 6);
       setStep(next);
       supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
+      fetchDiscovery();
       return;
     }
 
@@ -925,6 +1004,7 @@ export default function ConsultantClientPortal() {
       const next = Math.min(step + 1, 6);
       setStep(next);
       supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
+      fetchDiscovery();
       return;
     }
 
@@ -935,6 +1015,7 @@ export default function ConsultantClientPortal() {
     const next = Math.min(step + 1, 6);
     setStep(next);
     supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
+    fetchDiscovery();
   };
 
   function goBack() {
@@ -945,6 +1026,7 @@ export default function ConsultantClientPortal() {
     const prev = Math.max(step - 1, 1);
     setStep(prev);
     supportSocket.navigateStep({ step: prev, pageId: `frame_${prev}` });
+    fetchDiscovery();
   }
 
   const updateCompetitor = (index, field, value) => {
@@ -1291,8 +1373,27 @@ export default function ConsultantClientPortal() {
   }
 
   return (
-    <main className="cp-screen" onClick={handleExitPortal}>
-      <PortalHeader onClose={handleExitPortal} />
+    <main className="cp-screen">
+      <PortalHeader
+        onClose={handleClosePortal}
+        project={project}
+        projects={projects}
+        onSelectProject={(selectedTokenOrId) => {
+          const selected = projects.find(
+            (p) =>
+              String(p.id) === String(selectedTokenOrId) ||
+              String(p._id) === String(selectedTokenOrId) ||
+              p.portal_token === selectedTokenOrId
+          );
+          if (selected) {
+            setProject(selected);
+            const token = selected.portal_token || selected.portalToken || "";
+            if (token) {
+              router.push(`/client-portal?token=${encodeURIComponent(token)}&mode=consultant`);
+            }
+          }
+        }}
+      />
 
       {step === 1 ? (
         <PortalCard

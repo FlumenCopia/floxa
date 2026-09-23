@@ -330,11 +330,12 @@ class SupportSocketService {
     });
   }
 
-  navigateStep({ step, pageId }) {
+  navigateStep({ step, pageId, frameData = null }) {
     this.send({
       type: "STEP_NAVIGATE",
       step,
       page_id: pageId || `Step ${step}`,
+      frameData,
     });
   }
 

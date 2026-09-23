@@ -779,6 +779,39 @@ export function DiscoveryFlow({
           setActiveHelpSession(null);
         }
 
+        // Broadcast all completed frame values over WebSocket so consultant reflects them immediately
+        if (step === 1) {
+          supportSocket.syncField({ pageId: "frame_1", fieldKey: "basics.whatDo", value: basics.whatDo });
+          supportSocket.syncField({ pageId: "frame_1", fieldKey: "basics.targetCustomer", value: basics.targetCustomer });
+          supportSocket.syncField({ pageId: "frame_1", fieldKey: "basics.whyChooseUs", value: basics.whyChooseUs });
+          supportSocket.syncField({ pageId: "frame_1", fieldKey: "basics.brandFeeling", value: basics.brandFeeling });
+        } else if (step === 2 || step === 3) {
+          Object.entries(sliders).forEach(([sliderKey, val]) => {
+            supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: `slider.${sliderKey}`, value: val });
+          });
+        } else if (step === 4) {
+          supportSocket.syncField({ pageId: "frame_4", fieldKey: "emotions", value: emotions });
+          supportSocket.syncField({ pageId: "frame_4", fieldKey: "selectedEmotions", value: emotions });
+        } else if (step === 5) {
+          supportSocket.syncField({ pageId: "frame_5", fieldKey: "persona", value: persona });
+          supportSocket.syncField({ pageId: "frame_5", fieldKey: "selectedAudience", value: persona ? [persona] : [] });
+          supportSocket.syncField({ pageId: "frame_5", fieldKey: "comps", value: comps });
+          supportSocket.syncField({ pageId: "frame_5", fieldKey: "competitors", value: comps });
+        } else if (step === 6) {
+          supportSocket.syncField({ pageId: "frame_6", fieldKey: "styles", value: styles });
+          supportSocket.syncField({ pageId: "frame_6", fieldKey: "selectedVisual", value: styles });
+        }
+
+        const frameSnapshot = {
+          step,
+          basics: { ...basics },
+          sliders: { ...sliders },
+          emotions: [...emotions],
+          persona,
+          comps: [...comps],
+          styles: [...styles],
+        };
+
         const next = step + 1;
         setStep(next);
         if (typeof onStepChange === "function") {
@@ -788,7 +821,7 @@ export function DiscoveryFlow({
           window.sessionStorage.setItem(`floxa-client-step-${targetPortalToken}`, String(next));
           window.localStorage.setItem(`floxa-client-step-${targetPortalToken}`, String(next));
         }
-        supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
+        supportSocket.navigateStep({ step: next, pageId: `frame_${next}`, frameData: frameSnapshot });
       } else {
         setMessage(data.error ?? "Something went wrong.");
       }
