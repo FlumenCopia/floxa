@@ -4,7 +4,13 @@ import jwt from 'jsonwebtoken';
 import { SuperAdmin } from '../models/superadmin.model.js';
 import type { AdminAuthRequest } from '../middleware/auth.middleware.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'floxa_superadmin_secret_key_84920481239';
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET is not configured in environment variables.');
+  }
+  return secret;
+}
 
 export async function adminLogin(req: Request, res: Response) {
   try {
@@ -13,6 +19,14 @@ export async function adminLogin(req: Request, res: Response) {
 
     if (!cleanEmail || !password) {
       res.status(400).json({ detail: 'Email and password are required.' });
+      return;
+    }
+
+    let jwtSecret: string;
+    try {
+      jwtSecret = getJwtSecret();
+    } catch {
+      res.status(500).json({ detail: 'Authentication service is misconfigured: JWT_SECRET environment variable is missing.' });
       return;
     }
 
@@ -35,7 +49,7 @@ export async function adminLogin(req: Request, res: Response) {
 
     const token = jwt.sign(
       { adminId: admin.id, email: admin.email, role: 'superadmin' },
-      JWT_SECRET,
+      jwtSecret,
       { expiresIn: '7d' }
     );
 

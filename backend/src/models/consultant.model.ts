@@ -1,5 +1,12 @@
 import mongoose, { Schema, Model } from 'mongoose';
 
+export interface IConsultantIntegrations {
+  geminiApiKey?: string;
+  razorpayKeyId?: string;
+  razorpayKeySecret?: string;
+  razorpayWebhookSecret?: string;
+}
+
 export interface IConsultant {
   _id?: any;
   id: string;
@@ -15,6 +22,7 @@ export interface IConsultant {
     plan?: string;
     toolRuns?: Record<string, number>;
   };
+  integrations?: IConsultantIntegrations;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -68,6 +76,28 @@ const consultantSchema = new Schema<IConsultant>(
       toolRuns: {
         type: Schema.Types.Mixed,
         default: {},
+      },
+    },
+    integrations: {
+      geminiApiKey: {
+        type: String,
+        default: '',
+        trim: true,
+      },
+      razorpayKeyId: {
+        type: String,
+        default: '',
+        trim: true,
+      },
+      razorpayKeySecret: {
+        type: String,
+        default: '',
+        trim: true,
+      },
+      razorpayWebhookSecret: {
+        type: String,
+        default: '',
+        trim: true,
       },
     },
   },

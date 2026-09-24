@@ -43,16 +43,14 @@ export function getActiveModels(): string[] {
   return list;
 }
 
-function getAiClient(): GoogleGenAI {
-  if (!ENV.GEMINI_API_KEY) {
-    throw new Error('Gemini API is not configured.');
+export function getAiClient(customApiKey?: string): GoogleGenAI {
+  const key = (customApiKey || '').trim();
+
+  if (!key) {
+    throw new Error('Gemini API is not configured. Please configure your Gemini API Key in Settings > Integrations & API Keys.');
   }
 
-  if (!aiClient) {
-    aiClient = new GoogleGenAI({ apiKey: ENV.GEMINI_API_KEY });
-  }
-
-  return aiClient;
+  return new GoogleGenAI({ apiKey: key });
 }
 
 async function callModelWithTimeout<T>(
@@ -267,9 +265,14 @@ export async function buildProjectContext(projectId: string): Promise<string> {
   return context;
 }
 
-export async function generateProjectAssistantReply(projectId: string, userMessage: string): Promise<string> {
+export async function generateProjectAssistantReply(
+  projectId: string,
+  userMessage: string,
+  customApiKey?: string
+): Promise<string> {
   const project: any = await Project.findById(projectId)
     .populate('client')
+    .populate('consultant')
     .populate('clientProfile')
     .populate('discovery')
     .populate('brandDNA')
@@ -283,17 +286,17 @@ export async function generateProjectAssistantReply(projectId: string, userMessa
     return 'Project context is unavailable. Please verify the project ID.';
   }
 
-  let client: GoogleGenAI | null = null;
-  try {
-    client = getAiClient();
-  } catch (err: any) {
-    console.warn('[FLOXA AI Assistant] Google Gemini API client unavailable:', err?.message);
+  const effectiveKey = (customApiKey || project?.consultant?.integrations?.geminiApiKey || '').trim();
+
+  if (!effectiveKey) {
+    return '⚠️ Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key to activate the AI Assistant.';
   }
 
-  // If no Gemini API key is configured, instantly use the intelligent contextual fallback
-  if (!client) {
-    console.log('[FLOXA AI Assistant] Serving intelligent project-aware contextual summary (No API Key configured).');
-    return generateContextualProjectFallback(project, userMessage);
+  let client: GoogleGenAI;
+  try {
+    client = getAiClient(effectiveKey);
+  } catch (err: any) {
+    return `⚠️ Google Gemini API Key error: ${err?.message || 'Invalid key'}. Please check your key in Settings > Integrations & API Keys.`;
   }
 
   const projectContext = await buildProjectContext(projectId);
@@ -359,26 +362,23 @@ AGENCY WORKFLOW & STAGE-AWARE RULES:
     }
   }
 
-  // Graceful fallback: If all models in the fallback chain fail (or rate-limit / outage occurs),
-  // provide the studio consultant with a high-fidelity contextual synthesis instead of a 502 crash!
-  console.warn('[FLOXA AI Assistant] All Gemini models exhausted. Delivering high-fidelity project fallback.');
-  return generateContextualProjectFallback(project, userMessage);
+  console.warn('[FLOXA AI Assistant] All Gemini models exhausted.');
+  return `⚠️ Unable to get a response from Google Gemini AI (${lastError?.message || 'Request failed'}). Please verify your Gemini API Key in Settings > Integrations & API Keys.`;
 }
 
-export async function generateAiBrandDNA(project: any, discovery: any): Promise<any> {
+export async function generateAiBrandDNA(project: any, discovery: any, customApiKey?: string): Promise<any> {
   const fallback = buildBrandDNAData(project, discovery);
+  const effectiveKey = (customApiKey || project?.consultant?.integrations?.geminiApiKey || '').trim();
 
-  if (!ENV.GEMINI_API_KEY) {
-    console.warn('[Gemini Brand DNA] No GEMINI_API_KEY configured; using strategic fallback generator.');
-    return fallback;
+  if (!effectiveKey) {
+    throw new Error('Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before generating Brand DNA.');
   }
 
   let client: GoogleGenAI;
   try {
-    client = getAiClient();
-  } catch (err) {
-    console.warn('[Gemini Brand DNA] Failed to initialize client, using fallback:', err);
-    return fallback;
+    client = getAiClient(effectiveKey);
+  } catch (err: any) {
+    throw new Error(`Google Gemini API client initialization failed: ${err?.message || 'Invalid key'}. Please check your API key in Settings > Integrations & API Keys.`);
   }
 
   const profile = project.clientProfile;
@@ -557,8 +557,8 @@ JSON STRUCTURE REQUIRED:
     }
   }
 
-  console.warn('[FLOXA Brand DNA] Gemini generation exhausted fallbacks. Using strategic fallback generator.');
-  return fallback;
+  console.warn('[FLOXA Brand DNA] Gemini generation exhausted fallbacks.');
+  throw new Error('Google Gemini AI generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.');
 }
 
 // ---------------------------------------------------------------------------
@@ -642,7 +642,7 @@ function getSectorHexPalette(sector = ''): string[] {
   return ['#111827', '#059669', '#34D399', '#F0FDF4'];
 }
 
-export async function generateAiMoodboardDirections(projectId: string): Promise<AiSuiteGenResult> {
+export async function generateAiMoodboardDirections(projectId: string, customApiKey?: string): Promise<AiSuiteGenResult> {
   const project: any = await Project.findById(projectId)
     .populate('client')
     .populate('clientProfile')
@@ -694,7 +694,7 @@ export async function generateAiMoodboardDirections(projectId: string): Promise<
     `• What To Avoid: Cold corporate blue gradients, artificial stock smiles, clinical grey-outs.`,
     `• Strategic Rationale: Engages ${targetCustomer} on a personal, trusting level while preserving prestige.`,
     '',
-    `DIRECTION 3: BOLD CONTEMPORARY EDGE`,
+    `DIRECTION 3: BOLD CONTEMPORAGE EDGE`,
     `• Visual Theme: A high-contrast, modern visual route built to dominate category recall in ${sector}.`,
     `• Color Palette: #09090B (Onyx Black), ${palette[2]} (Hyper Accent), #FAFAFA (Pure Signal), #27272A (Carbon).`,
     `• Typography System: Condensed Heavy Headline type paired with clean Monospace metadata details.`,
@@ -704,15 +704,14 @@ export async function generateAiMoodboardDirections(projectId: string): Promise<
     `• Strategic Rationale: Elevates ${companyName} directly above traditional competitors into category leadership.`,
   ].join('\n');
 
-  let client: GoogleGenAI | null = null;
+  let client: GoogleGenAI;
   try {
-    client = getAiClient();
-  } catch {
-    client = null;
-  }
-
-  if (!client) {
-    return { text: fallbackOutput, isInsufficient: false };
+    client = getAiClient(customApiKey);
+  } catch (err: any) {
+    return {
+      text: '⚠️ Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before generating Moodboard Directions.',
+      isInsufficient: true,
+    };
   }
 
   const prompt = `You are FLOXA's Executive Creative Director & Visual Identity Lead.
@@ -764,10 +763,13 @@ Return only clean formatted plain text with bullet points, no conversational pre
     }
   }
 
-  return { text: fallbackOutput, isInsufficient: false };
+  return {
+    text: '⚠️ Google Gemini generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.',
+    isInsufficient: true,
+  };
 }
 
-export async function generateAiBrandDNAOverview(projectId: string): Promise<AiSuiteGenResult> {
+export async function generateAiBrandDNAOverview(projectId: string, customApiKey?: string): Promise<AiSuiteGenResult> {
   const project: any = await Project.findById(projectId)
     .populate('client')
     .populate('clientProfile')
@@ -830,15 +832,14 @@ export async function generateAiBrandDNAOverview(projectId: string): Promise<AiS
     `• Language Don'ts: Never use inflated buzzwords or claim capabilities outside ${whatBusinessDoes}.`,
   ].join('\n');
 
-  let client: GoogleGenAI | null = null;
+  let client: GoogleGenAI;
   try {
-    client = getAiClient();
-  } catch {
-    client = null;
-  }
-
-  if (!client) {
-    return { text: fallbackOutput, isInsufficient: false };
+    client = getAiClient(customApiKey);
+  } catch (err: any) {
+    return {
+      text: '⚠️ Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before running Enhance Brand DNA.',
+      isInsufficient: true,
+    };
   }
 
   const prompt = `You are FLOXA's Chief Brand Strategist.
@@ -886,10 +887,13 @@ Return only clean formatted plain text with bullet points, no conversational pre
     }
   }
 
-  return { text: fallbackOutput, isInsufficient: false };
+  return {
+    text: '⚠️ Google Gemini generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.',
+    isInsufficient: true,
+  };
 }
 
-export async function generateAiProposal(projectId: string): Promise<AiSuiteGenResult> {
+export async function generateAiProposal(projectId: string, customApiKey?: string): Promise<AiSuiteGenResult> {
   const project: any = await Project.findById(projectId)
     .populate('client')
     .populate('clientProfile')
@@ -957,15 +961,14 @@ export async function generateAiProposal(projectId: string): Promise<AiSuiteGenR
     `• Next Step: Review this proposal in your Client Portal, approve agreement terms, and settle kickoff deposit to lock your studio schedule.`,
   ].join('\n');
 
-  let client: GoogleGenAI | null = null;
+  let client: GoogleGenAI;
   try {
-    client = getAiClient();
-  } catch {
-    client = null;
-  }
-
-  if (!client) {
-    return { text: fallbackOutput, isInsufficient: false };
+    client = getAiClient(customApiKey);
+  } catch (err: any) {
+    return {
+      text: '⚠️ Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before generating Client Proposals.',
+      isInsufficient: true,
+    };
   }
 
   const prompt = `You are FLOXA's Agency Commercial Director.
@@ -1012,5 +1015,8 @@ Return only clean formatted plain text with bullet points, no conversational pre
     }
   }
 
-  return { text: fallbackOutput, isInsufficient: false };
+  return {
+    text: '⚠️ Google Gemini generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.',
+    isInsufficient: true,
+  };
 }

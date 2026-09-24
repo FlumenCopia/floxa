@@ -63,10 +63,15 @@ export async function runAiSuiteTool(req: AuthenticatedRequest, res: Response) {
       return;
     }
 
-    // Verify project exists
+    // Verify project exists and belongs to consultant
     const project = await Project.findById(projectId).lean();
     if (!project) {
       res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
+
+    if (String(project.consultantId) !== String(user._id)) {
+      res.status(403).json({ detail: 'You do not have access to this project.' });
       return;
     }
 
@@ -77,15 +82,17 @@ export async function runAiSuiteTool(req: AuthenticatedRequest, res: Response) {
       return;
     }
 
+    const consultantApiKey = consultant.integrations?.geminiApiKey;
+    const hasOwnKey = Boolean(consultantApiKey && consultantApiKey.trim().length > 0);
     const plan = consultant.aiUsage?.plan || 'free';
-    const isPro = plan === 'pro';
+    const isPro = plan === 'pro' || hasOwnKey;
     const toolRuns = (consultant.aiUsage?.toolRuns || {}) as Record<string, number>;
     const currentRuns = Number(toolRuns[toolId] || 0);
 
     if (!isPro && currentRuns >= FREE_TRIAL_LIMIT_PER_TOOL) {
       res.status(403).json({
         code: 'TRIAL_LIMIT_REACHED',
-        detail: `You have completed your ${FREE_TRIAL_LIMIT_PER_TOOL} free runs for this suite. Upgrade to Floxa Pro to unlock unlimited AI generations.`,
+        detail: `You have completed your ${FREE_TRIAL_LIMIT_PER_TOOL} free runs for this suite. Configure your own Gemini API Key in Settings or upgrade to Floxa Pro to unlock unlimited AI generations.`,
         toolId,
         runsUsed: currentRuns,
         freeLimit: FREE_TRIAL_LIMIT_PER_TOOL,
@@ -93,20 +100,20 @@ export async function runAiSuiteTool(req: AuthenticatedRequest, res: Response) {
       return;
     }
 
-    // Run the corresponding AI generator
+    // Run the corresponding AI generator with customApiKey if configured
     let output = '';
     let isInsufficient = false;
 
     if (toolId === 'moodboard-directions') {
-      const res = await generateAiMoodboardDirections(projectId);
+      const res = await generateAiMoodboardDirections(projectId, consultantApiKey);
       output = res.text;
       isInsufficient = res.isInsufficient;
     } else if (toolId === 'enhance-brand-dna') {
-      const res = await generateAiBrandDNAOverview(projectId);
+      const res = await generateAiBrandDNAOverview(projectId, consultantApiKey);
       output = res.text;
       isInsufficient = res.isInsufficient;
     } else if (toolId === 'proposal-generator') {
-      const res = await generateAiProposal(projectId);
+      const res = await generateAiProposal(projectId, consultantApiKey);
       output = res.text;
       isInsufficient = res.isInsufficient;
     }

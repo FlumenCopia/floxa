@@ -253,11 +253,11 @@ export async function getIntegrations(req: AdminAuthRequest, res: Response) {
     const setting = await PlatformSetting.findOne({ key: 'platform_integrations' });
     const raw = setting?.value || {};
 
-    const geminiKey = raw.geminiApiKey || process.env.GEMINI_API_KEY || 'AQ.Ab8RN6ILQxgsTpQs9fghLt7UkG6fEC70iRByUjcgiVxzAMpF3A';
-    const razorpayKey = raw.razorpayKeyId || process.env.RAZORPAY_KEY_ID || 'rzp_test_Tad5ukQGlK7pmY';
-    const razorpaySecret = raw.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || 'Kj5EvUvAagga7ck6LlCTu53r';
-    const smtpUser = raw.smtpUser || process.env.EMAIL_HOST_USER || 'nidhinkg100@gmail.com';
-    const smtpHost = raw.smtpHost || process.env.EMAIL_HOST || 'smtp.gmail.com';
+    const geminiKey = raw.geminiApiKey || process.env.GEMINI_API_KEY || '';
+    const razorpayKey = raw.razorpayKeyId || process.env.RAZORPAY_KEY_ID || '';
+    const razorpaySecret = raw.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || '';
+    const smtpUser = raw.smtpUser || process.env.EMAIL_HOST_USER || '';
+    const smtpHost = raw.smtpHost || process.env.EMAIL_HOST || '';
 
     res.json({
       success: true,
@@ -317,7 +317,12 @@ export async function testGeminiConnection(req: AdminAuthRequest, res: Response)
       req.body.apiKey ||
       setting?.value?.geminiApiKey ||
       process.env.GEMINI_API_KEY ||
-      'AQ.Ab8RN6ILQxgsTpQs9fghLt7UkG6fEC70iRByUjcgiVxzAMpF3A';
+      '';
+
+    if (!apiKey) {
+      res.status(400).json({ detail: 'No Gemini API Key provided or configured.' });
+      return;
+    }
 
     const startTime = Date.now();
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
@@ -347,18 +352,50 @@ export async function testGeminiConnection(req: AdminAuthRequest, res: Response)
 // 9. Purge Demo Agencies
 export async function purgeDemoData(req: AdminAuthRequest, res: Response) {
   try {
-    const demoEmails = [
+    // Explicit known demo agency account emails (strictly excluding admin@floxa.com or platform accounts)
+    const KNOWN_DEMO_EMAILS = [
       'sarah@novadesign.agency',
       'alex@studiobrand.com',
       'marcus@craftedidentity.io',
       'elena@freelance.dev',
-      'admin@floxa.com',
     ];
 
-    const demoConsultants = await Consultant.find({ email: { $in: demoEmails } }).select('_id');
+    const protectedEmails = [
+      'admin@floxa.com',
+      (process.env.SUPERADMIN_EMAIL || '').toLowerCase().trim(),
+    ].filter(Boolean);
+
+    // Explicitly target only verified demo accounts:
+    // 1. isDemo: true, OR
+    // 2. Exact match in KNOWN_DEMO_EMAILS
+    // NEVER match protected platform/admin accounts, any @floxa.com email, or staff accounts
+    const demoConsultants = await Consultant.find({
+      $and: [
+        {
+          $or: [
+            { isDemo: true },
+            { email: { $in: KNOWN_DEMO_EMAILS } },
+          ],
+        },
+        { email: { $nin: protectedEmails } },
+        { email: { $not: /@floxa\.com$/i } },
+        { isStaff: { $ne: true } },
+      ],
+    }).select('_id email');
+
+    if (demoConsultants.length === 0) {
+      res.json({
+        success: true,
+        message: 'No demo agencies found to purge. All existing accounts are protected real accounts.',
+        deletedConsultantsCount: 0,
+        deletedProjectsCount: 0,
+      });
+      return;
+    }
+
     const demoIds = demoConsultants.map((c: any) => c._id);
 
-    // Delete demo projects
+    // Delete demo projects associated with purged demo consultants
     const deletedProjects = await Project.deleteMany({ consultantId: { $in: demoIds } });
 
     // Delete demo consultants
@@ -366,7 +403,7 @@ export async function purgeDemoData(req: AdminAuthRequest, res: Response) {
 
     res.json({
       success: true,
-      message: 'Demo agencies safely purged. Only real consultant accounts remain in the database.',
+      message: 'Demo agencies safely purged. Platform admin and real consultant accounts were preserved.',
       deletedConsultantsCount: deletedConsultants.deletedCount,
       deletedProjectsCount: deletedProjects.deletedCount,
     });

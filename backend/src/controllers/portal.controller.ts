@@ -20,9 +20,12 @@ import {
   recalculatePaymentMilestones,
   logProjectActivity,
 } from '../services/project.service.js';
+import { Consultant } from '../models/consultant.model.js';
 import {
   createRazorpayOrder,
   verifyPaymentSignature,
+  verifyPaymentSignatureWithSecret,
+  resolveRazorpayCredentials,
   fetchRazorpayPayment,
 } from '../services/razorpay.service.js';
 import {
@@ -994,13 +997,13 @@ function amountToSmallestUnit(amount: number | string): number {
   return Math.round(Number(amount || 0) * 100);
 }
 
-function buildCreateOrderPayload(transactionObj: any, milestone: any, reused: boolean) {
+function buildCreateOrderPayload(transactionObj: any, milestone: any, reused: boolean, keyId?: string) {
   return {
     transaction_id: transactionObj.id,
     razorpay_order_id: transactionObj.razorpayOrderId,
     amount: amountToSmallestUnit(transactionObj.amount),
     currency: transactionObj.currency || 'INR',
-    key_id: ENV.RAZORPAY_KEY_ID,
+    key_id: keyId || '',
     milestone: {
       id: milestone.id,
       type: milestone.type,
@@ -1046,8 +1049,16 @@ export async function createPortalPaymentOrder(req: any, res: Response, next: Ne
       return;
     }
 
-    if (!ENV.RAZORPAY_KEY_ID || !ENV.RAZORPAY_KEY_SECRET) {
-      res.status(503).json({ detail: 'Payment gateway is not configured.' });
+    let consultant = project.consultant;
+    if (!consultant && project.consultantId) {
+      consultant = await Consultant.findById(project.consultantId);
+    }
+    const rzpCreds = resolveRazorpayCredentials(consultant);
+
+    if (!rzpCreds.keyId || !rzpCreds.keySecret) {
+      res.status(503).json({
+        detail: 'Payment gateway is not configured by your consultant. The consultant must configure their Razorpay Key ID and Secret in Settings > Integrations & API Keys.',
+      });
       return;
     }
 
@@ -1063,7 +1074,7 @@ export async function createPortalPaymentOrder(req: any, res: Response, next: Ne
       .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
 
     if (reusableTransaction) {
-      res.status(200).json(buildCreateOrderPayload(reusableTransaction, milestone, true));
+      res.status(200).json(buildCreateOrderPayload(reusableTransaction, milestone, true, rzpCreds.keyId));
       return;
     }
 
@@ -1083,6 +1094,7 @@ export async function createPortalPaymentOrder(req: any, res: Response, next: Ne
         currency,
         receipt,
         notes,
+        credentials: rzpCreds,
       });
     } catch {
       res.status(503).json({ detail: 'Unable to create payment order. Please try again later.' });
@@ -1104,7 +1116,7 @@ export async function createPortalPaymentOrder(req: any, res: Response, next: Ne
       status: 'created',
     });
 
-    res.status(201).json(buildCreateOrderPayload(transaction, milestone, false));
+    res.status(201).json(buildCreateOrderPayload(transaction, milestone, false, rzpCreds.keyId));
   } catch (err) {
     next(err);
   }
@@ -1168,15 +1180,22 @@ export async function verifyPortalPayment(req: any, res: Response, next: NextFun
       return;
     }
 
-    if (!ENV.RAZORPAY_KEY_ID || !ENV.RAZORPAY_KEY_SECRET) {
+    let consultant = project.consultant;
+    if (!consultant && project.consultantId) {
+      consultant = await Consultant.findById(project.consultantId);
+    }
+    const rzpCreds = resolveRazorpayCredentials(consultant);
+
+    if (!rzpCreds.keyId || !rzpCreds.keySecret) {
       res.status(503).json({ detail: 'Payment gateway is not configured.' });
       return;
     }
 
-    const isValidSignature = verifyPaymentSignature({
+    const isValidSignature = verifyPaymentSignatureWithSecret({
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature,
+      secret: rzpCreds.keySecret,
     });
 
     if (!isValidSignature) {

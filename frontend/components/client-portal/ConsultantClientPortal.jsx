@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShoppingCart, Gem, Globe, Sparkles, Sprout, Building2, X, ArrowLeft, ArrowRight, Video, MessageSquare, Eye } from "lucide-react";
 import { supportSocket } from "../../services/supportSocketService";
@@ -512,6 +512,7 @@ export default function ConsultantClientPortal() {
   const [activeHelpSession, setActiveHelpSession] = useState(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpQuestion, setHelpQuestion] = useState("");
+  const lastNavigatedStepRef = useRef(null);
 
   const pageId = `frame_${step}`;
   const isCurrentStepHelpActive = Boolean(
@@ -602,7 +603,7 @@ export default function ConsultantClientPortal() {
   }, [urlToken, urlProjectId]);
 
   // Fetch existing discovery draft from server
-  const fetchDiscovery = useCallback(async () => {
+  const fetchDiscovery = useCallback(async (options = {}) => {
     const portalToken = project?.portal_token || urlToken;
     if (!portalToken) return;
 
@@ -683,7 +684,8 @@ export default function ConsultantClientPortal() {
           }
           if (urlToken) setEntered(true);
         } else if (typeof disc.step === "number" && disc.step >= 1 && disc.step <= 6) {
-          if (!activeHelpSession?.is_active) {
+          const shouldSyncStep = options?.syncStep ?? (lastNavigatedStepRef.current === null);
+          if (shouldSyncStep && !activeHelpSession?.is_active && lastNavigatedStepRef.current === null) {
             setStep(disc.step);
           }
           if (urlToken) setEntered(true);
@@ -719,7 +721,7 @@ export default function ConsultantClientPortal() {
       }
     });
 
-    fetchDiscovery();
+    fetchDiscovery({ syncStep: true });
 
     const consultantToken = isConsultantMode
       ? localStorage.getItem("floxa_jwt") || ""
@@ -788,6 +790,7 @@ export default function ConsultantClientPortal() {
 
     const unsubscribeStepNav = supportSocket.on("step_navigate", (data) => {
       if (typeof data.step === "number" && data.step >= 1 && data.step <= 9) {
+        lastNavigatedStepRef.current = data.step;
         setStep(data.step);
 
         // Instantly reflect incoming completed frame snapshot in consultant view
@@ -830,8 +833,8 @@ export default function ConsultantClientPortal() {
           if (fd.styles) setSelectedVisual(fd.styles);
         }
 
-        // Re-fetch the saved draft from server to ensure 100% sync
-        fetchDiscovery();
+        // Re-fetch the saved draft from server to ensure 100% sync without overriding active step
+        fetchDiscovery({ syncStep: false });
       }
     });
 
@@ -966,9 +969,10 @@ export default function ConsultantClientPortal() {
         return;
       }
       const next = Math.min(step + 1, 6);
+      lastNavigatedStepRef.current = next;
       setStep(next);
       supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
-      fetchDiscovery();
+      fetchDiscovery({ syncStep: false });
       return;
     }
 
@@ -1002,9 +1006,10 @@ export default function ConsultantClientPortal() {
         return;
       }
       const next = Math.min(step + 1, 6);
+      lastNavigatedStepRef.current = next;
       setStep(next);
       supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
-      fetchDiscovery();
+      fetchDiscovery({ syncStep: false });
       return;
     }
 
@@ -1013,9 +1018,10 @@ export default function ConsultantClientPortal() {
       return;
     }
     const next = Math.min(step + 1, 6);
+    lastNavigatedStepRef.current = next;
     setStep(next);
     supportSocket.navigateStep({ step: next, pageId: `frame_${next}` });
-    fetchDiscovery();
+    fetchDiscovery({ syncStep: false });
   };
 
   function goBack() {
@@ -1024,9 +1030,10 @@ export default function ConsultantClientPortal() {
       return;
     }
     const prev = Math.max(step - 1, 1);
+    lastNavigatedStepRef.current = prev;
     setStep(prev);
     supportSocket.navigateStep({ step: prev, pageId: `frame_${prev}` });
-    fetchDiscovery();
+    fetchDiscovery({ syncStep: false });
   }
 
   const updateCompetitor = (index, field, value) => {

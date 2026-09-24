@@ -380,13 +380,13 @@ export default function AdminSettingsPage() {
                     Google Gemini AI Key
                   </span>
                 </div>
-                <span style={{ fontSize: "11px", color: "#34d399", fontWeight: 600 }}>
-                  ● Active in Backend
+                <span style={{ fontSize: "11px", color: integrations?.geminiConfigured ? "#34d399" : "rgba(255,255,255,0.4)", fontWeight: 600 }}>
+                  {integrations?.geminiConfigured ? "● Active in Backend" : "○ Not Configured"}
                 </span>
               </div>
 
               <div style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.5)", marginBottom: "10px" }}>
-                Current Active Key: <code style={{ color: "#38bdf8" }}>{integrations?.geminiApiKeyMasked || "AQ.Ab8RN••••••••pF3A"}</code>
+                Current Active Key: <code style={{ color: "#38bdf8" }}>{integrations?.geminiApiKeyMasked || "Not configured"}</code>
               </div>
 
               <div style={{ marginBottom: "14px" }}>
@@ -461,8 +461,8 @@ export default function AdminSettingsPage() {
                     Razorpay Payment Gateway
                   </span>
                 </div>
-                <span style={{ fontSize: "11px", color: "#fbbf24", fontWeight: 600 }}>
-                  ● Active Mode
+                <span style={{ fontSize: "11px", color: integrations?.razorpayConfigured ? "#fbbf24" : "rgba(255,255,255,0.4)", fontWeight: 600 }}>
+                  {integrations?.razorpayConfigured ? "● Active Mode" : "○ Not Configured"}
                 </span>
               </div>
 
@@ -510,7 +510,7 @@ export default function AdminSettingsPage() {
               </div>
 
               <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)" }}>
-                Secret currently saved: <code style={{ color: "#fbbf24" }}>{integrations?.razorpayKeySecretMasked || "Kj5EvU••••••••u53r"}</code>
+                Secret currently saved: <code style={{ color: "#fbbf24" }}>{integrations?.razorpayKeySecretMasked || "Not configured"}</code>
               </div>
             </div>
           </div>

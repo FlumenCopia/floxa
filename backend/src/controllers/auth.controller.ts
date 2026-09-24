@@ -192,7 +192,12 @@ export async function updateMe(
   next: NextFunction
 ) {
   try {
-    const { name, company, phone } = req.body as { name?: string; company?: string; phone?: string };
+    const { name, company, phone, integrations } = req.body as {
+      name?: string;
+      company?: string;
+      phone?: string;
+      integrations?: any;
+    };
     const updateData: Record<string, any> = {};
 
     if (name !== undefined) {
@@ -212,6 +217,77 @@ export async function updateMe(
         return;
       }
       updateData.phone = cleanPhone;
+    }
+
+    // Support updating consultant integrations (Gemini, Razorpay)
+    let parsedIntegrations = integrations;
+    if (typeof integrations === 'string') {
+      try {
+        parsedIntegrations = JSON.parse(integrations);
+      } catch {}
+    }
+
+    const rawBody = req.body || {};
+    const hasIntegrationData =
+      (parsedIntegrations && typeof parsedIntegrations === 'object') ||
+      rawBody.gemini_api_key !== undefined ||
+      rawBody.geminiApiKey !== undefined ||
+      rawBody.razorpay_key_id !== undefined ||
+      rawBody.razorpayKeyId !== undefined ||
+      rawBody.razorpay_key_secret !== undefined ||
+      rawBody.razorpayKeySecret !== undefined ||
+      rawBody.razorpay_webhook_secret !== undefined ||
+      rawBody.razorpayWebhookSecret !== undefined;
+
+    if (hasIntegrationData) {
+      const existing = req.user?.integrations || {};
+      const newIntegrations: Record<string, string> = {
+        geminiApiKey: existing.geminiApiKey || '',
+        razorpayKeyId: existing.razorpayKeyId || '',
+        razorpayKeySecret: existing.razorpayKeySecret || '',
+        razorpayWebhookSecret: existing.razorpayWebhookSecret || '',
+      };
+
+      const gKey =
+        parsedIntegrations?.gemini_api_key ??
+        parsedIntegrations?.geminiApiKey ??
+        rawBody.gemini_api_key ??
+        rawBody.geminiApiKey;
+      if (gKey !== undefined) {
+        const val = String(gKey).trim();
+        if (!val.includes('•')) newIntegrations.geminiApiKey = val;
+      }
+
+      const rId =
+        parsedIntegrations?.razorpay_key_id ??
+        parsedIntegrations?.razorpayKeyId ??
+        rawBody.razorpay_key_id ??
+        rawBody.razorpayKeyId;
+      if (rId !== undefined) {
+        newIntegrations.razorpayKeyId = String(rId).trim();
+      }
+
+      const rSec =
+        parsedIntegrations?.razorpay_key_secret ??
+        parsedIntegrations?.razorpayKeySecret ??
+        rawBody.razorpay_key_secret ??
+        rawBody.razorpayKeySecret;
+      if (rSec !== undefined) {
+        const val = String(rSec).trim();
+        if (!val.includes('•')) newIntegrations.razorpayKeySecret = val;
+      }
+
+      const rWh =
+        parsedIntegrations?.razorpay_webhook_secret ??
+        parsedIntegrations?.razorpayWebhookSecret ??
+        rawBody.razorpay_webhook_secret ??
+        rawBody.razorpayWebhookSecret;
+      if (rWh !== undefined) {
+        const val = String(rWh).trim();
+        if (!val.includes('•')) newIntegrations.razorpayWebhookSecret = val;
+      }
+
+      updateData.integrations = newIntegrations;
     }
 
     let newlySavedAvatar: string | null = null;

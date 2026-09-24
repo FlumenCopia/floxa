@@ -16,6 +16,12 @@ export function serializeConsultant(consultant: any, baseUrl: string = '') {
       : `${baseUrl.replace(/\/+$/, '')}/${consultant.avatar.replace(/^\/+/, '')}`;
   }
 
+  const integrations = consultant.integrations || {};
+  const geminiKey = integrations.geminiApiKey || '';
+  const razorpayKeyId = integrations.razorpayKeyId || '';
+  const razorpaySecret = integrations.razorpayKeySecret || '';
+  const razorpayWebhook = integrations.razorpayWebhookSecret || '';
+
   return {
     id: consultant.id,
     name: consultant.name,
@@ -24,6 +30,14 @@ export function serializeConsultant(consultant: any, baseUrl: string = '') {
     phone: consultant.phone || '',
     avatar: consultant.avatar || null,
     avatar_url: avatarUrl,
+    integrations: {
+      gemini_api_key_configured: Boolean(geminiKey),
+      gemini_api_key_masked: geminiKey ? `${geminiKey.slice(0, 4)}••••••••${geminiKey.slice(-4)}` : '',
+      razorpay_key_id: razorpayKeyId,
+      razorpay_key_secret_configured: Boolean(razorpaySecret),
+      razorpay_key_secret_masked: razorpaySecret ? `••••••••${razorpaySecret.slice(-4)}` : '',
+      razorpay_webhook_secret_configured: Boolean(razorpayWebhook),
+    },
   };
 }
 

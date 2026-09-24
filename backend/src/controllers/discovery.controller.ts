@@ -419,7 +419,7 @@ export async function getBrandDNA(req: any, res: Response, next: NextFunction) {
 export async function generateBrandDNA(req: any, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const project = await Project.findById(id).populate(['clientProfile', 'discovery']);
+    const project = await Project.findById(id).populate(['clientProfile', 'discovery', 'consultant']);
 
     if (!project || !project.discovery) {
       res.status(404).json({ detail: 'Project discovery not found for this project.' });
@@ -431,7 +431,8 @@ export async function generateBrandDNA(req: any, res: Response, next: NextFuncti
       return;
     }
 
-    const dnaData = await generateAiBrandDNA(project, project.discovery);
+    const consultantApiKey = (project.consultant as any)?.integrations?.geminiApiKey;
+    const dnaData = await generateAiBrandDNA(project, project.discovery, consultantApiKey);
 
     const brandDNA = await BrandDNA.findOneAndUpdate(
       { projectId: id },

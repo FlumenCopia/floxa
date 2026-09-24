@@ -634,6 +634,17 @@ export async function chatAssistant(req: any, res: Response, next: NextFunction)
       return;
     }
 
+    const project = await Project.findOne({
+      _id: id,
+      consultantId: req.user?.id || req.user?._id,
+      isArchived: false,
+    });
+
+    if (!project) {
+      res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
+
     const reply = await generateProjectAssistantReply(id, message);
     res.json({ response: reply });
   } catch (err: any) {

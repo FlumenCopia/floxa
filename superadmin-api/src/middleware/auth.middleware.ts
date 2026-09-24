@@ -6,7 +6,13 @@ export interface AdminAuthRequest extends Request {
   admin?: any;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'floxa_superadmin_secret_key_84920481239';
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET is not configured in environment variables.');
+  }
+  return secret;
+}
 
 export async function requireAdminAuth(req: AdminAuthRequest, res: Response, next: NextFunction) {
   let token: string | null = null;
@@ -23,8 +29,16 @@ export async function requireAdminAuth(req: AdminAuthRequest, res: Response, nex
     return;
   }
 
+  let jwtSecret: string;
   try {
-    const payload = jwt.verify(token, JWT_SECRET) as { adminId: string };
+    jwtSecret = getJwtSecret();
+  } catch {
+    res.status(500).json({ detail: 'Authentication service is misconfigured: JWT_SECRET environment variable is missing.' });
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(token, jwtSecret) as { adminId: string };
     if (!payload || !payload.adminId) {
       res.status(401).json({ detail: 'Invalid SuperAdmin authentication token.' });
       return;

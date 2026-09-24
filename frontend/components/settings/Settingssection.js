@@ -4,11 +4,13 @@ import { useState } from "react";
 import Account from "../../app/settings/Account";
 import Billing from "../../app/settings/Billing";
 import Branding from "../../app/settings/Branding";
+import Integrations from "../../app/settings/Integrations";
 import Security from "../../app/settings/Security";
 
 const tabs = [
   { id: "account", label: "Account", component: Account },
   { id: "branding", label: "Branding", component: Branding },
+  { id: "integrations", label: "Integrations & API Keys", component: Integrations },
   { id: "billing", label: "Plan & Billing", component: Billing },
   { id: "security", label: "Security", component: Security },
 ];

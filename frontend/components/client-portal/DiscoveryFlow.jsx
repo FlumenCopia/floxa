@@ -693,7 +693,7 @@ export function DiscoveryFlow({
     );
   };
 
-  const saveDiscoveryProgress = async () => {
+  const saveDiscoveryProgress = async (stepToSave = step) => {
     const payload = buildDiscoveryPayload({
       basics,
       sliders,
@@ -701,7 +701,7 @@ export function DiscoveryFlow({
       persona,
       comps,
       styles,
-      step,
+      step: stepToSave,
     });
 
     const saveToken = targetPortalToken || project?.portal_token || project?.id;
@@ -763,11 +763,12 @@ export function DiscoveryFlow({
       return;
     }
 
+    const next = step + 1;
     setSaving(true);
     setMessage("");
 
     try {
-      const data = await saveDiscoveryProgress();
+      const data = await saveDiscoveryProgress(next);
 
       if (data.success) {
         if (activeHelpSession?.is_active) {
@@ -803,7 +804,7 @@ export function DiscoveryFlow({
         }
 
         const frameSnapshot = {
-          step,
+          step: next,
           basics: { ...basics },
           sliders: { ...sliders },
           emotions: [...emotions],
@@ -812,7 +813,6 @@ export function DiscoveryFlow({
           styles: [...styles],
         };
 
-        const next = step + 1;
         setStep(next);
         if (typeof onStepChange === "function") {
           onStepChange(next);
