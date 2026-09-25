@@ -11,7 +11,6 @@ import {
   Settings,
   Megaphone,
   LogOut,
-  ExternalLink,
   Menu,
   X,
   User,
@@ -635,17 +634,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
 
                 <div className="nav-section">
-                  <div className="nav-lbl">Workspaces</div>
-                  <a
-                    href="http://localhost:3000"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="nav-item"
-                    title="Open Consultant Workspace in new tab"
-                  >
-                    <ExternalLink className="nav-icon" />
-                    <span>Consultant App</span>
-                  </a>
                   <button
                     type="button"
                     onClick={() => adminApi.logout()}
@@ -706,28 +694,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <span>Live Platform</span>
                   </div>
 
-                  {/* Consultant App Link */}
-                  <a
-                    href="http://localhost:3000"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "6px 12px",
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "#9fbeaf",
-                      border: "1px solid rgba(255, 255, 255, 0.12)",
-                      backgroundColor: "rgba(255, 255, 255, 0.04)",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <span>Consultant App</span>
-                    <ExternalLink size={12} />
-                  </a>
+
 
                   {/* Sign Out */}
                   <button
