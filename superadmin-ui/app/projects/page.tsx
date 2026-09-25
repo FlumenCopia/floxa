@@ -51,13 +51,13 @@ export default function AdminProjectsPage() {
   return (
     <div>
       {/* Title & Refresh */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "28px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px", gap: "16px", flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ fontSize: "28px", fontWeight: 800, margin: "0 0 6px 0", color: "#f8fafc" }}>
+          <h1 style={{ fontSize: "24px", fontWeight: 700, margin: "0 0 4px 0", color: "#f3f8f4", letterSpacing: "-0.01em" }}>
             Platform Projects
           </h1>
-          <p style={{ margin: 0, color: "rgba(255, 255, 255, 0.6)", fontSize: "14px" }}>
-            Cross-agency project visibility • Inspect active client portals and branding deliverables
+          <p style={{ margin: 0, color: "#89aca0", fontSize: "13px" }}>
+            Monitor active branding deliverables and client portal progress across all agency workspaces.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -67,17 +67,17 @@ export default function AdminProjectsPage() {
               display: "inline-flex",
               alignItems: "center",
               gap: "8px",
-              backgroundColor: "rgba(255, 255, 255, 0.08)",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
-              color: "#fff",
+              backgroundColor: "rgba(6, 22, 15, 0.72)",
+              border: "1px solid rgba(77, 255, 160, 0.25)",
+              color: "#e8f5ef",
               padding: "8px 16px",
-              borderRadius: "8px",
+              borderRadius: "6px",
               fontSize: "13px",
               fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            <Download size={14} />
+            <Download size={14} style={{ color: "#4dffa0" }} />
             <span>Export CSV</span>
           </button>
           <button
@@ -87,17 +87,17 @@ export default function AdminProjectsPage() {
               display: "inline-flex",
               alignItems: "center",
               gap: "8px",
-              backgroundColor: "rgba(16, 185, 129, 0.15)",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
-              color: "#34d399",
+              backgroundColor: "rgba(6, 22, 15, 0.72)",
+              border: "1px solid rgba(77, 255, 160, 0.25)",
+              color: "#e8f5ef",
               padding: "8px 16px",
-              borderRadius: "8px",
+              borderRadius: "6px",
               fontSize: "13px",
               fontWeight: 600,
               cursor: "pointer",
             }}
           >
-            <RefreshCw size={14} className={loading ? "spin" : ""} />
+            <RefreshCw size={14} className={loading ? "spin" : ""} style={{ color: "#4dffa0" }} />
             <span>Refresh</span>
           </button>
         </div>
@@ -105,13 +105,13 @@ export default function AdminProjectsPage() {
 
       {error ? (
         <div style={{
-          backgroundColor: "rgba(239, 68, 68, 0.15)",
-          border: "1px solid rgba(239, 68, 68, 0.3)",
-          color: "#fca5a5",
+          backgroundColor: "rgba(255, 107, 107, 0.12)",
+          border: "1px solid rgba(255, 107, 107, 0.25)",
+          color: "#ff6b6b",
           padding: "14px 18px",
-          borderRadius: "10px",
-          marginBottom: "24px",
-          fontSize: "14px",
+          borderRadius: "8px",
+          marginBottom: "20px",
+          fontSize: "13px",
         }}>
           {error}
         </div>
@@ -119,11 +119,12 @@ export default function AdminProjectsPage() {
 
       {/* Search Bar */}
       <div style={{
-        backgroundColor: "rgba(13, 27, 20, 0.7)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-        borderRadius: "14px",
-        padding: "18px 24px",
-        marginBottom: "24px",
+        backgroundColor: "rgba(6, 22, 15, 0.72)",
+        backdropFilter: "blur(20px)",
+        border: "1px solid rgba(77, 255, 160, 0.2)",
+        borderRadius: "10px",
+        padding: "14px 18px",
+        marginBottom: "18px",
       }}>
         <form
           onSubmit={(e) => {
@@ -135,14 +136,14 @@ export default function AdminProjectsPage() {
           <div style={{
             display: "flex",
             alignItems: "center",
-            backgroundColor: "rgba(0, 0, 0, 0.4)",
-            border: "1px solid rgba(255, 255, 255, 0.15)",
-            borderRadius: "10px",
-            padding: "8px 14px",
+            backgroundColor: "rgba(2, 14, 9, 0.6)",
+            border: "1px solid rgba(77, 255, 160, 0.15)",
+            borderRadius: "6px",
+            padding: "8px 12px",
             flex: 1,
-            gap: "10px",
+            gap: "8px",
           }}>
-            <Search size={16} color="rgba(255, 255, 255, 0.4)" />
+            <Search size={14} color="#607f72" />
             <input
               type="text"
               placeholder="Search by project title or client company..."
@@ -151,9 +152,9 @@ export default function AdminProjectsPage() {
               style={{
                 background: "none",
                 border: "none",
-                color: "#fff",
+                color: "#e8f5ef",
                 outline: "none",
-                fontSize: "14px",
+                fontSize: "13px",
                 width: "100%",
               }}
             />
@@ -161,13 +162,15 @@ export default function AdminProjectsPage() {
           <button
             type="submit"
             style={{
-              backgroundColor: "rgba(16, 185, 129, 0.2)",
-              border: "1px solid rgba(16, 185, 129, 0.4)",
-              color: "#34d399",
-              borderRadius: "10px",
-              padding: "8px 18px",
+              backgroundColor: "rgba(77, 255, 160, 0.12)",
+              border: "1px solid rgba(77, 255, 160, 0.3)",
+              color: "#4dffa0",
+              borderRadius: "6px",
+              padding: "8px 14px",
               fontWeight: 600,
-              fontSize: "13px",
+              fontSize: "12px",
+              textTransform: "uppercase",
+              letterSpacing: "0.04em",
               cursor: "pointer",
             }}
           >
@@ -178,88 +181,89 @@ export default function AdminProjectsPage() {
 
       {/* Projects Table */}
       <div style={{
-        backgroundColor: "rgba(13, 27, 20, 0.7)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-        borderRadius: "14px",
+        backgroundColor: "rgba(6, 22, 15, 0.72)",
+        backdropFilter: "blur(20px)",
+        border: "1px solid rgba(77, 255, 160, 0.2)",
+        borderRadius: "10px",
         overflow: "hidden",
       }}>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
             <thead>
               <tr style={{
-                backgroundColor: "rgba(0, 0, 0, 0.3)",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                color: "rgba(255, 255, 255, 0.5)",
+                backgroundColor: "rgba(2, 14, 9, 0.55)",
+                borderBottom: "1px solid rgba(77, 255, 160, 0.15)",
+                color: "#607f72",
                 textAlign: "left",
               }}>
-                <th style={{ padding: "14px 18px" }}>Project & Client</th>
-                <th style={{ padding: "14px 18px" }}>Consultant Owner</th>
-                <th style={{ padding: "14px 18px" }}>Stage</th>
-                <th style={{ padding: "14px 18px" }}>Progress</th>
-                <th style={{ padding: "14px 18px" }}>Portal Token</th>
-                <th style={{ padding: "14px 18px" }}>Created</th>
+                <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Project & Client</th>
+                <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Consultant Owner</th>
+                <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Stage</th>
+                <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Progress</th>
+                <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Portal Token</th>
+                <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Created</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "40px", color: "rgba(255, 255, 255, 0.5)" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "40px", color: "#607f72" }}>
                     Loading platform projects...
                   </td>
                 </tr>
               ) : projects.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "40px", color: "rgba(255, 255, 255, 0.5)" }}>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "40px", color: "#607f72" }}>
                     No projects found on the platform.
                   </td>
                 </tr>
               ) : (
                 projects.map((p) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
-                    <td style={{ padding: "16px 18px" }}>
-                      <div style={{ fontWeight: 600, color: "#fff", fontSize: "14px" }}>
+                  <tr key={p.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                    <td style={{ padding: "14px 16px" }}>
+                      <div style={{ fontWeight: 600, color: "#e8f5ef", fontSize: "13px" }}>
                         {p.title}
                       </div>
-                      <div style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.5)", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+                      <div style={{ fontSize: "11px", color: "#607f72", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
                         <Building size={11} /> {p.company || "Direct Client"}
                       </div>
                     </td>
 
-                    <td style={{ padding: "16px 18px" }}>
+                    <td style={{ padding: "14px 16px" }}>
                       {p.consultant ? (
                         <div>
-                          <div style={{ color: "#34d399", fontWeight: 600 }}>{p.consultant.name}</div>
-                          <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)" }}>
+                          <div style={{ color: "#4dffa0", fontWeight: 600 }}>{p.consultant.name}</div>
+                          <div style={{ fontSize: "11px", color: "#607f72" }}>
                             {p.consultant.company || p.consultant.email}
                           </div>
                         </div>
                       ) : (
-                        <span style={{ color: "rgba(255, 255, 255, 0.4)" }}>Unassigned</span>
+                        <span style={{ color: "#607f72" }}>Unassigned</span>
                       )}
                     </td>
 
-                    <td style={{ padding: "16px 18px" }}>
+                    <td style={{ padding: "14px 16px" }}>
                       <span style={{
                         display: "inline-block",
-                        padding: "3px 9px",
-                        borderRadius: "6px",
-                        fontSize: "11px",
+                        padding: "2px 8px",
+                        borderRadius: "4px",
+                        fontSize: "10px",
                         fontWeight: 700,
                         textTransform: "uppercase",
-                        backgroundColor: "rgba(59, 130, 246, 0.15)",
-                        border: "1px solid rgba(59, 130, 246, 0.3)",
-                        color: "#60a5fa",
+                        backgroundColor: "rgba(74, 158, 255, 0.12)",
+                        border: "1px solid rgba(74, 158, 255, 0.25)",
+                        color: "#4a9eff",
                       }}>
                         {p.stage}
                       </span>
                     </td>
 
-                    <td style={{ padding: "16px 18px" }}>
+                    <td style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <div style={{
                           flex: 1,
-                          height: "6px",
-                          backgroundColor: "rgba(255, 255, 255, 0.1)",
+                          height: "5px",
+                          backgroundColor: "rgba(255, 255, 255, 0.08)",
                           borderRadius: "3px",
                           overflow: "hidden",
                           minWidth: "60px",
@@ -267,21 +271,21 @@ export default function AdminProjectsPage() {
                           <div style={{
                             width: `${Math.min(100, Math.max(0, p.progress))}%`,
                             height: "100%",
-                            backgroundColor: "#10b981",
+                            backgroundColor: "#4dffa0",
                             borderRadius: "3px",
                           }} />
                         </div>
-                        <span style={{ fontSize: "12px", color: "#34d399", fontWeight: 600 }}>
+                        <span style={{ fontSize: "11px", color: "#4dffa0", fontWeight: 700 }}>
                           {p.progress}%
                         </span>
                       </div>
                     </td>
 
-                    <td style={{ padding: "16px 18px", fontFamily: "monospace", fontSize: "12px", color: "rgba(255, 255, 255, 0.6)" }}>
+                    <td style={{ padding: "14px 16px", fontFamily: "monospace", fontSize: "11px", color: "#89aca0" }}>
                       {p.portalToken ? `${p.portalToken.substring(0, 16)}...` : "—"}
                     </td>
 
-                    <td style={{ padding: "16px 18px", color: "rgba(255, 255, 255, 0.5)", fontSize: "12px" }}>
+                    <td style={{ padding: "14px 16px", color: "#607f72", fontSize: "11px" }}>
                       {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "—"}
                     </td>
                   </tr>
@@ -297,25 +301,26 @@ export default function AdminProjectsPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "16px 24px",
-            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
-            fontSize: "13px",
-            color: "rgba(255, 255, 255, 0.6)",
+            padding: "12px 18px",
+            borderTop: "1px solid rgba(77, 255, 160, 0.12)",
+            fontSize: "12px",
+            color: "#607f72",
           }}>
             <div>
               Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total projects)
             </div>
-            <div style={{ display: "flex", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "6px" }}>
               <button
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.06)",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
-                  color: page <= 1 ? "rgba(255, 255, 255, 0.2)" : "#fff",
-                  padding: "6px 14px",
-                  borderRadius: "6px",
+                  backgroundColor: "rgba(2, 14, 9, 0.6)",
+                  border: "1px solid rgba(77, 255, 160, 0.15)",
+                  color: page <= 1 ? "#4a6b5e" : "#e8f5ef",
+                  padding: "5px 10px",
+                  borderRadius: "4px",
                   cursor: page <= 1 ? "not-allowed" : "pointer",
+                  fontSize: "11px",
                 }}
               >
                 Previous
@@ -324,12 +329,13 @@ export default function AdminProjectsPage() {
                 disabled={page >= pagination.totalPages}
                 onClick={() => setPage((p) => p + 1)}
                 style={{
-                  backgroundColor: "rgba(255, 255, 255, 0.06)",
-                  border: "1px solid rgba(255, 255, 255, 0.12)",
-                  color: page >= pagination.totalPages ? "rgba(255, 255, 255, 0.2)" : "#fff",
-                  padding: "6px 14px",
-                  borderRadius: "6px",
+                  backgroundColor: "rgba(2, 14, 9, 0.6)",
+                  border: "1px solid rgba(77, 255, 160, 0.15)",
+                  color: page >= pagination.totalPages ? "#4a6b5e" : "#e8f5ef",
+                  padding: "5px 10px",
+                  borderRadius: "4px",
                   cursor: page >= pagination.totalPages ? "not-allowed" : "pointer",
+                  fontSize: "11px",
                 }}
               >
                 Next

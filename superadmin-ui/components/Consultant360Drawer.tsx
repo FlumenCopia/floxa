@@ -5,21 +5,16 @@ import {
   X,
   Building,
   Mail,
-  Phone,
   Calendar,
   FolderKanban,
   Users,
   Cpu,
-  ShieldCheck,
   UserCheck,
   UserX,
-  ExternalLink,
   Copy,
   Check,
-  Sparkles,
   RefreshCw,
   Sliders,
-  DollarSign,
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
@@ -75,7 +70,7 @@ export default function Consultant360Drawer({
         setError("Failed to load consultant details.");
       }
     } catch (err: any) {
-      setError(err?.message || "Failed to load consultant 360 profile.");
+      setError(err?.message || "Failed to load consultant profile.");
     } finally {
       setLoading(false);
     }
@@ -152,7 +147,7 @@ export default function Consultant360Drawer({
       );
       setFeedback({
         type: "success",
-        text: quotaAction === "reset" ? "Tool runs reset to zero." : `Granted ${bonusCredits} bonus AI credits.`,
+        text: quotaAction === "reset" ? "Tool runs reset to zero." : `Granted ${bonusCredits} bonus runs.`,
       });
       await fetchDetails();
       onUpdated();
@@ -180,8 +175,9 @@ export default function Consultant360Drawer({
         width: "100%",
         maxWidth: "680px",
         height: "100%",
-        backgroundColor: "#08130e",
-        borderLeft: "1px solid rgba(16, 185, 129, 0.3)",
+        backgroundColor: "rgba(2, 14, 9, 0.95)",
+        backdropFilter: "blur(28px)",
+        borderLeft: "1px solid rgba(77, 255, 160, 0.3)",
         boxShadow: "-10px 0 40px rgba(0, 0, 0, 0.8)",
         display: "flex",
         flexDirection: "column",
@@ -189,28 +185,30 @@ export default function Consultant360Drawer({
       }}>
         {/* Top Bar */}
         <div style={{
-          padding: "20px 24px",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          padding: "16px 22px",
+          borderBottom: "1px solid rgba(77, 255, 160, 0.15)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          backgroundColor: "rgba(13, 27, 20, 0.8)",
+          backgroundColor: "rgba(6, 22, 15, 0.9)",
           position: "sticky",
           top: 0,
           zIndex: 10,
+          backdropFilter: "blur(12px)",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{
-              backgroundColor: "rgba(16, 185, 129, 0.15)",
-              color: "#34d399",
-              padding: "4px 10px",
-              borderRadius: "6px",
+              backgroundColor: "rgba(77, 255, 160, 0.12)",
+              color: "#4dffa0",
+              border: "1px solid rgba(77, 255, 160, 0.25)",
+              padding: "3px 9px",
+              borderRadius: "4px",
               fontSize: "11px",
               fontWeight: 700,
               textTransform: "uppercase",
-              letterSpacing: "0.5px",
+              letterSpacing: "0.06em",
             }}>
-              Consultant 360° Operations Hub
+              Agency Account Details
             </span>
           </div>
           <button
@@ -218,89 +216,90 @@ export default function Consultant360Drawer({
             style={{
               background: "transparent",
               border: "none",
-              color: "rgba(255, 255, 255, 0.6)",
+              color: "#89aca0",
               cursor: "pointer",
               padding: "4px",
             }}
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {loading ? (
-          <div style={{ padding: "48px 24px", textAlign: "center", color: "#34d399" }}>
+          <div style={{ padding: "48px 24px", textAlign: "center", color: "#4dffa0" }}>
             <RefreshCw size={24} className="spin" style={{ margin: "0 auto 12px auto" }} />
-            <div>Loading 360° Agency Intelligence...</div>
+            <div style={{ fontSize: "12px", color: "#89aca0" }}>Loading agency details...</div>
           </div>
         ) : error ? (
-          <div style={{ padding: "24px" }}>
+          <div style={{ padding: "22px" }}>
             <div style={{
-              backgroundColor: "rgba(239, 68, 68, 0.15)",
-              border: "1px solid rgba(239, 68, 68, 0.3)",
-              color: "#fca5a5",
-              padding: "16px",
-              borderRadius: "10px",
-              fontSize: "13px",
+              backgroundColor: "rgba(255, 107, 107, 0.12)",
+              border: "1px solid rgba(255, 107, 107, 0.25)",
+              color: "#ff6b6b",
+              padding: "14px",
+              borderRadius: "8px",
+              fontSize: "12px",
             }}>
               {error}
             </div>
           </div>
         ) : consultant ? (
-          <div style={{ padding: "24px", flex: 1, display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "22px", flex: 1, display: "flex", flexDirection: "column" }}>
             {/* Feedback alert */}
             {feedback ? (
               <div style={{
-                backgroundColor: feedback.type === "success" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                border: `1px solid ${feedback.type === "success" ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
-                color: feedback.type === "success" ? "#34d399" : "#fca5a5",
-                padding: "12px 16px",
-                borderRadius: "10px",
-                marginBottom: "20px",
-                fontSize: "13px",
+                backgroundColor: feedback.type === "success" ? "rgba(77, 255, 160, 0.12)" : "rgba(255, 107, 107, 0.12)",
+                border: `1px solid ${feedback.type === "success" ? "rgba(77, 255, 160, 0.25)" : "rgba(255, 107, 107, 0.25)"}`,
+                color: feedback.type === "success" ? "#4dffa0" : "#ff6b6b",
+                padding: "10px 14px",
+                borderRadius: "8px",
+                marginBottom: "18px",
+                fontSize: "12px",
                 display: "flex",
                 alignItems: "center",
-                gap: "8px",
+                gap: "6px",
               }}>
-                {feedback.type === "success" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                {feedback.type === "success" ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
                 <span>{feedback.text}</span>
               </div>
             ) : null}
 
             {/* Profile Hero Header */}
             <div style={{
-              backgroundColor: "rgba(13, 27, 20, 0.6)",
-              border: "1px solid rgba(16, 185, 129, 0.2)",
-              borderRadius: "14px",
-              padding: "20px",
-              marginBottom: "20px",
+              backgroundColor: "rgba(6, 22, 15, 0.72)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(77, 255, 160, 0.2)",
+              borderRadius: "10px",
+              padding: "18px",
+              marginBottom: "18px",
             }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "14px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                   <div style={{
-                    width: "50px",
-                    height: "50px",
-                    borderRadius: "12px",
-                    backgroundColor: "rgba(16, 185, 129, 0.2)",
-                    border: "1px solid rgba(16, 185, 129, 0.4)",
-                    color: "#34d399",
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "50%",
+                    backgroundColor: "rgba(77, 255, 160, 0.12)",
+                    border: "1px solid rgba(77, 255, 160, 0.35)",
+                    color: "#4dffa0",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: "20px",
-                    fontWeight: 800,
+                    fontSize: "16px",
+                    fontWeight: 700,
                   }}>
                     {consultant.name?.charAt(0) || "C"}
                   </div>
                   <div>
-                    <h2 style={{ fontSize: "20px", fontWeight: 800, margin: "0 0 4px 0", color: "#fff" }}>
+                    <h2 style={{ fontSize: "16px", fontWeight: 700, margin: "0 0 2px 0", color: "#f3f8f4" }}>
                       {consultant.name}
                     </h2>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "12px", color: "rgba(255, 255, 255, 0.6)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "11px", color: "#89aca0" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                        <Building size={12} /> {consultant.company || "Independent"}
+                        <Building size={11} /> {consultant.company || "Independent"}
                       </span>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                        <Mail size={12} /> {consultant.email}
+                        <Mail size={11} /> {consultant.email}
                       </span>
                     </div>
                   </div>
@@ -311,48 +310,52 @@ export default function Consultant360Drawer({
                   onClick={handleToggleStatus}
                   disabled={togglingStatus}
                   style={{
-                    backgroundColor: consultant.isActive ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)",
-                    border: `1px solid ${consultant.isActive ? "rgba(239, 68, 68, 0.3)" : "rgba(16, 185, 129, 0.3)"}`,
-                    color: consultant.isActive ? "#f87171" : "#34d399",
+                    backgroundColor: consultant.isActive ? "rgba(255, 107, 107, 0.1)" : "rgba(77, 255, 160, 0.1)",
+                    border: `1px solid ${consultant.isActive ? "rgba(255, 107, 107, 0.25)" : "rgba(77, 255, 160, 0.25)"}`,
+                    color: consultant.isActive ? "#ff6b6b" : "#4dffa0",
                     padding: "6px 12px",
-                    borderRadius: "8px",
-                    fontSize: "12px",
+                    borderRadius: "6px",
+                    fontSize: "11px",
                     fontWeight: 600,
                     cursor: "pointer",
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: "6px",
+                    gap: "5px",
                   }}
                 >
-                  {consultant.isActive ? <UserX size={13} /> : <UserCheck size={13} />}
+                  {consultant.isActive ? <UserX size={12} /> : <UserCheck size={12} />}
                   <span>{consultant.isActive ? "Suspend Account" : "Activate Account"}</span>
                 </button>
               </div>
 
               {/* Badges Ribbon */}
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", fontSize: "11px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "11px" }}>
                 <span style={{
-                  padding: "4px 10px",
-                  borderRadius: "6px",
+                  padding: "2px 8px",
+                  borderRadius: "4px",
                   fontWeight: 700,
                   textTransform: "uppercase",
-                  backgroundColor: consultant.subscription?.plan === "enterprise" ? "rgba(245, 158, 11, 0.15)" : consultant.subscription?.plan === "pro" ? "rgba(16, 185, 129, 0.15)" : "rgba(255, 255, 255, 0.1)",
-                  color: consultant.subscription?.plan === "enterprise" ? "#fbbf24" : consultant.subscription?.plan === "pro" ? "#34d399" : "#cbd5e1",
+                  backgroundColor: consultant.subscription?.plan === "enterprise" ? "rgba(240, 180, 41, 0.12)" : consultant.subscription?.plan === "pro" ? "rgba(77, 255, 160, 0.12)" : "rgba(255, 255, 255, 0.08)",
+                  color: consultant.subscription?.plan === "enterprise" ? "#f0b429" : consultant.subscription?.plan === "pro" ? "#4dffa0" : "#89aca0",
                   border: "1px solid rgba(255, 255, 255, 0.08)",
                 }}>
                   Tier: {consultant.subscription?.plan || "free"}
                 </span>
                 <span style={{
-                  padding: "4px 10px",
-                  borderRadius: "6px",
+                  padding: "2px 8px",
+                  borderRadius: "4px",
                   fontWeight: 600,
-                  backgroundColor: consultant.isActive ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                  color: consultant.isActive ? "#34d399" : "#fca5a5",
+                  backgroundColor: consultant.isActive ? "rgba(77, 255, 160, 0.1)" : "rgba(255, 107, 107, 0.1)",
+                  color: consultant.isActive ? "#4dffa0" : "#ff6b6b",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
                 }}>
-                  ● {consultant.isActive ? "Active License" : "Suspended"}
+                  <span style={{ width: "5px", height: "5px", borderRadius: "50%", backgroundColor: consultant.isActive ? "#4dffa0" : "#ff6b6b", display: "inline-block" }} />
+                  {consultant.isActive ? "Active Account" : "Suspended"}
                 </span>
-                <span style={{ color: "rgba(255, 255, 255, 0.4)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                  <Calendar size={12} /> Joined: {consultant.createdAt ? new Date(consultant.createdAt).toLocaleDateString() : "Recent"}
+                <span style={{ color: "#607f72", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  <Calendar size={11} /> Joined: {consultant.createdAt ? new Date(consultant.createdAt).toLocaleDateString() : "Recent"}
                 </span>
               </div>
             </div>
@@ -361,32 +364,32 @@ export default function Consultant360Drawer({
             <div style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "10px",
-              marginBottom: "20px",
+              gap: "8px",
+              marginBottom: "18px",
             }}>
-              <div style={{ backgroundColor: "rgba(0, 0, 0, 0.3)", padding: "12px", borderRadius: "10px", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", marginBottom: "4px" }}>Projects</div>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: "#60a5fa" }}>{stats.totalProjects ?? 0}</div>
+              <div style={{ backgroundColor: "rgba(6, 22, 15, 0.6)", padding: "10px", borderRadius: "6px", border: "1px solid rgba(77, 255, 160, 0.12)" }}>
+                <div style={{ fontSize: "10px", color: "#607f72", marginBottom: "2px" }}>Projects</div>
+                <div style={{ fontSize: "18px", fontWeight: 700, color: "#4a9eff" }}>{stats.totalProjects ?? 0}</div>
               </div>
-              <div style={{ backgroundColor: "rgba(0, 0, 0, 0.3)", padding: "12px", borderRadius: "10px", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", marginBottom: "4px" }}>Clients</div>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: "#fbbf24" }}>{stats.totalClients ?? 0}</div>
+              <div style={{ backgroundColor: "rgba(6, 22, 15, 0.6)", padding: "10px", borderRadius: "6px", border: "1px solid rgba(77, 255, 160, 0.12)" }}>
+                <div style={{ fontSize: "10px", color: "#607f72", marginBottom: "2px" }}>Clients</div>
+                <div style={{ fontSize: "18px", fontWeight: 700, color: "#f0b429" }}>{stats.totalClients ?? 0}</div>
               </div>
-              <div style={{ backgroundColor: "rgba(0, 0, 0, 0.3)", padding: "12px", borderRadius: "10px", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", marginBottom: "4px" }}>AI Runs</div>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: "#38bdf8" }}>{stats.aiTotalRuns ?? 0}</div>
+              <div style={{ backgroundColor: "rgba(6, 22, 15, 0.6)", padding: "10px", borderRadius: "6px", border: "1px solid rgba(77, 255, 160, 0.12)" }}>
+                <div style={{ fontSize: "10px", color: "#607f72", marginBottom: "2px" }}>AI Requests</div>
+                <div style={{ fontSize: "18px", fontWeight: 700, color: "#c084fc" }}>{stats.aiTotalRuns ?? 0}</div>
               </div>
-              <div style={{ backgroundColor: "rgba(0, 0, 0, 0.3)", padding: "12px", borderRadius: "10px", border: "1px solid rgba(255, 255, 255, 0.06)" }}>
-                <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", marginBottom: "4px" }}>MRR Value</div>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: "#34d399" }}>${stats.mrrContribution ?? 0}/mo</div>
+              <div style={{ backgroundColor: "rgba(6, 22, 15, 0.6)", padding: "10px", borderRadius: "6px", border: "1px solid rgba(77, 255, 160, 0.12)" }}>
+                <div style={{ fontSize: "10px", color: "#607f72", marginBottom: "2px" }}>Monthly Rev</div>
+                <div style={{ fontSize: "18px", fontWeight: 700, color: "#4dffa0" }}>${stats.mrrContribution ?? 0}</div>
               </div>
             </div>
 
             {/* Navigation Tabs */}
             <div style={{
               display: "flex",
-              borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-              marginBottom: "20px",
+              borderBottom: "1px solid rgba(77, 255, 160, 0.15)",
+              marginBottom: "18px",
               gap: "4px",
             }}>
               {[
@@ -402,20 +405,21 @@ export default function Consultant360Drawer({
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
                     style={{
-                      padding: "10px 14px",
+                      padding: "8px 12px",
                       background: "transparent",
                       border: "none",
-                      borderBottom: active ? "2px solid #10b981" : "2px solid transparent",
-                      color: active ? "#34d399" : "rgba(255, 255, 255, 0.6)",
-                      fontSize: "13px",
+                      borderBottom: active ? "2px solid #4dffa0" : "2px solid transparent",
+                      color: active ? "#4dffa0" : "#89aca0",
+                      fontSize: "12px",
                       fontWeight: 600,
                       cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
-                      gap: "6px",
+                      gap: "5px",
+                      transition: "all 0.15s ease",
                     }}
                   >
-                    <Icon size={14} />
+                    <Icon size={13} style={{ color: active ? "#4dffa0" : "#607f72" }} />
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -424,49 +428,49 @@ export default function Consultant360Drawer({
 
             {/* TAB 1: PROJECTS LIST */}
             {activeTab === "projects" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {projects.length > 0 ? (
                   projects.map((proj: any) => (
                     <div
                       key={proj.id}
                       style={{
-                        backgroundColor: "rgba(0, 0, 0, 0.3)",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        borderRadius: "10px",
-                        padding: "14px 16px",
+                        backgroundColor: "rgba(6, 22, 15, 0.7)",
+                        border: "1px solid rgba(77, 255, 160, 0.12)",
+                        borderRadius: "8px",
+                        padding: "12px 14px",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "8px" }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "6px" }}>
                         <div>
-                          <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>
+                          <div style={{ fontSize: "13px", fontWeight: 600, color: "#f3f8f4" }}>
                             {proj.title}
                           </div>
-                          <div style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.6)" }}>
-                            Client: {proj.companyName || "Unnamed"} {proj.sector ? `• ${proj.sector}` : ""}
+                          <div style={{ fontSize: "11px", color: "#607f72" }}>
+                            Client: {proj.companyName || "Direct"} {proj.sector ? `• ${proj.sector}` : ""}
                           </div>
                         </div>
 
                         <span style={{
-                          padding: "3px 8px",
+                          padding: "2px 7px",
                           borderRadius: "4px",
-                          fontSize: "11px",
+                          fontSize: "10px",
                           fontWeight: 700,
                           textTransform: "uppercase",
-                          backgroundColor: proj.status === "delivered" ? "rgba(16, 185, 129, 0.15)" : "rgba(59, 130, 246, 0.15)",
-                          color: proj.status === "delivered" ? "#34d399" : "#60a5fa",
+                          backgroundColor: proj.status === "delivered" ? "rgba(77, 255, 160, 0.12)" : "rgba(74, 158, 255, 0.12)",
+                          color: proj.status === "delivered" ? "#4dffa0" : "#4a9eff",
                         }}>
                           {proj.status}
                         </span>
                       </div>
 
                       {/* Progress Bar */}
-                      <div style={{ marginBottom: "10px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", marginBottom: "4px" }}>
+                      <div style={{ marginBottom: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#607f72", marginBottom: "3px" }}>
                           <span>Deliverable Progress</span>
-                          <span>{proj.progress}%</span>
+                          <span style={{ color: "#4dffa0", fontWeight: 700 }}>{proj.progress}%</span>
                         </div>
-                        <div style={{ height: "4px", backgroundColor: "rgba(255, 255, 255, 0.1)", borderRadius: "2px", overflow: "hidden" }}>
-                          <div style={{ width: `${proj.progress}%`, height: "100%", backgroundColor: "#10b981", borderRadius: "2px" }} />
+                        <div style={{ height: "4px", backgroundColor: "rgba(255, 255, 255, 0.08)", borderRadius: "2px", overflow: "hidden" }}>
+                          <div style={{ width: `${proj.progress}%`, height: "100%", backgroundColor: "#4dffa0", borderRadius: "2px" }} />
                         </div>
                       </div>
 
@@ -476,11 +480,11 @@ export default function Consultant360Drawer({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
-                          backgroundColor: "rgba(0, 0, 0, 0.4)",
-                          padding: "6px 10px",
-                          borderRadius: "6px",
+                          backgroundColor: "rgba(2, 14, 9, 0.6)",
+                          padding: "5px 8px",
+                          borderRadius: "4px",
                           fontSize: "11px",
-                          color: "rgba(255, 255, 255, 0.6)",
+                          color: "#89aca0",
                         }}>
                           <span>Portal Token: <code>{proj.portalToken}</code></span>
                           <button
@@ -488,7 +492,7 @@ export default function Consultant360Drawer({
                             style={{
                               background: "transparent",
                               border: "none",
-                              color: copiedToken === proj.portalToken ? "#34d399" : "rgba(255, 255, 255, 0.5)",
+                              color: copiedToken === proj.portalToken ? "#4dffa0" : "#607f72",
                               cursor: "pointer",
                               display: "inline-flex",
                               alignItems: "center",
@@ -504,7 +508,7 @@ export default function Consultant360Drawer({
                     </div>
                   ))
                 ) : (
-                  <div style={{ textAlign: "center", padding: "32px", color: "rgba(255, 255, 255, 0.4)", fontSize: "13px" }}>
+                  <div style={{ textAlign: "center", padding: "28px", color: "#607f72", fontSize: "12px" }}>
                     No projects created by this agency yet.
                   </div>
                 )}
@@ -513,41 +517,41 @@ export default function Consultant360Drawer({
 
             {/* TAB 2: CLIENTS LIST */}
             {activeTab === "clients" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {clients.length > 0 ? (
                   clients.map((client: any) => (
                     <div
                       key={client.id}
                       style={{
-                        backgroundColor: "rgba(0, 0, 0, 0.3)",
-                        border: "1px solid rgba(255, 255, 255, 0.08)",
-                        borderRadius: "10px",
-                        padding: "14px 16px",
+                        backgroundColor: "rgba(6, 22, 15, 0.7)",
+                        border: "1px solid rgba(77, 255, 160, 0.12)",
+                        borderRadius: "8px",
+                        padding: "12px 14px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
                       }}
                     >
                       <div>
-                        <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "#f3f8f4" }}>
                           {client.companyName || client.name || "Client Business"}
                         </div>
-                        <div style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.6)", marginTop: "2px" }}>
+                        <div style={{ fontSize: "11px", color: "#607f72", marginTop: "2px" }}>
                           Contact: {client.name} • {client.email}
                         </div>
                         {client.sector ? (
-                          <div style={{ fontSize: "11px", color: "#fbbf24", marginTop: "2px" }}>
-                            Industry Sector: {client.sector}
+                          <div style={{ fontSize: "10px", color: "#f0b429", marginTop: "2px" }}>
+                            Industry: {client.sector}
                           </div>
                         ) : null}
                       </div>
 
                       <span style={{
-                        backgroundColor: "rgba(245, 158, 11, 0.15)",
-                        color: "#fbbf24",
-                        padding: "4px 10px",
-                        borderRadius: "6px",
-                        fontSize: "11px",
+                        backgroundColor: "rgba(240, 180, 41, 0.12)",
+                        color: "#f0b429",
+                        padding: "2px 7px",
+                        borderRadius: "4px",
+                        fontSize: "10px",
                         fontWeight: 700,
                       }}>
                         {client.projectsCount} {client.projectsCount === 1 ? "Project" : "Projects"}
@@ -555,43 +559,43 @@ export default function Consultant360Drawer({
                     </div>
                   ))
                 ) : (
-                  <div style={{ textAlign: "center", padding: "32px", color: "rgba(255, 255, 255, 0.4)", fontSize: "13px" }}>
+                  <div style={{ textAlign: "center", padding: "28px", color: "#607f72", fontSize: "12px" }}>
                     No end-clients assigned yet.
                   </div>
                 )}
               </div>
             )}
 
-            {/* TAB 3: AI & TOKEN CONSUMPTION */}
+            {/* TAB 3: AI USAGE */}
             {activeTab === "ai" && (
               <div>
                 <div style={{
-                  backgroundColor: "rgba(14, 165, 233, 0.1)",
-                  border: "1px solid rgba(14, 165, 233, 0.25)",
-                  borderRadius: "12px",
-                  padding: "16px",
-                  marginBottom: "20px",
+                  backgroundColor: "rgba(74, 158, 255, 0.08)",
+                  border: "1px solid rgba(74, 158, 255, 0.2)",
+                  borderRadius: "8px",
+                  padding: "14px",
+                  marginBottom: "16px",
                 }}>
-                  <div style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.6)", marginBottom: "4px" }}>
-                    Total AI Suite Generations Run
+                  <div style={{ fontSize: "11px", color: "#89aca0", marginBottom: "2px" }}>
+                    Total AI Tool Runs
                   </div>
-                  <div style={{ fontSize: "28px", fontWeight: 800, color: "#38bdf8" }}>
+                  <div style={{ fontSize: "22px", fontWeight: 700, color: "#4a9eff" }}>
                     {stats.aiTotalRuns ?? 0} runs
                   </div>
-                  <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", marginTop: "4px" }}>
+                  <div style={{ fontSize: "10px", color: "#607f72", marginTop: "2px" }}>
                     Bonus Credits Allowance: {stats.aiBonusCredits ?? 0} extra runs
                   </div>
                 </div>
 
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>
-                  Tool-by-Tool Consumption
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#cbd5e1", marginBottom: "8px", textTransform: "uppercase" }}>
+                  Tool Breakdown
                 </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "18px" }}>
                   {[
                     { key: "proposal-generator", name: "AI Proposal Generator" },
-                    { key: "enhance-brand-dna", name: "AI Brand DNA Enhancer" },
-                    { key: "moodboard-directions", name: "AI Moodboard Directions" },
+                    { key: "enhance-brand-dna", name: "Brand DNA Engine" },
+                    { key: "moodboard-directions", name: "Moodboard Directions" },
                   ].map((tool) => {
                     const count = consultant.aiUsage?.toolRuns?.[tool.key] || 0;
                     return (
@@ -601,14 +605,14 @@ export default function Consultant360Drawer({
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
-                          backgroundColor: "rgba(0, 0, 0, 0.3)",
-                          border: "1px solid rgba(255, 255, 255, 0.06)",
-                          borderRadius: "8px",
-                          padding: "12px 14px",
+                          backgroundColor: "rgba(6, 22, 15, 0.6)",
+                          border: "1px solid rgba(77, 255, 160, 0.1)",
+                          borderRadius: "6px",
+                          padding: "9px 12px",
                         }}
                       >
-                        <span style={{ fontSize: "13px", color: "rgba(255, 255, 255, 0.8)" }}>{tool.name}</span>
-                        <span style={{ fontSize: "14px", fontWeight: 700, color: "#38bdf8" }}>{count} runs</span>
+                        <span style={{ fontSize: "12px", color: "#89aca0" }}>{tool.name}</span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#4dffa0" }}>{count} runs</span>
                       </div>
                     );
                   })}
@@ -616,29 +620,29 @@ export default function Consultant360Drawer({
 
                 {/* Quota Management Actions */}
                 <div style={{
-                  backgroundColor: "rgba(0, 0, 0, 0.35)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "12px",
-                  padding: "18px",
+                  backgroundColor: "rgba(6, 22, 15, 0.7)",
+                  border: "1px solid rgba(77, 255, 160, 0.15)",
+                  borderRadius: "8px",
+                  padding: "14px",
                 }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#fff", marginBottom: "12px" }}>
-                    Quick AI Quota Actions
+                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#f3f8f4", marginBottom: "10px", textTransform: "uppercase" }}>
+                    Quota Actions
                   </div>
 
-                  <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
                     <button
                       type="button"
                       onClick={() => setQuotaAction("reset")}
                       style={{
                         flex: 1,
-                        padding: "8px",
-                        borderRadius: "6px",
-                        fontSize: "12px",
+                        padding: "7px",
+                        borderRadius: "5px",
+                        fontSize: "11px",
                         fontWeight: 600,
                         cursor: "pointer",
-                        backgroundColor: quotaAction === "reset" ? "rgba(16, 185, 129, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                        border: quotaAction === "reset" ? "1px solid #10b981" : "1px solid rgba(255, 255, 255, 0.1)",
-                        color: quotaAction === "reset" ? "#34d399" : "rgba(255, 255, 255, 0.6)",
+                        backgroundColor: quotaAction === "reset" ? "rgba(77, 255, 160, 0.15)" : "rgba(255, 255, 255, 0.04)",
+                        border: quotaAction === "reset" ? "1px solid #4dffa0" : "1px solid rgba(255, 255, 255, 0.08)",
+                        color: quotaAction === "reset" ? "#4dffa0" : "#607f72",
                       }}
                     >
                       Reset Tool Runs
@@ -648,14 +652,14 @@ export default function Consultant360Drawer({
                       onClick={() => setQuotaAction("set-credits")}
                       style={{
                         flex: 1,
-                        padding: "8px",
-                        borderRadius: "6px",
-                        fontSize: "12px",
+                        padding: "7px",
+                        borderRadius: "5px",
+                        fontSize: "11px",
                         fontWeight: 600,
                         cursor: "pointer",
-                        backgroundColor: quotaAction === "set-credits" ? "rgba(14, 165, 233, 0.25)" : "rgba(255, 255, 255, 0.05)",
-                        border: quotaAction === "set-credits" ? "1px solid #0ea5e9" : "1px solid rgba(255, 255, 255, 0.1)",
-                        color: quotaAction === "set-credits" ? "#38bdf8" : "rgba(255, 255, 255, 0.6)",
+                        backgroundColor: quotaAction === "set-credits" ? "rgba(74, 158, 255, 0.15)" : "rgba(255, 255, 255, 0.04)",
+                        border: quotaAction === "set-credits" ? "1px solid #4a9eff" : "1px solid rgba(255, 255, 255, 0.08)",
+                        color: quotaAction === "set-credits" ? "#4a9eff" : "#607f72",
                       }}
                     >
                       Grant Bonus Credits
@@ -663,8 +667,8 @@ export default function Consultant360Drawer({
                   </div>
 
                   {quotaAction === "set-credits" ? (
-                    <div style={{ marginBottom: "14px" }}>
-                      <label style={{ display: "block", fontSize: "11px", color: "rgba(255, 255, 255, 0.5)", marginBottom: "4px" }}>
+                    <div style={{ marginBottom: "12px" }}>
+                      <label style={{ display: "block", fontSize: "10px", color: "#607f72", marginBottom: "3px" }}>
                         Bonus Runs Count
                       </label>
                       <input
@@ -675,12 +679,13 @@ export default function Consultant360Drawer({
                         onChange={(e) => setBonusCredits(Math.max(1, parseInt(e.target.value) || 0))}
                         style={{
                           width: "100%",
-                          padding: "8px 12px",
-                          backgroundColor: "rgba(0, 0, 0, 0.5)",
-                          border: "1px solid rgba(255, 255, 255, 0.15)",
-                          borderRadius: "6px",
-                          color: "#fff",
-                          fontSize: "13px",
+                          padding: "7px 10px",
+                          backgroundColor: "rgba(2, 14, 9, 0.7)",
+                          border: "1px solid rgba(77, 255, 160, 0.2)",
+                          borderRadius: "5px",
+                          color: "#e8f5ef",
+                          fontSize: "12px",
+                          outline: "none",
                         }}
                       />
                     </div>
@@ -691,17 +696,17 @@ export default function Consultant360Drawer({
                     disabled={updatingQuota}
                     style={{
                       width: "100%",
-                      padding: "9px",
-                      backgroundColor: "#10b981",
+                      padding: "8px",
+                      backgroundColor: "#4dffa0",
                       border: "none",
-                      borderRadius: "6px",
-                      color: "#032014",
-                      fontSize: "13px",
+                      borderRadius: "5px",
+                      color: "#001a0e",
+                      fontSize: "12px",
                       fontWeight: 700,
                       cursor: "pointer",
                     }}
                   >
-                    {updatingQuota ? "Applying..." : "Apply AI Quota Update"}
+                    {updatingQuota ? "Saving..." : "Apply Quota Update"}
                   </button>
                 </div>
               </div>
@@ -711,21 +716,21 @@ export default function Consultant360Drawer({
             {activeTab === "settings" && (
               <form onSubmit={handleSavePlan}>
                 <div style={{
-                  backgroundColor: "rgba(0, 0, 0, 0.35)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "12px",
-                  padding: "20px",
+                  backgroundColor: "rgba(6, 22, 15, 0.7)",
+                  border: "1px solid rgba(77, 255, 160, 0.15)",
+                  borderRadius: "8px",
+                  padding: "16px",
                 }}>
-                  <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff", marginBottom: "16px" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#f3f8f4", marginBottom: "14px", textTransform: "uppercase" }}>
                     Subscription Plan & Project Limits
                   </div>
 
                   {/* Plan Selector */}
-                  <div style={{ marginBottom: "18px" }}>
-                    <label style={{ display: "block", fontSize: "12px", color: "rgba(255, 255, 255, 0.7)", marginBottom: "8px", fontWeight: 600 }}>
+                  <div style={{ marginBottom: "14px" }}>
+                    <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "6px", fontWeight: 600 }}>
                       Subscription Plan
                     </label>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
                       {[
                         { id: "free", label: "Free Trial ($0)", max: 5 },
                         { id: "starter", label: "Starter ($29/mo)", max: 10 },
@@ -739,17 +744,17 @@ export default function Consultant360Drawer({
                             setMaxProjects(item.max);
                           }}
                           style={{
-                            padding: "12px",
-                            borderRadius: "8px",
-                            backgroundColor: plan === item.id ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.04)",
-                            border: plan === item.id ? "1px solid #10b981" : "1px solid rgba(255, 255, 255, 0.08)",
+                            padding: "8px 10px",
+                            borderRadius: "5px",
+                            backgroundColor: plan === item.id ? "rgba(77, 255, 160, 0.12)" : "rgba(255, 255, 255, 0.03)",
+                            border: plan === item.id ? "1px solid #4dffa0" : "1px solid rgba(255, 255, 255, 0.08)",
                             cursor: "pointer",
                           }}
                         >
-                          <div style={{ fontSize: "13px", fontWeight: 600, color: plan === item.id ? "#34d399" : "#fff" }}>
+                          <div style={{ fontSize: "11px", fontWeight: 600, color: plan === item.id ? "#4dffa0" : "#f3f8f4" }}>
                             {item.label}
                           </div>
-                          <div style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.4)", marginTop: "2px" }}>
+                          <div style={{ fontSize: "10px", color: "#607f72", marginTop: "1px" }}>
                             Max {item.max} projects
                           </div>
                         </div>
@@ -758,8 +763,8 @@ export default function Consultant360Drawer({
                   </div>
 
                   {/* Max Projects input */}
-                  <div style={{ marginBottom: "20px" }}>
-                    <label style={{ display: "block", fontSize: "12px", color: "rgba(255, 255, 255, 0.7)", marginBottom: "6px", fontWeight: 600 }}>
+                  <div style={{ marginBottom: "16px" }}>
+                    <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px", fontWeight: 600 }}>
                       Max Projects Allowance
                     </label>
                     <input
@@ -770,12 +775,13 @@ export default function Consultant360Drawer({
                       onChange={(e) => setMaxProjects(Math.max(1, parseInt(e.target.value) || 0))}
                       style={{
                         width: "100%",
-                        padding: "10px 14px",
-                        backgroundColor: "rgba(0, 0, 0, 0.5)",
-                        border: "1px solid rgba(255, 255, 255, 0.15)",
-                        borderRadius: "8px",
-                        color: "#fff",
-                        fontSize: "14px",
+                        padding: "8px 10px",
+                        backgroundColor: "rgba(2, 14, 9, 0.7)",
+                        border: "1px solid rgba(77, 255, 160, 0.18)",
+                        borderRadius: "5px",
+                        color: "#e8f5ef",
+                        fontSize: "12px",
+                        outline: "none",
                       }}
                     />
                   </div>
@@ -785,17 +791,17 @@ export default function Consultant360Drawer({
                     disabled={savingPlan}
                     style={{
                       width: "100%",
-                      padding: "12px",
-                      backgroundColor: "#10b981",
+                      padding: "9px",
+                      backgroundColor: "#4dffa0",
                       border: "none",
-                      borderRadius: "8px",
-                      color: "#032014",
-                      fontSize: "13px",
+                      borderRadius: "5px",
+                      color: "#001a0e",
+                      fontSize: "12px",
                       fontWeight: 700,
                       cursor: "pointer",
                     }}
                   >
-                    {savingPlan ? "Saving Plan Changes..." : "Save Subscription Changes"}
+                    {savingPlan ? "Saving..." : "Save Subscription Changes"}
                   </button>
                 </div>
               </form>
