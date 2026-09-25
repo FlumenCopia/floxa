@@ -10,12 +10,26 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3001';
+const isProduction = process.env.NODE_ENV === 'production';
+const rawOrigins = (process.env.CORS_ORIGIN || process.env.ADMIN_APP_URL || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const allowedOrigins = isProduction
+  ? (rawOrigins.length > 0 ? rawOrigins : ['http://localhost:3001'])
+  : Array.from(new Set([...rawOrigins, 'http://localhost:3001', 'http://127.0.0.1:3001']));
 
 // Middleware
 app.use(
   cors({
-    origin: [CORS_ORIGIN, 'http://localhost:3001', 'http://127.0.0.1:3001'],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (such as curl, server-to-server, or local scripts)
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

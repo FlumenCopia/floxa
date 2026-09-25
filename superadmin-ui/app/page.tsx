@@ -25,7 +25,7 @@ export default function AdminOverviewPage() {
 
   // AI Quota Modal State
   const [selectedConsumer, setSelectedConsumer] = useState<any>(null);
-  const [quotaAction, setQuotaAction] = useState<"reset" | "set-credits">("reset");
+  const [quotaAction, setQuotaAction] = useState<"reset" | "add-credits">("reset");
   const [bonusCredits, setBonusCredits] = useState<number>(25);
   const [updatingQuota, setUpdatingQuota] = useState(false);
   const [quotaSuccess, setQuotaSuccess] = useState("");
@@ -59,12 +59,12 @@ export default function AdminOverviewPage() {
       await adminApi.updateConsultantAiQuota(
         selectedConsumer.id,
         quotaAction,
-        quotaAction === "set-credits" ? bonusCredits : undefined
+        quotaAction === "add-credits" ? bonusCredits : undefined
       );
       setQuotaSuccess(
         quotaAction === "reset"
           ? `Reset AI tool counter for ${selectedConsumer.name}`
-          : `Granted ${bonusCredits} bonus runs to ${selectedConsumer.name}`
+          : `Added ${bonusCredits} bonus runs to ${selectedConsumer.name}`
       );
       await fetchMetrics();
       setTimeout(() => {
@@ -883,7 +883,7 @@ export default function AdminOverviewPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setQuotaAction("set-credits")}
+                  onClick={() => setQuotaAction("add-credits")}
                   style={{
                     flex: 1,
                     padding: "8px",
@@ -891,9 +891,9 @@ export default function AdminOverviewPage() {
                     fontSize: "12px",
                     fontWeight: 600,
                     cursor: "pointer",
-                    backgroundColor: quotaAction === "set-credits" ? "rgba(74, 158, 255, 0.15)" : "rgba(255, 255, 255, 0.04)",
-                    border: quotaAction === "set-credits" ? "1px solid #4a9eff" : "1px solid rgba(255, 255, 255, 0.08)",
-                    color: quotaAction === "set-credits" ? "#4a9eff" : "#89aca0",
+                    backgroundColor: quotaAction === "add-credits" ? "rgba(74, 158, 255, 0.15)" : "rgba(255, 255, 255, 0.04)",
+                    border: quotaAction === "add-credits" ? "1px solid #4a9eff" : "1px solid rgba(255, 255, 255, 0.08)",
+                    color: quotaAction === "add-credits" ? "#4a9eff" : "#89aca0",
                   }}
                 >
                   Grant Bonus Credits
@@ -901,7 +901,7 @@ export default function AdminOverviewPage() {
               </div>
             </div>
 
-            {quotaAction === "set-credits" ? (
+            {quotaAction === "add-credits" ? (
               <div style={{ marginBottom: "18px" }}>
                 <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px", fontWeight: 600 }}>
                   Bonus Runs Allowance

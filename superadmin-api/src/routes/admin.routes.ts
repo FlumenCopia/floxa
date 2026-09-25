@@ -8,6 +8,7 @@ import {
   updateConsultantPlan,
   updateConsultantAiQuota,
   getProjects,
+  getSystemStatus,
 } from '../controllers/admin.controller.js';
 import {
   getAdminProfile,
@@ -29,6 +30,7 @@ router.use(requireAdminAuth);
 
 // Overview & Operations
 router.get('/metrics', getMetrics);
+router.get('/system/status', getSystemStatus);
 router.get('/consultants', getConsultants);
 router.get('/consultants/:id/details', getConsultantDetails);
 router.patch('/consultants/:id/status', updateConsultantStatus);

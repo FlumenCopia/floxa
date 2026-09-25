@@ -38,19 +38,18 @@ export default function AdminConsultantsPage() {
   const [modalMaxProjects, setModalMaxProjects] = useState(10);
   const [savingPlan, setSavingPlan] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
 
-  const fetchConsultants = async (resetPage = false) => {
+  const fetchConsultants = async () => {
     setLoading(true);
     setError("");
-    const targetPage = resetPage ? 1 : page;
-    if (resetPage) setPage(1);
 
     try {
       const res = await adminApi.getConsultants({
         search: searchTerm,
         status: statusFilter,
         plan: planFilter,
-        page: targetPage,
+        page: page,
         limit: 20,
       });
 
@@ -70,6 +69,27 @@ export default function AdminConsultantsPage() {
   useEffect(() => {
     fetchConsultants();
   }, [page, statusFilter, planFilter]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (page === 1) {
+      fetchConsultants();
+    } else {
+      setPage(1);
+    }
+  };
+
+  const handleDownloadCsv = async () => {
+    setDownloadingCsv(true);
+    setError("");
+    try {
+      await adminApi.downloadConsultantsCsv();
+    } catch (err: any) {
+      setError(err?.message || "Failed to download consultants CSV export.");
+    } finally {
+      setDownloadingCsv(false);
+    }
+  };
 
   const showNotification = (msg: string) => {
     setSuccessMsg(msg);
@@ -157,7 +177,8 @@ export default function AdminConsultantsPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <button
-            onClick={() => adminApi.downloadConsultantsCsv()}
+            onClick={handleDownloadCsv}
+            disabled={downloadingCsv}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -169,11 +190,12 @@ export default function AdminConsultantsPage() {
               borderRadius: "6px",
               fontSize: "13px",
               fontWeight: 600,
-              cursor: "pointer",
+              cursor: downloadingCsv ? "not-allowed" : "pointer",
+              opacity: downloadingCsv ? 0.7 : 1,
             }}
           >
             <Download size={14} style={{ color: "#4dffa0" }} />
-            <span>Export CSV</span>
+            <span>{downloadingCsv ? "Exporting..." : "Export CSV"}</span>
           </button>
           <button
             onClick={() => fetchConsultants()}
@@ -246,10 +268,7 @@ export default function AdminConsultantsPage() {
       }}>
         {/* Search */}
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            fetchConsultants(true);
-          }}
+          onSubmit={handleSearchSubmit}
           style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "260px" }}
         >
           <div style={{

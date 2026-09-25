@@ -1,8 +1,13 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import { Consultant } from '../models/consultant.model.js';
 import { Project } from '../models/project.model.js';
 import { Client } from '../models/client.model.js';
 import type { AdminAuthRequest } from '../middleware/auth.middleware.js';
+
+export function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 export const PLAN_PRICING: Record<string, number> = {
   free: 0,
@@ -186,17 +191,20 @@ export async function getConsultants(req: AdminAuthRequest, res: Response) {
     const search = String(req.query.search || '').trim();
     const status = String(req.query.status || '').trim();
     const plan = String(req.query.plan || '').trim();
-    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
-    const limit = Math.max(1, Math.min(100, parseInt(String(req.query.limit || '20'), 10)));
+    const rawPage = parseInt(String(req.query.page || '1'), 10);
+    const rawLimit = parseInt(String(req.query.limit || '20'), 10);
+    const page = Math.max(1, isNaN(rawPage) ? 1 : rawPage);
+    const limit = Math.max(1, Math.min(100, isNaN(rawLimit) ? 20 : rawLimit));
     const skip = (page - 1) * limit;
 
     const filter: Record<string, any> = {};
 
     if (search) {
+      const safeSearch = escapeRegex(search);
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { company: { $regex: search, $options: 'i' } },
+        { name: { $regex: safeSearch, $options: 'i' } },
+        { email: { $regex: safeSearch, $options: 'i' } },
+        { company: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 
@@ -261,6 +269,11 @@ export async function getConsultants(req: AdminAuthRequest, res: Response) {
 export async function getConsultantDetails(req: AdminAuthRequest, res: Response) {
   try {
     const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ detail: 'Invalid consultant ID format.' });
+      return;
+    }
 
     const consultant = await Consultant.findById(id).lean();
     if (!consultant) {
@@ -370,6 +383,11 @@ export async function updateConsultantStatus(req: AdminAuthRequest, res: Respons
     const { id } = req.params;
     const { isActive } = req.body;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ detail: 'Invalid consultant ID format.' });
+      return;
+    }
+
     if (typeof isActive !== 'boolean') {
       res.status(400).json({ detail: 'isActive boolean field is required.' });
       return;
@@ -409,6 +427,11 @@ export async function updateConsultantPlan(req: AdminAuthRequest, res: Response)
     const { maxProjects } = req.body;
     const planStr = typeof req.body.plan === 'string' ? req.body.plan.trim() : '';
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ detail: 'Invalid consultant ID format.' });
+      return;
+    }
+
     const validPlans = ['free', 'starter', 'pro', 'enterprise'];
     if (planStr && !validPlans.includes(planStr)) {
       res.status(400).json({ detail: `Invalid plan. Must be one of: ${validPlans.join(', ')}` });
@@ -440,7 +463,7 @@ export async function updateConsultantPlan(req: AdminAuthRequest, res: Response)
     }
 
     if (typeof maxProjects === 'number' && maxProjects >= 0) {
-      consultant.subscription.maxProjects = maxProjects;
+      consultant.subscription.maxProjects = Math.min(10000, Math.max(0, maxProjects));
     }
 
     await consultant.save();
@@ -460,6 +483,17 @@ export async function updateConsultantAiQuota(req: AdminAuthRequest, res: Respon
     const { id } = req.params;
     const { action, credits } = req.body;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ detail: 'Invalid consultant ID format.' });
+      return;
+    }
+
+    const validActions = ['reset', 'set-credits', 'add-credits'];
+    if (!validActions.includes(action)) {
+      res.status(400).json({ detail: `Invalid quota action. Must be one of: ${validActions.join(', ')}` });
+      return;
+    }
+
     const consultant = await Consultant.findById(id);
     if (!consultant) {
       res.status(404).json({ detail: 'Consultant not found.' });
@@ -477,8 +511,12 @@ export async function updateConsultantAiQuota(req: AdminAuthRequest, res: Respon
       consultant.aiUsage.toolRuns = {};
       consultant.markModified('aiUsage');
     } else if (action === 'set-credits') {
-      const bonus = Math.max(0, parseInt(String(credits || 0), 10));
+      const bonus = Math.max(0, parseInt(String(credits || 0), 10) || 0);
       consultant.aiUsage.bonusCredits = bonus;
+      consultant.markModified('aiUsage');
+    } else if (action === 'add-credits') {
+      const bonus = Math.max(0, parseInt(String(credits || 0), 10) || 0);
+      consultant.aiUsage.bonusCredits = (consultant.aiUsage.bonusCredits || 0) + bonus;
       consultant.markModified('aiUsage');
     }
 
@@ -497,15 +535,18 @@ export async function updateConsultantAiQuota(req: AdminAuthRequest, res: Respon
 export async function getProjects(req: AdminAuthRequest, res: Response) {
   try {
     const search = String(req.query.search || '').trim();
-    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
-    const limit = Math.max(1, Math.min(100, parseInt(String(req.query.limit || '20'), 10)));
+    const rawPage = parseInt(String(req.query.page || '1'), 10);
+    const rawLimit = parseInt(String(req.query.limit || '20'), 10);
+    const page = Math.max(1, isNaN(rawPage) ? 1 : rawPage);
+    const limit = Math.max(1, Math.min(100, isNaN(rawLimit) ? 20 : rawLimit));
     const skip = (page - 1) * limit;
 
     const filter: Record<string, any> = {};
     if (search) {
+      const safeSearch = escapeRegex(search);
       filter.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { companyName: { $regex: search, $options: 'i' } },
+        { title: { $regex: safeSearch, $options: 'i' } },
+        { companyName: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 
@@ -552,3 +593,46 @@ export async function getProjects(req: AdminAuthRequest, res: Response) {
     res.status(500).json({ detail: 'Failed to list platform projects.', error: err.message });
   }
 }
+
+export async function getSystemStatus(req: AdminAuthRequest, res: Response) {
+  try {
+    const dbStateMap: Record<number, string> = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting',
+    };
+    const readyState = mongoose.connection.readyState;
+    const dbStatus = dbStateMap[readyState] || 'unknown';
+
+    let dbPingMs = -1;
+    if (readyState === 1 && mongoose.connection.db) {
+      const startPing = Date.now();
+      await mongoose.connection.db.admin().ping();
+      dbPingMs = Date.now() - startPing;
+    }
+
+    const mem = process.memoryUsage();
+
+    res.json({
+      success: true,
+      service: 'floxa-superadmin-api',
+      timestamp: new Date().toISOString(),
+      database: {
+        status: dbStatus,
+        readyState,
+        pingMs: dbPingMs,
+      },
+      server: {
+        uptimeSeconds: Math.floor(process.uptime()),
+        memoryRssMb: Math.round(mem.rss / (1024 * 1024)),
+        memoryHeapUsedMb: Math.round(mem.heapUsed / (1024 * 1024)),
+        nodeVersion: process.version,
+        environment: process.env.NODE_ENV || 'development',
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, detail: 'Failed to retrieve system status.', error: err.message });
+  }
+}
+

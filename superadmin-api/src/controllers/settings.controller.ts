@@ -140,6 +140,16 @@ export async function updateAnnouncement(req: AdminAuthRequest, res: Response) {
   }
 }
 
+export function sanitizeCsvCell(value: any): string {
+  if (value === null || value === undefined) return '""';
+  let str = String(value);
+  // Neutralize spreadsheet formula injection (=, +, -, @, \t, \r)
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
 // 6. CSV Export: Consultants Directory
 export async function exportConsultantsCsv(req: AdminAuthRequest, res: Response) {
   try {
@@ -177,16 +187,16 @@ export async function exportConsultantsCsv(req: AdminAuthRequest, res: Response)
       });
 
       return [
-        `"${c._id.toString()}"`,
-        `"${(c.name || '').replace(/"/g, '""')}"`,
-        `"${(c.email || '').replace(/"/g, '""')}"`,
-        `"${(c.company || 'Independent').replace(/"/g, '""')}"`,
-        `"${(c.phone || '').replace(/"/g, '""')}"`,
-        `"${c.subscription?.plan || 'free'}"`,
-        `"${c.isActive !== false ? 'Active' : 'Suspended'}"`,
+        sanitizeCsvCell(c._id.toString()),
+        sanitizeCsvCell(c.name || ''),
+        sanitizeCsvCell(c.email || ''),
+        sanitizeCsvCell(c.company || 'Independent'),
+        sanitizeCsvCell(c.phone || ''),
+        sanitizeCsvCell(c.subscription?.plan || 'free'),
+        sanitizeCsvCell(c.isActive !== false ? 'Active' : 'Suspended'),
         countMap.get(c._id.toString()) || 0,
         aiTotalRuns,
-        `"${c.createdAt ? new Date(c.createdAt).toISOString() : ''}"`,
+        sanitizeCsvCell(c.createdAt ? new Date(c.createdAt).toISOString() : ''),
       ].join(',');
     });
 
@@ -221,15 +231,15 @@ export async function exportProjectsCsv(req: AdminAuthRequest, res: Response) {
     ];
 
     const rows = projects.map((p: any) => [
-      `"${p._id.toString()}"`,
-      `"${(p.title || '').replace(/"/g, '""')}"`,
-      `"${(p.companyName || '').replace(/"/g, '""')}"`,
-      `"${(p.consultantId?.name || '').replace(/"/g, '""')}"`,
-      `"${(p.consultantId?.email || '').replace(/"/g, '""')}"`,
-      `"${p.status || 'created'}"`,
+      sanitizeCsvCell(p._id.toString()),
+      sanitizeCsvCell(p.title || ''),
+      sanitizeCsvCell(p.companyName || ''),
+      sanitizeCsvCell(p.consultantId?.name || ''),
+      sanitizeCsvCell(p.consultantId?.email || ''),
+      sanitizeCsvCell(p.status || 'created'),
       p.progress || 0,
-      `"${p.portalToken || ''}"`,
-      `"${p.createdAt ? new Date(p.createdAt).toISOString() : ''}"`,
+      sanitizeCsvCell(p.portalToken || ''),
+      sanitizeCsvCell(p.createdAt ? new Date(p.createdAt).toISOString() : ''),
     ].join(','));
 
     const csvContent = [headers.join(','), ...rows].join('\n');
@@ -287,11 +297,11 @@ export async function updateIntegrations(req: AdminAuthRequest, res: Response) {
 
     const updated = {
       ...current,
-      ...(geminiApiKey && typeof geminiApiKey === 'string' ? { geminiApiKey: geminiApiKey.trim() } : {}),
-      ...(razorpayKeyId && typeof razorpayKeyId === 'string' ? { razorpayKeyId: razorpayKeyId.trim() } : {}),
-      ...(razorpayKeySecret && typeof razorpayKeySecret === 'string' ? { razorpayKeySecret: razorpayKeySecret.trim() } : {}),
-      ...(smtpUser && typeof smtpUser === 'string' ? { smtpUser: smtpUser.trim() } : {}),
-      ...(smtpHost && typeof smtpHost === 'string' ? { smtpHost: smtpHost.trim() } : {}),
+      ...(typeof geminiApiKey === 'string' ? { geminiApiKey: geminiApiKey.trim() } : {}),
+      ...(typeof razorpayKeyId === 'string' ? { razorpayKeyId: razorpayKeyId.trim() } : {}),
+      ...(typeof razorpayKeySecret === 'string' ? { razorpayKeySecret: razorpayKeySecret.trim() } : {}),
+      ...(typeof smtpUser === 'string' ? { smtpUser: smtpUser.trim() } : {}),
+      ...(typeof smtpHost === 'string' ? { smtpHost: smtpHost.trim() } : {}),
     };
 
     const saved = await PlatformSetting.findOneAndUpdate(
@@ -326,7 +336,9 @@ export async function testGeminiConnection(req: AdminAuthRequest, res: Response)
 
     const startTime = Date.now();
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(10000),
+    });
     const latency = Date.now() - startTime;
 
     if (response.ok) {

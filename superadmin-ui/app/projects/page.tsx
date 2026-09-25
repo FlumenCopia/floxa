@@ -18,16 +18,16 @@ export default function AdminProjectsPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
 
-  const fetchProjects = async (resetPage = false) => {
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
+
+  const fetchProjects = async () => {
     setLoading(true);
     setError("");
-    const targetPage = resetPage ? 1 : page;
-    if (resetPage) setPage(1);
 
     try {
       const res = await adminApi.getProjects({
         search: searchTerm,
-        page: targetPage,
+        page: page,
         limit: 20,
       });
 
@@ -48,6 +48,27 @@ export default function AdminProjectsPage() {
     fetchProjects();
   }, [page]);
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (page === 1) {
+      fetchProjects();
+    } else {
+      setPage(1);
+    }
+  };
+
+  const handleDownloadCsv = async () => {
+    setDownloadingCsv(true);
+    setError("");
+    try {
+      await adminApi.downloadProjectsCsv();
+    } catch (err: any) {
+      setError(err?.message || "Failed to download platform projects CSV export.");
+    } finally {
+      setDownloadingCsv(false);
+    }
+  };
+
   return (
     <div>
       {/* Title & Refresh */}
@@ -62,7 +83,8 @@ export default function AdminProjectsPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <button
-            onClick={() => adminApi.downloadProjectsCsv()}
+            onClick={handleDownloadCsv}
+            disabled={downloadingCsv}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -74,11 +96,12 @@ export default function AdminProjectsPage() {
               borderRadius: "6px",
               fontSize: "13px",
               fontWeight: 600,
-              cursor: "pointer",
+              cursor: downloadingCsv ? "not-allowed" : "pointer",
+              opacity: downloadingCsv ? 0.7 : 1,
             }}
           >
             <Download size={14} style={{ color: "#4dffa0" }} />
-            <span>Export CSV</span>
+            <span>{downloadingCsv ? "Exporting..." : "Export CSV"}</span>
           </button>
           <button
             onClick={() => fetchProjects()}
@@ -127,10 +150,7 @@ export default function AdminProjectsPage() {
         marginBottom: "18px",
       }}>
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            fetchProjects(true);
-          }}
+          onSubmit={handleSearchSubmit}
           style={{ display: "flex", alignItems: "center", gap: "10px" }}
         >
           <div style={{

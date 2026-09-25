@@ -14,6 +14,12 @@ import {
   Save,
   Lock,
   Trash2,
+  Activity,
+  Server,
+  Database,
+  RefreshCw,
+  Cpu,
+  Clock,
 } from "lucide-react";
 import { adminApi } from "../../services/api";
 
@@ -47,6 +53,40 @@ export default function AdminSettingsPage() {
   const [purgingDemo, setPurgingDemo] = useState(false);
   const [purgeMsg, setPurgeMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // System Diagnostics State
+  const [systemStatus, setSystemStatus] = useState<any>(null);
+  const [loadingSystemStatus, setLoadingSystemStatus] = useState(false);
+  const [systemStatusError, setSystemStatusError] = useState<string | null>(null);
+
+  const fetchSystemStatus = async () => {
+    setLoadingSystemStatus(true);
+    setSystemStatusError(null);
+    try {
+      const res = await adminApi.getSystemStatus();
+      if (res?.success) {
+        setSystemStatus(res);
+      } else {
+        setSystemStatusError(res?.detail || "Could not fetch cluster status.");
+      }
+    } catch (err: any) {
+      setSystemStatusError(err?.message || "Failed to connect to cluster diagnostics.");
+    } finally {
+      setLoadingSystemStatus(false);
+    }
+  };
+
+  const formatUptime = (seconds?: number) => {
+    if (typeof seconds !== "number" || seconds < 0) return "N/A";
+    const d = Math.floor(seconds / (3600 * 24));
+    const h = Math.floor((seconds % (3600 * 24)) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  };
+
   useEffect(() => {
     // 1. Fetch Profile
     adminApi
@@ -72,6 +112,9 @@ export default function AdminSettingsPage() {
         }
       })
       .catch(() => {});
+
+    // 3. Fetch Cluster & System Diagnostics
+    fetchSystemStatus();
   }, []);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -148,7 +191,9 @@ export default function AdminSettingsPage() {
       const res = await adminApi.updateAnnouncement(annMessage, annType, annActive);
       if (res?.success) {
         setAnnMsg({ type: "success", text: "Global announcement broadcast updated." });
-        setTimeout(() => window.location.reload(), 1200);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("floxa:announcement_changed"));
+        }
       }
     } catch (err: any) {
       setAnnMsg({ type: "error", text: err?.message || "Failed to update announcement." });
@@ -764,6 +809,183 @@ export default function AdminSettingsPage() {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* SECTION 4: SYSTEM & CLUSTER DIAGNOSTICS */}
+      <div style={{ marginTop: "24px" }}>
+        <div style={{
+          backgroundColor: "rgba(6, 22, 15, 0.72)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(77, 255, 160, 0.2)",
+          borderRadius: "10px",
+          padding: "20px 22px",
+        }}>
+          {/* Card Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "6px",
+                backgroundColor: "rgba(77, 255, 160, 0.12)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#4dffa0",
+              }}>
+                <Activity size={16} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: "14px", fontWeight: 700, margin: 0, color: "#f3f8f4" }}>
+                  System & Cluster Diagnostics
+                </h2>
+                <span style={{ fontSize: "11px", color: "#607f72" }}>
+                  Live cluster metrics, database connection status, and Node.js process telemetry
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={fetchSystemStatus}
+              disabled={loadingSystemStatus}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "6px",
+                backgroundColor: "rgba(77, 255, 160, 0.1)",
+                border: "1px solid rgba(77, 255, 160, 0.25)",
+                color: "#4dffa0",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <RefreshCw size={13} style={{ animation: loadingSystemStatus ? "spin 1s linear infinite" : "none" }} />
+              <span>{loadingSystemStatus ? "Checking..." : "Refresh Status"}</span>
+            </button>
+          </div>
+
+          {systemStatusError ? (
+            <div style={{
+              backgroundColor: "rgba(255, 107, 107, 0.12)",
+              border: "1px solid rgba(255, 107, 107, 0.25)",
+              color: "#ff6b6b",
+              padding: "10px 14px",
+              borderRadius: "6px",
+              marginBottom: "16px",
+              fontSize: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}>
+              <AlertCircle size={14} />
+              <span>{systemStatusError}</span>
+            </div>
+          ) : null}
+
+          {/* 4-Stat Metric Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "14px" }}>
+            {/* Database Health */}
+            <div style={{
+              backgroundColor: "rgba(2, 14, 9, 0.6)",
+              border: "1px solid rgba(77, 255, 160, 0.15)",
+              borderRadius: "8px",
+              padding: "14px 16px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 600, color: "#89aca0" }}>MongoDB Database</span>
+                <Database size={14} color="#4dffa0" />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                <span style={{
+                  display: "inline-block",
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  backgroundColor: systemStatus?.database?.status === "connected" ? "#4dffa0" : "#ff6b6b",
+                  boxShadow: systemStatus?.database?.status === "connected" ? "0 0 8px #4dffa0" : "none",
+                }} />
+                <span style={{ fontSize: "15px", fontWeight: 700, color: "#f3f8f4", textTransform: "capitalize" }}>
+                  {systemStatus?.database?.status || "Connecting..."}
+                </span>
+              </div>
+              <span style={{ fontSize: "11px", color: "#607f72" }}>
+                {systemStatus?.database?.pingMs !== undefined && systemStatus.database.pingMs >= 0
+                  ? `Ping latency: ${systemStatus.database.pingMs}ms`
+                  : "Checking database latency..."}
+              </span>
+            </div>
+
+            {/* Service & Runtime */}
+            <div style={{
+              backgroundColor: "rgba(2, 14, 9, 0.6)",
+              border: "1px solid rgba(77, 255, 160, 0.15)",
+              borderRadius: "8px",
+              padding: "14px 16px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 600, color: "#89aca0" }}>API Service</span>
+                <Server size={14} color="#4a9eff" />
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "#f3f8f4", marginBottom: "4px" }}>
+                {systemStatus?.service || "superadmin-api"}
+              </div>
+              <span style={{ fontSize: "11px", color: "#607f72" }}>
+                {systemStatus?.server?.nodeVersion ? `${systemStatus.server.nodeVersion} (${systemStatus.server.environment})` : "Port 5001"}
+              </span>
+            </div>
+
+            {/* Process Uptime */}
+            <div style={{
+              backgroundColor: "rgba(2, 14, 9, 0.6)",
+              border: "1px solid rgba(77, 255, 160, 0.15)",
+              borderRadius: "8px",
+              padding: "14px 16px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 600, color: "#89aca0" }}>API Process Uptime</span>
+                <Clock size={14} color="#f0b429" />
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "#f3f8f4", marginBottom: "4px" }}>
+                {formatUptime(systemStatus?.server?.uptimeSeconds)}
+              </div>
+              <span style={{ fontSize: "11px", color: "#607f72" }}>
+                Continuous cluster runtime
+              </span>
+            </div>
+
+            {/* Memory Usage */}
+            <div style={{
+              backgroundColor: "rgba(2, 14, 9, 0.6)",
+              border: "1px solid rgba(77, 255, 160, 0.15)",
+              borderRadius: "8px",
+              padding: "14px 16px",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 600, color: "#89aca0" }}>Memory Footprint</span>
+                <Cpu size={14} color="#a78bfa" />
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: 700, color: "#f3f8f4", marginBottom: "4px" }}>
+                {systemStatus?.server?.memoryHeapUsedMb !== undefined ? `${systemStatus.server.memoryHeapUsedMb} MB Heap` : "Analyzing..."}
+              </div>
+              <span style={{ fontSize: "11px", color: "#607f72" }}>
+                {systemStatus?.server?.memoryRssMb !== undefined ? `RSS: ${systemStatus.server.memoryRssMb} MB` : "Node cluster resident"}
+              </span>
+            </div>
+          </div>
+
+          {/* Diagnostic Footer */}
+          {systemStatus?.timestamp ? (
+            <div style={{ marginTop: "14px", display: "flex", justifyContent: "flex-end" }}>
+              <span style={{ fontSize: "10px", color: "#607f72" }}>
+                Last verified: {new Date(systemStatus.timestamp).toLocaleTimeString()}
+              </span>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

@@ -69,6 +69,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }, [pathname, isLoginPage, router]);
 
   useEffect(() => {
+    const handleAnnouncementRefresh = () => {
+      adminApi
+        .getAnnouncement()
+        .then((res) => {
+          if (res?.announcement?.isActive) setAnnouncement(res.announcement);
+          else setAnnouncement(null);
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener("floxa:announcement_changed", handleAnnouncementRefresh);
+    return () => window.removeEventListener("floxa:announcement_changed", handleAnnouncementRefresh);
+  }, []);
+
+  useEffect(() => {
     setIsSidebarOpen(false);
   }, [pathname]);
 

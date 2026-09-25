@@ -47,7 +47,7 @@ export default function Consultant360Drawer({
   const [togglingStatus, setTogglingStatus] = useState(false);
 
   // AI Quota State
-  const [quotaAction, setQuotaAction] = useState<"reset" | "set-credits">("reset");
+  const [quotaAction, setQuotaAction] = useState<"reset" | "add-credits">("reset");
   const [bonusCredits, setBonusCredits] = useState<number>(25);
   const [updatingQuota, setUpdatingQuota] = useState(false);
 
@@ -143,11 +143,11 @@ export default function Consultant360Drawer({
       await adminApi.updateConsultantAiQuota(
         consultant.id,
         quotaAction,
-        quotaAction === "set-credits" ? bonusCredits : undefined
+        quotaAction === "add-credits" ? bonusCredits : undefined
       );
       setFeedback({
         type: "success",
-        text: quotaAction === "reset" ? "Tool runs reset to zero." : `Granted ${bonusCredits} bonus runs.`,
+        text: quotaAction === "reset" ? "Tool runs reset to zero." : `Added ${bonusCredits} bonus runs to balance.`,
       });
       await fetchDetails();
       onUpdated();
@@ -649,7 +649,7 @@ export default function Consultant360Drawer({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setQuotaAction("set-credits")}
+                      onClick={() => setQuotaAction("add-credits")}
                       style={{
                         flex: 1,
                         padding: "7px",
@@ -657,16 +657,16 @@ export default function Consultant360Drawer({
                         fontSize: "11px",
                         fontWeight: 600,
                         cursor: "pointer",
-                        backgroundColor: quotaAction === "set-credits" ? "rgba(74, 158, 255, 0.15)" : "rgba(255, 255, 255, 0.04)",
-                        border: quotaAction === "set-credits" ? "1px solid #4a9eff" : "1px solid rgba(255, 255, 255, 0.08)",
-                        color: quotaAction === "set-credits" ? "#4a9eff" : "#607f72",
+                        backgroundColor: quotaAction === "add-credits" ? "rgba(74, 158, 255, 0.15)" : "rgba(255, 255, 255, 0.04)",
+                        border: quotaAction === "add-credits" ? "1px solid #4a9eff" : "1px solid rgba(255, 255, 255, 0.08)",
+                        color: quotaAction === "add-credits" ? "#4a9eff" : "#607f72",
                       }}
                     >
                       Grant Bonus Credits
                     </button>
                   </div>
 
-                  {quotaAction === "set-credits" ? (
+                  {quotaAction === "add-credits" ? (
                     <div style={{ marginBottom: "12px" }}>
                       <label style={{ display: "block", fontSize: "10px", color: "#607f72", marginBottom: "3px" }}>
                         Bonus Runs Count

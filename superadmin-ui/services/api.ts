@@ -62,9 +62,13 @@ export const adminApi = {
     }
   },
 
-  // Metrics
+  // Metrics & System Health
   async getMetrics() {
     return request('/admin/metrics');
+  },
+
+  async getSystemStatus() {
+    return request('/admin/system/status');
   },
 
   // Consultants
@@ -98,7 +102,7 @@ export const adminApi = {
     });
   },
 
-  async updateConsultantAiQuota(id: string, action: 'reset' | 'set-credits', credits?: number) {
+  async updateConsultantAiQuota(id: string, action: 'reset' | 'set-credits' | 'add-credits', credits?: number) {
     return request(`/admin/consultants/${id}/ai-quota`, {
       method: 'PATCH',
       body: JSON.stringify({ action, credits }),
