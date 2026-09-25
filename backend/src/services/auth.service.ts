@@ -90,8 +90,12 @@ export async function verifyGoogleToken(token: string) {
     throw new Error('Invalid Google token payload.');
   }
 
+  if (!payload.email_verified) {
+    throw new Error('Google account email is not verified.');
+  }
+
   return {
-    email: payload.email,
+    email: payload.email.toLowerCase().trim(),
     name: payload.name || payload.email.split('@')[0],
     sub: payload.sub,
     picture: payload.picture,

@@ -32,8 +32,11 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
     return next();
   }
 
-  // If authenticated via cookie, check CSRF token
-  const hasAuthCookie = Boolean(req.cookies && req.cookies[ENV.AUTH_ACCESS_COOKIE_NAME]);
+  // If authenticated via cookie, check CSRF token (for either consultant or client portal sessions)
+  const hasAuthCookie = Boolean(
+    req.cookies &&
+      (req.cookies[ENV.AUTH_ACCESS_COOKIE_NAME] || req.cookies[ENV.PORTAL_ACCESS_COOKIE_NAME])
+  );
   if (!hasAuthCookie) {
     // Unauthenticated requests (e.g. login, register, password verify) do not require CSRF enforcement in DRF
     return next();

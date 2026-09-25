@@ -44,7 +44,7 @@ export function getActiveModels(): string[] {
 }
 
 export function getAiClient(customApiKey?: string): GoogleGenAI {
-  const key = (customApiKey || '').trim();
+  const key = (customApiKey || ENV.GEMINI_API_KEY || '').trim();
 
   if (!key) {
     throw new Error('Gemini API is not configured. Please configure your Gemini API Key in Settings > Integrations & API Keys.');
@@ -368,17 +368,19 @@ AGENCY WORKFLOW & STAGE-AWARE RULES:
 
 export async function generateAiBrandDNA(project: any, discovery: any, customApiKey?: string): Promise<any> {
   const fallback = buildBrandDNAData(project, discovery);
-  const effectiveKey = (customApiKey || project?.consultant?.integrations?.geminiApiKey || '').trim();
+  const effectiveKey = (customApiKey || project?.consultant?.integrations?.geminiApiKey || ENV.GEMINI_API_KEY || '').trim();
 
   if (!effectiveKey) {
-    throw new Error('Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before generating Brand DNA.');
+    console.warn('[FLOXA Brand DNA] Google Gemini API Key is not configured. Falling back to deterministic Brand DNA generation.');
+    return fallback;
   }
 
   let client: GoogleGenAI;
   try {
     client = getAiClient(effectiveKey);
   } catch (err: any) {
-    throw new Error(`Google Gemini API client initialization failed: ${err?.message || 'Invalid key'}. Please check your API key in Settings > Integrations & API Keys.`);
+    console.warn(`[FLOXA Brand DNA] Google Gemini API client initialization failed: ${err?.message || 'Invalid key'}. Using fallback.`);
+    return fallback;
   }
 
   const profile = project.clientProfile;
@@ -557,8 +559,8 @@ JSON STRUCTURE REQUIRED:
     }
   }
 
-  console.warn('[FLOXA Brand DNA] Gemini generation exhausted fallbacks.');
-  throw new Error('Google Gemini AI generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.');
+  console.warn('[FLOXA Brand DNA] Gemini generation exhausted fallbacks. Returning deterministic Brand DNA fallback.');
+  return fallback;
 }
 
 // ---------------------------------------------------------------------------

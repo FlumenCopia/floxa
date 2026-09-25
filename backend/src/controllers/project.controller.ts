@@ -9,6 +9,7 @@ import {
   calculateProjectProgress,
   calculateProjectWorkflowStatus,
   logProjectActivity,
+  recalculatePaymentMilestones,
 } from '../services/project.service.js';
 import { sendClientPortalInvite } from '../services/email.service.js';
 import { generateProjectAssistantReply } from '../services/gemini.service.js';
@@ -35,7 +36,8 @@ export async function getProjects(req: any, res: Response, next: NextFunction) {
 
     if (search) {
       const q = String(search).trim();
-      const regex = new RegExp(q, 'i');
+      const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
 
       const matchingClients = await Client.find({ name: regex }).select('_id');
       const matchingClientIds = matchingClients.map((c) => c._id);
@@ -176,8 +178,16 @@ export async function createProject(req: any, res: Response, next: NextFunction)
     const portalPassword = (body.portal_password || '').trim();
     const sendInvite = Boolean(body.send_invite);
 
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!clientName || !clientEmail || !companyName) {
       res.status(400).json({ detail: 'Required project details missing.' });
+      return;
+    }
+
+    const cleanClientEmail = clientEmail.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(cleanClientEmail)) {
+      res.status(400).json({ detail: 'Please enter a valid client email address.' });
       return;
     }
 
@@ -198,7 +208,7 @@ export async function createProject(req: any, res: Response, next: NextFunction)
 
     const client = await Client.create({
       name: clientName,
-      email: clientEmail,
+      email: cleanClientEmail,
       companyName: companyName,
       sector: sector,
     });
@@ -341,7 +351,14 @@ export async function updateProject(req: any, res: Response, next: NextFunction)
     if (title !== undefined) data.title = title.trim();
     if (company_name !== undefined) data.companyName = company_name.trim();
     if (sector !== undefined) data.sector = sector.trim();
-    if (project_value !== undefined) data.projectValue = parseFloat(project_value);
+    if (project_value !== undefined) {
+      const parsedValue = parseFloat(project_value);
+      if (isNaN(parsedValue) || parsedValue < 0) {
+        res.status(400).json({ detail: 'Project value must be a valid non-negative number.' });
+        return;
+      }
+      data.projectValue = parsedValue;
+    }
     if (is_archived !== undefined) data.isArchived = Boolean(is_archived);
 
     const updated = await Project.findOneAndUpdate(
@@ -353,6 +370,18 @@ export async function updateProject(req: any, res: Response, next: NextFunction)
     if (!updated) {
       res.status(404).json({ detail: 'Project not found.' });
       return;
+    }
+
+    if (data.projectValue !== undefined) {
+      const unpaidMilestones = await PaymentMilestone.find({
+        projectId: id,
+        status: { $in: ['ready', 'locked'] },
+      });
+      for (const m of unpaidMilestones) {
+        const newAmount = (data.projectValue * (m.percentage || 0)) / 100;
+        await PaymentMilestone.findByIdAndUpdate(m._id, { amount: newAmount });
+      }
+      await recalculatePaymentMilestones(id);
     }
 
     res.json(serializeProject(updated));

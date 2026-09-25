@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
-import { put, del } from '@vercel/blob';
 import { ENV } from '../config/env.js';
 
 export const UPLOAD_RULES = {
@@ -237,21 +236,7 @@ export async function saveFile(
   const cleanName = `${Date.now()}_${path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_')}`;
   const relativePath = `${folder}/${cleanName}`.replace(/^\/+/, '');
 
-  // 1. If Vercel Blob token is provided, upload to Vercel Blob
-  if (ENV.BLOB_READ_WRITE_TOKEN) {
-    try {
-      const blob = await put(relativePath, buffer, {
-        access: 'public',
-        token: ENV.BLOB_READ_WRITE_TOKEN,
-        contentType: contentType || 'application/octet-stream',
-      });
-      return blob.url;
-    } catch (err) {
-      console.warn('Vercel Blob upload failed, falling back to local file system:', err);
-    }
-  }
-
-  // 2. Local media file storage fallback
+  // Local media file storage
   const targetDir = path.join(ENV.MEDIA_ROOT, folder);
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
@@ -369,16 +354,6 @@ export function streamLocalFile(
 
 export async function deleteStoredFile(storedPath?: string | null): Promise<void> {
   if (!storedPath || typeof storedPath !== 'string') return;
-  if (storedPath.startsWith('http')) {
-    if (ENV.BLOB_READ_WRITE_TOKEN) {
-      try {
-        await del(storedPath, { token: ENV.BLOB_READ_WRITE_TOKEN });
-      } catch (err) {
-        console.warn('Failed to delete blob file:', err);
-      }
-    }
-    return;
-  }
   try {
     const safePath = resolveSafeMediaPath(storedPath);
     if (safePath && fs.existsSync(safePath)) {

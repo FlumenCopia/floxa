@@ -55,8 +55,6 @@ export const ENV = {
   EMAIL_HOST_PASSWORD: (process.env.EMAIL_HOST_PASSWORD || '').replace(/\s+/g, ''),
   EMAIL_USE_TLS: process.env.EMAIL_USE_TLS !== 'false',
   DEFAULT_FROM_EMAIL: process.env.DEFAULT_FROM_EMAIL || 'FLOXA',
-
-  BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN || '',
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '651024427645-q6otcoe5o0u84ac6355g2romi6gd2g11.apps.googleusercontent.com',
   MEDIA_ROOT: process.env.MEDIA_ROOT
     ? path.resolve(process.env.MEDIA_ROOT)

@@ -7,6 +7,7 @@ import {
   generateAiBrandDNAOverview,
   generateAiProposal,
 } from '../services/gemini.service.js';
+import { ENV } from '../config/env.js';
 
 export const ACTIVE_SUITE_TOOLS = [
   'proposal-generator',
@@ -84,6 +85,16 @@ export async function runAiSuiteTool(req: AuthenticatedRequest, res: Response) {
 
     const consultantApiKey = consultant.integrations?.geminiApiKey;
     const hasOwnKey = Boolean(consultantApiKey && consultantApiKey.trim().length > 0);
+    const hasPlatformKey = Boolean(ENV.GEMINI_API_KEY && ENV.GEMINI_API_KEY.trim().length > 0);
+
+    if (!hasOwnKey && !hasPlatformKey) {
+      res.status(400).json({
+        code: 'API_KEY_REQUIRED',
+        detail: 'Please configure your Google Gemini API Key in Settings > Integrations & API Keys to run AI tools.',
+      });
+      return;
+    }
+
     const plan = consultant.aiUsage?.plan || 'free';
     const isPro = plan === 'pro' || hasOwnKey;
     const toolRuns = (consultant.aiUsage?.toolRuns || {}) as Record<string, number>;

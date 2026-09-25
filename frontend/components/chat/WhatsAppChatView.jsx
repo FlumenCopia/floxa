@@ -144,6 +144,7 @@ function WhatsAppVoicePlayer({ mediaUrl, duration = 0 }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [mediaDuration, setMediaDuration] = useState(duration || 0);
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -155,13 +156,20 @@ function WhatsAppVoicePlayer({ mediaUrl, duration = 0 }) {
       setIsPlaying(false);
       setCurrentTime(0);
     };
+    const onLoadedMetadata = () => {
+      if (audio.duration && !isNaN(audio.duration)) {
+        setMediaDuration(audio.duration);
+      }
+    };
 
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("ended", onEnded);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
 
     return () => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
     };
   }, []);
 
@@ -200,7 +208,7 @@ function WhatsAppVoicePlayer({ mediaUrl, duration = 0 }) {
     }
   };
 
-  const totalDur = audioRef.current?.duration || duration || 0;
+  const totalDur = mediaDuration || duration || 0;
   const progressPercent = totalDur > 0 ? (currentTime / totalDur) * 100 : 0;
 
   return (

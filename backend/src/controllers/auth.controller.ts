@@ -26,8 +26,14 @@ export async function register(req: Request, res: Response, next: NextFunction) 
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanName = (name || '').trim();
 
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!cleanEmail) {
       res.status(400).json({ email: ['Email is required.'] });
+      return;
+    }
+    if (!EMAIL_REGEX.test(cleanEmail)) {
+      res.status(400).json({ email: ['Please enter a valid email address.'] });
       return;
     }
     if (!cleanName) {
@@ -127,7 +133,12 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
     }
 
     const googleUser = await verifyGoogleToken(credential);
-    let consultant = await Consultant.findOne({ email: googleUser.email });
+    const cleanEmail = (googleUser.email || '').trim().toLowerCase();
+
+    const escapedEmail = cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let consultant = await Consultant.findOne({
+      email: { $regex: new RegExp(`^${escapedEmail}$`, 'i') },
+    });
 
     if (consultant) {
       if (!consultant.isActive) {
@@ -136,7 +147,7 @@ export async function googleAuth(req: Request, res: Response, next: NextFunction
       }
     } else {
       consultant = await Consultant.create({
-        email: googleUser.email,
+        email: cleanEmail,
         name: googleUser.name,
         password: await hashPassword(Math.random().toString(36)),
       });

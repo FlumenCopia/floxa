@@ -5,7 +5,7 @@ import { RazorpayWebhookEvent } from '../models/razorpayWebhookEvent.model.js';
 import { Project } from '../models/project.model.js';
 import { recalculatePaymentMilestones, logProjectActivity } from '../services/project.service.js';
 import { completePaymentMilestone, PaymentCompletionError } from '../services/payment.service.js';
-import { verifyWebhookSignature } from '../services/razorpay.service.js';
+import { verifyWebhookSignature, verifyWebhookSignatureWithSecret } from '../services/razorpay.service.js';
 import { serializePaymentMilestone } from '../utils/serializer.js';
 import { ENV } from '../config/env.js';
 
@@ -179,22 +179,55 @@ export async function handleRazorpayWebhook(
     return;
   }
 
-  if (!ENV.RAZORPAY_WEBHOOK_SECRET) {
-    res.status(503).json({ detail: 'Payment webhook is not configured.' });
-    return;
-  }
-
   const rawBody =
     (req as any).rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
 
-  if (!verifyWebhookSignature(rawBody, signature)) {
-    res.status(400).json({ detail: 'Webhook signature verification failed.' });
+  let event = req.body;
+  if (typeof event === 'string') {
+    try {
+      event = JSON.parse(event);
+    } catch {
+      event = null;
+    }
+  }
+
+  if (!event || typeof event !== 'object') {
+    res.status(400).json({ detail: 'Webhook payload is invalid.' });
     return;
   }
 
-  const event = req.body;
-  if (!event || typeof event !== 'object') {
-    res.status(400).json({ detail: 'Webhook payload is invalid.' });
+  const paymentEntity = event.payload?.payment?.entity;
+  const orderEntity = event.payload?.order?.entity;
+  const paymentId = paymentEntity?.id || '';
+  const orderId = paymentEntity?.order_id || orderEntity?.id || '';
+
+  let webhookSecret = (ENV.RAZORPAY_WEBHOOK_SECRET || '').trim();
+
+  if (orderId) {
+    const transaction = await PaymentTransaction.findOne({ razorpayOrderId: orderId }).populate({
+      path: 'project',
+      populate: { path: 'consultant' },
+    });
+    const consultantSecret = (transaction?.project as any)?.consultant?.integrations?.razorpayWebhookSecret;
+    if (consultantSecret && typeof consultantSecret === 'string' && consultantSecret.trim().length > 0) {
+      webhookSecret = consultantSecret.trim();
+    }
+  }
+
+  let isSignatureValid = false;
+  if (webhookSecret) {
+    isSignatureValid = verifyWebhookSignatureWithSecret(rawBody, signature, webhookSecret);
+  }
+  if (!isSignatureValid && ENV.RAZORPAY_WEBHOOK_SECRET && ENV.RAZORPAY_WEBHOOK_SECRET !== webhookSecret) {
+    isSignatureValid = verifyWebhookSignatureWithSecret(rawBody, signature, ENV.RAZORPAY_WEBHOOK_SECRET);
+  }
+
+  if (!isSignatureValid) {
+    if (!webhookSecret && !ENV.RAZORPAY_WEBHOOK_SECRET) {
+      res.status(503).json({ detail: 'Payment webhook is not configured.' });
+      return;
+    }
+    res.status(400).json({ detail: 'Webhook signature verification failed.' });
     return;
   }
 
@@ -209,10 +242,6 @@ export async function handleRazorpayWebhook(
     res.status(200).json({ detail: 'Webhook already handled.' });
     return;
   }
-
-  const paymentEntity = event.payload?.payment?.entity;
-  const paymentId = paymentEntity?.id || '';
-  const orderId = paymentEntity?.order_id || '';
 
   let eventRecord;
   try {

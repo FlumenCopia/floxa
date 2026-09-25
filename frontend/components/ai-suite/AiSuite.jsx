@@ -306,6 +306,15 @@ export default function AiSuite() {
       if (error?.code === "TRIAL_LIMIT_REACHED" || error?.detail?.includes("free runs")) {
         setUpgradeModalTool(tool);
         setUpgradeModalOpen(true);
+      } else if (error?.code === "API_KEY_REQUIRED" || error?.detail?.includes("Gemini API Key")) {
+        setLatestOutput({
+          toolId: tool.id,
+          toolName: tool.name,
+          message:
+            "⚠️ Google Gemini API Key Required\n\nPlease navigate to Settings > Integrations & API Keys to configure your Gemini API Key. Once saved, you can run AI generations immediately.",
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        });
+        scrollToResults();
       } else {
         setLatestOutput({
           toolId: tool.id,

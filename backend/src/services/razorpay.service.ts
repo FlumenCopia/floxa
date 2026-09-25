@@ -131,13 +131,22 @@ export function verifyPaymentSignature(params: {
   });
 }
 
-export function verifyWebhookSignature(rawBody: string | Buffer, signature: string): boolean {
-  if (!ENV.RAZORPAY_WEBHOOK_SECRET || !signature) return false;
+export function verifyWebhookSignatureWithSecret(
+  rawBody: string | Buffer,
+  signature: string,
+  secret?: string
+): boolean {
+  const effectiveSecret = (secret || '').trim();
+  if (!effectiveSecret || !signature) return false;
 
   const expectedSignature = crypto
-    .createHmac('sha256', ENV.RAZORPAY_WEBHOOK_SECRET)
+    .createHmac('sha256', effectiveSecret)
     .update(rawBody)
     .digest('hex');
 
   return safeTimingSafeEqual(expectedSignature, signature);
+}
+
+export function verifyWebhookSignature(rawBody: string | Buffer, signature: string): boolean {
+  return verifyWebhookSignatureWithSecret(rawBody, signature, ENV.RAZORPAY_WEBHOOK_SECRET);
 }
