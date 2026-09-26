@@ -61,6 +61,9 @@ if (typeof window !== "undefined") {
   // Listen for beforeinstallprompt event from modern browsers
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
+    if (window.location.pathname.startsWith("/client")) {
+      return;
+    }
     deferredPrompt = e;
     state = {
       ...state,
@@ -181,6 +184,22 @@ export function usePwaInstall() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const isClientPortal = typeof window !== "undefined" && window.location.pathname.startsWith("/client");
+  if (isClientPortal) {
+    return {
+      isMounted: mounted,
+      isInstalled: true,
+      canInstall: false,
+      isIos: false,
+      showIosGuide: false,
+      floatingDismissed: true,
+      promptInstall: () => {},
+      dismissFloating: () => {},
+      closeIosGuide: () => {},
+      hasNativePrompt: false,
+    };
+  }
 
   return {
     ...pwaState,

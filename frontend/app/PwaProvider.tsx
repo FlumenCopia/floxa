@@ -7,7 +7,10 @@ import PwaInstallPrompt from "@/components/pwa/PwaInstallPrompt";
 
 export default function PwaProvider() {
   const pathname = usePathname();
-  const isClientPortal = Boolean(pathname && pathname.startsWith("/client"));
+  const isClientPortal = Boolean(
+    (pathname && pathname.startsWith("/client")) ||
+    (typeof window !== "undefined" && window.location.pathname.startsWith("/client"))
+  );
 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {

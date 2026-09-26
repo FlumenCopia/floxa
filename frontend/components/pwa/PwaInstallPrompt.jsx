@@ -19,7 +19,10 @@ export default function PwaInstallPrompt() {
 
   // The client portal is a web-only guest link.
   // PWA install is strictly reserved for the consultant workspace.
-  const isClientPortal = Boolean(pathname && pathname.startsWith("/client"));
+  const isClientPortal = Boolean(
+    (pathname && pathname.startsWith("/client")) ||
+    (typeof window !== "undefined" && window.location.pathname.startsWith("/client"))
+  );
 
   // If running on server, app is already installed, or in client portal, do not render anything
   if (!isMounted || isInstalled || isClientPortal) {
