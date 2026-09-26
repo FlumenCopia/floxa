@@ -274,6 +274,7 @@ export function DiscoveryFlow({
   const [activeHelpSession, setActiveHelpSession] = useState(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpQuestion, setHelpQuestion] = useState("");
+  const [isSubmittingHelp, setIsSubmittingHelp] = useState(false);
 
   const pageId = `frame_${step}`;
   const isCurrentStepHelpActive = Boolean(
@@ -598,81 +599,88 @@ export function DiscoveryFlow({
     6: "Step 6: Visual Styles",
   };
 
-  const submitHelpRequest = () => {
-    const stepTitle = stepTitles[step] || `Step ${step}`;
-    const question = helpQuestion.trim() || `I need guidance with ${stepTitle}.`;
+  const submitHelpRequest = async () => {
+    if (isSubmittingHelp) return;
+    setIsSubmittingHelp(true);
 
-    // 1. Immediately auto-save all currently filled fields to the backend database
-    const payload = buildDiscoveryPayload({
-      basics,
-      sliders,
-      emotions,
-      persona,
-      comps,
-      styles,
-      step,
-    });
-    const saveToken = targetPortalToken || project?.portal_token || project?.id;
-    if (saveToken) {
-      clientPortalService.saveDiscoveryDraft(saveToken, payload).catch((err) => {
-        console.warn("Auto-save draft on help request failed:", err);
+    try {
+      const stepTitle = stepTitles[step] || `Step ${step}`;
+      const question = helpQuestion.trim() || `I need guidance with ${stepTitle}.`;
+
+      // 1. Immediately auto-save all currently filled fields to the backend database
+      const payload = buildDiscoveryPayload({
+        basics,
+        sliders,
+        emotions,
+        persona,
+        comps,
+        styles,
+        step,
       });
-    }
+      const saveToken = targetPortalToken || project?.portal_token || project?.id;
+      if (saveToken) {
+        clientPortalService.saveDiscoveryDraft(saveToken, payload).catch((err) => {
+          console.warn("Auto-save draft on help request failed:", err);
+        });
+      }
 
-    // 2. Broadcast all currently filled fields AND sliders over WebSocket to consultant
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.whatDo", value: basics.whatDo });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.businessDescription", value: basics.whatDo });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.whatDoYouDo", value: basics.whatDo });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.targetCustomer", value: basics.targetCustomer });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.targetCustomer", value: basics.targetCustomer });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.whyChooseUs", value: basics.whyChooseUs });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.whyChooseYou", value: basics.whyChooseUs });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.brandFeeling", value: basics.brandFeeling });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.whyTrustYou", value: basics.brandFeeling });
+      // 2. Broadcast all currently filled fields AND sliders over WebSocket to consultant
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.whatDo", value: basics.whatDo });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.businessDescription", value: basics.whatDo });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.whatDoYouDo", value: basics.whatDo });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.targetCustomer", value: basics.targetCustomer });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.targetCustomer", value: basics.targetCustomer });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.whyChooseUs", value: basics.whyChooseUs });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.whyChooseYou", value: basics.whyChooseUs });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "basics.brandFeeling", value: basics.brandFeeling });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "answers.whyTrustYou", value: basics.brandFeeling });
 
-    Object.entries(sliders).forEach(([sliderKey, val]) => {
-      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: `slider.${sliderKey}`, value: val });
-    });
+      Object.entries(sliders).forEach(([sliderKey, val]) => {
+        supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: `slider.${sliderKey}`, value: val });
+      });
 
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "emotions", value: emotions });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedEmotions", value: emotions });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "persona", value: persona });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedAudience", value: persona ? [persona] : [] });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "comps", value: comps });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "competitors", value: comps });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "styles", value: styles });
-    supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedVisual", value: styles });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "emotions", value: emotions });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedEmotions", value: emotions });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "persona", value: persona });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedAudience", value: persona ? [persona] : [] });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "comps", value: comps });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "competitors", value: comps });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "styles", value: styles });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedVisual", value: styles });
 
-    // 3. Send help request via WebSocket for real-time live sync
-    supportSocket.requestHelp({
-      pageId: stepTitle,
-      fieldKey: "",
-      question,
-    });
-
-    // 4. Call REST API endpoint for network visibility & persistent activity
-    if (targetPortalToken) {
-      clientPortalService.requestHelp(targetPortalToken, {
+      // 3. Send help request via WebSocket for real-time live sync
+      const wsSent = supportSocket.requestHelp({
         pageId: stepTitle,
-        question,
         fieldKey: "",
-      }).catch((err) => console.warn("REST help request error:", err));
-    }
+        question,
+      });
 
-    setActiveHelpSession({
-      page_id: stepTitle,
-      question,
-      is_active: true,
-    });
-    setShowHelpModal(false);
-    setHelpQuestion("");
-    showSuccess(`Help requested on ${stepTitle}. Your consultant has been notified!`);
+      // 4. Call REST API endpoint only as fallback if WebSocket is disconnected
+      if (!wsSent && targetPortalToken) {
+        await clientPortalService.requestHelp(targetPortalToken, {
+          pageId: stepTitle,
+          question,
+          fieldKey: "",
+        }).catch((err) => console.warn("REST help request fallback error:", err));
+      }
+
+      setActiveHelpSession({
+        page_id: stepTitle,
+        question,
+        is_active: true,
+      });
+      setShowHelpModal(false);
+      setHelpQuestion("");
+      showSuccess(`Help requested on ${stepTitle}. Your consultant has been notified!`);
+    } finally {
+      setIsSubmittingHelp(false);
+    }
   };
 
   const resolveCurrentHelp = () => {
     const stepTitle = stepTitles[step] || pageId;
-    supportSocket.resolveHelp({ pageId: stepTitle });
-    if (targetPortalToken) {
+    const wsSent = supportSocket.resolveHelp({ pageId: stepTitle });
+    if (!wsSent && targetPortalToken) {
       clientPortalService.resolveHelp(targetPortalToken, { pageId: stepTitle }).catch(() => undefined);
     }
     setActiveHelpSession(null);
@@ -1180,8 +1188,13 @@ export function DiscoveryFlow({
               <button type="button" className="client-help-modal-cancel" onClick={() => setShowHelpModal(false)}>
                 Cancel
               </button>
-              <button type="button" className="client-help-modal-submit" onClick={submitHelpRequest}>
-                Notify Consultant
+              <button
+                type="button"
+                className="client-help-modal-submit"
+                onClick={submitHelpRequest}
+                disabled={isSubmittingHelp}
+              >
+                {isSubmittingHelp ? "Notifying..." : "Notify Consultant"}
               </button>
             </div>
           </div>

@@ -1,12 +1,26 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import ToastProvider from "./ToastProvider";
+import PwaProvider from "./PwaProvider";
 import "./globals.css";
 import "react-toastify/dist/ReactToastify.css";
 import "../components/dashboard/projectWizard.css";
 
+export const viewport: Viewport = {
+  themeColor: "#000704",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export const metadata: Metadata = {
   title: "Floxa",
-  description: "Floxa dashboard and login",
+  description: "Floxa dashboard, client portal, and branding workspace",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Floxa",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -29,7 +43,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <ToastProvider />
+        <PwaProvider />
       </body>
     </html>
   );
 }
+

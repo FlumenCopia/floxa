@@ -1018,24 +1018,34 @@ export function setupWebSocketServer(server: Server) {
           ACTIVE_HELP_SESSIONS[currentProjectId] = helpSession;
 
           const clientDisplayName = currentProject.clientName || 'Client';
-
           const consId = String(currentProject.consultantId || '');
+          const description = `${clientDisplayName} requested help on ${pageId}: "${question}"`;
 
-          await logProjectActivity({
+          // Deduplicate: ignore if an identical request was already logged within the last 5 seconds
+          const recentDuplicate = await ProjectActivity.findOne({
             projectId: currentProjectId,
-            consultantId: consId,
-            actorType: 'client',
             action: 'client_help_requested',
-            description: `${clientDisplayName} requested help on ${pageId}: "${question}"`,
-            metadata: {
-              page_id: pageId,
-              field_key: fieldKey,
-              question,
-              portal_token: currentProject.portalToken,
-              project_id: currentProject.id,
-            },
-            visibleToClient: true,
+            description,
+            createdAt: { $gte: new Date(Date.now() - 5000) },
           });
+
+          if (!recentDuplicate) {
+            await logProjectActivity({
+              projectId: currentProjectId,
+              consultantId: consId,
+              actorType: 'client',
+              action: 'client_help_requested',
+              description,
+              metadata: {
+                page_id: pageId,
+                field_key: fieldKey,
+                question,
+                portal_token: currentProject.portalToken,
+                project_id: currentProject.id,
+              },
+              visibleToClient: true,
+            });
+          }
 
           broadcastHelpRequested(currentProjectId, consId, {
             project_id: currentProjectId,
@@ -1058,15 +1068,24 @@ export function setupWebSocketServer(server: Server) {
 
           const consId = String(currentProject.consultantId || '');
 
-          await logProjectActivity({
+          // Deduplicate: ignore if already resolved within the last 5 seconds
+          const recentDuplicate = await ProjectActivity.findOne({
             projectId: currentProjectId,
-            consultantId: consId,
-            actorType: role === 'consultant' ? 'consultant' : 'client',
             action: 'client_help_resolved',
-            description: `Help session on ${pageId || 'step'} resolved.`,
-            metadata: { page_id: pageId },
-            visibleToClient: true,
+            createdAt: { $gte: new Date(Date.now() - 5000) },
           });
+
+          if (!recentDuplicate) {
+            await logProjectActivity({
+              projectId: currentProjectId,
+              consultantId: consId,
+              actorType: role === 'consultant' ? 'consultant' : 'client',
+              action: 'client_help_resolved',
+              description: `Help session on ${pageId || 'step'} resolved.`,
+              metadata: { page_id: pageId },
+              visibleToClient: true,
+            });
+          }
 
           broadcastHelpResolved(
             currentProjectId,

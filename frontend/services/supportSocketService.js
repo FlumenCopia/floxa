@@ -306,7 +306,7 @@ class SupportSocketService {
   }
 
   requestHelp({ pageId, fieldKey = "", question = "I need assistance on this step." }) {
-    this.send({
+    return this.send({
       type: "CLIENT_REQUEST_HELP",
       page_id: pageId,
       field_key: fieldKey,
@@ -315,7 +315,7 @@ class SupportSocketService {
   }
 
   resolveHelp({ pageId }) {
-    this.send({
+    return this.send({
       type: "RESOLVE_HELP",
       page_id: pageId,
     });

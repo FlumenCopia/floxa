@@ -1379,6 +1379,23 @@ export async function requestPortalHelp(req: any, res: Response, next: NextFunct
     const consultantId =
       req.project.consultantId?.toString() || req.project.consultantId;
 
+    // Deduplicate: ignore if an identical request was already logged within the last 5 seconds
+    const recentDuplicate = await ProjectActivity.findOne({
+      projectId: req.project.id,
+      action: 'client_help_requested',
+      description,
+      createdAt: { $gte: new Date(Date.now() - 5000) },
+    });
+
+    if (recentDuplicate) {
+      return res.json({
+        success: true,
+        message: 'Consultant already notified.',
+        activity_id: recentDuplicate.id,
+        description,
+      });
+    }
+
     const activity = await logProjectActivity({
       projectId: req.project.id,
       consultantId,
@@ -1424,6 +1441,17 @@ export async function resolvePortalHelp(req: any, res: Response, next: NextFunct
 
     const consultantId =
       req.project.consultantId?.toString() || req.project.consultantId;
+
+    // Deduplicate: ignore if already resolved within the last 5 seconds
+    const recentDuplicate = await ProjectActivity.findOne({
+      projectId: req.project.id,
+      action: 'client_help_resolved',
+      createdAt: { $gte: new Date(Date.now() - 5000) },
+    });
+
+    if (recentDuplicate) {
+      return res.json({ success: true, message: 'Help session resolved.' });
+    }
 
     await logProjectActivity({
       projectId: req.project.id,

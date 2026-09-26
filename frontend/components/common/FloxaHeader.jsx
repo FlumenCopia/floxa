@@ -26,7 +26,9 @@ import {
   MessageSquare,
   CheckCheck,
   ArrowRight,
+  Download,
 } from "lucide-react";
+import { usePwaInstall } from "@/lib/pwa";
 import { supportSocket } from "@/services/supportSocketService";
 import { webRTCService } from "@/services/webRTCService";
 import { chatService } from "@/services/chatService";
@@ -94,6 +96,35 @@ const notificationTabByAction = {
 
 let cachedConsultant = null;
 let hasValidatedSession = false;
+
+// Global toast debounce tracker to suppress identical duplicate toasts
+const recentToastTimestamps = new Map();
+
+function showDebouncedToast(message, options = {}) {
+  if (!message) return;
+  const normalizedKey = String(message).trim();
+  const now = Date.now();
+  const lastTime = recentToastTimestamps.get(normalizedKey) || 0;
+
+  // Suppress if identical notification was shown within the last 4 seconds
+  if (now - lastTime < 4000) {
+    return;
+  }
+
+  recentToastTimestamps.set(normalizedKey, now);
+
+  // Evict older entries to keep memory low
+  if (recentToastTimestamps.size > 50) {
+    for (const [key, ts] of recentToastTimestamps.entries()) {
+      if (now - ts > 30000) recentToastTimestamps.delete(key);
+    }
+  }
+
+  showSuccess(message, {
+    toastId: `toast-${normalizedKey.slice(0, 40)}`,
+    ...options,
+  });
+}
 
 function getNotificationProjectId(notification) {
   const pid =
@@ -178,6 +209,8 @@ function Icon({ type, size, strokeWidth }) {
       return <Bell size={size || 24} strokeWidth={strokeWidth || 2} />;
     case "logout":
       return <LogOut size={size || 16} strokeWidth={strokeWidth || 1.8} />;
+    case "download":
+      return <Download size={size || 16} strokeWidth={strokeWidth || 1.8} />;
     default:
       return <LayoutDashboard size={size || 16} strokeWidth={strokeWidth || 1.8} />;
   }
@@ -279,6 +312,7 @@ export default function Floxaheader({
   onMarkNotificationsRead = undefined,
 }) {
   const router = useRouter();
+  const { isInstalled, promptInstall } = usePwaInstall();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentProjectSearch = searchParams.get("search") || "";
@@ -601,7 +635,7 @@ export default function Floxaheader({
       };
 
       setHeaderNotifications((current) => [newNotification, ...current]);
-      showSuccess(`💬 ${clientName} needs help on ${stepLabel}${questionText}`);
+      showDebouncedToast(`💬 ${clientName} needs help on ${stepLabel}${questionText}`);
     });
 
     const unsubscribeLiveNotif = supportSocket.on("notification", (activity) => {
@@ -618,8 +652,7 @@ export default function Floxaheader({
       });
 
       if (!activity.is_read && activity.actor_type !== "consultant") {
-        const notifId = activity.id || activity._id || activity.description;
-        showSuccess(activity.description || "New project activity", { toastId: `notif-${notifId}` });
+        showDebouncedToast(activity.description || "New project activity");
       }
     });
 
@@ -930,6 +963,12 @@ export default function Floxaheader({
             <NavItem key={item.label} item={item} onClick={() => handleNavigation(item.route)} />
           ))}
           <NavItem item={{ label: "LOGOUT", icon: "logout" }} onClick={handleOpenLogoutModal} />
+          {!isInstalled ? (
+            <NavItem
+              item={{ label: "INSTALL APP", icon: "download" }}
+              onClick={promptInstall}
+            />
+          ) : null}
         </div>
 
         <div className="sidebar-footer">
