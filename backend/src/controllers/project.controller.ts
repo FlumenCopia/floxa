@@ -236,7 +236,7 @@ export async function createProject(req: any, res: Response, next: NextFunction)
       projectId: project.id,
       clientName: clientName,
       companyName: companyName,
-      email: clientEmail,
+      email: cleanClientEmail,
       industry: sector,
     });
 

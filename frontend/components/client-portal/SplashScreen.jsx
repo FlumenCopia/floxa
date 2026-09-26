@@ -59,20 +59,27 @@ export function WelcomeStage({
       return;
     }
 
+    const nextEmail = emailOrName.trim();
     const nextPassword = password.trim();
+
+    if (!nextEmail) {
+      setAccessError("Please enter your client email address.");
+      return;
+    }
+
     if (!nextPassword) {
-      setAccessError("Enter your portal password.");
+      setAccessError("Please enter your portal password.");
       return;
     }
 
     setIsVerifying(true);
     try {
-      const response = await onVerifyPassword(nextPassword);
+      const response = await onVerifyPassword(nextPassword, nextEmail);
       if (!response?.success) {
-        setAccessError(response?.error || "Incorrect portal password.");
+        setAccessError(response?.error || "Invalid email address or portal password.");
       }
     } catch {
-      setAccessError("Unable to verify portal password.");
+      setAccessError("Unable to verify portal access. Please check your credentials.");
     } finally {
       setIsVerifying(false);
     }
@@ -144,12 +151,16 @@ export function WelcomeStage({
                   <Mail size={18} strokeWidth={2} stroke="#6b7280" />
                 </span>
                 <input
-                  type="text"
+                  type="email"
                   className="client-pill-input"
-                  placeholder="Workspace / Email"
+                  placeholder="Client Email Address"
                   value={emailOrName}
-                  onChange={(e) => setEmailOrName(e.target.value)}
+                  onChange={(e) => {
+                    setEmailOrName(e.target.value);
+                    setAccessError("");
+                  }}
                   autoComplete="username"
+                  required
                 />
               </div>
 

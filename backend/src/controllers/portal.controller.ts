@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import path from 'path';
 import { Project } from '../models/project.model.js';
+import { Client } from '../models/client.model.js';
+import { ClientProfile } from '../models/clientProfile.model.js';
 import { BrandDNA } from '../models/brandDNA.model.js';
 import { ProjectDiscovery } from '../models/discovery.model.js';
 import { Moodboard } from '../models/moodboard.model.js';
@@ -106,32 +108,56 @@ export async function getPortalProject(req: any, res: Response, next: NextFuncti
 export async function verifyPortalPassword(req: any, res: Response, next: NextFunction) {
   try {
     const { portal_token } = req.params;
-    const { password } = req.body;
+    const { email, password } = req.body;
 
-    const project = await Project.findOne({ portalToken: portal_token, isArchived: false });
+    const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const cleanPassword = typeof password === 'string' ? password.trim() : '';
+
+    if (!cleanEmail || !cleanPassword) {
+      res.status(400).json({ detail: 'Please enter both your client email address and portal password.' });
+      return;
+    }
+
+    const project = await Project.findOne({ portalToken: portal_token, isArchived: false })
+      .populate('clientId');
 
     if (!project) {
       res.status(404).json({ detail: 'Project not found.' });
       return;
     }
 
-    if (!project.portalPasswordHash) {
-      const signedToken = signPortalAccessToken(portal_token);
-      res.cookie(ENV.PORTAL_ACCESS_COOKIE_NAME, signedToken, {
-        maxAge: ENV.PORTAL_ACCESS_MAX_AGE * 1000,
-        httpOnly: true,
-        secure: ENV.AUTH_COOKIE_SECURE,
-        sameSite: ENV.AUTH_COOKIE_SAMESITE,
-        path: '/',
-      });
-      res.json({ success: true, token: signedToken });
+    // Resolve client email for this project
+    let expectedClientEmail = '';
+    const populatedClient = project.clientId as any;
+    if (populatedClient && typeof populatedClient === 'object' && populatedClient.email) {
+      expectedClientEmail = String(populatedClient.email).trim().toLowerCase();
+    } else if (project.clientId) {
+      const clientDoc = await Client.findById(project.clientId);
+      if (clientDoc?.email) {
+        expectedClientEmail = String(clientDoc.email).trim().toLowerCase();
+      }
+    }
+
+    if (!expectedClientEmail) {
+      const profileDoc = await ClientProfile.findOne({ projectId: project._id });
+      if (profileDoc?.email) {
+        expectedClientEmail = String(profileDoc.email).trim().toLowerCase();
+      }
+    }
+
+    // Strictly verify client email matches
+    if (!expectedClientEmail || cleanEmail !== expectedClientEmail) {
+      res.status(401).json({ detail: 'Invalid email address or portal password.' });
       return;
     }
 
-    const isValid = await verifyPassword(password, project.portalPasswordHash);
-    if (!isValid) {
-      res.status(401).json({ detail: 'Invalid portal password.' });
-      return;
+    // Strictly verify password if project has portalPasswordHash
+    if (project.portalPasswordHash) {
+      const isValid = await verifyPassword(cleanPassword, project.portalPasswordHash);
+      if (!isValid) {
+        res.status(401).json({ detail: 'Invalid email address or portal password.' });
+        return;
+      }
     }
 
     const signedToken = signPortalAccessToken(portal_token);

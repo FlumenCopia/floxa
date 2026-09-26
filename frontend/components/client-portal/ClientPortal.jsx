@@ -313,8 +313,12 @@ export function ClientPortal({ token, isConsultant = false }) {
     return getBackendResumeScreen(savedProfile, savedDiscovery, portalProject);
   }, [applyProject, token]);
 
-  const handlePortalAccess = async (password) => {
-    const response = await clientPortalService.verifyPortalPassword(password, token);
+  const handlePortalAccess = async (password, email) => {
+    const response = await clientPortalService.verifyPortalPassword({
+      email,
+      password,
+      portalToken: token,
+    });
 
     if (!response.success) {
       return response;
@@ -495,7 +499,7 @@ export function ClientPortal({ token, isConsultant = false }) {
     setClientData,
     profileReturnScreen,
     resumeScreen: resumeTargetScreen || getResumeScreen(project?.status),
-    requiresPassword: isRealPortalToken(token) && !isConsultantMode,
+    requiresPassword: isRealPortalToken(token),
     isConsultantMode,
     consultantToken,
     onNext: goToScreen,

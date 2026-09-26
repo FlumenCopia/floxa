@@ -392,17 +392,28 @@ export const clientPortalService = {
     };
   },
 
-  async verifyPortalPassword(arg1, arg2) {
-    let password = arg1;
-    let portalToken = arg2 || activeToken;
+  async verifyPortalPassword(arg1, arg2, arg3) {
+    let email = "";
+    let password = "";
+    let portalToken = activeToken;
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (typeof arg1 === "string" && uuidRegex.test(arg1.trim()) && typeof arg2 === "string" && !uuidRegex.test(arg2.trim())) {
-      portalToken = arg1.trim();
-      password = arg2;
-    } else if (typeof arg2 === "string" && uuidRegex.test(arg2.trim())) {
-      portalToken = arg2.trim();
-      password = arg1;
+
+    if (arg1 && typeof arg1 === "object") {
+      email = typeof arg1.email === "string" ? arg1.email.trim() : "";
+      password = typeof arg1.password === "string" ? arg1.password : "";
+      portalToken = arg1.portalToken || arg1.token || activeToken;
+    } else {
+      password = typeof arg1 === "string" ? arg1 : "";
+      if (typeof arg2 === "string") {
+        if (uuidRegex.test(arg2.trim())) {
+          portalToken = arg2.trim();
+          email = typeof arg3 === "string" ? arg3.trim() : "";
+        } else {
+          email = arg2.trim();
+          portalToken = typeof arg3 === "string" && uuidRegex.test(arg3.trim()) ? arg3.trim() : activeToken;
+        }
+      }
     }
 
     if (!portalToken || portalToken === "test-token") {
@@ -412,7 +423,7 @@ export const clientPortalService = {
     try {
       await apiRequest(`/client-portal/${portalToken}/verify-password/`, {
         method: "POST",
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
 
       activeToken = portalToken;
@@ -422,7 +433,7 @@ export const clientPortalService = {
         return { success: false, error: error.detail };
       }
 
-      return { success: false, error: "Unable to verify portal password." };
+      return { success: false, error: "Invalid email address or portal password." };
     }
   },
 

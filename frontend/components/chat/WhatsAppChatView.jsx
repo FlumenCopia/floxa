@@ -28,6 +28,7 @@ import {
   RotateCcw,
   ShieldCheck,
   User,
+  Copy,
 } from "lucide-react";
 import { supportSocket } from "@/services/supportSocketService";
 import { chatService } from "@/services/chatService";
@@ -1367,15 +1368,33 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
                   </div>
 
                   {selectedConversation.portalToken && (
-                    <Link
-                      href={`/client/${selectedConversation.portalToken}?mode=consultant&consultant=true`}
-                      target="_blank"
-                      className="wa-action-btn"
-                      style={{ width: "100%", justifyContent: "center", padding: "10px 16px" }}
-                    >
-                      <ExternalLink size={14} />
-                      <span>Open Live Client Portal</span>
-                    </Link>
+                    <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+                      <Link
+                        href={`/client/${selectedConversation.portalToken}`}
+                        target="_blank"
+                        className="wa-action-btn"
+                        style={{ flex: 1, justifyContent: "center", padding: "10px 12px" }}
+                        title="Open Client Portal in a new tab"
+                      >
+                        <ExternalLink size={14} />
+                        <span>Open Client Portal</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && navigator?.clipboard) {
+                            const link = `${window.location.origin}/client/${selectedConversation.portalToken}`;
+                            navigator.clipboard.writeText(link);
+                            alert("Client Portal link copied to clipboard!");
+                          }
+                        }}
+                        className="wa-action-btn"
+                        style={{ padding: "10px 14px", justifyContent: "center" }}
+                        title="Copy Client Portal link to share with client"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
