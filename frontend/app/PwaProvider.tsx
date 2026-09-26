@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
+
+import { usePathname } from "next/navigation";
 import PwaInstallPrompt from "@/components/pwa/PwaInstallPrompt";
 
 export default function PwaProvider() {
+  const pathname = usePathname();
+  const isClientPortal = Boolean(pathname && pathname.startsWith("/client"));
+
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+
+    // Do not register PWA service worker on the client portal - app is strictly for consultants
+    if (isClientPortal) {
       return;
     }
 
@@ -42,7 +52,11 @@ export default function PwaProvider() {
       window.addEventListener("load", registerSw);
       return () => window.removeEventListener("load", registerSw);
     }
-  }, []);
+  }, [isClientPortal]);
+
+  if (isClientPortal) {
+    return null;
+  }
 
   return <PwaInstallPrompt />;
 }

@@ -1,10 +1,12 @@
 "use client";
 
 import React from "react";
+import { usePathname } from "next/navigation";
 import { Download, X, Share2, PlusSquare, Smartphone } from "lucide-react";
 import { usePwaInstall } from "@/lib/pwa";
 
 export default function PwaInstallPrompt() {
+  const pathname = usePathname();
   const {
     isMounted,
     isInstalled,
@@ -15,8 +17,12 @@ export default function PwaInstallPrompt() {
     closeIosGuide,
   } = usePwaInstall();
 
-  // If running on server, or app is already installed, do not render anything
-  if (!isMounted || isInstalled) {
+  // The client portal is a web-only guest link.
+  // PWA install is strictly reserved for the consultant workspace.
+  const isClientPortal = Boolean(pathname && pathname.startsWith("/client"));
+
+  // If running on server, app is already installed, or in client portal, do not render anything
+  if (!isMounted || isInstalled || isClientPortal) {
     return null;
   }
 

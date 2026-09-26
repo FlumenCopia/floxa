@@ -79,4 +79,25 @@ test("FLOXA PWA Install Experience Contracts", async (t) => {
     assert.ok(promptContent.includes("promptInstall"), "PwaInstallPrompt must wire promptInstall trigger");
     assert.ok(promptContent.includes("dismissFloating"), "PwaInstallPrompt must wire dismissFloating action");
   });
+
+  await t.test("5. Client portal routes suppress PWA install prompt completely", () => {
+    const promptPath = path.resolve(__dirname, "../components/pwa/PwaInstallPrompt.jsx");
+    const promptContent = fs.readFileSync(promptPath, "utf-8");
+    assert.ok(promptContent.includes("isClientPortal"), "PwaInstallPrompt must check isClientPortal");
+
+    const providerPath = path.resolve(__dirname, "../app/PwaProvider.tsx");
+    const providerContent = fs.readFileSync(providerPath, "utf-8");
+    assert.ok(providerContent.includes("isClientPortal"), "PwaProvider must check isClientPortal");
+
+    function shouldRenderPromptForRoute(pathname) {
+      const isClientPortal = Boolean(pathname && pathname.startsWith("/client"));
+      return !isClientPortal;
+    }
+
+    assert.strictEqual(shouldRenderPromptForRoute("/client/some-portal-token"), false, "Must not render in client portal");
+    assert.strictEqual(shouldRenderPromptForRoute("/client-portal"), false, "Must not render in client-portal");
+    assert.strictEqual(shouldRenderPromptForRoute("/project"), true, "Must render in consultant project view");
+    assert.strictEqual(shouldRenderPromptForRoute("/chat"), true, "Must render in consultant chat view");
+    assert.strictEqual(shouldRenderPromptForRoute("/settings"), true, "Must render in consultant settings view");
+  });
 });
