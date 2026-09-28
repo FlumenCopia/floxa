@@ -121,6 +121,55 @@ export function getCompetitorNameForPayload(competitor) {
   return competitor.name.trim();
 }
 
+export function validateDiscoveryInputQuality(text, fieldLabel) {
+  if (!text || typeof text !== "string" || text.trim().length === 0) {
+    return `Please fill in "${fieldLabel}".`;
+  }
+
+  const trimmed = text.trim();
+
+  if (trimmed.length < 10) {
+    return `Please provide a more detailed answer for "${fieldLabel}" (at least 10 characters).`;
+  }
+
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length < 2) {
+    return `Please use at least a couple of words to explain "${fieldLabel}".`;
+  }
+
+  // Check unique words (prevent e.g. 'test test test')
+  const uniqueWords = new Set(words.map((w) => w.toLowerCase()));
+  if (words.length >= 3 && uniqueWords.size < 2) {
+    return `Please enter meaningful words for "${fieldLabel}", avoid repeating the same word.`;
+  }
+
+  // Check for repeated character sequences (e.g. 'aaaaa', 'asdfasdfasdf', 'abcabcabc')
+  if (/(.)\1{4,}/i.test(trimmed) || /(.{2,4})\1{2,}/i.test(trimmed)) {
+    return `Please enter real words for "${fieldLabel}", avoid repeating character patterns.`;
+  }
+
+  // Check Latin words for gibberish consonant clusters (e.g. sdfhsdjkf, dfghjkl)
+  const latinWords = words.filter((w) => /^[a-zA-Z]+$/.test(w));
+  if (latinWords.length > 0) {
+    for (const w of latinWords) {
+      if (/[bcdfghjklmnpqrstvwxz]{5,}/i.test(w)) {
+        return `Please enter meaningful text for "${fieldLabel}". Random keystrokes cannot be used to build your Brand DNA.`;
+      }
+    }
+
+    const allLetters = trimmed.replace(/[^a-zA-Z]/g, "");
+    if (allLetters.length >= 10) {
+      const vowels = allLetters.match(/[aeiouy]/gi) || [];
+      const vowelRatio = vowels.length / allLetters.length;
+      if (vowelRatio < 0.15) {
+        return `Please enter meaningful sentences for "${fieldLabel}". Keystroke mash cannot be used for Brand DNA.`;
+      }
+    }
+  }
+
+  return null;
+}
+
 export function buildDiscoveryPayload({ basics = {}, sliders, emotions, persona, comps, styles, step }) {
   const allSliders = [...slidersOne, ...slidersTwo];
 
@@ -722,6 +771,22 @@ export function DiscoveryFlow({
       return;
     }
 
+    // Verify all Step 1 fields have meaningful answers before proceeding to review
+    const basicFields = [
+      { key: "whatDo", label: "What does your business do?" },
+      { key: "targetCustomer", label: "Who is your target customer?" },
+      { key: "whyChooseUs", label: "Why should they choose you?" },
+      { key: "brandFeeling", label: "How should your brand make people feel?" },
+    ];
+    for (const field of basicFields) {
+      const qualityErr = validateDiscoveryInputQuality(basics[field.key], field.label);
+      if (qualityErr) {
+        setMessage(qualityErr);
+        setStep(1);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const payload = buildDiscoveryPayload({
@@ -751,14 +816,23 @@ export function DiscoveryFlow({
   async function nextStep() {
     if (isReadOnly) return;
 
+    if (step === 1) {
+      const basicFields = [
+        { key: "whatDo", label: "What does your business do?" },
+        { key: "targetCustomer", label: "Who is your target customer?" },
+        { key: "whyChooseUs", label: "Why should they choose you?" },
+        { key: "brandFeeling", label: "How should your brand make people feel?" },
+      ];
+      for (const field of basicFields) {
+        const qualityErr = validateDiscoveryInputQuality(basics[field.key], field.label);
+        if (qualityErr) {
+          setMessage(qualityErr);
+          return;
+        }
+      }
+    }
+
     const valid =
-      (step !== 1 ||
-        Boolean(
-          basics.whatDo &&
-          basics.targetCustomer &&
-          basics.whyChooseUs &&
-          basics.brandFeeling
-        )) &&
       (step !== 4 || emotions.length > 0) &&
       (step !== 5 ||
         Boolean(

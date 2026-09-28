@@ -20,9 +20,9 @@ const initialFormData = {
   sector: "",
   value: "",
   portal_password: "",
-  advance: "40",
-  mid: "30",
-  final: "30",
+  advance: "",
+  mid: "",
+  final: "",
   revisions: "2",
 };
 
@@ -114,7 +114,7 @@ function validateClientInfo(formData) {
 function validatePaymentInfo(formData, isPaymentValid) {
   const nextFormData = trimFormData(formData);
 
-  if (!nextFormData.advance || !nextFormData.mid || !nextFormData.final || !nextFormData.revisions) {
+  if (nextFormData.advance === "" || nextFormData.mid === "" || nextFormData.final === "" || !nextFormData.revisions) {
     return "Please complete all project fields.";
   }
 
@@ -138,19 +138,87 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
   const [isEmailFailed, setIsEmailFailed] = useState(false);
   const [isRetryingEmail, setIsRetryingEmail] = useState(false);
 
-
+  const hasPaymentValues = formData.advance !== "" && formData.mid !== "" && formData.final !== "";
   const paymentTotal = useMemo(() => {
     return Number(formData.advance || 0) + Number(formData.mid || 0) + Number(formData.final || 0);
   }, [formData.advance, formData.final, formData.mid]);
-  const isPaymentValid = paymentTotal === 100;
+  const isPaymentValid = hasPaymentValues && paymentTotal === 100;
+
+  const handlePaymentChange = (field) => (event) => {
+    const rawVal = event.target.value;
+
+    if (rawVal === "") {
+      setFormData((current) => {
+        if (field === "advance") {
+          return {
+            ...current,
+            advance: "",
+            mid: "",
+            final: "",
+          };
+        }
+        return {
+          ...current,
+          [field]: "",
+        };
+      });
+      setProjectCreateError("");
+      return;
+    }
+
+    const numeric = Math.min(100, Math.max(0, parseInt(rawVal, 10) || 0));
+
+    setFormData((current) => {
+      let nextAdvance = current.advance;
+      let nextMid = current.mid;
+      let nextFinal = current.final;
+
+      if (field === "advance") {
+        nextAdvance = String(numeric);
+        const remaining = 100 - numeric;
+        if (remaining <= 0) {
+          nextMid = "0";
+          nextFinal = "0";
+        } else {
+          // Standard 3-stage industry split: evenly divide remaining percentage between Mid and Final
+          const half = Math.floor(remaining / 2);
+          nextMid = String(half);
+          nextFinal = String(remaining - half);
+        }
+      } else if (field === "mid") {
+        nextMid = String(numeric);
+        const advNum = Number(current.advance || 0);
+        if (advNum + numeric > 100) {
+          nextMid = String(Math.max(0, 100 - advNum));
+          nextFinal = "0";
+        } else {
+          nextFinal = String(100 - advNum - numeric);
+        }
+      } else if (field === "final") {
+        nextFinal = String(numeric);
+        const advNum = Number(current.advance || 0);
+        if (advNum + numeric > 100) {
+          nextFinal = String(Math.max(0, 100 - advNum));
+          nextMid = "0";
+        } else {
+          nextMid = String(100 - advNum - numeric);
+        }
+      }
+
+      return {
+        ...current,
+        advance: nextAdvance,
+        mid: nextMid,
+        final: nextFinal,
+      };
+    });
+
+    setProjectCreateError("");
+    setProjectCreateSuccess("");
+  };
 
   const handleFieldChange = (field) => (event) => {
-    let nextValue = event.target.value;
-
-    if (paymentFields.includes(field)) {
-      const numericValue = Number(nextValue || 0);
-      nextValue = Number.isNaN(numericValue) ? "0" : String(Math.min(100, Math.max(0, numericValue)));
-    }
+    const nextValue = event.target.value;
 
     setFormData((current) => ({
       ...current,
@@ -162,6 +230,7 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
 
   const handleCloseWizard = () => {
     setWizardStep(1);
+    setFormData(initialFormData);
     setProjectCreateError("");
     setProjectCreateSuccess("");
     setCreatedPortalLink("");
@@ -391,28 +460,61 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
             <div className="project-payment-grid">
               <div className="form-group">
                 <label className="form-label">Advance (%)</label>
-                <input className="form-input" max="100" min="0" type="number" value={formData.advance} onChange={handleFieldChange("advance")} />
+                <input
+                  className="form-input"
+                  max="100"
+                  min="0"
+                  type="number"
+                  placeholder="e.g. 50"
+                  value={formData.advance}
+                  onChange={handlePaymentChange("advance")}
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Mid (%)</label>
-                <input className="form-input" max="100" min="0" type="number" value={formData.mid} onChange={handleFieldChange("mid")} />
+                <input
+                  className="form-input"
+                  max="100"
+                  min="0"
+                  type="number"
+                  placeholder={formData.advance ? "Auto" : "e.g. 25"}
+                  value={formData.mid}
+                  onChange={handlePaymentChange("mid")}
+                />
               </div>
               <div className="form-group">
                 <label className="form-label">Final (%)</label>
-                <input className="form-input" max="100" min="0" type="number" value={formData.final} onChange={handleFieldChange("final")} />
+                <input
+                  className="form-input"
+                  max="100"
+                  min="0"
+                  type="number"
+                  placeholder={formData.advance ? "Auto" : "e.g. 25"}
+                  value={formData.final}
+                  onChange={handlePaymentChange("final")}
+                />
               </div>
             </div>
 
-            <div className={`project-payment-bar ${isPaymentValid ? "" : "project-payment-bar-error"}`.trim()}>
-              <div className="project-payment-segment advance" style={{ width: `${formData.advance}%` }} />
-              <div className="project-payment-segment mid" style={{ width: `${formData.mid}%` }} />
-              <div className="project-payment-segment final" style={{ width: `${formData.final}%` }} />
+            <div className={`project-payment-bar ${formData.advance !== "" && !isPaymentValid ? "project-payment-bar-error" : ""}`.trim()}>
+              <div className="project-payment-segment advance" style={{ width: `${formData.advance || 0}%` }} />
+              <div className="project-payment-segment mid" style={{ width: `${formData.mid || 0}%` }} />
+              <div className="project-payment-segment final" style={{ width: `${formData.final || 0}%` }} />
             </div>
 
-            {!isPaymentValid ? <div className="project-payment-error-message">Payment split must total exactly 100%.</div> : null}
+            {formData.advance !== "" && !isPaymentValid ? (
+              <div className="project-payment-error-message">Payment split must total exactly 100%.</div>
+            ) : null}
+
+            {formData.advance === "" ? (
+              <div style={{ fontSize: "12px", color: "#8cb0a1", marginTop: "8px" }}>
+                Type your Advance percentage — Mid and Final will auto-calculate to 100%.
+              </div>
+            ) : null}
+
             {projectCreateError ? <div className="project-wizard-note">{projectCreateError}</div> : null}
 
-            <div className="form-group project-revision-field">
+            <div className="form-group project-revision-field" style={{ marginTop: "14px" }}>
               <label className="form-label">Revision limit</label>
               <input className="form-input" type="text" value={formData.revisions} onChange={handleFieldChange("revisions")} />
             </div>
@@ -449,10 +551,13 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
                 <strong>Rs{formData.value}</strong>
               </div>
               <div className="project-review-row">
+                <span>Payment Split</span>
+                <strong>{formData.advance}% Advance / {formData.mid}% Mid / {formData.final}% Final</strong>
+              </div>
+              <div className="project-review-row">
                 <span>Portal Password</span>
                 <strong>{showPassword ? formData.portal_password : "••••••••"}</strong>
               </div>
-
             </div>
 
 

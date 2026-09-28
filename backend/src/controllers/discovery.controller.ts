@@ -11,6 +11,7 @@ import {
   serializeDiscovery,
   serializeBrandDNA,
 } from '../utils/serializer.js';
+import { validateDiscoveryTextQuality } from '../utils/validation.js';
 
 export { getClientProfile, saveClientProfile, validateClientPhone } from './client.controller.js';
 
@@ -28,19 +29,22 @@ interface DiscoverySnapshot {
 function isCompleteDiscoverySnapshot(snapshot: DiscoverySnapshot | null): boolean {
   if (!snapshot) return false;
 
-  const requiredTextFields: (keyof DiscoverySnapshot)[] = [
-    'what_business_does',
-    'target_customer',
-    'why_choose_us',
-    'brand_feeling',
-    'audience_archetype',
+  const qualityFields: { key: keyof DiscoverySnapshot; label: string }[] = [
+    { key: 'what_business_does', label: 'What Business Does' },
+    { key: 'target_customer', label: 'Target Customer' },
+    { key: 'why_choose_us', label: 'Why Choose Us' },
+    { key: 'brand_feeling', label: 'Brand Feeling' },
   ];
 
-  for (const field of requiredTextFields) {
-    const val = snapshot[field];
-    if (!val || typeof val !== 'string' || !val.trim()) {
+  for (const { key, label } of qualityFields) {
+    const err = validateDiscoveryTextQuality(snapshot[key], label);
+    if (err) {
       return false;
     }
+  }
+
+  if (!snapshot.audience_archetype || typeof snapshot.audience_archetype !== 'string' || !snapshot.audience_archetype.trim()) {
+    return false;
   }
 
   if (!Array.isArray(snapshot.emotions) || snapshot.emotions.length === 0) {
@@ -272,11 +276,27 @@ export async function handleSaveDiscovery(req: any, res: Response, markSubmitted
 
   const { finalData, snapshot } = extractDiscoveryData(req.body, existingDiscovery);
 
-  if (markSubmitted && !isCompleteDiscoverySnapshot(snapshot)) {
-    res.status(400).json({
-      detail: 'Complete discovery answers before submitting.',
-    });
-    return;
+  if (markSubmitted) {
+    const textFields: { key: keyof DiscoverySnapshot; label: string }[] = [
+      { key: 'what_business_does', label: 'What Business Does' },
+      { key: 'target_customer', label: 'Target Customer' },
+      { key: 'why_choose_us', label: 'Why Choose Us' },
+      { key: 'brand_feeling', label: 'Brand Feeling' },
+    ];
+    for (const { key, label } of textFields) {
+      const err = validateDiscoveryTextQuality(snapshot[key], label);
+      if (err) {
+        res.status(400).json({ detail: err });
+        return;
+      }
+    }
+
+    if (!isCompleteDiscoverySnapshot(snapshot)) {
+      res.status(400).json({
+        detail: 'Complete all discovery answers with meaningful detail before submitting.',
+      });
+      return;
+    }
   }
 
   const updateData: any = { ...finalData };
@@ -429,6 +449,24 @@ export async function generateBrandDNA(req: any, res: Response, next: NextFuncti
     if (!project.discovery.submittedAt) {
       res.status(409).json({ detail: 'Discovery must be submitted before generating Brand DNA.' });
       return;
+    }
+
+    // Quality guardrail: Verify discovery responses contain genuine information before sending to AI
+    const disc = project.discovery;
+    const fieldsToVerify = [
+      { val: disc.whatBusinessDoes, label: 'What Business Does' },
+      { val: disc.targetCustomer, label: 'Target Customer' },
+      { val: disc.whyChooseUs, label: 'Why Choose Us' },
+      { val: disc.brandFeeling, label: 'Brand Feeling' },
+    ];
+    for (const { val, label } of fieldsToVerify) {
+      const qualityErr = validateDiscoveryTextQuality(val, label);
+      if (qualityErr) {
+        res.status(400).json({
+          detail: `Cannot generate Brand DNA: ${qualityErr} Please ask the client to update their answers with real information.`,
+        });
+        return;
+      }
     }
 
     const consultantApiKey = (project.consultant as any)?.integrations?.geminiApiKey;

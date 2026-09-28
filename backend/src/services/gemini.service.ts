@@ -392,6 +392,15 @@ export async function generateAiBrandDNA(project: any, discovery: any, customApi
   const whyChooseUs = discovery.whyChooseUs || discovery.why_choose_us || 'Uncompromising craftsmanship';
   const brandFeeling = discovery.brandFeeling || discovery.brand_feeling || 'Bold and authoritative';
 
+  if (
+    isDummyOrGibberish(whatBusinessDoes) ||
+    isDummyOrGibberish(targetCustomer) ||
+    isDummyOrGibberish(whyChooseUs)
+  ) {
+    console.warn(`[FLOXA Brand DNA] Refusing to generate Brand DNA on flagged dummy/gibberish input for "${companyName}".`);
+    throw new Error('Client discovery responses contain placeholder or gibberish text. Meaningful business details are required to generate authentic Brand DNA.');
+  }
+
   const rawEmotions = discovery.emotions || [];
   const emotions = rawEmotions.map((e: any) => (typeof e === 'string' ? e : e?.emotion)).filter(Boolean).join(', ') || 'Trust, Bold, Refined';
 
@@ -406,6 +415,10 @@ export async function generateAiBrandDNA(project: any, discovery: any, customApi
   const prompt = `You are FLOXA's Chief Creative Strategist & Brand Director.
 Transform the following client discovery questionnaire into a comprehensive, world-class Brand DNA and Designer Creative Brief.
 Your output must be strictly valid JSON matching the schema below without any markdown code fences.
+
+STRICT ANTI-HALLUCINATION & AUTHENTICITY MANDATE:
+1. Synthesize the Brand DNA directly and faithfully from the client's actual stated business, goals, and audience.
+2. If any client response appears to be random keystrokes or meaningless text, do NOT fabricate fictional corporate capabilities.
 
 CLIENT DISCOVERY INTAKE:
 - Company Name: ${companyName}
