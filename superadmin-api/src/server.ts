@@ -17,8 +17,8 @@ const rawOrigins = (process.env.CORS_ORIGIN || process.env.ADMIN_APP_URL || '')
   .filter(Boolean);
 
 const allowedOrigins = isProduction
-  ? (rawOrigins.length > 0 ? rawOrigins : ['http://localhost:3001'])
-  : Array.from(new Set([...rawOrigins, 'http://localhost:3001', 'http://127.0.0.1:3001']));
+  ? (rawOrigins.length > 0 ? rawOrigins : ['http://localhost:3001', 'http://localhost:3002'])
+  : Array.from(new Set([...rawOrigins, 'http://localhost:3001', 'http://127.0.0.1:3001', 'http://localhost:3002', 'http://127.0.0.1:3002']));
 
 // Middleware
 app.use(

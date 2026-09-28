@@ -15,8 +15,11 @@ import {
   X,
   User,
   Radio,
+  Download,
 } from "lucide-react";
 import { adminApi } from "../services/api";
+import PwaProvider from "../components/PwaProvider";
+import { usePwaInstall } from "../lib/pwa";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -25,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const [checked, setChecked] = useState(false);
   const [announcement, setAnnouncement] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { isMounted, isInstalled, promptInstall } = usePwaInstall();
 
   const isLoginPage = pathname === "/login";
 
@@ -109,6 +113,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <title>FLOXA SuperAdmin Platform</title>
         <meta name="description" content="FLOXA B2B Commercial SuperAdmin Panel" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#4dffa0" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="FLOXA Admin" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <style>{`
@@ -634,6 +648,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
 
                 <div className="nav-section">
+                  {isMounted && !isInstalled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSidebarOpen(false);
+                        promptInstall();
+                      }}
+                      className="nav-item"
+                      style={{
+                        border: "1px dashed rgba(77, 255, 160, 0.4)",
+                        background: "rgba(77, 255, 160, 0.06)",
+                        color: "#4dffa0",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      <Download className="nav-icon" style={{ color: "#4dffa0" }} />
+                      <span>Install App</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => adminApi.logout()}
@@ -694,7 +727,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <span>Live Platform</span>
                   </div>
 
-
+                  {/* Install App Button */}
+                  {isMounted && !isInstalled && (
+                    <button
+                      onClick={() => promptInstall()}
+                      title="Install SuperAdmin App"
+                      style={{
+                        backgroundColor: "rgba(77, 255, 160, 0.08)",
+                        border: "1px solid rgba(77, 255, 160, 0.3)",
+                        borderRadius: "8px",
+                        color: "#4dffa0",
+                        cursor: "pointer",
+                        padding: "5px 12px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Download size={13} />
+                      <span>Install App</span>
+                    </button>
+                  )}
 
                   {/* Sign Out */}
                   <button
@@ -760,6 +815,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         )}
+        <PwaProvider />
       </body>
     </html>
   );

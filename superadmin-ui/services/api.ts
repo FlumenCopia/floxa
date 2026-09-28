@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:5001/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:5002/api';
 
 function getAuthHeader(): Record<string, string> {
   if (typeof window === 'undefined') return {};
