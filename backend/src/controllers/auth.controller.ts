@@ -347,7 +347,11 @@ export async function forgotPassword(req: Request, res: Response, next: NextFunc
       await consultant.save();
 
       try {
-        await sendPasswordResetEmail(consultant, rawToken);
+        const origin = req.get('origin') || req.headers?.origin || req.headers?.referer;
+        const baseUrlOverride = origin && typeof origin === 'string' && !origin.includes('localhost')
+          ? origin.replace(/\/reset-password.*|\/forgot-password.*|\/login.*|\/$/, '')
+          : undefined;
+        await sendPasswordResetEmail(consultant, rawToken, baseUrlOverride);
       } catch (err: any) {
         console.warn('[AUTH] Could not send password reset email:', err?.message || err);
       }

@@ -107,7 +107,7 @@ export async function sendEmail(params: {
   }
 }
 
-export async function sendClientPortalInvite(project: any, rawPortalPassword?: string) {
+export async function sendClientPortalInvite(project: any, rawPortalPassword?: string, baseUrlOverride?: string) {
   const clientEmail = project.client?.email || project.clientEmail || (typeof project.client === 'object' ? project.client?.email : null);
   if (!clientEmail) {
     console.warn('[email.service] sendClientPortalInvite aborted: no recipient email found on project payload');
@@ -115,7 +115,8 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
   }
 
   const clientName = project.client?.name || project.companyName || 'Client';
-  const portalUrl = `${ENV.FRONTEND_BASE_URL.replace(/\/+$/, '')}/client/${project.portalToken}`;
+  const effectiveBase = (baseUrlOverride || ENV.FRONTEND_BASE_URL || 'https://floxa.flumenx.in').replace(/\/+$/, '');
+  const portalUrl = `${effectiveBase}/client/${project.portalToken}`;
 
   const html = `
     <div style=" max-width: 600px; margin: auto; padding: 20px;">
@@ -142,11 +143,12 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
   });
 }
 
-export async function sendAgreementSignatureRequestEmail(project: any, agreement: any) {
+export async function sendAgreementSignatureRequestEmail(project: any, agreement: any, baseUrlOverride?: string) {
   const clientEmail = project.client?.email;
   if (!clientEmail) return;
 
-  const signingUrl = `${ENV.FRONTEND_BASE_URL.replace(/\/+$/, '')}/client/${project.portalToken}?agreement=1`;
+  const effectiveBase = (baseUrlOverride || ENV.FRONTEND_BASE_URL || 'https://floxa.flumenx.in').replace(/\/+$/, '');
+  const signingUrl = `${effectiveBase}/client/${project.portalToken}?agreement=1`;
 
   const html = `
     <div style=" max-width: 600px; margin: auto; padding: 20px;">
@@ -224,11 +226,12 @@ export async function sendSignedProjectAgreementEmail(project: any, agreement: a
   });
 }
 
-export async function sendPasswordResetEmail(consultant: any, rawToken: string) {
+export async function sendPasswordResetEmail(consultant: any, rawToken: string, baseUrlOverride?: string) {
   const recipientEmail = consultant.email;
   if (!recipientEmail) return;
 
-  const resetUrl = `${ENV.FRONTEND_BASE_URL}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  const effectiveBase = (baseUrlOverride || ENV.FRONTEND_BASE_URL || 'https://floxa.flumenx.in').replace(/\/+$/, '');
+  const resetUrl = `${effectiveBase}/reset-password?token=${encodeURIComponent(rawToken)}`;
   const consultantName = consultant.name || 'there';
 
   const subject = 'Reset Your FLOXA Account Password';

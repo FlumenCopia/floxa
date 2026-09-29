@@ -683,26 +683,6 @@ export default function AdminConsultantsPage() {
                           >
                             {isUpdating ? "Saving..." : c.isActive ? "Suspend" : "Activate"}
                           </button>
-
-                          <button
-                            onClick={() => openResetPwdModal(c)}
-                            style={{
-                              backgroundColor: "rgba(77, 255, 160, 0.08)",
-                              border: "1px solid rgba(77, 255, 160, 0.25)",
-                              color: "#4dffa0",
-                              padding: "5px 10px",
-                              borderRadius: "5px",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                            }}
-                          >
-                            <Key size={11} />
-                            <span>Reset Pwd</span>
-                          </button>
                         </div>
                       </td>
                     </tr>

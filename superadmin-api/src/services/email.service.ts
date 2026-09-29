@@ -51,7 +51,11 @@ export async function sendCustomerWelcomeEmail(params: {
   rawPassword: string;
 }): Promise<{ success: boolean; error?: string }> {
   const { name, email, rawPassword } = params;
-  const baseUrl = (process.env.FRONTEND_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const rawBase = process.env.FRONTEND_BASE_URL;
+  const baseUrl = (rawBase && rawBase !== 'http://localhost:3000'
+    ? rawBase
+    : (process.env.NODE_ENV === 'production' || process.env.HOSTINGER_ENV === 'production' ? 'https://floxa.flumenx.in' : (rawBase || 'https://floxa.flumenx.in'))
+  ).replace(/\/+$/, '');
   const loginUrl = `${baseUrl}/login?mode=login`;
   const fromName = process.env.DEFAULT_FROM_EMAIL || 'FLOXA';
   const fromAddress = (process.env.EMAIL_HOST_USER || 'nidhinkg100@gmail.com').trim();
@@ -164,7 +168,11 @@ export async function sendPasswordResetNoticeEmail(params: {
   rawPassword: string;
 }): Promise<{ success: boolean; error?: string }> {
   const { name, email, rawPassword } = params;
-  const baseUrl = (process.env.FRONTEND_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const rawBase = process.env.FRONTEND_BASE_URL;
+  const baseUrl = (rawBase && rawBase !== 'http://localhost:3000'
+    ? rawBase
+    : (process.env.NODE_ENV === 'production' || process.env.HOSTINGER_ENV === 'production' ? 'https://floxa.flumenx.in' : (rawBase || 'https://floxa.flumenx.in'))
+  ).replace(/\/+$/, '');
   const loginUrl = `${baseUrl}/login?mode=login`;
   const fromName = process.env.DEFAULT_FROM_EMAIL || 'FLOXA';
   const fromAddress = (process.env.EMAIL_HOST_USER || 'nidhinkg100@gmail.com').trim();

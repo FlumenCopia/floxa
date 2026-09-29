@@ -290,7 +290,11 @@ export async function createProject(req: any, res: Response, next: NextFunction)
         if (!inviteTarget.client) {
           inviteTarget.client = client;
         }
-        await sendClientPortalInvite(inviteTarget, portalPassword);
+        const origin = req.get('origin') || req.headers?.origin || req.headers?.referer;
+        const baseUrlOverride = origin && typeof origin === 'string' && !origin.includes('localhost')
+          ? origin.replace(/\/client.*|\/api.*|\/$/, '')
+          : undefined;
+        await sendClientPortalInvite(inviteTarget, portalPassword, baseUrlOverride);
         inviteEmailSent = true;
         inviteEmailStatus = 'sent';
       } catch (err: any) {
@@ -407,7 +411,11 @@ export async function retryInvite(req: any, res: Response, next: NextFunction) {
       return;
     }
 
-    await sendClientPortalInvite(project);
+    const origin = req.get('origin') || req.headers?.origin || req.headers?.referer;
+    const baseUrlOverride = origin && typeof origin === 'string' && !origin.includes('localhost')
+      ? origin.replace(/\/client.*|\/api.*|\/$/, '')
+      : undefined;
+    await sendClientPortalInvite(project, undefined, baseUrlOverride);
     res.json({ success: true, message: 'Invite email resent.' });
   } catch (err) {
     next(err);
