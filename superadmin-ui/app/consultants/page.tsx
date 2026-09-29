@@ -13,6 +13,10 @@ import {
   Check,
   Eye,
   Download,
+  UserPlus,
+  Key,
+  Copy,
+  CheckCircle2,
 } from "lucide-react";
 import { adminApi } from "../../services/api";
 import Consultant360Drawer from "../../components/Consultant360Drawer";
@@ -25,20 +29,34 @@ export default function AdminConsultantsPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [planFilter, setPlanFilter] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
 
   // Drawer State
   const [drawerConsultantId, setDrawerConsultantId] = useState<string | null>(null);
 
-  // Plan Edit Modal
-  const [selectedConsultant, setSelectedConsultant] = useState<any>(null);
-  const [modalPlan, setModalPlan] = useState("starter");
-  const [modalMaxProjects, setModalMaxProjects] = useState(10);
-  const [savingPlan, setSavingPlan] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [downloadingCsv, setDownloadingCsv] = useState(false);
+
+  // Add Customer Modal State
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createFormData, setCreateFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    company: "",
+    phone: "",
+  });
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string; name: string } | null>(null);
+  const [copiedPass, setCopiedPass] = useState(false);
+
+  // Reset Password Modal State
+  const [resetPwdConsultant, setResetPwdConsultant] = useState<any>(null);
+  const [resetPwdInput, setResetPwdInput] = useState("");
+  const [resettingPwd, setResettingPwd] = useState(false);
+  const [resetPwdError, setResetPwdError] = useState("");
 
   const fetchConsultants = async () => {
     setLoading(true);
@@ -48,7 +66,6 @@ export default function AdminConsultantsPage() {
       const res = await adminApi.getConsultants({
         search: searchTerm,
         status: statusFilter,
-        plan: planFilter,
         page: page,
         limit: 20,
       });
@@ -68,7 +85,7 @@ export default function AdminConsultantsPage() {
 
   useEffect(() => {
     fetchConsultants();
-  }, [page, statusFilter, planFilter]);
+  }, [page, statusFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,46 +137,116 @@ export default function AdminConsultantsPage() {
     }
   };
 
-  const openPlanModal = (consultant: any) => {
-    setSelectedConsultant(consultant);
-    setModalPlan(consultant.subscription?.plan || "free");
-    setModalMaxProjects(consultant.subscription?.maxProjects ?? 5);
+
+
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*";
+    let pwd = "";
+    for (let i = 0; i < 12; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCreateFormData((prev) => ({ ...prev, password: pwd }));
   };
 
-  const handleSavePlan = async (e: React.FormEvent) => {
+  const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedConsultant) return;
+    setCreateError("");
 
-    setSavingPlan(true);
+    if (!createFormData.name.trim()) {
+      setCreateError("Customer name is required.");
+      return;
+    }
+    if (!createFormData.email.trim()) {
+      setCreateError("Customer email is required.");
+      return;
+    }
+    if (!createFormData.password.trim() || createFormData.password.length < 8) {
+      setCreateError("Temporary password must be at least 8 characters.");
+      return;
+    }
+
+    setCreatingCustomer(true);
     try {
-      const res = await adminApi.updateConsultantPlan(
-        selectedConsultant.id,
-        modalPlan,
-        Number(modalMaxProjects)
-      );
+      const res = await adminApi.createConsultant({
+        name: createFormData.name.trim(),
+        email: createFormData.email.trim().toLowerCase(),
+        password: createFormData.password.trim(),
+        company: createFormData.company.trim(),
+        phone: createFormData.phone.trim(),
+      });
 
       if (res?.success) {
-        showNotification(`Plan updated to ${modalPlan.toUpperCase()} for ${selectedConsultant.name}`);
-        setConsultants((prev) =>
-          prev.map((c) =>
-            c.id === selectedConsultant.id
-              ? {
-                  ...c,
-                  subscription: {
-                    ...c.subscription,
-                    plan: modalPlan,
-                    maxProjects: Number(modalMaxProjects),
-                  },
-                }
-              : c
-          )
-        );
-        setSelectedConsultant(null);
+        showNotification(`Customer account added for ${createFormData.name}`);
+        setCreatedCredentials({
+          name: createFormData.name,
+          email: createFormData.email.trim().toLowerCase(),
+          password: createFormData.password,
+        });
+        setCreateFormData({
+          name: "",
+          email: "",
+          password: "",
+          company: "",
+          phone: "",
+        });
+        setIsCreateModalOpen(false);
+        fetchConsultants();
+      } else {
+        setCreateError(res?.detail || "Failed to create customer account.");
       }
     } catch (err: any) {
-      setError(err?.message || "Failed to update plan.");
+      setCreateError(err?.message || "Failed to create customer account.");
     } finally {
-      setSavingPlan(false);
+      setCreatingCustomer(false);
+    }
+  };
+
+  const copyCredentials = () => {
+    if (!createdCredentials) return;
+    const text = `FLOXA Customer Account Credentials:\nEmail: ${createdCredentials.email}\nTemporary Password: ${createdCredentials.password}\nLogin URL: http://localhost:3000/login`;
+    navigator.clipboard.writeText(text);
+    setCopiedPass(true);
+    setTimeout(() => setCopiedPass(false), 3000);
+  };
+
+  const openResetPwdModal = (consultant: any) => {
+    setResetPwdConsultant(consultant);
+    setResetPwdError("");
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*";
+    let pwd = "";
+    for (let i = 0; i < 12; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setResetPwdInput(pwd);
+  };
+
+  const handleSaveResetPwd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPwdConsultant) return;
+    if (!resetPwdInput.trim() || resetPwdInput.trim().length < 8) {
+      setResetPwdError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setResettingPwd(true);
+    setResetPwdError("");
+    try {
+      const res = await adminApi.resetConsultantPassword(resetPwdConsultant.id, resetPwdInput.trim());
+      if (res?.success) {
+        showNotification(`Password reset for ${resetPwdConsultant.name}`);
+        setCreatedCredentials({
+          name: resetPwdConsultant.name,
+          email: resetPwdConsultant.email,
+          password: resetPwdInput.trim(),
+        });
+        setResetPwdConsultant(null);
+      } else {
+        setResetPwdError(res?.detail || "Failed to reset password.");
+      }
+    } catch (err: any) {
+      setResetPwdError(err?.message || "Failed to reset password.");
+    } finally {
+      setResettingPwd(false);
     }
   };
 
@@ -172,10 +259,33 @@ export default function AdminConsultantsPage() {
             Consultants & Agencies
           </h1>
           <p style={{ margin: 0, color: "#89aca0", fontSize: "13px" }}>
-            Manage agency accounts, monitor subscription plans, and configure project quotas.
+            Manage customer accounts, monitor active projects, and configure access.
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <button
+            onClick={() => {
+              setIsCreateModalOpen(true);
+              setCreateError("");
+              generateRandomPassword();
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              backgroundColor: "#4dffa0",
+              border: "none",
+              color: "#001a0e",
+              padding: "8px 16px",
+              borderRadius: "6px",
+              fontSize: "13px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            <UserPlus size={15} />
+            <span>Add Customer</span>
+          </button>
           <button
             onClick={handleDownloadCsv}
             disabled={downloadingCsv}
@@ -219,6 +329,66 @@ export default function AdminConsultantsPage() {
           </button>
         </div>
       </div>
+
+      {/* Newly Created Credentials Banner */}
+      {createdCredentials ? (
+        <div style={{
+          backgroundColor: "rgba(77, 255, 160, 0.08)",
+          border: "1px solid rgba(77, 255, 160, 0.4)",
+          borderRadius: "8px",
+          padding: "16px 20px",
+          marginBottom: "20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+        }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#4dffa0", fontWeight: 700, fontSize: "14px", marginBottom: "4px" }}>
+              <CheckCircle2 size={16} />
+              <span>Customer Account Added: {createdCredentials.name}</span>
+            </div>
+            <div style={{ fontSize: "13px", color: "#e8f5ef", display: "flex", gap: "20px", flexWrap: "wrap" }}>
+              <span><strong>Email:</strong> {createdCredentials.email}</span>
+              <span><strong>Temporary Password:</strong> <code style={{ backgroundColor: "rgba(0,0,0,0.4)", padding: "2px 6px", borderRadius: "4px", color: "#4dffa0" }}>{createdCredentials.password}</code></span>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              onClick={copyCredentials}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                backgroundColor: copiedPass ? "#4dffa0" : "rgba(77, 255, 160, 0.15)",
+                border: "1px solid rgba(77, 255, 160, 0.3)",
+                color: copiedPass ? "#001a0e" : "#4dffa0",
+                padding: "6px 14px",
+                borderRadius: "6px",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <Copy size={13} />
+              <span>{copiedPass ? "Copied to Clipboard!" : "Copy Credentials"}</span>
+            </button>
+            <button
+              onClick={() => setCreatedCredentials(null)}
+              style={{
+                backgroundColor: "transparent",
+                border: "none",
+                color: "#89aca0",
+                padding: "6px",
+                cursor: "pointer",
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {successMsg ? (
         <div style={{
@@ -339,30 +509,6 @@ export default function AdminConsultantsPage() {
             <option value="active">Active Only</option>
             <option value="suspended">Suspended Only</option>
           </select>
-
-          <select
-            value={planFilter}
-            onChange={(e) => {
-              setPlanFilter(e.target.value);
-              setPage(1);
-            }}
-            style={{
-              backgroundColor: "rgba(2, 14, 9, 0.6)",
-              border: "1px solid rgba(77, 255, 160, 0.15)",
-              color: "#e8f5ef",
-              padding: "7px 12px",
-              borderRadius: "6px",
-              fontSize: "12px",
-              outline: "none",
-              cursor: "pointer",
-            }}
-          >
-            <option value="">All Subscription Plans</option>
-            <option value="free">Free Trial</option>
-            <option value="starter">Starter</option>
-            <option value="pro">Pro</option>
-            <option value="enterprise">Enterprise / Agency</option>
-          </select>
         </div>
       </div>
 
@@ -385,7 +531,6 @@ export default function AdminConsultantsPage() {
               }}>
                 <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Consultant</th>
                 <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Agency / Company</th>
-                <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Plan Tier</th>
                 <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Projects</th>
                 <th style={{ padding: "12px 16px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Status</th>
                 <th style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Actions</th>
@@ -394,13 +539,13 @@ export default function AdminConsultantsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "40px", color: "#607f72" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "40px", color: "#607f72" }}>
                     Loading consultants list...
                   </td>
                 </tr>
               ) : consultants.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", padding: "40px", color: "#607f72" }}>
+                  <td colSpan={5} style={{ textAlign: "center", padding: "40px", color: "#607f72" }}>
                     No consultants found matching your criteria.
                   </td>
                 </tr>
@@ -447,49 +592,6 @@ export default function AdminConsultantsPage() {
 
                       <td style={{ padding: "14px 16px", color: "#89aca0", fontWeight: 500 }}>
                         {c.company || "Independent Consultant"}
-                      </td>
-
-                      <td style={{ padding: "14px 16px" }}>
-                        <div style={{ display: "inline-flex", flexDirection: "column", gap: "2px" }}>
-                          <span style={{
-                            display: "inline-block",
-                            padding: "2px 8px",
-                            borderRadius: "4px",
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            backgroundColor:
-                              plan === "enterprise"
-                                ? "rgba(240, 180, 41, 0.12)"
-                                : plan === "pro"
-                                  ? "rgba(77, 255, 160, 0.12)"
-                                  : plan === "starter"
-                                    ? "rgba(74, 158, 255, 0.12)"
-                                    : "rgba(255, 255, 255, 0.08)",
-                            color:
-                              plan === "enterprise"
-                                ? "#f0b429"
-                                : plan === "pro"
-                                  ? "#4dffa0"
-                                  : plan === "starter"
-                                    ? "#4a9eff"
-                                    : "#89aca0",
-                            border: `1px solid ${
-                              plan === "enterprise"
-                                ? "rgba(240, 180, 41, 0.25)"
-                                : plan === "pro"
-                                  ? "rgba(77, 255, 160, 0.25)"
-                                  : plan === "starter"
-                                    ? "rgba(74, 158, 255, 0.25)"
-                                    : "rgba(255, 255, 255, 0.08)"
-                            }`,
-                          }}>
-                            {plan}
-                          </span>
-                          <span style={{ fontSize: "10px", color: "#607f72" }}>
-                            Limit: {maxProjects >= 999 ? "Unlimited" : `${maxProjects} proj`}
-                          </span>
-                        </div>
                       </td>
 
                       <td style={{ padding: "14px 16px" }}>
@@ -557,11 +659,11 @@ export default function AdminConsultantsPage() {
                           </button>
 
                           <button
-                            onClick={() => openPlanModal(c)}
+                            onClick={() => openResetPwdModal(c)}
                             style={{
-                              backgroundColor: "rgba(255, 255, 255, 0.05)",
-                              border: "1px solid rgba(255, 255, 255, 0.12)",
-                              color: "#89aca0",
+                              backgroundColor: "rgba(77, 255, 160, 0.08)",
+                              border: "1px solid rgba(77, 255, 160, 0.25)",
+                              color: "#4dffa0",
                               padding: "5px 10px",
                               borderRadius: "5px",
                               fontSize: "11px",
@@ -572,8 +674,8 @@ export default function AdminConsultantsPage() {
                               gap: "4px",
                             }}
                           >
-                            <Sliders size={11} />
-                            <span>Plan</span>
+                            <Key size={11} />
+                            <span>Reset Pwd</span>
                           </button>
                         </div>
                       </td>
@@ -635,8 +737,237 @@ export default function AdminConsultantsPage() {
         ) : null}
       </div>
 
-      {/* Plan Edit Modal */}
-      {selectedConsultant ? (
+      {/* Add Customer Modal */}
+      {isCreateModalOpen ? (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 100,
+          backgroundColor: "rgba(0, 0, 0, 0.75)",
+          backdropFilter: "blur(6px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px",
+        }}>
+          <div style={{
+            backgroundColor: "#06160f",
+            border: "1px solid rgba(77, 255, 160, 0.25)",
+            borderRadius: "12px",
+            width: "100%",
+            maxWidth: "520px",
+            padding: "24px",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)",
+            position: "relative",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+              <UserPlus size={18} color="#4dffa0" />
+              <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: "#f3f8f4" }}>
+                Add Customer
+              </h3>
+            </div>
+            <p style={{ margin: "0 0 16px 0", fontSize: "12px", color: "#89aca0" }}>
+              Create an active customer account and set their temporary credentials.
+            </p>
+
+            {createError ? (
+              <div style={{
+                backgroundColor: "rgba(255, 107, 107, 0.12)",
+                border: "1px solid rgba(255, 107, 107, 0.25)",
+                color: "#ff6b6b",
+                padding: "10px 14px",
+                borderRadius: "6px",
+                marginBottom: "14px",
+                fontSize: "12px",
+              }}>
+                {createError}
+              </div>
+            ) : null}
+
+            <form onSubmit={handleCreateCustomer}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px", fontWeight: 600 }}>
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Sarah Jenkins"
+                    value={createFormData.name}
+                    onChange={(e) => setCreateFormData({ ...createFormData, name: e.target.value })}
+                    style={{
+                      width: "100%",
+                      backgroundColor: "rgba(2, 14, 9, 0.7)",
+                      border: "1px solid rgba(77, 255, 160, 0.2)",
+                      color: "#e8f5ef",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px", fontWeight: 600 }}>
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="sarah@agency.com"
+                    value={createFormData.email}
+                    onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
+                    style={{
+                      width: "100%",
+                      backgroundColor: "rgba(2, 14, 9, 0.7)",
+                      border: "1px solid rgba(77, 255, 160, 0.2)",
+                      color: "#e8f5ef",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <label style={{ fontSize: "11px", color: "#89aca0", fontWeight: 600 }}>
+                    Temporary Password * (min 8 chars)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#4dffa0",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: 0,
+                    }}
+                  >
+                    <Key size={11} />
+                    <span>Auto Generate</span>
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  required
+                  placeholder="Min 8 characters"
+                  value={createFormData.password}
+                  onChange={(e) => setCreateFormData({ ...createFormData, password: e.target.value })}
+                  style={{
+                    width: "100%",
+                    backgroundColor: "rgba(2, 14, 9, 0.7)",
+                    border: "1px solid rgba(77, 255, 160, 0.2)",
+                    color: "#e8f5ef",
+                    padding: "8px 12px",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontFamily: "monospace",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px", fontWeight: 600 }}>
+                    Company / Agency Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Apex Digital"
+                    value={createFormData.company}
+                    onChange={(e) => setCreateFormData({ ...createFormData, company: e.target.value })}
+                    style={{
+                      width: "100%",
+                      backgroundColor: "rgba(2, 14, 9, 0.7)",
+                      border: "1px solid rgba(77, 255, 160, 0.2)",
+                      color: "#e8f5ef",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px", fontWeight: 600 }}>
+                    Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="+1 (555) 000-0000"
+                    value={createFormData.phone}
+                    onChange={(e) => setCreateFormData({ ...createFormData, phone: e.target.value })}
+                    style={{
+                      width: "100%",
+                      backgroundColor: "rgba(2, 14, 9, 0.7)",
+                      border: "1px solid rgba(77, 255, 160, 0.2)",
+                      color: "#e8f5ef",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      outline: "none",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.05)",
+                    border: "none",
+                    color: "#89aca0",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingCustomer}
+                  style={{
+                    backgroundColor: "#4dffa0",
+                    border: "none",
+                    color: "#001a0e",
+                    fontWeight: 700,
+                    padding: "8px 18px",
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    cursor: creatingCustomer ? "not-allowed" : "pointer",
+                    opacity: creatingCustomer ? 0.7 : 1,
+                  }}
+                >
+                  {creatingCustomer ? "Adding..." : "Add Customer"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Reset Password Modal */}
+      {resetPwdConsultant ? (
         <div style={{
           position: "fixed",
           inset: 0,
@@ -659,7 +990,7 @@ export default function AdminConsultantsPage() {
             boxShadow: "0 20px 40px rgba(0, 0, 0, 0.7)",
           }}>
             <button
-              onClick={() => setSelectedConsultant(null)}
+              onClick={() => setResetPwdConsultant(null)}
               style={{
                 position: "absolute",
                 top: "16px",
@@ -673,56 +1004,66 @@ export default function AdminConsultantsPage() {
               <X size={16} />
             </button>
 
-            <h3 style={{ fontSize: "15px", fontWeight: 700, margin: "0 0 4px 0", color: "#f3f8f4" }}>
-              Edit Subscription Plan
-            </h3>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+              <Key size={17} color="#4dffa0" />
+              <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "#f3f8f4" }}>
+                Reset Customer Password
+              </h3>
+            </div>
             <p style={{ margin: "0 0 16px 0", fontSize: "12px", color: "#89aca0" }}>
-              Updating plan for <strong>{selectedConsultant.name}</strong> ({selectedConsultant.company || selectedConsultant.email})
+              Setting a new temporary password for <strong>{resetPwdConsultant.name}</strong> ({resetPwdConsultant.email})
             </p>
 
-            <form onSubmit={handleSavePlan}>
-              <div style={{ marginBottom: "14px" }}>
-                <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "6px", fontWeight: 600 }}>
-                  Select Subscription Plan
-                </label>
-                <select
-                  value={modalPlan}
-                  onChange={(e) => {
-                    const p = e.target.value;
-                    setModalPlan(p);
-                    if (p === "free") setModalMaxProjects(3);
-                    else if (p === "starter") setModalMaxProjects(10);
-                    else if (p === "pro") setModalMaxProjects(30);
-                    else if (p === "enterprise") setModalMaxProjects(999);
-                  }}
-                  style={{
-                    width: "100%",
-                    backgroundColor: "rgba(2, 14, 9, 0.7)",
-                    border: "1px solid rgba(77, 255, 160, 0.2)",
-                    color: "#e8f5ef",
-                    padding: "8px 12px",
-                    borderRadius: "6px",
-                    fontSize: "13px",
-                    outline: "none",
-                  }}
-                >
-                  <option value="free">Free Trial (3 Projects)</option>
-                  <option value="starter">Starter Plan (10 Projects)</option>
-                  <option value="pro">Professional Plan (30 Projects)</option>
-                  <option value="enterprise">Enterprise / Agency (Unlimited)</option>
-                </select>
+            {resetPwdError ? (
+              <div style={{
+                backgroundColor: "rgba(255, 107, 107, 0.12)",
+                border: "1px solid rgba(255, 107, 107, 0.25)",
+                color: "#ff6b6b",
+                padding: "10px 14px",
+                borderRadius: "6px",
+                marginBottom: "14px",
+                fontSize: "12px",
+              }}>
+                {resetPwdError}
               </div>
+            ) : null}
 
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "6px", fontWeight: 600 }}>
-                  Custom Max Projects Quota
-                </label>
+            <form onSubmit={handleSaveResetPwd}>
+              <div style={{ marginBottom: "16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <label style={{ fontSize: "11px", color: "#89aca0", fontWeight: 600 }}>
+                    New Temporary Password (min 8 chars)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*";
+                      let pwd = "";
+                      for (let i = 0; i < 12; i++) pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+                      setResetPwdInput(pwd);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#4dffa0",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: 0,
+                    }}
+                  >
+                    <Key size={11} />
+                    <span>Auto Generate</span>
+                  </button>
+                </div>
                 <input
-                  type="number"
-                  min="1"
-                  max="9999"
-                  value={modalMaxProjects}
-                  onChange={(e) => setModalMaxProjects(Number(e.target.value))}
+                  type="text"
+                  required
+                  placeholder="Min 8 characters"
+                  value={resetPwdInput}
+                  onChange={(e) => setResetPwdInput(e.target.value)}
                   style={{
                     width: "100%",
                     backgroundColor: "rgba(2, 14, 9, 0.7)",
@@ -731,7 +1072,9 @@ export default function AdminConsultantsPage() {
                     padding: "8px 12px",
                     borderRadius: "6px",
                     fontSize: "13px",
+                    fontFamily: "monospace",
                     outline: "none",
+                    boxSizing: "border-box",
                   }}
                 />
               </div>
@@ -739,7 +1082,7 @@ export default function AdminConsultantsPage() {
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                 <button
                   type="button"
-                  onClick={() => setSelectedConsultant(null)}
+                  onClick={() => setResetPwdConsultant(null)}
                   style={{
                     backgroundColor: "rgba(255, 255, 255, 0.05)",
                     border: "none",
@@ -755,7 +1098,7 @@ export default function AdminConsultantsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={savingPlan}
+                  disabled={resettingPwd}
                   style={{
                     backgroundColor: "#4dffa0",
                     border: "none",
@@ -764,10 +1107,11 @@ export default function AdminConsultantsPage() {
                     padding: "7px 16px",
                     borderRadius: "6px",
                     fontSize: "12px",
-                    cursor: "pointer",
+                    cursor: resettingPwd ? "not-allowed" : "pointer",
+                    opacity: resettingPwd ? 0.7 : 1,
                   }}
                 >
-                  {savingPlan ? "Saving..." : "Save Changes"}
+                  {resettingPwd ? "Updating..." : "Update Password"}
                 </button>
               </div>
             </form>

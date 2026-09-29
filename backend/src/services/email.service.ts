@@ -220,3 +220,61 @@ export async function sendSignedProjectAgreementEmail(project: any, agreement: a
     ],
   });
 }
+
+export async function sendPasswordResetEmail(consultant: any, rawToken: string) {
+  const recipientEmail = consultant.email;
+  if (!recipientEmail) return;
+
+  const resetUrl = `${ENV.FRONTEND_BASE_URL}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  const consultantName = consultant.name || 'there';
+
+  const subject = 'Reset Your FLOXA Account Password';
+  const text = `Hello ${consultantName},
+
+We received a request to reset your password for your FLOXA account.
+
+Click the link below to set a new password:
+${resetUrl}
+
+This link will expire in 30 minutes.
+
+If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
+
+Best regards,
+The FLOXA Team`;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; background: #06160f; color: #e8f5ef; border-radius: 12px; border: 1px solid rgba(77, 255, 160, 0.2);">
+      <div style="margin-bottom: 24px;">
+        <h2 style="margin: 0; color: #4dffa0; font-size: 20px; font-weight: 700;">FLOXA</h2>
+      </div>
+      <h3 style="margin: 0 0 16px 0; color: #ffffff; font-size: 18px;">Password Reset Request</h3>
+      <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #b4cfc4;">
+        Hello <strong>${consultantName}</strong>,
+      </p>
+      <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #b4cfc4;">
+        We received a request to reset your password. Click the button below to choose a new password:
+      </p>
+      <div style="margin-bottom: 28px;">
+        <a href="${resetUrl}" style="background-color: #4dffa0; color: #001a0e; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; display: inline-block;">
+          Reset My Password
+        </a>
+      </div>
+      <p style="margin: 0 0 16px 0; font-size: 12px; line-height: 1.5; color: #89aca0;">
+        Or copy and paste this link into your browser:<br/>
+        <a href="${resetUrl}" style="color: #4dffa0; word-break: break-all;">${resetUrl}</a>
+      </p>
+      <p style="margin: 0 0 0 0; font-size: 12px; line-height: 1.5; color: #6b8f80; border-top: 1px solid rgba(77, 255, 160, 0.1); padding-top: 16px;">
+        This link expires in 30 minutes. If you did not request this reset, no action is needed.
+      </p>
+    </div>
+  `;
+
+  await sendEmail({
+    to: recipientEmail,
+    subject,
+    text,
+    html,
+  });
+}
+

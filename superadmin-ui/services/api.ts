@@ -84,6 +84,21 @@ export const adminApi = {
     return request(`/admin/consultants${query}`);
   },
 
+  async createConsultant(data: {
+    name: string;
+    email: string;
+    password: string;
+    company?: string;
+    phone?: string;
+    plan?: string;
+    maxProjects?: number;
+  }) {
+    return request('/admin/consultants', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   async getConsultantDetails(id: string) {
     return request(`/admin/consultants/${id}/details`);
   },
@@ -106,6 +121,13 @@ export const adminApi = {
     return request(`/admin/consultants/${id}/ai-quota`, {
       method: 'PATCH',
       body: JSON.stringify({ action, credits }),
+    });
+  },
+
+  async resetConsultantPassword(id: string, newPassword: string) {
+    return request(`/admin/consultants/${id}/reset-password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ newPassword }),
     });
   },
 

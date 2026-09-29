@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loginConsultant } from "@/lib/authApi";
 import { showError, showSuccess } from "@/lib/toast";
-import GoogleSignInButton from "./GoogleSignInButton";
 import { ArrowRight, ArrowLeft, Mail, Lock } from "lucide-react";
 
 export default function Login() {
@@ -201,6 +200,12 @@ export default function Login() {
                 />
               </div>
 
+              <div className="login-forgot-row">
+                <Link href="/forgot-password" className="login-forgot-link">
+                  Forgot Password?
+                </Link>
+              </div>
+
               {errorMessage && <p className="login-error-msg">{errorMessage}</p>}
 
               {/* Submit Button */}
@@ -215,20 +220,6 @@ export default function Login() {
                 </span>
               </button>
 
-              {/* OR Divider */}
-              <div className="login-or-divider">
-                <span>OR</span>
-              </div>
-
-              {/* Google / Social Authentication */}
-              <GoogleSignInButton label="Continue with Google" />
-
-              <div className="login-auth-switch">
-                <span>Don&apos;t have an account?</span>
-                <Link href="/register" className="signup-link">
-                  Sign up
-                </Link>
-              </div>
 
               <div className="login-terms-note">
                 By signing in you agree to our Terms &amp; Privacy Policy

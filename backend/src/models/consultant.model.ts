@@ -22,7 +22,15 @@ export interface IConsultant {
     plan?: string;
     toolRuns?: Record<string, number>;
   };
+  subscription?: {
+    plan?: string;
+    status?: string;
+    maxProjects?: number;
+  };
   integrations?: IConsultantIntegrations;
+  passwordResetToken?: string | null;
+  passwordResetExpires?: Date | null;
+  tokenVersion?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -40,6 +48,19 @@ const consultantSchema = new Schema<IConsultant>(
     password: {
       type: String,
       required: true,
+    },
+    passwordResetToken: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+    },
+    tokenVersion: {
+      type: Number,
+      default: 0,
     },
     name: {
       type: String,
@@ -67,6 +88,20 @@ const consultantSchema = new Schema<IConsultant>(
     isStaff: {
       type: Boolean,
       default: false,
+    },
+    subscription: {
+      plan: {
+        type: String,
+        default: 'free',
+      },
+      status: {
+        type: String,
+        default: 'active',
+      },
+      maxProjects: {
+        type: Number,
+        default: 5,
+      },
     },
     aiUsage: {
       plan: {

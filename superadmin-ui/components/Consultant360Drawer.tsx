@@ -17,6 +17,7 @@ import {
   Sliders,
   AlertCircle,
   CheckCircle2,
+  Key,
 } from "lucide-react";
 import { adminApi } from "../services/api";
 
@@ -38,10 +39,6 @@ export default function Consultant360Drawer({
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<"projects" | "clients" | "ai" | "settings">("projects");
 
-  // Plan Controls State
-  const [plan, setPlan] = useState("starter");
-  const [maxProjects, setMaxProjects] = useState(10);
-  const [savingPlan, setSavingPlan] = useState(false);
 
   // Status Toggle State
   const [togglingStatus, setTogglingStatus] = useState(false);
@@ -55,6 +52,12 @@ export default function Consultant360Drawer({
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Password Reset State
+  const [resetPasswordInput, setResetPasswordInput] = useState("");
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [resetSuccessData, setResetSuccessData] = useState<{ email: string; pass: string } | null>(null);
+  const [copiedResetPass, setCopiedResetPass] = useState(false);
+
   const fetchDetails = async () => {
     if (!consultantId) return;
     setLoading(true);
@@ -63,9 +66,6 @@ export default function Consultant360Drawer({
       const res = await adminApi.getConsultantDetails(consultantId);
       if (res?.success && res.data) {
         setData(res.data);
-        const sub = res.data.consultant?.subscription;
-        if (sub?.plan) setPlan(sub.plan);
-        if (sub?.maxProjects !== undefined) setMaxProjects(sub.maxProjects);
       } else {
         setError("Failed to load consultant details.");
       }
@@ -118,23 +118,6 @@ export default function Consultant360Drawer({
     }
   };
 
-  const handleSavePlan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!consultant) return;
-    setSavingPlan(true);
-    setFeedback(null);
-    try {
-      await adminApi.updateConsultantPlan(consultant.id, plan, maxProjects);
-      setFeedback({ type: "success", text: "Subscription tier updated successfully." });
-      await fetchDetails();
-      onUpdated();
-    } catch (err: any) {
-      setFeedback({ type: "error", text: err?.message || "Failed to update plan." });
-    } finally {
-      setSavingPlan(false);
-    }
-  };
-
   const handleUpdateQuota = async () => {
     if (!consultant) return;
     setUpdatingQuota(true);
@@ -156,6 +139,52 @@ export default function Consultant360Drawer({
     } finally {
       setUpdatingQuota(false);
     }
+  };
+
+  const generateResetPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*";
+    let pwd = "";
+    for (let i = 0; i < 12; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setResetPasswordInput(pwd);
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!consultantId || !consultant) return;
+    if (!resetPasswordInput.trim() || resetPasswordInput.trim().length < 8) {
+      setFeedback({ type: "error", text: "New password must be at least 8 characters." });
+      return;
+    }
+
+    setResettingPassword(true);
+    setFeedback(null);
+    try {
+      const res = await adminApi.resetConsultantPassword(consultantId, resetPasswordInput.trim());
+      if (res?.success) {
+        setResetSuccessData({
+          email: consultant.email,
+          pass: resetPasswordInput.trim(),
+        });
+        setFeedback({ type: "success", text: `Password successfully reset for ${consultant.name}.` });
+        setResetPasswordInput("");
+      } else {
+        setFeedback({ type: "error", text: res?.detail || "Failed to reset password." });
+      }
+    } catch (err: any) {
+      setFeedback({ type: "error", text: err?.message || "Failed to reset password." });
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
+  const copyResetCredentials = () => {
+    if (!resetSuccessData) return;
+    const text = `FLOXA Customer Account Credentials:\nEmail: ${resetSuccessData.email}\nNew Password: ${resetSuccessData.pass}\nLogin URL: http://localhost:3000/login`;
+    navigator.clipboard.writeText(text);
+    setCopiedResetPass(true);
+    setTimeout(() => setCopiedResetPass(false), 3000);
   };
 
   return (
@@ -333,17 +362,6 @@ export default function Consultant360Drawer({
                 <span style={{
                   padding: "2px 8px",
                   borderRadius: "4px",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  backgroundColor: consultant.subscription?.plan === "enterprise" ? "rgba(240, 180, 41, 0.12)" : consultant.subscription?.plan === "pro" ? "rgba(77, 255, 160, 0.12)" : "rgba(255, 255, 255, 0.08)",
-                  color: consultant.subscription?.plan === "enterprise" ? "#f0b429" : consultant.subscription?.plan === "pro" ? "#4dffa0" : "#89aca0",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                }}>
-                  Tier: {consultant.subscription?.plan || "free"}
-                </span>
-                <span style={{
-                  padding: "2px 8px",
-                  borderRadius: "4px",
                   fontWeight: 600,
                   backgroundColor: consultant.isActive ? "rgba(77, 255, 160, 0.1)" : "rgba(255, 107, 107, 0.1)",
                   color: consultant.isActive ? "#4dffa0" : "#ff6b6b",
@@ -396,7 +414,7 @@ export default function Consultant360Drawer({
                 { id: "projects", label: `Projects (${projects.length})`, icon: FolderKanban },
                 { id: "clients", label: `Clients (${clients.length})`, icon: Users },
                 { id: "ai", label: "AI Usage", icon: Cpu },
-                { id: "settings", label: "Plan & Quota", icon: Sliders },
+                { id: "settings", label: "Security & Credentials", icon: Key },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const active = activeTab === tab.id;
@@ -712,67 +730,96 @@ export default function Consultant360Drawer({
               </div>
             )}
 
-            {/* TAB 4: PLAN & LICENSING CONTROLS */}
+            {/* TAB 4: SECURITY & CREDENTIALS CONTROLS */}
             {activeTab === "settings" && (
-              <form onSubmit={handleSavePlan}>
-                <div style={{
-                  backgroundColor: "rgba(6, 22, 15, 0.7)",
-                  border: "1px solid rgba(77, 255, 160, 0.15)",
-                  borderRadius: "8px",
-                  padding: "16px",
-                }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#f3f8f4", marginBottom: "14px", textTransform: "uppercase" }}>
-                    Subscription Plan & Project Limits
+              <div style={{
+                backgroundColor: "rgba(6, 22, 15, 0.7)",
+                border: "1px solid rgba(77, 255, 160, 0.15)",
+                borderRadius: "8px",
+                padding: "16px",
+                marginTop: "16px",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                  <Key size={15} color="#4dffa0" />
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#f3f8f4", textTransform: "uppercase" }}>
+                    Credential Reset & Recovery
                   </div>
+                </div>
+                <p style={{ margin: "0 0 14px 0", fontSize: "12px", color: "#89aca0" }}>
+                  Assign a new password for <strong>{consultant?.name}</strong>. They will be able to log in immediately with the new credentials.
+                </p>
 
-                  {/* Plan Selector */}
-                  <div style={{ marginBottom: "14px" }}>
-                    <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "6px", fontWeight: 600 }}>
-                      Subscription Plan
-                    </label>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
-                      {[
-                        { id: "free", label: "Free Trial ($0)", max: 5 },
-                        { id: "starter", label: "Starter ($29/mo)", max: 10 },
-                        { id: "pro", label: "Pro ($79/mo)", max: 30 },
-                        { id: "enterprise", label: "Enterprise ($199/mo)", max: 999 },
-                      ].map((item) => (
-                        <div
-                          key={item.id}
-                          onClick={() => {
-                            setPlan(item.id);
-                            setMaxProjects(item.max);
-                          }}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: "5px",
-                            backgroundColor: plan === item.id ? "rgba(77, 255, 160, 0.12)" : "rgba(255, 255, 255, 0.03)",
-                            border: plan === item.id ? "1px solid #4dffa0" : "1px solid rgba(255, 255, 255, 0.08)",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <div style={{ fontSize: "11px", fontWeight: 600, color: plan === item.id ? "#4dffa0" : "#f3f8f4" }}>
-                            {item.label}
-                          </div>
-                          <div style={{ fontSize: "10px", color: "#607f72", marginTop: "1px" }}>
-                            Max {item.max} projects
-                          </div>
-                        </div>
-                      ))}
+                {resetSuccessData ? (
+                  <div style={{
+                    backgroundColor: "rgba(77, 255, 160, 0.08)",
+                    border: "1px solid rgba(77, 255, 160, 0.35)",
+                    borderRadius: "6px",
+                    padding: "12px 14px",
+                    marginBottom: "14px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "10px",
+                  }}>
+                    <div style={{ fontSize: "12px", color: "#e8f5ef" }}>
+                      <div><strong>Account:</strong> {resetSuccessData.email}</div>
+                      <div><strong>New Password:</strong> <code style={{ backgroundColor: "rgba(0,0,0,0.4)", padding: "1px 5px", borderRadius: "3px", color: "#4dffa0" }}>{resetSuccessData.pass}</code></div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={copyResetCredentials}
+                      style={{
+                        backgroundColor: copiedResetPass ? "#4dffa0" : "rgba(77, 255, 160, 0.15)",
+                        border: "1px solid rgba(77, 255, 160, 0.3)",
+                        color: copiedResetPass ? "#001a0e" : "#4dffa0",
+                        padding: "6px 12px",
+                        borderRadius: "5px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Copy size={12} />
+                      <span>{copiedResetPass ? "Copied!" : "Copy"}</span>
+                    </button>
                   </div>
+                ) : null}
 
-                  {/* Max Projects input */}
-                  <div style={{ marginBottom: "16px" }}>
-                    <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px", fontWeight: 600 }}>
-                      Max Projects Allowance
-                    </label>
+                <form onSubmit={handleResetPassword}>
+                  <div style={{ marginBottom: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <label style={{ fontSize: "11px", color: "#89aca0", fontWeight: 600 }}>
+                        New Password (min 8 chars)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={generateResetPassword}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#4dffa0",
+                          fontSize: "11px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: 0,
+                        }}
+                      >
+                        <Key size={11} />
+                        <span>Auto Generate</span>
+                      </button>
+                    </div>
                     <input
-                      type="number"
-                      min="1"
-                      max="9999"
-                      value={maxProjects}
-                      onChange={(e) => setMaxProjects(Math.max(1, parseInt(e.target.value) || 0))}
+                      type="text"
+                      required
+                      placeholder="Enter or generate new password"
+                      value={resetPasswordInput}
+                      onChange={(e) => setResetPasswordInput(e.target.value)}
                       style={{
                         width: "100%",
                         padding: "8px 10px",
@@ -781,30 +828,33 @@ export default function Consultant360Drawer({
                         borderRadius: "5px",
                         color: "#e8f5ef",
                         fontSize: "12px",
+                        fontFamily: "monospace",
                         outline: "none",
+                        boxSizing: "border-box",
                       }}
                     />
                   </div>
 
                   <button
                     type="submit"
-                    disabled={savingPlan}
+                    disabled={resettingPassword}
                     style={{
                       width: "100%",
                       padding: "9px",
-                      backgroundColor: "#4dffa0",
-                      border: "none",
+                      backgroundColor: "rgba(77, 255, 160, 0.15)",
+                      border: "1px solid rgba(77, 255, 160, 0.3)",
                       borderRadius: "5px",
-                      color: "#001a0e",
+                      color: "#4dffa0",
                       fontSize: "12px",
                       fontWeight: 700,
-                      cursor: "pointer",
+                      cursor: resettingPassword ? "not-allowed" : "pointer",
+                      opacity: resettingPassword ? 0.7 : 1,
                     }}
                   >
-                    {savingPlan ? "Saving..." : "Save Subscription Changes"}
+                    {resettingPassword ? "Updating Password..." : "Set New Password"}
                   </button>
-                </div>
-              </form>
+                </form>
+              </div>
             )}
           </div>
         ) : null}

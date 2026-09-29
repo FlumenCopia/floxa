@@ -15,16 +15,23 @@ export interface IConsultantAdminView {
     status?: string;
     maxProjects?: number;
   };
+  passwordResetToken?: string | null;
+  passwordResetExpires?: Date | null;
+  tokenVersion?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
 const consultantSchema = new Schema(
   {
-    email: { type: String, required: true },
-    name: { type: String, required: true },
-    company: { type: String, default: '' },
-    phone: { type: String, default: '' },
+    email: { type: String, required: true, unique: true, trim: true, lowercase: true, index: true },
+    password: { type: String, required: true },
+    passwordResetToken: { type: String, default: null, index: true },
+    passwordResetExpires: { type: Date, default: null },
+    tokenVersion: { type: Number, default: 0 },
+    name: { type: String, required: true, trim: true },
+    company: { type: String, default: '', trim: true },
+    phone: { type: String, default: '', trim: true },
     avatar: { type: String, default: null },
     isActive: { type: Boolean, default: true },
     isStaff: { type: Boolean, default: false },
@@ -32,6 +39,10 @@ const consultantSchema = new Schema(
       plan: { type: String, default: 'free' },
       status: { type: String, default: 'active' },
       maxProjects: { type: Number, default: 5 },
+    },
+    aiUsage: {
+      plan: { type: String, default: 'free' },
+      toolRuns: { type: Schema.Types.Mixed, default: {} },
     },
   },
   {

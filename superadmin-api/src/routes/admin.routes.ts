@@ -3,10 +3,12 @@ import { requireAdminAuth } from '../middleware/auth.middleware.js';
 import {
   getMetrics,
   getConsultants,
+  createConsultant,
   getConsultantDetails,
   updateConsultantStatus,
   updateConsultantPlan,
   updateConsultantAiQuota,
+  resetConsultantPassword,
   getProjects,
   getSystemStatus,
 } from '../controllers/admin.controller.js';
@@ -32,10 +34,12 @@ router.use(requireAdminAuth);
 router.get('/metrics', getMetrics);
 router.get('/system/status', getSystemStatus);
 router.get('/consultants', getConsultants);
+router.post('/consultants', createConsultant);
 router.get('/consultants/:id/details', getConsultantDetails);
 router.patch('/consultants/:id/status', updateConsultantStatus);
 router.patch('/consultants/:id/plan', updateConsultantPlan);
 router.patch('/consultants/:id/ai-quota', updateConsultantAiQuota);
+router.patch('/consultants/:id/reset-password', resetConsultantPassword);
 router.get('/projects', getProjects);
 
 // Profile & Security (Phase 3)

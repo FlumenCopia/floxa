@@ -451,6 +451,25 @@ textarea {
   padding-left: 14px;
 }
 
+.login-forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 6px 2px;
+}
+
+.login-forgot-link {
+  color: #89aca0;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.login-forgot-link:hover {
+  color: #4dffa0;
+  text-decoration: underline;
+}
+
 /* OR line divider */
 .login-or-divider {
   display: flex;

@@ -1,12 +1,14 @@
+import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { Consultant } from '../models/consultant.model.js';
 import { ENV } from '../config/env.js';
 import { hashPassword, verifyPassword } from '../utils/crypto.js';
-import { generateTokens, setAuthCookies, clearAuthCookies, verifyGoogleToken } from '../services/auth.service.js';
+import { generateTokens, setAuthCookies, clearAuthCookies } from '../services/auth.service.js';
 import { generateCsrfToken, setCsrfCookie } from '../middleware/csrf.middleware.js';
 import { serializeConsultant } from '../utils/serializer.js';
 import { validateAndProcessAvatar, saveFile, deleteStoredFile } from '../services/storage.service.js';
+import { sendPasswordResetEmail } from '../services/email.service.js';
 import type { AuthenticatedRequest } from '../types/express.js';
 
 export async function getCsrf(req: Request, res: Response) {
@@ -19,64 +21,6 @@ export async function getCsrf(req: Request, res: Response) {
   });
 }
 
-export async function register(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { name, email, password, company, phone } = req.body;
-
-    const cleanEmail = (email || '').trim().toLowerCase();
-    const cleanName = (name || '').trim();
-
-    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!cleanEmail) {
-      res.status(400).json({ email: ['Email is required.'] });
-      return;
-    }
-    if (!EMAIL_REGEX.test(cleanEmail)) {
-      res.status(400).json({ email: ['Please enter a valid email address.'] });
-      return;
-    }
-    if (!cleanName) {
-      res.status(400).json({ name: ['Name is required.'] });
-      return;
-    }
-    if (!password || password.length < 8) {
-      res.status(400).json({ password: ['Password must be at least 8 characters.'] });
-      return;
-    }
-
-    const existing = await Consultant.findOne({ email: cleanEmail });
-    if (existing) {
-      res.status(400).json({ email: ['A consultant with this email already exists.'] });
-      return;
-    }
-
-    const passwordHash = await hashPassword(password);
-    const consultant = await Consultant.create({
-      email: cleanEmail,
-      name: cleanName,
-      password: passwordHash,
-      company: (company || '').trim(),
-      phone: (phone || '').trim(),
-    });
-
-    const { accessToken, refreshToken } = generateTokens(consultant.id);
-    setAuthCookies(res, accessToken, refreshToken);
-
-    res.status(201).json({
-      message: 'Consultant registered successfully',
-      access: accessToken,
-      refresh: refreshToken,
-      consultant: {
-        id: consultant.id,
-        name: consultant.name,
-        email: consultant.email,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-}
 
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
@@ -105,7 +49,7 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       return;
     }
 
-    const { accessToken, refreshToken } = generateTokens(consultant.id);
+    const { accessToken, refreshToken } = generateTokens(consultant.id, consultant.email, consultant.tokenVersion || 0);
     setAuthCookies(res, accessToken, refreshToken);
 
     res.json({
@@ -124,51 +68,6 @@ export async function login(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export async function googleAuth(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { credential } = req.body;
-    if (!credential) {
-      res.status(400).json({ credential: ['Google credential token is required.'] });
-      return;
-    }
-
-    const googleUser = await verifyGoogleToken(credential);
-    const cleanEmail = (googleUser.email || '').trim().toLowerCase();
-
-    const escapedEmail = cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let consultant = await Consultant.findOne({
-      email: { $regex: new RegExp(`^${escapedEmail}$`, 'i') },
-    });
-
-    if (consultant) {
-      if (!consultant.isActive) {
-        res.status(400).json({ detail: 'Consultant account is inactive.' });
-        return;
-      }
-    } else {
-      consultant = await Consultant.create({
-        email: cleanEmail,
-        name: googleUser.name,
-        password: await hashPassword(Math.random().toString(36)),
-      });
-    }
-
-    const { accessToken, refreshToken } = generateTokens(consultant.id);
-    setAuthCookies(res, accessToken, refreshToken);
-
-    res.json({
-      access: accessToken,
-      refresh: refreshToken,
-      consultant: {
-        id: consultant.id,
-        name: consultant.name,
-        email: consultant.email,
-      },
-    });
-  } catch (err: any) {
-    res.status(400).json({ detail: err.message || 'Invalid Google authentication token.' });
-  }
-}
 
 export async function refreshToken(req: Request, res: Response) {
   const token =
@@ -182,8 +81,23 @@ export async function refreshToken(req: Request, res: Response) {
   }
 
   try {
-    const payload = jwt.verify(token, ENV.JWT_REFRESH_SECRET) as { userId: string };
-    const { accessToken } = generateTokens(payload.userId);
+    const payload = jwt.verify(token, ENV.JWT_REFRESH_SECRET) as { userId: string; tokenVersion?: number };
+    const user = await Consultant.findById(payload.userId);
+    if (!user || !user.isActive) {
+      res.status(401).json({ detail: 'User not found or inactive.' });
+      return;
+    }
+
+    if (
+      payload.tokenVersion !== undefined &&
+      user.tokenVersion !== undefined &&
+      payload.tokenVersion !== user.tokenVersion
+    ) {
+      res.status(401).json({ detail: 'Refresh token has expired due to password change.' });
+      return;
+    }
+
+    const { accessToken } = generateTokens(user.id, user.email, user.tokenVersion || 0);
     setAuthCookies(res, accessToken);
 
     res.json({ detail: 'Token refreshed successfully.' });
@@ -345,4 +259,153 @@ export async function updateMe(
 export async function logout(req: Request, res: Response) {
   clearAuthCookies(res);
   res.json({ detail: 'Logout successful.' });
+}
+
+export async function changePassword(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body || {};
+
+    if (
+      typeof currentPassword !== 'string' ||
+      typeof newPassword !== 'string' ||
+      typeof confirmPassword !== 'string' ||
+      !currentPassword.trim() ||
+      !newPassword.trim() ||
+      !confirmPassword.trim()
+    ) {
+      res.status(400).json({ detail: 'Current password, new password, and confirmation are required.' });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({ detail: 'New password must be at least 8 characters long.' });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      res.status(400).json({ detail: 'New password and confirmation do not match.' });
+      return;
+    }
+
+    const consultant = await Consultant.findById(req.user!.id);
+    if (!consultant) {
+      res.status(404).json({ detail: 'Consultant not found.' });
+      return;
+    }
+
+    const isCurrentValid = await verifyPassword(currentPassword, consultant.password);
+    if (!isCurrentValid) {
+      res.status(400).json({ detail: 'Current password is incorrect.' });
+      return;
+    }
+
+    const isSameAsCurrent = await verifyPassword(newPassword, consultant.password);
+    if (isSameAsCurrent) {
+      res.status(400).json({ detail: 'New password cannot be the same as your current password.' });
+      return;
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+    const newVersion = (consultant.tokenVersion || 0) + 1;
+
+    consultant.password = hashedPassword;
+    consultant.tokenVersion = newVersion;
+    consultant.passwordResetToken = null;
+    consultant.passwordResetExpires = null;
+    await consultant.save();
+
+    // Issue refreshed auth cookies with incremented tokenVersion for the active session
+    const { accessToken, refreshToken: newRefresh } = generateTokens(consultant.id, consultant.email, newVersion);
+    setAuthCookies(res, accessToken, newRefresh);
+
+    res.json({ detail: 'Password changed successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function forgotPassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email } = req.body || {};
+    const GENERIC_RESPONSE = { detail: 'If an account exists for this email, a password reset link has been sent.' };
+
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      res.status(400).json({ detail: 'Email address is required.' });
+      return;
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const consultant = await Consultant.findOne({ email: cleanEmail });
+
+    if (consultant && consultant.isActive) {
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+      consultant.passwordResetToken = hashedToken;
+      consultant.passwordResetExpires = expires;
+      await consultant.save();
+
+      try {
+        await sendPasswordResetEmail(consultant, rawToken);
+      } catch (err: any) {
+        console.warn('[AUTH] Could not send password reset email:', err?.message || err);
+      }
+    }
+
+    res.json(GENERIC_RESPONSE);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resetPassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { token, newPassword, confirmPassword } = req.body || {};
+
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      res.status(400).json({ detail: 'Password reset token is required.' });
+      return;
+    }
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+      res.status(400).json({ detail: 'New password must be at least 8 characters long.' });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      res.status(400).json({ detail: 'New password and confirmation do not match.' });
+      return;
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token.trim()).digest('hex');
+    const consultant = await Consultant.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: new Date() },
+    });
+
+    if (!consultant) {
+      res.status(400).json({ detail: 'Password reset link is invalid or has expired.' });
+      return;
+    }
+
+    const isSameAsCurrent = await verifyPassword(newPassword, consultant.password);
+    if (isSameAsCurrent) {
+      res.status(400).json({ detail: 'New password cannot be the same as your old password.' });
+      return;
+    }
+
+    consultant.password = await hashPassword(newPassword);
+    consultant.passwordResetToken = null;
+    consultant.passwordResetExpires = null;
+    consultant.tokenVersion = (consultant.tokenVersion || 0) + 1;
+    await consultant.save();
+
+    // Clear existing auth cookies to ensure complete session revocation
+    clearAuthCookies(res);
+
+    res.json({ detail: 'Password has been reset successfully. You can now log in with your new password.' });
+  } catch (err) {
+    next(err);
+  }
 }

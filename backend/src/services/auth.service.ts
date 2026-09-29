@@ -1,19 +1,20 @@
 import jwt from 'jsonwebtoken';
 import { Response } from 'express';
-import { OAuth2Client } from 'google-auth-library';
 import { ENV } from '../config/env.js';
 import type { IConsultant } from '../models/consultant.model.js';
 
-const googleClient = new OAuth2Client(ENV.GOOGLE_CLIENT_ID);
-
-export function generateTokens(userOrId: IConsultant | string, userEmail?: string) {
+export function generateTokens(userOrId: IConsultant | string, userEmail?: string, tokenVersion?: number) {
   const userId = typeof userOrId === 'string' ? userOrId : (userOrId as any).id || (userOrId as any)._id?.toString();
   const email = typeof userOrId === 'string' ? userEmail : userOrId.email;
+  const version = typeof userOrId === 'object' && userOrId !== null
+    ? ((userOrId as any).tokenVersion ?? 0)
+    : (tokenVersion ?? 0);
 
   const access = jwt.sign(
     {
       userId,
       email,
+      tokenVersion: version,
     },
     ENV.JWT_ACCESS_SECRET,
     { expiresIn: '15m' }
@@ -22,6 +23,7 @@ export function generateTokens(userOrId: IConsultant | string, userEmail?: strin
   const refresh = jwt.sign(
     {
       userId,
+      tokenVersion: version,
     },
     ENV.JWT_REFRESH_SECRET,
     { expiresIn: '7d' }
@@ -75,29 +77,4 @@ export function clearAuthCookies(res: Response) {
   });
 }
 
-export async function verifyGoogleToken(token: string) {
-  if (!ENV.GOOGLE_CLIENT_ID) {
-    throw new Error('Google OAuth is not configured on the server.');
-  }
 
-  const ticket = await googleClient.verifyIdToken({
-    idToken: token,
-    audience: ENV.GOOGLE_CLIENT_ID,
-  });
-
-  const payload = ticket.getPayload();
-  if (!payload || !payload.email) {
-    throw new Error('Invalid Google token payload.');
-  }
-
-  if (!payload.email_verified) {
-    throw new Error('Google account email is not verified.');
-  }
-
-  return {
-    email: payload.email.toLowerCase().trim(),
-    name: payload.name || payload.email.split('@')[0],
-    sub: payload.sub,
-    picture: payload.picture,
-  };
-}

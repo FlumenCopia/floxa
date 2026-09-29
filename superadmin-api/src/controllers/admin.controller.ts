@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { Consultant } from '../models/consultant.model.js';
 import { Project } from '../models/project.model.js';
 import { Client } from '../models/client.model.js';
@@ -532,6 +533,48 @@ export async function updateConsultantAiQuota(req: AdminAuthRequest, res: Respon
   }
 }
 
+export async function resetConsultantPassword(req: AdminAuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ detail: 'Invalid consultant ID format.' });
+      return;
+    }
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.trim().length < 8) {
+      res.status(400).json({ detail: 'New password is required and must be at least 8 characters.' });
+      return;
+    }
+
+    const consultant = await Consultant.findById(id);
+    if (!consultant) {
+      res.status(404).json({ detail: 'Consultant not found.' });
+      return;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword.trim(), 10);
+    consultant.password = hashedPassword;
+    consultant.tokenVersion = (consultant.tokenVersion || 0) + 1;
+    consultant.passwordResetToken = null;
+    consultant.passwordResetExpires = null;
+    await consultant.save();
+
+    res.json({
+      success: true,
+      message: `Password successfully reset for ${consultant.name}.`,
+      consultant: {
+        id: consultant.id,
+        name: consultant.name,
+        email: consultant.email,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ detail: 'Failed to reset customer password.', error: err.message });
+  }
+}
+
 export async function getProjects(req: AdminAuthRequest, res: Response) {
   try {
     const search = String(req.query.search || '').trim();
@@ -635,4 +678,98 @@ export async function getSystemStatus(req: AdminAuthRequest, res: Response) {
     res.status(500).json({ success: false, detail: 'Failed to retrieve system status.', error: err.message });
   }
 }
+
+export async function createConsultant(req: AdminAuthRequest, res: Response) {
+  try {
+    const { name, email, password, company, phone, plan, maxProjects } = req.body || {};
+
+    const cleanEmail = String(email || '').trim().toLowerCase();
+    const cleanName = String(name || '').trim();
+    const cleanPassword = String(password || '').trim();
+    const cleanCompany = String(company || '').trim();
+    const cleanPhone = String(phone || '').trim();
+
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!cleanName) {
+      res.status(400).json({ detail: 'Customer name is required.' });
+      return;
+    }
+
+    if (!cleanEmail) {
+      res.status(400).json({ detail: 'Email address is required.' });
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(cleanEmail)) {
+      res.status(400).json({ detail: 'Please enter a valid email address.' });
+      return;
+    }
+
+    if (!cleanPassword || cleanPassword.length < 8) {
+      res.status(400).json({ detail: 'Temporary password must be at least 8 characters long.' });
+      return;
+    }
+
+    // Check if consultant already exists
+    const existing = await Consultant.findOne({ email: cleanEmail });
+    if (existing) {
+      res.status(409).json({ detail: 'A customer account with this email address already exists.' });
+      return;
+    }
+
+    const validPlans = ['free', 'starter', 'pro', 'enterprise'];
+    const chosenPlan = validPlans.includes(plan) ? plan : 'free';
+
+    let defaultMaxProjects = 5;
+    if (chosenPlan === 'free') defaultMaxProjects = 3;
+    else if (chosenPlan === 'starter') defaultMaxProjects = 10;
+    else if (chosenPlan === 'pro') defaultMaxProjects = 30;
+    else if (chosenPlan === 'enterprise') defaultMaxProjects = 999;
+
+    const chosenMaxProjects =
+      typeof maxProjects === 'number' && maxProjects >= 0
+        ? Math.min(10000, maxProjects)
+        : defaultMaxProjects;
+
+    const passwordHash = await bcrypt.hash(cleanPassword, 10);
+
+    const consultant = await Consultant.create({
+      name: cleanName,
+      email: cleanEmail,
+      password: passwordHash,
+      company: cleanCompany,
+      phone: cleanPhone,
+      isActive: true,
+      isStaff: false,
+      subscription: {
+        plan: chosenPlan,
+        status: 'active',
+        maxProjects: chosenMaxProjects,
+      },
+      aiUsage: {
+        plan: chosenPlan,
+        toolRuns: {},
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'B2B Customer account created successfully.',
+      consultant: {
+        id: consultant._id.toString(),
+        name: consultant.name,
+        email: consultant.email,
+        company: consultant.company,
+        phone: consultant.phone,
+        isActive: consultant.isActive,
+        subscription: consultant.subscription,
+        createdAt: consultant.createdAt,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ detail: 'Failed to create B2B Customer account.', error: err.message });
+  }
+}
+
 

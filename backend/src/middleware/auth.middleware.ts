@@ -22,11 +22,15 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
   }
 
   try {
-    const payload = jwt.verify(token, ENV.JWT_ACCESS_SECRET) as { userId: string };
+    const payload = jwt.verify(token, ENV.JWT_ACCESS_SECRET) as { userId: string; tokenVersion?: number };
     if (payload && payload.userId) {
       Consultant.findById(payload.userId)
         .then((user) => {
-          if (user && user.isActive) {
+          if (
+            user &&
+            user.isActive &&
+            (payload.tokenVersion === undefined || user.tokenVersion === undefined || payload.tokenVersion === user.tokenVersion)
+          ) {
             req.user = user;
           }
           next();
@@ -57,7 +61,7 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
   }
 
   try {
-    const payload = jwt.verify(token, ENV.JWT_ACCESS_SECRET) as { userId: string };
+    const payload = jwt.verify(token, ENV.JWT_ACCESS_SECRET) as { userId: string; tokenVersion?: number };
     if (!payload || !payload.userId) {
       res.status(401).json({ detail: 'Given token not valid for any token type' });
       return;
@@ -69,6 +73,16 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
           res.status(401).json({ detail: 'User not found or inactive.' });
           return;
         }
+
+        if (
+          payload.tokenVersion !== undefined &&
+          user.tokenVersion !== undefined &&
+          payload.tokenVersion !== user.tokenVersion
+        ) {
+          res.status(401).json({ detail: 'Given token not valid for any token type', code: 'token_not_valid' });
+          return;
+        }
+
         req.user = user;
         next();
       })

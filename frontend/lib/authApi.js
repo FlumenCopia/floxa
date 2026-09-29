@@ -29,26 +29,11 @@ function notifyConsultantChange(consultant) {
   });
 }
 
-export async function registerConsultant(data) {
-  return apiRequest("/auth/register/", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
 export async function loginConsultant(data) {
   clearCurrentConsultantCache();
   return apiRequest("/auth/login/", {
     method: "POST",
     body: JSON.stringify(data),
-  });
-}
-
-export async function googleAuthConsultant(credential) {
-  clearCurrentConsultantCache();
-  return apiRequest("/auth/google/", {
-    method: "POST",
-    body: JSON.stringify({ credential }),
   });
 }
 
@@ -90,6 +75,27 @@ export async function logoutConsultant() {
   clearCurrentConsultantCache();
   return apiRequest("/auth/logout/", {
     method: "POST",
+  });
+}
+
+export async function changePassword(data) {
+  return apiRequest("/auth/change-password/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function requestPasswordReset(data) {
+  return apiRequest("/auth/forgot-password/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function confirmPasswordReset(data) {
+  return apiRequest("/auth/reset-password/", {
+    method: "POST",
+    body: JSON.stringify(data),
   });
 }
 

@@ -7,12 +7,13 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/csrf/', authController.getCsrf);
-router.post('/register/', authController.register);
 router.post('/login/', authController.login);
-router.post('/google/', authController.googleAuth);
 router.post('/token/refresh/', authController.refreshToken);
 router.get('/me/', requireAuth, authController.getMe);
 router.patch('/me/', requireAuth, upload.single('avatar'), authController.updateMe);
+router.post('/change-password/', requireAuth, authController.changePassword);
+router.post('/forgot-password/', authController.forgotPassword);
+router.post('/reset-password/', authController.resetPassword);
 router.post('/logout/', authController.logout);
 
 export default router;
