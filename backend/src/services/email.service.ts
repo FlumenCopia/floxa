@@ -108,8 +108,11 @@ export async function sendEmail(params: {
 }
 
 export async function sendClientPortalInvite(project: any, rawPortalPassword?: string) {
-  const clientEmail = project.client?.email;
-  if (!clientEmail) return;
+  const clientEmail = project.client?.email || project.clientEmail || (typeof project.client === 'object' ? project.client?.email : null);
+  if (!clientEmail) {
+    console.warn('[email.service] sendClientPortalInvite aborted: no recipient email found on project payload');
+    return;
+  }
 
   const clientName = project.client?.name || project.companyName || 'Client';
   const portalUrl = `${ENV.FRONTEND_BASE_URL.replace(/\/+$/, '')}/client/${project.portalToken}`;

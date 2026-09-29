@@ -66,8 +66,8 @@ test('SuperAdmin Welcome & Password Notification Email Service', async (t) => {
 
     const origUser = process.env.EMAIL_HOST_USER;
     const origPass = process.env.EMAIL_HOST_PASSWORD;
-    delete process.env.EMAIL_HOST_USER;
-    delete process.env.EMAIL_HOST_PASSWORD;
+    process.env.EMAIL_HOST_USER = '';
+    process.env.EMAIL_HOST_PASSWORD = '';
 
     try {
       const result = await sendCustomerWelcomeEmail({

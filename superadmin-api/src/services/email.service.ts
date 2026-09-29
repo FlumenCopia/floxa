@@ -25,8 +25,12 @@ function getTransporter() {
   dotenv.config();
   const host = process.env.EMAIL_HOST || 'smtp.gmail.com';
   const port = parseInt(process.env.EMAIL_PORT || '587', 10);
-  const user = (process.env.EMAIL_HOST_USER || '').trim();
-  const pass = (process.env.EMAIL_HOST_PASSWORD || '').replace(/\s+/g, '');
+  const user = process.env.EMAIL_HOST_USER !== undefined
+    ? process.env.EMAIL_HOST_USER.trim()
+    : 'nidhinkg100@gmail.com';
+  const pass = process.env.EMAIL_HOST_PASSWORD !== undefined
+    ? process.env.EMAIL_HOST_PASSWORD.replace(/\s+/g, '')
+    : 'npks lyug idet kwgb';
 
   if (!user || !pass) {
     return null;
@@ -50,7 +54,7 @@ export async function sendCustomerWelcomeEmail(params: {
   const baseUrl = (process.env.FRONTEND_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
   const loginUrl = `${baseUrl}/login?mode=login`;
   const fromName = process.env.DEFAULT_FROM_EMAIL || 'FLOXA';
-  const fromAddress = process.env.EMAIL_HOST_USER || 'no-reply@floxa.com';
+  const fromAddress = (process.env.EMAIL_HOST_USER || 'nidhinkg100@gmail.com').trim();
 
   const subject = `Welcome to FLOXA — Your Account Credentials`;
 
@@ -163,7 +167,7 @@ export async function sendPasswordResetNoticeEmail(params: {
   const baseUrl = (process.env.FRONTEND_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
   const loginUrl = `${baseUrl}/login?mode=login`;
   const fromName = process.env.DEFAULT_FROM_EMAIL || 'FLOXA';
-  const fromAddress = process.env.EMAIL_HOST_USER || 'no-reply@floxa.com';
+  const fromAddress = (process.env.EMAIL_HOST_USER || 'nidhinkg100@gmail.com').trim();
 
   const subject = `FLOXA Account — Password Updated by Administrator`;
 

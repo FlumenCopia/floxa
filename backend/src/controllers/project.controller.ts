@@ -176,7 +176,7 @@ export async function createProject(req: any, res: Response, next: NextFunction)
     );
     const revisionLimit = String(body.revision_limit || body.revisions || '3 revisions').trim();
     const portalPassword = (body.portal_password || '').trim();
-    const sendInvite = Boolean(body.send_invite);
+    const sendInvite = body.send_invite !== undefined ? Boolean(body.send_invite) : true;
 
     const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -277,12 +277,20 @@ export async function createProject(req: any, res: Response, next: NextFunction)
       description: `Consultant created project: ${project.title}`,
     });
 
+    const populatedProject = await Project.findById(project.id).populate('client');
+
     let inviteEmailSent = false;
     let inviteEmailStatus = 'not_sent';
 
-    if (sendInvite || portalPassword) {
+    // Default to sending invitation email to the client if client email is provided
+    const shouldSendInvite = body.send_invite !== false;
+    if (shouldSendInvite && cleanClientEmail) {
       try {
-        await sendClientPortalInvite(project, portalPassword);
+        const inviteTarget = populatedProject || project;
+        if (!inviteTarget.client) {
+          inviteTarget.client = client;
+        }
+        await sendClientPortalInvite(inviteTarget, portalPassword);
         inviteEmailSent = true;
         inviteEmailStatus = 'sent';
       } catch (err: any) {
@@ -291,8 +299,7 @@ export async function createProject(req: any, res: Response, next: NextFunction)
       }
     }
 
-    const populatedProject = await Project.findById(project.id).populate('client');
-    const serialized = serializeProject(populatedProject, 'created');
+    const serialized = serializeProject(populatedProject || project, 'created');
     const responseData = {
       project: serialized,
       invite_email_sent: inviteEmailSent,
