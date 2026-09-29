@@ -55,7 +55,7 @@ export default function Consultant360Drawer({
   // Password Reset State
   const [resetPasswordInput, setResetPasswordInput] = useState("");
   const [resettingPassword, setResettingPassword] = useState(false);
-  const [resetSuccessData, setResetSuccessData] = useState<{ email: string; pass: string } | null>(null);
+  const [resetSuccessData, setResetSuccessData] = useState<{ email: string; pass: string; emailDispatched?: boolean } | null>(null);
   const [copiedResetPass, setCopiedResetPass] = useState(false);
 
   const fetchDetails = async () => {
@@ -166,8 +166,14 @@ export default function Consultant360Drawer({
         setResetSuccessData({
           email: consultant.email,
           pass: resetPasswordInput.trim(),
+          emailDispatched: Boolean(res?.emailDispatched),
         });
-        setFeedback({ type: "success", text: `Password successfully reset for ${consultant.name}.` });
+        setFeedback({
+          type: "success",
+          text: res?.emailDispatched
+            ? `Password reset & email notification sent to ${consultant.email}.`
+            : `Password successfully reset for ${consultant.name}.`,
+        });
         setResetPasswordInput("");
       } else {
         setFeedback({ type: "error", text: res?.detail || "Failed to reset password." });
@@ -762,7 +768,22 @@ export default function Consultant360Drawer({
                     gap: "10px",
                   }}>
                     <div style={{ fontSize: "12px", color: "#e8f5ef" }}>
-                      <div><strong>Account:</strong> {resetSuccessData.email}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                        <span><strong>Account:</strong> {resetSuccessData.email}</span>
+                        {resetSuccessData.emailDispatched ? (
+                          <span style={{
+                            fontSize: "10px",
+                            backgroundColor: "rgba(77, 255, 160, 0.15)",
+                            border: "1px solid rgba(77, 255, 160, 0.3)",
+                            color: "#4dffa0",
+                            padding: "1px 6px",
+                            borderRadius: "10px",
+                            fontWeight: 600,
+                          }}>
+                            ✉ Notification Emailed
+                          </span>
+                        ) : null}
+                      </div>
                       <div><strong>New Password:</strong> <code style={{ backgroundColor: "rgba(0,0,0,0.4)", padding: "1px 5px", borderRadius: "3px", color: "#4dffa0" }}>{resetSuccessData.pass}</code></div>
                     </div>
                     <button

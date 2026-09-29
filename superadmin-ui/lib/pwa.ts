@@ -170,18 +170,22 @@ export const closeIosGuide = () => {
   notify();
 };
 
+const SERVER_PWA_STATE = Object.freeze({
+  isInstalled: false,
+  canInstall: false,
+  isIos: false,
+  showIosGuide: false,
+  floatingDismissed: false,
+});
+
+export const getServerPwaSnapshot = () => SERVER_PWA_STATE;
+
 export function usePwaInstall() {
   const [mounted, setMounted] = useState(false);
   const pwaState = useSyncExternalStore(
     subscribePwa,
     getPwaSnapshot,
-    () => ({
-      isInstalled: false,
-      canInstall: false,
-      isIos: false,
-      showIosGuide: false,
-      floatingDismissed: false,
-    })
+    getServerPwaSnapshot
   );
 
   useEffect(() => {

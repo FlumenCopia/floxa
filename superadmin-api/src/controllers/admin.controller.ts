@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { Consultant } from '../models/consultant.model.js';
 import { Project } from '../models/project.model.js';
 import { Client } from '../models/client.model.js';
+import { sendCustomerWelcomeEmail, sendPasswordResetNoticeEmail } from '../services/email.service.js';
 import type { AdminAuthRequest } from '../middleware/auth.middleware.js';
 
 export function escapeRegex(text: string): string {
@@ -561,9 +562,24 @@ export async function resetConsultantPassword(req: AdminAuthRequest, res: Respon
     consultant.passwordResetExpires = null;
     await consultant.save();
 
+    let emailDispatched = false;
+    try {
+      const emailResult = await sendPasswordResetNoticeEmail({
+        name: consultant.name,
+        email: consultant.email,
+        rawPassword: newPassword.trim(),
+      });
+      emailDispatched = emailResult.success;
+    } catch (emailErr) {
+      console.warn('[superadmin-api] Error dispatching password reset notice email:', emailErr);
+    }
+
     res.json({
       success: true,
-      message: `Password successfully reset for ${consultant.name}.`,
+      message: emailDispatched
+        ? `Password reset and email notification sent to ${consultant.email}.`
+        : `Password successfully reset for ${consultant.name}.`,
+      emailDispatched,
       consultant: {
         id: consultant.id,
         name: consultant.name,
@@ -753,9 +769,24 @@ export async function createConsultant(req: AdminAuthRequest, res: Response) {
       },
     });
 
+    let emailDispatched = false;
+    try {
+      const emailResult = await sendCustomerWelcomeEmail({
+        name: cleanName,
+        email: cleanEmail,
+        rawPassword: cleanPassword,
+      });
+      emailDispatched = emailResult.success;
+    } catch (emailErr) {
+      console.warn('[superadmin-api] Error dispatching welcome email:', emailErr);
+    }
+
     res.status(201).json({
       success: true,
-      message: 'B2B Customer account created successfully.',
+      message: emailDispatched
+        ? `Customer account created and welcome email sent to ${consultant.email}.`
+        : 'Customer account created successfully.',
+      emailDispatched,
       consultant: {
         id: consultant._id.toString(),
         name: consultant.name,

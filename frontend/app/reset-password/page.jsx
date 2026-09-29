@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Lock, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
+import { Lock, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, Eye, EyeOff, ShieldCheck, Check } from "lucide-react";
 import { confirmPasswordReset } from "@/lib/authApi";
 
 function ResetPasswordContent() {
@@ -12,20 +12,25 @@ function ResetPasswordContent() {
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const isMinLength = newPassword.length >= 8;
+  const isMatching = newPassword.length > 0 && newPassword === confirmPassword;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
 
     if (!token) {
-      setErrorMessage("Password reset token is missing. Please use the link sent to your email.");
+      setErrorMessage("Password reset link is invalid or missing token. Please check the link from your email.");
       return;
     }
 
-    if (newPassword.length < 8) {
+    if (!isMinLength) {
       setErrorMessage("New password must be at least 8 characters long.");
       return;
     }
@@ -53,178 +58,191 @@ function ResetPasswordContent() {
 
   if (!token && !isSuccess) {
     return (
-      <div id="login-screen">
-        <div className="login-card is-login-mode" style={{ maxWidth: "460px", minHeight: "auto", padding: "40px 32px" }}>
-          <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div className="login-brand-logo" style={{ marginBottom: "16px" }}>
-              <img src="/image/FLOXA_log.png" alt="FLOXA" className="login-brand-logo-img" />
-            </div>
+      <div className="auth-recovery-screen">
+        <div className="auth-recovery-card">
+          <img src="/image/FLOXA_log.png" alt="FLOXA" className="auth-recovery-logo" />
 
-            <div style={{
-              width: "100%",
-              backgroundColor: "rgba(255, 107, 107, 0.08)",
-              border: "1px solid rgba(255, 107, 107, 0.25)",
-              borderRadius: "12px",
-              padding: "20px",
-              textAlign: "center",
-              marginBottom: "20px",
-            }}>
-              <AlertCircle size={36} color="#ff6b6b" style={{ margin: "0 auto 12px auto" }} />
-              <div style={{ fontSize: "14px", fontWeight: 600, color: "#ff6b6b", marginBottom: "6px" }}>
-                Invalid or Missing Reset Link
-              </div>
-              <p style={{ fontSize: "12px", color: "#b4cfc4", margin: 0, lineHeight: "1.6" }}>
-                No reset token was found in the link. Please request a new password reset link.
-              </p>
+          <div className="auth-error-banner" style={{ margin: "16px 0 24px", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+            <AlertCircle size={32} color="#f87171" style={{ marginBottom: "8px" }} />
+            <div style={{ fontWeight: 600, color: "#fca5a5", fontSize: "14px", marginBottom: "4px" }}>
+              Invalid or Missing Reset Link
             </div>
-
-            <Link
-              href="/forgot-password"
-              className="login-pill-submit-btn"
-              style={{ textDecoration: "none", marginTop: "8px" }}
-            >
-              <span>Request New Link</span>
-              <span className="login-btn-arrow" aria-hidden="true">
-                <ArrowRight size={14} strokeWidth={2.5} />
-              </span>
-            </Link>
-
-            <div style={{ marginTop: "24px" }}>
-              <Link
-                href="/login?mode=login"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  color: "#89aca0",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  textDecoration: "none",
-                }}
-              >
-                <ArrowLeft size={14} strokeWidth={2.5} />
-                <span>Back to Login</span>
-              </Link>
-            </div>
+            <p style={{ margin: 0, fontSize: "12.5px", color: "#e2e8f0", lineHeight: 1.5 }}>
+              No valid reset token was detected in your URL. Please click the link directly from your email or request a new one.
+            </p>
           </div>
+
+          <Link
+            href="/forgot-password"
+            className="auth-submit-btn"
+            style={{ textDecoration: "none" }}
+          >
+            <span>Request New Reset Link</span>
+            <span className="auth-submit-arrow" aria-hidden="true">
+              <ArrowRight size={14} strokeWidth={2.5} />
+            </span>
+          </Link>
+
+          <Link href="/login?mode=login" className="auth-back-link">
+            <ArrowLeft size={14} strokeWidth={2.5} />
+            <span>Back to Login</span>
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div id="login-screen">
-      <div className="login-card is-login-mode" style={{ maxWidth: "460px", minHeight: "auto", padding: "40px 32px" }}>
-        <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div className="login-brand-logo" style={{ marginBottom: "16px" }}>
-            <img src="/image/FLOXA_log.png" alt="FLOXA" className="login-brand-logo-img" />
-          </div>
+    <div className="auth-recovery-screen">
+      <div className="auth-recovery-card">
+        <img src="/image/FLOXA_log.png" alt="FLOXA" className="auth-recovery-logo" />
 
-          <h2 style={{ fontSize: "20px", fontWeight: 700, color: "#f3f8f4", margin: "0 0 8px 0", textAlign: "center" }}>
-            Set New Password
-          </h2>
-          <p style={{ fontSize: "13px", color: "#89aca0", margin: "0 0 24px 0", textAlign: "center", lineHeight: "1.5" }}>
-            Please choose a strong password of at least 8 characters.
-          </p>
+        <div className="auth-recovery-pill-badge">
+          <ShieldCheck size={13} strokeWidth={2.5} />
+          <span>Account Security</span>
+        </div>
 
-          {isSuccess ? (
-            <div style={{
-              width: "100%",
-              backgroundColor: "rgba(77, 255, 160, 0.08)",
-              border: "1px solid rgba(77, 255, 160, 0.25)",
-              borderRadius: "12px",
-              padding: "20px",
-              textAlign: "center",
-              marginBottom: "20px",
-            }}>
-              <CheckCircle2 size={36} color="#4dffa0" style={{ margin: "0 auto 12px auto" }} />
-              <div style={{ fontSize: "14px", fontWeight: 600, color: "#4dffa0", marginBottom: "6px" }}>
-                Password Reset Successfully!
-              </div>
-              <p style={{ fontSize: "12px", color: "#b4cfc4", margin: "0 0 20px 0", lineHeight: "1.6" }}>
-                Your account password has been updated. You can now sign in with your new password.
-              </p>
+        <h1 className="auth-recovery-title">
+          {isSuccess ? "Password Updated" : "Set New Password"}
+        </h1>
+        <p className="auth-recovery-subtitle">
+          {isSuccess
+            ? "Your account password has been successfully updated. You can now access your FLOXA workspace."
+            : "Please choose a strong password of at least 8 characters to secure your consultant account."}
+        </p>
 
-              <Link
-                href="/login?mode=login"
-                className="login-pill-submit-btn"
-                style={{ textDecoration: "none" }}
-              >
-                <span>Sign In Now</span>
-                <span className="login-btn-arrow" aria-hidden="true">
-                  <ArrowRight size={14} strokeWidth={2.5} />
-                </span>
-              </Link>
+        {isSuccess ? (
+          <div className="auth-success-box">
+            <div className="auth-success-icon-wrap">
+              <CheckCircle2 size={38} color="#4dffa0" strokeWidth={2.2} />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} style={{ width: "100%", display: "flex", flexDirection: "column", gap: "14px" }}>
-              <div className="login-pill-input-wrap">
-                <span className="login-pill-icon" aria-hidden="true">
-                  <Lock size={18} strokeWidth={2} stroke="#6b7280" />
+
+            <Link
+              href="/login?mode=login"
+              className="auth-submit-btn"
+              style={{ textDecoration: "none" }}
+            >
+              <span>Sign In with New Password</span>
+              <span className="auth-submit-arrow" aria-hidden="true">
+                <ArrowRight size={14} strokeWidth={2.5} />
+              </span>
+            </Link>
+          </div>
+        ) : (
+          <form className="auth-recovery-form" onSubmit={handleSubmit}>
+            {/* Input 1: New Password */}
+            <div className="auth-input-group">
+              <label className="auth-input-label" htmlFor="new-password">
+                <span>New Password</span>
+                <span style={{ fontSize: "11px", color: isMinLength ? "#4dffa0" : "#749688" }}>
+                  {newPassword.length > 0 ? `${newPassword.length}/8+ chars` : "Min. 8 characters"}
+                </span>
+              </label>
+              <div className="auth-glass-input-wrap">
+                <span className="auth-glass-input-icon" aria-hidden="true">
+                  <Lock size={17} strokeWidth={2.2} />
                 </span>
                 <input
-                  type="password"
+                  id="new-password"
+                  type={showNewPassword ? "text" : "password"}
                   name="newPassword"
-                  className="login-pill-input"
-                  placeholder="New password (min 8 chars)"
+                  className="auth-glass-input"
+                  placeholder="Enter your new password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
                   autoComplete="new-password"
                   autoFocus
                 />
+                <button
+                  type="button"
+                  className="auth-password-toggle-btn"
+                  onClick={() => setShowNewPassword((prev) => !prev)}
+                  title={showNewPassword ? "Hide password" : "Show password"}
+                  aria-label={showNewPassword ? "Hide password" : "Show password"}
+                >
+                  {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
+            </div>
 
-              <div className="login-pill-input-wrap">
-                <span className="login-pill-icon" aria-hidden="true">
-                  <Lock size={18} strokeWidth={2} stroke="#6b7280" />
+            {/* Input 2: Confirm Password */}
+            <div className="auth-input-group">
+              <label className="auth-input-label" htmlFor="confirm-password">
+                <span>Confirm New Password</span>
+                {confirmPassword.length > 0 && (
+                  <span style={{ fontSize: "11px", color: isMatching ? "#4dffa0" : "#f87171" }}>
+                    {isMatching ? "Passwords match" : "Does not match"}
+                  </span>
+                )}
+              </label>
+              <div className="auth-glass-input-wrap">
+                <span className="auth-glass-input-icon" aria-hidden="true">
+                  <Lock size={17} strokeWidth={2.2} />
                 </span>
                 <input
-                  type="password"
+                  id="confirm-password"
+                  type={showConfirmPassword ? "text" : "password"}
                   name="confirmPassword"
-                  className="login-pill-input"
-                  placeholder="Confirm new password"
+                  className="auth-glass-input"
+                  placeholder="Re-enter your new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   autoComplete="new-password"
                 />
-              </div>
-
-              {errorMessage && <p className="login-error-msg">{errorMessage}</p>}
-
-              <button
-                type="submit"
-                className="login-pill-submit-btn"
-                disabled={isLoading}
-                style={{ marginTop: "4px" }}
-              >
-                <span>{isLoading ? "Updating..." : "Reset Password"}</span>
-                <span className="login-btn-arrow" aria-hidden="true">
-                  <ArrowRight size={14} strokeWidth={2.5} />
-                </span>
-              </button>
-
-              <div style={{ marginTop: "16px", textAlign: "center" }}>
-                <Link
-                  href="/login?mode=login"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    color: "#89aca0",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    textDecoration: "none",
-                  }}
+                <button
+                  type="button"
+                  className="auth-password-toggle-btn"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  title={showConfirmPassword ? "Hide password" : "Show password"}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
-                  <ArrowLeft size={14} strokeWidth={2.5} />
-                  <span>Back to Login</span>
-                </Link>
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
-            </form>
-          )}
-        </div>
+            </div>
+
+            {/* Live Requirements Hint */}
+            <div className="auth-requirements-box">
+              <div className={`auth-req-item ${isMinLength ? "is-met" : ""}`}>
+                <Check size={13} strokeWidth={2.8} />
+                <span>At least 8 characters long</span>
+              </div>
+              <div className={`auth-req-item ${isMatching ? "is-met" : ""}`}>
+                <Check size={13} strokeWidth={2.8} />
+                <span>Passwords match</span>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="auth-error-banner" role="alert">
+                <AlertCircle size={16} color="#f87171" style={{ flexShrink: 0, marginTop: "2px" }} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="auth-submit-btn"
+              disabled={isLoading || !isMinLength || !isMatching}
+            >
+              <span>{isLoading ? "Updating Password..." : "Update Password"}</span>
+              <span className="auth-submit-arrow" aria-hidden="true">
+                <ArrowRight size={14} strokeWidth={2.5} />
+              </span>
+            </button>
+
+            <div style={{ textAlign: "center" }}>
+              <Link href="/login?mode=login" className="auth-back-link">
+                <ArrowLeft size={14} strokeWidth={2.5} />
+                <span>Back to Login</span>
+              </Link>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

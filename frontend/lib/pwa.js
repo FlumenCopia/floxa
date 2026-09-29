@@ -61,7 +61,11 @@ if (typeof window !== "undefined") {
   // Listen for beforeinstallprompt event from modern browsers
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
-    if (window.location.pathname.startsWith("/client")) {
+    if (
+      window.location.pathname.startsWith("/client") ||
+      window.location.pathname.startsWith("/reset-password") ||
+      window.location.pathname.startsWith("/forgot-password")
+    ) {
       return;
     }
     deferredPrompt = e;
@@ -167,26 +171,34 @@ export const closeIosGuide = () => {
   notify();
 };
 
+const SERVER_PWA_STATE = Object.freeze({
+  isInstalled: false,
+  canInstall: false,
+  isIos: false,
+  showIosGuide: false,
+  floatingDismissed: false,
+});
+
+export const getServerPwaSnapshot = () => SERVER_PWA_STATE;
+
 export function usePwaInstall() {
   const [mounted, setMounted] = useState(false);
   const pwaState = useSyncExternalStore(
     subscribePwa,
     getPwaSnapshot,
-    () => ({
-      isInstalled: false,
-      canInstall: false,
-      isIos: false,
-      showIosGuide: false,
-      floatingDismissed: false,
-    })
+    getServerPwaSnapshot
   );
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const isClientPortal = typeof window !== "undefined" && window.location.pathname.startsWith("/client");
-  if (isClientPortal) {
+  const isExcluded =
+    typeof window !== "undefined" &&
+    (window.location.pathname.startsWith("/client") ||
+      window.location.pathname.startsWith("/reset-password") ||
+      window.location.pathname.startsWith("/forgot-password"));
+  if (isExcluded) {
     return {
       isMounted: mounted,
       isInstalled: true,

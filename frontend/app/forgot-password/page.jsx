@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Mail, ArrowLeft, ArrowRight, CheckCircle2, KeyRound, AlertCircle } from "lucide-react";
 import { requestPasswordReset } from "@/lib/authApi";
 
 export default function ForgotPasswordPage() {
@@ -34,49 +34,61 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div id="login-screen">
-      <div className="login-card is-login-mode" style={{ maxWidth: "460px", minHeight: "auto", padding: "40px 32px" }}>
-        <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div className="login-brand-logo" style={{ marginBottom: "16px" }}>
-            <img src="/image/FLOXA_log.png" alt="FLOXA" className="login-brand-logo-img" />
-          </div>
+    <div className="auth-recovery-screen">
+      <div className="auth-recovery-card">
+        <img src="/image/FLOXA_log.png" alt="FLOXA" className="auth-recovery-logo" />
 
-          <h2 style={{ fontSize: "20px", fontWeight: 700, color: "#f3f8f4", margin: "0 0 8px 0", textAlign: "center" }}>
-            Reset Password
-          </h2>
-          <p style={{ fontSize: "13px", color: "#89aca0", margin: "0 0 24px 0", textAlign: "center", lineHeight: "1.5" }}>
-            Enter your account email address and we will send you a secure password reset link.
-          </p>
+        <div className="auth-recovery-pill-badge">
+          <KeyRound size={13} strokeWidth={2.5} />
+          <span>Password Recovery</span>
+        </div>
 
-          {isSubmitted ? (
-            <div style={{
-              width: "100%",
-              backgroundColor: "rgba(77, 255, 160, 0.08)",
-              border: "1px solid rgba(77, 255, 160, 0.25)",
-              borderRadius: "12px",
-              padding: "20px",
-              textAlign: "center",
-              marginBottom: "20px",
-            }}>
-              <CheckCircle2 size={36} color="#4dffa0" style={{ margin: "0 auto 12px auto" }} />
-              <div style={{ fontSize: "14px", fontWeight: 600, color: "#4dffa0", marginBottom: "6px" }}>
-                Reset Link Sent
-              </div>
-              <p style={{ fontSize: "12px", color: "#b4cfc4", margin: 0, lineHeight: "1.6" }}>
-                If an account exists for <strong>{email}</strong>, a password reset link has been sent. Please check your inbox and spam folder.
-              </p>
+        <h1 className="auth-recovery-title">
+          {isSubmitted ? "Reset Link Dispatched" : "Reset Password"}
+        </h1>
+        <p className="auth-recovery-subtitle">
+          {isSubmitted
+            ? `If an account exists for ${email}, a secure password reset link has been dispatched to your inbox.`
+            : "Enter your account email address and we'll send you an encrypted link to reset your password."}
+        </p>
+
+        {isSubmitted ? (
+          <div className="auth-success-box">
+            <div className="auth-success-icon-wrap">
+              <CheckCircle2 size={38} color="#4dffa0" strokeWidth={2.2} />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} style={{ width: "100%", display: "flex", flexDirection: "column", gap: "14px" }}>
-              <div className="login-pill-input-wrap">
-                <span className="login-pill-icon" aria-hidden="true">
-                  <Mail size={18} strokeWidth={2} stroke="#6b7280" />
+
+            <p style={{ fontSize: "13px", color: "#9bb5aa", lineHeight: 1.6, margin: "0 0 24px", maxWidth: "360px" }}>
+              Please check your inbox (and spam/junk folder) within the next few minutes. The reset link expires in 30 minutes.
+            </p>
+
+            <Link
+              href="/login?mode=login"
+              className="auth-submit-btn"
+              style={{ textDecoration: "none" }}
+            >
+              <span>Return to Login</span>
+              <span className="auth-submit-arrow" aria-hidden="true">
+                <ArrowRight size={14} strokeWidth={2.5} />
+              </span>
+            </Link>
+          </div>
+        ) : (
+          <form className="auth-recovery-form" onSubmit={handleSubmit}>
+            <div className="auth-input-group">
+              <label className="auth-input-label" htmlFor="recovery-email">
+                <span>Account Email</span>
+              </label>
+              <div className="auth-glass-input-wrap">
+                <span className="auth-glass-input-icon" aria-hidden="true">
+                  <Mail size={17} strokeWidth={2.2} />
                 </span>
                 <input
+                  id="recovery-email"
                   type="email"
                   name="email"
-                  className="login-pill-input"
-                  placeholder="Enter your email"
+                  className="auth-glass-input"
+                  placeholder="name@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -84,42 +96,34 @@ export default function ForgotPasswordPage() {
                   autoFocus
                 />
               </div>
+            </div>
 
-              {errorMessage && <p className="login-error-msg">{errorMessage}</p>}
+            {errorMessage && (
+              <div className="auth-error-banner" role="alert">
+                <AlertCircle size={16} color="#f87171" style={{ flexShrink: 0, marginTop: "2px" }} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
-              <button
-                type="submit"
-                className="login-pill-submit-btn"
-                disabled={isLoading}
-                style={{ marginTop: "4px" }}
-              >
-                <span>{isLoading ? "Sending..." : "Send Reset Link"}</span>
-                <span className="login-btn-arrow" aria-hidden="true">
-                  <ArrowRight size={14} strokeWidth={2.5} />
-                </span>
-              </button>
-            </form>
-          )}
-
-          <div style={{ marginTop: "24px" }}>
-            <Link
-              href="/login?mode=login"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                color: "#89aca0",
-                fontSize: "13px",
-                fontWeight: 500,
-                textDecoration: "none",
-                transition: "color 0.18s ease",
-              }}
+            <button
+              type="submit"
+              className="auth-submit-btn"
+              disabled={isLoading || !email.trim()}
             >
-              <ArrowLeft size={14} strokeWidth={2.5} />
-              <span>Back to Login</span>
-            </Link>
-          </div>
-        </div>
+              <span>{isLoading ? "Dispatching Link..." : "Send Reset Link"}</span>
+              <span className="auth-submit-arrow" aria-hidden="true">
+                <ArrowRight size={14} strokeWidth={2.5} />
+              </span>
+            </button>
+
+            <div style={{ textAlign: "center" }}>
+              <Link href="/login?mode=login" className="auth-back-link">
+                <ArrowLeft size={14} strokeWidth={2.5} />
+                <span>Back to Login</span>
+              </Link>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

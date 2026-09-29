@@ -49,7 +49,7 @@ export default function AdminConsultantsPage() {
   });
   const [creatingCustomer, setCreatingCustomer] = useState(false);
   const [createError, setCreateError] = useState("");
-  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string; name: string } | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string; name: string; emailDispatched?: boolean } | null>(null);
   const [copiedPass, setCopiedPass] = useState(false);
 
   // Reset Password Modal State
@@ -176,11 +176,16 @@ export default function AdminConsultantsPage() {
       });
 
       if (res?.success) {
-        showNotification(`Customer account added for ${createFormData.name}`);
+        showNotification(
+          res?.emailDispatched
+            ? `Customer account added & credentials emailed to ${createFormData.email}`
+            : `Customer account added for ${createFormData.name}`
+        );
         setCreatedCredentials({
           name: createFormData.name,
           email: createFormData.email.trim().toLowerCase(),
           password: createFormData.password,
+          emailDispatched: Boolean(res?.emailDispatched),
         });
         setCreateFormData({
           name: "",
@@ -233,11 +238,16 @@ export default function AdminConsultantsPage() {
     try {
       const res = await adminApi.resetConsultantPassword(resetPwdConsultant.id, resetPwdInput.trim());
       if (res?.success) {
-        showNotification(`Password reset for ${resetPwdConsultant.name}`);
+        showNotification(
+          res?.emailDispatched
+            ? `Password reset and emailed to ${resetPwdConsultant.email}`
+            : `Password reset for ${resetPwdConsultant.name}`
+        );
         setCreatedCredentials({
           name: resetPwdConsultant.name,
           email: resetPwdConsultant.email,
           password: resetPwdInput.trim(),
+          emailDispatched: Boolean(res?.emailDispatched),
         });
         setResetPwdConsultant(null);
       } else {
@@ -347,7 +357,23 @@ export default function AdminConsultantsPage() {
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#4dffa0", fontWeight: 700, fontSize: "14px", marginBottom: "4px" }}>
               <CheckCircle2 size={16} />
-              <span>Customer Account Added: {createdCredentials.name}</span>
+              <span>Customer Account: {createdCredentials.name}</span>
+              {createdCredentials.emailDispatched ? (
+                <span style={{
+                  fontSize: "11px",
+                  backgroundColor: "rgba(77, 255, 160, 0.15)",
+                  border: "1px solid rgba(77, 255, 160, 0.3)",
+                  color: "#4dffa0",
+                  padding: "2px 8px",
+                  borderRadius: "10px",
+                  fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}>
+                  ✉ Credentials Emailed
+                </span>
+              ) : null}
             </div>
             <div style={{ fontSize: "13px", color: "#e8f5ef", display: "flex", gap: "20px", flexWrap: "wrap" }}>
               <span><strong>Email:</strong> {createdCredentials.email}</span>

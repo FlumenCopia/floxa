@@ -9,15 +9,16 @@ import { ArrowRight, ArrowLeft, Mail, Lock } from "lucide-react";
 
 export default function Login() {
   const router = useRouter();
-  const [stage, setStage] = useState(() => {
+  const [stage, setStage] = useState("splash");
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("mode") === "login") {
-        return "login";
+        setStage("login");
       }
     }
-    return "splash";
-  });
+  }, []);
   const [formData, setFormData] = useState({
     email: "",
     password: "",

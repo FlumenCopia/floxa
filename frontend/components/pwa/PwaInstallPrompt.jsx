@@ -17,15 +17,16 @@ export default function PwaInstallPrompt() {
     closeIosGuide,
   } = usePwaInstall();
 
-  // The client portal is a web-only guest link.
-  // PWA install is strictly reserved for the consultant workspace.
-  const isClientPortal = Boolean(
-    (pathname && pathname.startsWith("/client")) ||
-    (typeof window !== "undefined" && window.location.pathname.startsWith("/client"))
+  // Exclude client portal, reset-password, and forgot-password flows from showing install prompts
+  const currentPath = pathname || (typeof window !== "undefined" ? window.location.pathname : "");
+  const isExcludedRoute = Boolean(
+    currentPath.startsWith("/client") ||
+    currentPath.startsWith("/reset-password") ||
+    currentPath.startsWith("/forgot-password")
   );
 
-  // If running on server, app is already installed, or in client portal, do not render anything
-  if (!isMounted || isInstalled || isClientPortal) {
+  // If running on server, app is already installed, or on an excluded route, do not render anything
+  if (!isMounted || isInstalled || isExcludedRoute) {
     return null;
   }
 
