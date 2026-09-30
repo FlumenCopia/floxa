@@ -393,6 +393,12 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
       return;
     }
 
+    const isSameAsCurrent = await verifyPassword(newPassword, consultant.password);
+    if (isSameAsCurrent) {
+      res.status(400).json({ detail: 'New password cannot be the same as your current password.' });
+      return;
+    }
+
     consultant.password = await hashPassword(newPassword);
     consultant.passwordResetToken = null;
     consultant.passwordResetExpires = null;

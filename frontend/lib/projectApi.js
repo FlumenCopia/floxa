@@ -379,14 +379,20 @@ export async function updateDeliverable(projectId, deliverableId, formData) {
   return uploadProjectFormData(`/projects/${projectId}/deliverables/${deliverableId}/`, formData, "PATCH");
 }
 
+/**
+ * @deprecated Legacy agreement upload is deprecated. Agreements are generated via generateAgreement(projectId).
+ */
 export async function uploadAgreement(projectId, formData) {
-  invalidateConsultantActivitiesCache();
-  return uploadProjectFormData(`/projects/${projectId}/agreement/`, formData);
+  console.warn("[projectApi] uploadAgreement is deprecated. Use generateAgreement(projectId) instead.");
+  throw new Error("Direct agreement upload is deprecated. Use generateAgreement(projectId) instead.");
 }
 
+/**
+ * @deprecated Legacy agreement update is deprecated. Agreements are managed via generateAgreement(projectId).
+ */
 export async function updateAgreement(projectId, formData) {
-  invalidateConsultantActivitiesCache();
-  return uploadProjectFormData(`/projects/${projectId}/agreement/`, formData, "PATCH");
+  console.warn("[projectApi] updateAgreement is deprecated. Use generateAgreement(projectId) instead.");
+  throw new Error("Direct agreement update is deprecated. Use generateAgreement(projectId) instead.");
 }
 
 export async function deleteMoodboard(projectId, moodboardId) {
@@ -485,36 +491,12 @@ export async function deleteDeliverable(projectId, deliverableId) {
   return parseApiResponse(response);
 }
 
+/**
+ * @deprecated Direct agreement deletion is deprecated. Agreements are lifecycle-managed.
+ */
 export async function deleteAgreement(projectId) {
-  invalidateConsultantActivitiesCache();
-  await ensureCsrfCookie();
-
-  const endpoint = `/projects/${projectId}/agreement/`;
-  const csrfToken = getCsrfToken();
-  const headers = csrfToken ? { "X-CSRFToken": csrfToken } : {};
-  let response = await fetch(buildApiUrl(endpoint), {
-    method: "DELETE",
-    credentials: "include",
-    headers,
-  });
-
-  if (response.status === 401) {
-    const refreshed = await refreshCookieSession();
-
-    if (refreshed) {
-      response = await fetch(buildApiUrl(endpoint), {
-        method: "DELETE",
-        credentials: "include",
-        headers,
-      });
-    }
-  }
-
-  if (response.status === 204) {
-    return { success: true };
-  }
-
-  return parseApiResponse(response);
+  console.warn("[projectApi] deleteAgreement is deprecated. Agreements are lifecycle-managed.");
+  throw new Error("Direct agreement deletion is deprecated.");
 }
 
 export async function shareMoodboard(projectId, moodboardId) {

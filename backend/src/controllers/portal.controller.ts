@@ -37,6 +37,7 @@ import {
 import { generateSignedAgreementPdf, generateBrandDnaBriefPdf, generateBrandDeliverablesPdf } from '../services/pdf.service.js';
 import { maybeGenerateAgreementSnapshot } from '../services/agreement.service.js';
 import fs from 'fs';
+import sharp from 'sharp';
 import {
   saveFile,
   generateWatermarkedImage,
@@ -903,6 +904,59 @@ export async function downloadPortalAgreementPdf(req: any, res: Response, next: 
   }
 }
 
+/**
+ * Safely parses and validates base64 image data URLs for digital signature images.
+ * Restricts to supported image formats (PNG, JPEG, WebP), enforces size bounds (< 5MB),
+ * and validates image integrity via Sharp before returning the buffer.
+ */
+async function parseAndValidateBase64Signature(
+  dataUrl: string
+): Promise<{ buffer: Buffer; mimeType: string; ext: string } | null> {
+  if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+    return null;
+  }
+
+  // Reject oversized strings early (5MB binary is ~6.7MB base64)
+  if (dataUrl.length > 7 * 1024 * 1024) {
+    return null;
+  }
+
+  const match = dataUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) {
+    return null;
+  }
+
+  const rawMime = match[1].toLowerCase();
+  const format = match[2].toLowerCase();
+  const base64Content = match[3];
+
+  const mimeType = rawMime === 'image/jpg' ? 'image/jpeg' : rawMime;
+  const ext = format === 'jpeg' || format === 'jpg' ? '.jpg' : `.${format}`;
+
+  try {
+    const rawBuffer = Buffer.from(base64Content, 'base64');
+    if (rawBuffer.length < 50 || rawBuffer.length > 5 * 1024 * 1024) {
+      return null;
+    }
+
+    // Verify image integrity with Sharp to reject corrupted or spoofed data
+    const metadata = await sharp(rawBuffer).metadata();
+    if (!metadata || !metadata.width || !metadata.height) {
+      return null;
+    }
+
+    // Ensure PDFKit compatibility: if format is WebP, convert to PNG
+    if (ext === '.webp') {
+      const converted = await sharp(rawBuffer).png().toBuffer();
+      return { buffer: Buffer.from(converted), mimeType: 'image/png', ext: '.png' };
+    }
+
+    return { buffer: rawBuffer, mimeType, ext };
+  } catch {
+    return null;
+  }
+}
+
 export async function signPortalAgreement(req: any, res: Response, next: NextFunction) {
   try {
     const { signer_name, signature_method } = req.body;
@@ -920,7 +974,19 @@ export async function signPortalAgreement(req: any, res: Response, next: NextFun
     }
 
     const signedAt = new Date();
-    const signatureImageBuffer = req.file ? req.file.buffer : undefined;
+    let signatureImageBuffer: Buffer | undefined = req.file ? req.file.buffer : undefined;
+    let signatureOriginalName: string | undefined = req.file ? req.file.originalname : undefined;
+    let signatureMimeType: string | undefined = req.file ? req.file.mimetype : undefined;
+
+    // Backward-compatible JSON base64 signature image support
+    if (!signatureImageBuffer && typeof req.body?.signature_image === 'string' && req.body.signature_image.startsWith('data:image/')) {
+      const parsed = await parseAndValidateBase64Signature(req.body.signature_image);
+      if (parsed) {
+        signatureImageBuffer = parsed.buffer;
+        signatureOriginalName = `signature_${req.project.portalToken || 'client'}${parsed.ext}`;
+        signatureMimeType = parsed.mimeType;
+      }
+    }
 
     const { pdfBuffer, sha256Hash } = await generateSignedAgreementPdf(req.project, agreement, {
       signerName: signer_name.trim(),
@@ -931,12 +997,12 @@ export async function signPortalAgreement(req: any, res: Response, next: NextFun
     });
 
     let signatureImagePath: string | undefined;
-    if (signatureImageBuffer && req.file) {
+    if (signatureImageBuffer && signatureOriginalName) {
       signatureImagePath = await saveFile(
         'project_agreements/signatures',
-        req.file.originalname,
+        signatureOriginalName,
         signatureImageBuffer,
-        req.file.mimetype
+        signatureMimeType
       );
     }
 
