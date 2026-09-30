@@ -19,8 +19,9 @@ export default function PwaInstallPrompt() {
 
   // Exclude client portal, reset-password, and forgot-password flows from showing install prompts
   const currentPath = pathname || (typeof window !== "undefined" ? window.location.pathname : "");
+  const isClientPortal = Boolean(currentPath.startsWith("/client"));
   const isExcludedRoute = Boolean(
-    currentPath.startsWith("/client") ||
+    isClientPortal ||
     currentPath.startsWith("/reset-password") ||
     currentPath.startsWith("/forgot-password")
   );

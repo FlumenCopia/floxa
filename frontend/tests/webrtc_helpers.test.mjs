@@ -145,5 +145,53 @@ test('Frontend WebRTC: Signaling Protocol & State Transitions', async (t) => {
     // Confirm VideoCallModal is mounted globally so all pages display incoming calls
     assert.ok(content.includes('<VideoCallModal currentRole="consultant"'), 'VideoCallModal must be mounted globally in FloxaHeader');
   });
+
+  await t.test('6. areMediaStreamsEquivalent compares track IDs to prevent unnecessary srcObject re-assignments', () => {
+    const areMediaStreamsEquivalent = (streamA, streamB) => {
+      if (streamA === streamB) return true;
+      if (!streamA || !streamB) return false;
+      const tracksA = streamA.getTracks ? streamA.getTracks() : [];
+      const tracksB = streamB.getTracks ? streamB.getTracks() : [];
+      if (tracksA.length !== tracksB.length) return false;
+      const idsA = new Set(tracksA.map((t) => t.id));
+      return tracksB.every((t) => idsA.has(t.id));
+    };
+
+    const s1 = { getTracks: () => [{ id: 'audio_1' }, { id: 'video_1' }] };
+    const s2 = { getTracks: () => [{ id: 'audio_1' }, { id: 'video_1' }] };
+    const s3 = { getTracks: () => [{ id: 'audio_1' }] };
+    const s4 = { getTracks: () => [{ id: 'audio_2' }] };
+
+    assert.strictEqual(areMediaStreamsEquivalent(s1, s2), true, 'Same track IDs must be equivalent');
+    assert.strictEqual(areMediaStreamsEquivalent(s1, s3), false, 'Different track count must not be equivalent');
+    assert.strictEqual(areMediaStreamsEquivalent(s3, s4), false, 'Different track ID must not be equivalent');
+    assert.strictEqual(areMediaStreamsEquivalent(null, s1), false, 'Null stream must not be equivalent');
+    assert.strictEqual(areMediaStreamsEquivalent(s1, s1), true, 'Identical stream reference must be equivalent');
+  });
+
+  await t.test('7. VideoCallModal architecture contract: Dedicated remoteAudioRef & persistent audio element', async () => {
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+    const modalPath = path.resolve('components/client-portal/VideoCallModal.jsx');
+    const content = await fs.readFile(modalPath, 'utf8');
+
+    assert.ok(content.includes('remoteAudioRef'), 'Must define remoteAudioRef for independent audio channel');
+    assert.ok(content.includes('<audio'), 'Must render dedicated <audio> element');
+    assert.ok(content.includes('ref={remoteAudioRef}'), 'Must bind remoteAudioRef to <audio> element');
+    assert.ok(content.includes('areMediaStreamsEquivalent'), 'Must use areMediaStreamsEquivalent to prevent audio teardown');
+    assert.ok(content.includes('unlockAudio'), 'Must implement global user interaction unlock handler');
+  });
+
+  await t.test('8. webRTCService media pipeline: Audio priming and incoming audio track auto-enable', async () => {
+    const fs = await import('node:fs/promises');
+    const path = await import('node:path');
+    const servicePath = path.resolve('services/webRTCService.js');
+    const content = await fs.readFile(servicePath, 'utf8');
+
+    assert.ok(content.includes('primeAudioPlayback'), 'Must define primeAudioPlayback to prime browser audio context');
+    assert.ok(content.includes('track.enabled = true'), 'Must explicitly ensure incoming audio tracks are enabled');
+    assert.ok(content.includes('this.primeAudioPlayback()'), 'Must call primeAudioPlayback on call initiation and acceptance');
+  });
 });
+
 

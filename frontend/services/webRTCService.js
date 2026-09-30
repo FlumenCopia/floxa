@@ -42,6 +42,7 @@ class WebRTCService {
     this.pendingCandidates = [];
     this.statsInterval = null;
     this.lastStats = null;
+    this.audioContext = null;
 
     // Bind socket listener
     this.setupSocketListener();
@@ -52,6 +53,23 @@ class WebRTCService {
           this.endCall();
         }
       });
+    }
+  }
+
+  primeAudioPlayback() {
+    if (typeof window === "undefined") return;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        if (!this.audioContext || this.audioContext.state === "closed") {
+          this.audioContext = new AudioContextClass();
+        }
+        if (this.audioContext.state === "suspended") {
+          this.audioContext.resume().catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn("[WebRTC] AudioContext priming:", e);
     }
   }
 
@@ -435,19 +453,16 @@ class WebRTCService {
         : (event.track ? [event.track] : []);
 
       incomingTracks.forEach((track) => {
+        if (track.kind === "audio") {
+          track.enabled = true;
+        }
         if (!this.remoteStream.getTracks().some((t) => t.id === track.id)) {
           this.remoteStream.addTrack(track);
         }
       });
 
       const notifyRemoteStream = () => {
-        const tracks = this.remoteStream.getTracks();
-        if (tracks.length > 0) {
-          const fresh = new MediaStream(tracks);
-          this.emit("remote_stream", fresh);
-        } else {
-          this.emit("remote_stream", this.remoteStream);
-        }
+        this.emit("remote_stream", this.remoteStream);
       };
 
       if (event.track) {
@@ -510,6 +525,7 @@ class WebRTCService {
       this.emit("call_error", { message: "A call is already in progress." });
       return;
     }
+    this.primeAudioPlayback();
     this.currentCallInfo = { projectId, clientName, projectTitle, role, portalToken, callType };
     this.setCallState("outgoing_ringing");
 
@@ -537,6 +553,7 @@ class WebRTCService {
   }
 
   async acceptCall() {
+    this.primeAudioPlayback();
     this.setCallState("connected");
     try {
       await this.acquireLocalMedia(this.currentCallInfo?.callType);
@@ -859,6 +876,10 @@ class WebRTCService {
     this.lastStats = null;
     clearTimeout(this.ringingTimeout);
     this.ringingTimeout = null;
+    if (this.audioContext && this.audioContext.state !== "closed") {
+      this.audioContext.close().catch(() => {});
+      this.audioContext = null;
+    }
     if (this.localStream) {
       this.localStream.getTracks().forEach((t) => t.stop());
       this.localStream = null;

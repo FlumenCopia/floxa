@@ -19,6 +19,16 @@ import {
 import { webRTCService } from "../../services/webRTCService";
 import "./ClientPortal.css";
 
+const areMediaStreamsEquivalent = (streamA, streamB) => {
+  if (streamA === streamB) return true;
+  if (!streamA || !streamB) return false;
+  const tracksA = streamA.getTracks ? streamA.getTracks() : [];
+  const tracksB = streamB.getTracks ? streamB.getTracks() : [];
+  if (tracksA.length !== tracksB.length) return false;
+  const idsA = new Set(tracksA.map((t) => t.id));
+  return tracksB.every((t) => idsA.has(t.id));
+};
+
 export function VideoCallModal({ currentRole = "client", project = null }) {
   const [callState, setCallState] = useState(() => webRTCService.callState || "idle");
   const [callInfo, setCallInfo] = useState(() => webRTCService.currentCallInfo);
@@ -34,6 +44,7 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null);
   const minimizedVideoRef = useRef(null);
 
   const attachAndPlayRemote = async (stream) => {
@@ -45,13 +56,34 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
       videoTracks.some((t) => t.readyState === "live" && t.enabled)
     );
 
+    // 1. Dedicated Remote Audio Output (Independent of video view, never throttled)
+    if (remoteAudioRef.current) {
+      if (
+        !remoteAudioRef.current.srcObject ||
+        !areMediaStreamsEquivalent(remoteAudioRef.current.srcObject, stream)
+      ) {
+        remoteAudioRef.current.srcObject = stream;
+      }
+      try {
+        remoteAudioRef.current.muted = isSpeakerMuted;
+        await remoteAudioRef.current.play();
+        setIsAutoplayMuted(false);
+      } catch (err) {
+        console.warn("[VideoCallModal] Remote audio autoplay blocked by browser policy:", err);
+        setIsAutoplayMuted(true);
+      }
+    }
+
+    // 2. Remote Video Element (Muted so video frames decode smoothly without autoplay restriction)
     if (remoteVideoRef.current) {
       if (
-        remoteVideoRef.current.srcObject !== stream ||
-        !remoteVideoRef.current.srcObject?.getVideoTracks()?.length
+        !remoteVideoRef.current.srcObject ||
+        !areMediaStreamsEquivalent(remoteVideoRef.current.srcObject, stream)
       ) {
         remoteVideoRef.current.srcObject = stream;
       }
+
+      remoteVideoRef.current.muted = true;
 
       // Attach un-mute listeners to incoming video tracks
       videoTracks.forEach((t) => {
@@ -65,18 +97,8 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
 
       try {
         await remoteVideoRef.current.play();
-        setIsAutoplayMuted(false);
       } catch (err) {
-        console.warn("[VideoCallModal] Autoplay blocked by browser policy; muting to enable playback:", err);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.muted = true;
-          setIsAutoplayMuted(true);
-          try {
-            await remoteVideoRef.current.play();
-          } catch (e2) {
-            console.error("[VideoCallModal] Secondary play failed:", e2);
-          }
-        }
+        console.warn("[VideoCallModal] Remote video play error:", err);
       }
 
       if (hasLiveVideoTrack || (remoteVideoRef.current.videoWidth > 0)) {
@@ -84,32 +106,66 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
       }
     }
 
+    // 3. Minimized Preview Video
     if (minimizedVideoRef.current) {
-      if (minimizedVideoRef.current.srcObject !== stream) {
+      if (
+        !minimizedVideoRef.current.srcObject ||
+        !areMediaStreamsEquivalent(minimizedVideoRef.current.srcObject, stream)
+      ) {
         minimizedVideoRef.current.srcObject = stream;
       }
+      minimizedVideoRef.current.muted = true;
       minimizedVideoRef.current.play().catch(() => {});
     }
   };
 
   const handleUnmuteRemoteAudio = (e) => {
     if (e) e.stopPropagation();
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.muted = false;
-      setIsAutoplayMuted(false);
-      setIsSpeakerMuted(false);
-      remoteVideoRef.current.play().catch(() => {});
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.muted = false;
+      remoteAudioRef.current.play().catch(() => {});
     }
+    setIsAutoplayMuted(false);
+    setIsSpeakerMuted(false);
   };
 
   const toggleSpeaker = (e) => {
     if (e) e.stopPropagation();
-    if (remoteVideoRef.current) {
-      const nextMuted = !remoteVideoRef.current.muted;
-      remoteVideoRef.current.muted = nextMuted;
-      setIsSpeakerMuted(nextMuted);
+    const nextMuted = !isSpeakerMuted;
+    setIsSpeakerMuted(nextMuted);
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.muted = nextMuted;
     }
   };
+
+  // Auto-unlock audio on ANY user click, touch, or keypress if browser blocked unmuted autoplay
+  useEffect(() => {
+    if (!isAutoplayMuted) return;
+
+    const unlockAudio = () => {
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.muted = isSpeakerMuted;
+        remoteAudioRef.current
+          .play()
+          .then(() => {
+            setIsAutoplayMuted(false);
+          })
+          .catch((err) => {
+            console.warn("[VideoCallModal] Audio unlock on interaction failed:", err);
+          });
+      }
+    };
+
+    window.addEventListener("click", unlockAudio, { once: true });
+    window.addEventListener("touchstart", unlockAudio, { once: true });
+    window.addEventListener("keydown", unlockAudio, { once: true });
+
+    return () => {
+      window.removeEventListener("click", unlockAudio);
+      window.removeEventListener("touchstart", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, [isAutoplayMuted, isSpeakerMuted]);
 
   useEffect(() => {
     const unsubState = webRTCService.on("state_change", (state) => {
@@ -122,6 +178,15 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
         setIsRemoteVideoActive(false);
         setIsAutoplayMuted(false);
         setIsSpeakerMuted(false);
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = null;
+        }
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = null;
+        }
+        if (minimizedVideoRef.current) {
+          minimizedVideoRef.current.srcObject = null;
+        }
       }
     });
 
@@ -236,160 +301,6 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
 
   const isAudioCall = callInfo?.callType === "audio";
 
-  // 1. INCOMING CALL RINGING DIALOG
-  if (callState === "incoming_ringing") {
-    const callerName =
-      callInfo?.clientName ||
-      (callInfo?.role === "consultant" ? "Your Consultant" : "Client");
-    const callerAvatar = callInfo?.avatar || project?.client?.avatar;
-
-    return (
-      <div className="floxa-video-overlay">
-        <div className="floxa-flumenx-call-card">
-          <div className="floxa-concentric-ring">
-            <div className="floxa-concentric-avatar">
-              {callerAvatar ? (
-                <img src={callerAvatar} alt={callerName} className="floxa-call-avatar-img" />
-              ) : (
-                <span className="floxa-call-avatar-placeholder">
-                  {getInitials(callerName)}
-                </span>
-              )}
-            </div>
-            <div className="floxa-call-type-indicator-badge" title={isAudioCall ? "Audio Call" : "Video Call"}>
-              {isAudioCall ? <Phone size={13} color="#ffffff" /> : <Video size={13} color="#ffffff" />}
-            </div>
-          </div>
-
-          <h3 className="floxa-call-person-name">{callerName}</h3>
-          <p className="floxa-call-status-subtitle">
-            Incoming {isAudioCall ? "Audio Call" : "Video Call"}...
-          </p>
-          {callInfo?.projectTitle ? (
-            <span className="floxa-call-project-tag">{callInfo.projectTitle}</span>
-          ) : null}
-
-          <div className="floxa-call-actions-row">
-            <button
-              type="button"
-              className="floxa-call-circle-btn floxa-btn-decline"
-              title="Decline Call"
-              onClick={() => webRTCService.rejectCall()}
-            >
-              <PhoneOff size={24} strokeWidth={2.2} color="#ffffff" />
-            </button>
-            <button
-              type="button"
-              className="floxa-call-circle-btn floxa-btn-accept"
-              title={isAudioCall ? "Accept Audio Call" : "Accept Video Call"}
-              onClick={() => webRTCService.acceptCall()}
-            >
-              {isAudioCall ? (
-                <Phone size={24} strokeWidth={2.2} color="#ffffff" />
-              ) : (
-                <Video size={24} strokeWidth={2.2} color="#ffffff" />
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 2. OUTGOING CALL CALLING DIALOG
-  if (callState === "outgoing_ringing") {
-    const calleeName =
-      currentRole === "client"
-        ? (project?.consultant?.name || project?.consultant_name || "Your Consultant")
-        : (callInfo?.clientName || "Client");
-    const calleeAvatar = callInfo?.avatar || project?.client?.avatar;
-
-    return (
-      <div className="floxa-video-overlay">
-        <div className="floxa-flumenx-call-card">
-          <div className="floxa-concentric-ring">
-            <div className="floxa-concentric-avatar">
-              {calleeAvatar ? (
-                <img src={calleeAvatar} alt={calleeName} className="floxa-call-avatar-img" />
-              ) : (
-                <span className="floxa-call-avatar-placeholder">
-                  {getInitials(calleeName)}
-                </span>
-              )}
-            </div>
-            <div className="floxa-call-type-indicator-badge" title={isAudioCall ? "Voice Call" : "Video Call"}>
-              {isAudioCall ? <Phone size={13} color="#ffffff" /> : <Video size={13} color="#ffffff" />}
-            </div>
-          </div>
-
-          <h3 className="floxa-call-person-name">{calleeName}</h3>
-          <p className="floxa-call-status-subtitle">
-            Calling ({isAudioCall ? "Voice" : "Video"})...
-          </p>
-          {callInfo?.projectTitle ? (
-            <span className="floxa-call-project-tag">{callInfo.projectTitle}</span>
-          ) : null}
-
-          <div className="floxa-call-actions-row">
-            <button
-              type="button"
-              className="floxa-call-circle-btn floxa-btn-decline"
-              title="Cancel Call"
-              onClick={() => webRTCService.endCall()}
-            >
-              <PhoneOff size={24} strokeWidth={2.2} color="#ffffff" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 3. MINIMIZED PICTURE-IN-PICTURE FLOATING BUBBLE
-  if (isMinimized && callState === "connected") {
-    return (
-      <div className="floxa-video-minimized-bubble" onClick={() => setIsMinimized(false)}>
-        {isAudioCall ? (
-          <div className="floxa-minimized-audio-avatar">
-            <span className="floxa-minimized-audio-initials">
-              {getInitials(callInfo?.clientName || "Client")}
-            </span>
-          </div>
-        ) : (
-          <video
-            ref={minimizedVideoRef}
-            autoPlay
-            playsInline
-            className="floxa-minimized-video-thumb"
-          />
-        )}
-        <div className="floxa-minimized-info">
-          <span className="floxa-live-dot" />
-          <span>{formatTime(duration)}</span>
-        </div>
-        <div className="floxa-minimized-actions" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            className="floxa-minimized-btn"
-            title="Expand Call"
-            onClick={() => setIsMinimized(false)}
-          >
-            <Maximize2 size={13} strokeWidth={2.2} />
-          </button>
-          <button
-            type="button"
-            className="floxa-minimized-btn floxa-minimized-btn-danger"
-            title="End Call"
-            onClick={() => webRTCService.endCall()}
-          >
-            <PhoneOff size={13} strokeWidth={2.2} />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Determine other participant name and avatar for display
   const otherPartyName =
     callInfo?.role === "consultant" || currentRole === "client"
       ? (project?.consultant?.name || project?.consultant_name || "Your Consultant")
@@ -398,328 +309,485 @@ export function VideoCallModal({ currentRole = "client", project = null }) {
     callInfo?.role === "consultant" || currentRole === "client"
       ? (project?.consultant?.avatar)
       : (callInfo?.avatar || project?.client?.avatar);
+  const callerName =
+    callInfo?.clientName ||
+    (callInfo?.role === "consultant" ? "Your Consultant" : "Client");
+  const callerAvatar = callInfo?.avatar || project?.client?.avatar;
+  const calleeName =
+    currentRole === "client"
+      ? (project?.consultant?.name || project?.consultant_name || "Your Consultant")
+      : (callInfo?.clientName || "Client");
+  const calleeAvatar = callInfo?.avatar || project?.client?.avatar;
 
-  // 4A. ACTIVE CONNECTED AUDIO CALL MODAL
-  if (isAudioCall) {
-    return (
-      <div className="floxa-video-overlay" onClick={handleUnmuteRemoteAudio}>
-        {/* Hidden video tag to safely sustain audio track playback without visual interruption */}
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
-        />
+  return (
+    <>
+      {/* Persistent global audio element for remote stream - sustained across all active views */}
+      <audio
+        ref={remoteAudioRef}
+        autoPlay
+        playsInline
+        style={{ display: "none" }}
+      />
 
-        {isAutoplayMuted && (
-          <button
-            type="button"
-            className="floxa-unmute-chip"
-            onClick={handleUnmuteRemoteAudio}
-            title="Click to enable audio playback"
-          >
-            <VolumeX size={15} />
-            <span>Click anywhere to enable sound</span>
-          </button>
-        )}
-
-        <div className="floxa-audio-connected-card">
-          <div className="floxa-audio-pro-header">
-            <div className="floxa-pro-live-tag">
-              <span className="floxa-live-pulse-dot" />
-              <span>LIVE VOICE</span>
-            </div>
-            <div className="floxa-audio-timer-badge">
-              <span>{formatTime(duration)}</span>
-            </div>
-            <div className="floxa-audio-header-actions">
-              <button
-                type="button"
-                className="floxa-pro-window-btn"
-                title="Minimize to floating window"
-                onClick={() => setIsMinimized(true)}
-                aria-label="Minimize"
-              >
-                <Minus size={16} strokeWidth={2} />
-              </button>
-              <button
-                type="button"
-                className="floxa-pro-window-btn floxa-btn-close-call"
-                title="Leave call"
-                onClick={() => webRTCService.endCall()}
-                aria-label="Leave call"
-              >
-                <X size={16} strokeWidth={2.2} />
-              </button>
-            </div>
-          </div>
-
-          <div className="floxa-audio-call-body">
-            <div className="floxa-voice-wave-ring">
+      {/* 1. INCOMING CALL RINGING DIALOG */}
+      {callState === "incoming_ringing" && (
+        <div className="floxa-video-overlay">
+          <div className="floxa-flumenx-call-card">
+            <div className="floxa-concentric-ring">
               <div className="floxa-concentric-avatar">
-                {otherPartyAvatar ? (
-                  <img src={otherPartyAvatar} alt={otherPartyName} className="floxa-call-avatar-img" />
+                {callerAvatar ? (
+                  <img src={callerAvatar} alt={callerName} className="floxa-call-avatar-img" />
                 ) : (
                   <span className="floxa-call-avatar-placeholder">
-                    {getInitials(otherPartyName)}
+                    {getInitials(callerName)}
                   </span>
                 )}
               </div>
+              <div className="floxa-call-type-indicator-badge" title={isAudioCall ? "Audio Call" : "Video Call"}>
+                {isAudioCall ? <Phone size={13} color="#ffffff" /> : <Video size={13} color="#ffffff" />}
+              </div>
             </div>
 
-            <h3 className="floxa-call-person-name">{otherPartyName}</h3>
+            <h3 className="floxa-call-person-name">{callerName}</h3>
             <p className="floxa-call-status-subtitle">
-              <Zap size={13} className="floxa-latency-icon" />
-              <span>Voice Connected • HD Audio</span>
+              Incoming {isAudioCall ? "Audio Call" : "Video Call"}...
             </p>
             {callInfo?.projectTitle ? (
               <span className="floxa-call-project-tag">{callInfo.projectTitle}</span>
             ) : null}
 
-            {/* Subtle animated voice bars */}
-            <div className="floxa-voice-bars-wrap" title="HD Audio Stream Active">
-              <span className="floxa-voice-bar b1" />
-              <span className="floxa-voice-bar b2" />
-              <span className="floxa-voice-bar b3" />
-              <span className="floxa-voice-bar b4" />
-              <span className="floxa-voice-bar b5" />
+            <div className="floxa-call-actions-row">
+              <button
+                type="button"
+                className="floxa-call-circle-btn floxa-btn-decline"
+                title="Decline Call"
+                onClick={() => webRTCService.rejectCall()}
+              >
+                <PhoneOff size={24} strokeWidth={2.2} color="#ffffff" />
+              </button>
+              <button
+                type="button"
+                className="floxa-call-circle-btn floxa-btn-accept"
+                title={isAudioCall ? "Accept Audio Call" : "Accept Video Call"}
+                onClick={() => webRTCService.acceptCall()}
+              >
+                {isAudioCall ? (
+                  <Phone size={24} strokeWidth={2.2} color="#ffffff" />
+                ) : (
+                  <Video size={24} strokeWidth={2.2} color="#ffffff" />
+                )}
+              </button>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="floxa-audio-controls-row" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className={`floxa-audio-ctrl-btn ${isAudioMuted ? "muted" : "active"}`}
-              onClick={() => webRTCService.toggleAudio()}
-              title={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
-            >
-              <div className="floxa-audio-btn-icon">
-                {isAudioMuted ? <MicOff size={20} /> : <Mic size={20} />}
+      {/* 2. OUTGOING CALL CALLING DIALOG */}
+      {callState === "outgoing_ringing" && (
+        <div className="floxa-video-overlay">
+          <div className="floxa-flumenx-call-card">
+            <div className="floxa-concentric-ring">
+              <div className="floxa-concentric-avatar">
+                {calleeAvatar ? (
+                  <img src={calleeAvatar} alt={calleeName} className="floxa-call-avatar-img" />
+                ) : (
+                  <span className="floxa-call-avatar-placeholder">
+                    {getInitials(calleeName)}
+                  </span>
+                )}
               </div>
-              <span className="floxa-audio-btn-text">{isAudioMuted ? "Unmute" : "Mute"}</span>
-            </button>
-
-            <button
-              type="button"
-              className={`floxa-audio-ctrl-btn ${isSpeakerMuted ? "muted" : "active"}`}
-              onClick={toggleSpeaker}
-              title={isSpeakerMuted ? "Unmute speaker" : "Mute speaker"}
-            >
-              <div className="floxa-audio-btn-icon">
-                {isSpeakerMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+              <div className="floxa-call-type-indicator-badge" title={isAudioCall ? "Voice Call" : "Video Call"}>
+                {isAudioCall ? <Phone size={13} color="#ffffff" /> : <Video size={13} color="#ffffff" />}
               </div>
-              <span className="floxa-audio-btn-text">{isSpeakerMuted ? "Muted" : "Speaker"}</span>
-            </button>
+            </div>
 
+            <h3 className="floxa-call-person-name">{calleeName}</h3>
+            <p className="floxa-call-status-subtitle">
+              Calling ({isAudioCall ? "Voice" : "Video"})...
+            </p>
+            {callInfo?.projectTitle ? (
+              <span className="floxa-call-project-tag">{callInfo.projectTitle}</span>
+            ) : null}
+
+            <div className="floxa-call-actions-row">
+              <button
+                type="button"
+                className="floxa-call-circle-btn floxa-btn-decline"
+                title="Cancel Call"
+                onClick={() => webRTCService.endCall()}
+              >
+                <PhoneOff size={24} strokeWidth={2.2} color="#ffffff" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. MINIMIZED PICTURE-IN-PICTURE FLOATING BUBBLE */}
+      {callState === "connected" && isMinimized && (
+        <div className="floxa-video-minimized-bubble" onClick={() => setIsMinimized(false)}>
+          {isAudioCall ? (
+            <div className="floxa-minimized-audio-avatar">
+              <span className="floxa-minimized-audio-initials">
+                {getInitials(callInfo?.clientName || "Client")}
+              </span>
+            </div>
+          ) : (
+            <video
+              ref={minimizedVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="floxa-minimized-video-thumb"
+            />
+          )}
+          <div className="floxa-minimized-info">
+            <span className="floxa-live-dot" />
+            <span>{formatTime(duration)}</span>
+          </div>
+          <div className="floxa-minimized-actions" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              className="floxa-audio-ctrl-btn floxa-audio-end-btn"
+              className="floxa-minimized-btn"
+              title="Expand Call"
+              onClick={() => setIsMinimized(false)}
+            >
+              <Maximize2 size={13} strokeWidth={2.2} />
+            </button>
+            <button
+              type="button"
+              className="floxa-minimized-btn floxa-minimized-btn-danger"
+              title="End Call"
               onClick={() => webRTCService.endCall()}
-              title="End voice call"
             >
-              <div className="floxa-audio-btn-icon">
-                <PhoneOff size={20} />
-              </div>
-              <span className="floxa-audio-btn-text">End</span>
+              <PhoneOff size={13} strokeWidth={2.2} />
             </button>
           </div>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  // 4B. ACTIVE CONNECTED VIDEO MODAL (Standard, Clean Professional Enterprise UI)
-  return (
-    <div className="floxa-video-overlay" onClick={handleUnmuteRemoteAudio}>
-      <div className={`floxa-video-connected-modal ${isExpanded ? "floxa-video-expanded" : ""}`}>
-        {/* Professional Enterprise Header */}
-        <div className="floxa-pro-header">
-          <div className="floxa-pro-header-left">
-            <div className="floxa-pro-live-tag">
-              <span className="floxa-live-pulse-dot" />
-              <span>LIVE</span>
-            </div>
-            <div className="floxa-pro-title-wrap">
-              <span className="floxa-pro-call-title">
-                {callInfo?.role === "consultant" || currentRole === "client"
-                  ? "Live Consultant Session"
-                  : `Session with ${callInfo?.clientName || "Client"}`}
-              </span>
-              <span className="floxa-pro-call-subtitle">
-                Encrypted Peer-to-Peer • {formatTime(duration)}
-              </span>
-            </div>
-          </div>
-
-          <div className="floxa-pro-header-center">
-            <div className="floxa-latency-badge" title="Ultra-low latency real-time WebRTC pipeline">
-              <Zap size={13} className="floxa-latency-icon" />
-              <span>Ultra-Low Latency</span>
-              <span className="floxa-latency-value">
-                {stats?.rtt != null ? `${stats.rtt}ms` : "< 35ms"}
-              </span>
-            </div>
-          </div>
-
-          <div className="floxa-pro-header-right">
-            <button
-              type="button"
-              className="floxa-pro-window-btn"
-              title="Minimize to floating window"
-              onClick={() => setIsMinimized(true)}
-              aria-label="Minimize"
-            >
-              <Minus size={16} strokeWidth={2} />
-            </button>
-            <button
-              type="button"
-              className="floxa-pro-window-btn"
-              title={isExpanded ? "Restore standard size" : "Expand to fullscreen"}
-              onClick={() => setIsExpanded((prev) => !prev)}
-              aria-label={isExpanded ? "Restore" : "Expand"}
-            >
-              {isExpanded ? (
-                <Minimize2 size={16} strokeWidth={2} />
-              ) : (
-                <Maximize2 size={16} strokeWidth={2} />
-              )}
-            </button>
-            <button
-              type="button"
-              className="floxa-pro-window-btn floxa-btn-close-call"
-              title="Leave call"
-              onClick={() => webRTCService.endCall()}
-              aria-label="Leave call"
-            >
-              <X size={16} strokeWidth={2.2} />
-            </button>
-          </div>
-        </div>
-
-        <div className="floxa-video-viewport">
-          {/* Remote Video (Main View) - Always mounted in DOM layout to keep video decoding pipeline alive */}
+      {/* 4A. ACTIVE CONNECTED AUDIO CALL MODAL */}
+      {callState === "connected" && !isMinimized && isAudioCall && (
+        <div className="floxa-video-overlay" onClick={handleUnmuteRemoteAudio}>
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            onLoadedMetadata={(e) => {
-              e.currentTarget.play().catch(() => {});
-              if (e.currentTarget.videoWidth > 0) {
-                setIsRemoteVideoActive(true);
-              }
-            }}
-            onLoadedData={(e) => {
-              if (e.currentTarget.videoWidth > 0) {
-                setIsRemoteVideoActive(true);
-              }
-            }}
-            onPlaying={(e) => {
-              if (e.currentTarget.videoWidth > 0) {
-                setIsRemoteVideoActive(true);
-              }
-            }}
-            className="floxa-remote-video"
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              zIndex: 1,
-            }}
+            muted
+            style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
           />
 
-          {/* Placeholder while remote video stream is connecting or remote camera is off */}
-          {!isRemoteVideoActive ? (
-            <div className="floxa-remote-placeholder">
-              <div className="floxa-remote-placeholder-avatar">
-                {otherPartyAvatar ? (
-                  <img src={otherPartyAvatar} alt={otherPartyName} className="floxa-remote-avatar-img" />
-                ) : (
-                  <span className="floxa-remote-avatar-initials">{getInitials(otherPartyName)}</span>
-                )}
-              </div>
-              <span className="floxa-remote-placeholder-name">{otherPartyName}</span>
-              <span className="floxa-remote-placeholder-status">
-                <span className="floxa-placeholder-spinner" /> Connecting live video...
-              </span>
-            </div>
-          ) : null}
-
-          {/* Unmute floating banner if browser autoplay policy forced muted initial playback */}
-          {isAutoplayMuted ? (
+          {isAutoplayMuted && (
             <button
               type="button"
               className="floxa-unmute-chip"
               onClick={handleUnmuteRemoteAudio}
-              title="Click to enable sound"
+              title="Click to enable audio playback"
             >
-              <VolumeX size={14} />
-              <span>Click to enable sound</span>
+              <VolumeX size={15} />
+              <span>Click anywhere to enable sound</span>
             </button>
-          ) : null}
+          )}
 
-          {/* Local Video (Corner Self-View Tile) */}
-          <div className="floxa-local-pip-container">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              onLoadedMetadata={(e) => {
-                e.currentTarget.play().catch(() => {});
-              }}
-              className="floxa-local-video"
-            />
-            <div className="floxa-local-pip-tag">
-              <span>You</span>
-              {isVideoMuted ? <span className="floxa-pip-muted">Cam Off</span> : null}
+          <div className="floxa-audio-connected-card">
+            <div className="floxa-audio-pro-header">
+              <div className="floxa-pro-live-tag">
+                <span className="floxa-live-pulse-dot" />
+                <span>LIVE VOICE</span>
+              </div>
+              <div className="floxa-audio-timer-badge">
+                <span>{formatTime(duration)}</span>
+              </div>
+              <div className="floxa-audio-header-actions">
+                <button
+                  type="button"
+                  className="floxa-pro-window-btn"
+                  title="Minimize to floating window"
+                  onClick={() => setIsMinimized(true)}
+                  aria-label="Minimize"
+                >
+                  <Minus size={16} strokeWidth={2} />
+                </button>
+                <button
+                  type="button"
+                  className="floxa-pro-window-btn floxa-btn-close-call"
+                  title="Leave call"
+                  onClick={() => webRTCService.endCall()}
+                  aria-label="Leave call"
+                >
+                  <X size={16} strokeWidth={2.2} />
+                </button>
+              </div>
+            </div>
+
+            <div className="floxa-audio-call-body">
+              <div className="floxa-voice-wave-ring">
+                <div className="floxa-concentric-avatar">
+                  {otherPartyAvatar ? (
+                    <img src={otherPartyAvatar} alt={otherPartyName} className="floxa-call-avatar-img" />
+                  ) : (
+                    <span className="floxa-call-avatar-placeholder">
+                      {getInitials(otherPartyName)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <h3 className="floxa-call-person-name">{otherPartyName}</h3>
+              <p className="floxa-call-status-subtitle">
+                <Zap size={13} className="floxa-latency-icon" />
+                <span>Voice Connected • HD Audio</span>
+              </p>
+              {callInfo?.projectTitle ? (
+                <span className="floxa-call-project-tag">{callInfo.projectTitle}</span>
+              ) : null}
+
+              {/* Subtle animated voice bars */}
+              <div className="floxa-voice-bars-wrap" title="HD Audio Stream Active">
+                <span className="floxa-voice-bar b1" />
+                <span className="floxa-voice-bar b2" />
+                <span className="floxa-voice-bar b3" />
+                <span className="floxa-voice-bar b4" />
+                <span className="floxa-voice-bar b5" />
+              </div>
+            </div>
+
+            <div className="floxa-audio-controls-row" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className={`floxa-audio-ctrl-btn ${isAudioMuted ? "muted" : "active"}`}
+                onClick={() => webRTCService.toggleAudio()}
+                title={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
+              >
+                <div className="floxa-audio-btn-icon">
+                  {isAudioMuted ? <MicOff size={20} /> : <Mic size={20} />}
+                </div>
+                <span className="floxa-audio-btn-text">{isAudioMuted ? "Unmute" : "Mute"}</span>
+              </button>
+
+              <button
+                type="button"
+                className={`floxa-audio-ctrl-btn ${isSpeakerMuted ? "muted" : "active"}`}
+                onClick={toggleSpeaker}
+                title={isSpeakerMuted ? "Unmute speaker" : "Mute speaker"}
+              >
+                <div className="floxa-audio-btn-icon">
+                  {isSpeakerMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                </div>
+                <span className="floxa-audio-btn-text">{isSpeakerMuted ? "Muted" : "Speaker"}</span>
+              </button>
+
+              <button
+                type="button"
+                className="floxa-audio-ctrl-btn floxa-audio-end-btn"
+                onClick={() => webRTCService.endCall()}
+                title="End voice call"
+              >
+                <div className="floxa-audio-btn-icon">
+                  <PhoneOff size={20} />
+                </div>
+                <span className="floxa-audio-btn-text">End</span>
+              </button>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Standard Professional Bottom Control Dock */}
-          <div className="floxa-pro-control-bar" onClick={(e) => e.stopPropagation()}>
-            {/* Audio Mute/Unmute */}
-            <button
-              type="button"
-              className={`floxa-pro-ctrl-btn ${isAudioMuted ? "muted" : "active"}`}
-              onClick={() => webRTCService.toggleAudio()}
-              title={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
-            >
-              <div className="floxa-pro-btn-icon">
-                {isAudioMuted ? <MicOff size={20} /> : <Mic size={20} />}
+      {/* 4B. ACTIVE CONNECTED VIDEO MODAL */}
+      {callState === "connected" && !isMinimized && !isAudioCall && (
+        <div className="floxa-video-overlay" onClick={handleUnmuteRemoteAudio}>
+          <div className={`floxa-video-connected-modal ${isExpanded ? "floxa-video-expanded" : ""}`}>
+            {/* Professional Enterprise Header */}
+            <div className="floxa-pro-header">
+              <div className="floxa-pro-header-left">
+                <div className="floxa-pro-live-tag">
+                  <span className="floxa-live-pulse-dot" />
+                  <span>LIVE</span>
+                </div>
+                <div className="floxa-pro-title-wrap">
+                  <span className="floxa-pro-call-title">
+                    {callInfo?.role === "consultant" || currentRole === "client"
+                      ? "Live Consultant Session"
+                      : `Session with ${callInfo?.clientName || "Client"}`}
+                  </span>
+                  <span className="floxa-pro-call-subtitle">
+                    Encrypted Peer-to-Peer • {formatTime(duration)}
+                  </span>
+                </div>
               </div>
-              <span className="floxa-pro-btn-text">{isAudioMuted ? "Unmute" : "Mute"}</span>
-            </button>
 
-            {/* Video Camera Toggle */}
-            <button
-              type="button"
-              className={`floxa-pro-ctrl-btn ${isVideoMuted ? "muted" : "active"}`}
-              onClick={() => webRTCService.toggleVideo()}
-              title={isVideoMuted ? "Start camera" : "Stop camera"}
-            >
-              <div className="floxa-pro-btn-icon">
-                {isVideoMuted ? <VideoOff size={20} /> : <Video size={20} />}
+              <div className="floxa-pro-header-center">
+                <div className="floxa-latency-badge" title="Ultra-low latency real-time WebRTC pipeline">
+                  <Zap size={13} className="floxa-latency-icon" />
+                  <span>Ultra-Low Latency</span>
+                  <span className="floxa-latency-value">
+                    {stats?.rtt != null ? `${stats.rtt}ms` : "< 35ms"}
+                  </span>
+                </div>
               </div>
-              <span className="floxa-pro-btn-text">{isVideoMuted ? "Start Video" : "Stop Video"}</span>
-            </button>
 
-            {/* End Call */}
-            <button
-              type="button"
-              className="floxa-pro-ctrl-btn floxa-pro-end-btn"
-              onClick={() => webRTCService.endCall()}
-              title="End video call"
-            >
-              <div className="floxa-pro-btn-icon">
-                <PhoneOff size={20} />
+              <div className="floxa-pro-header-right">
+                <button
+                  type="button"
+                  className="floxa-pro-window-btn"
+                  title="Minimize to floating window"
+                  onClick={() => setIsMinimized(true)}
+                  aria-label="Minimize"
+                >
+                  <Minus size={16} strokeWidth={2} />
+                </button>
+                <button
+                  type="button"
+                  className="floxa-pro-window-btn"
+                  title={isExpanded ? "Restore standard size" : "Expand to fullscreen"}
+                  onClick={() => setIsExpanded((prev) => !prev)}
+                  aria-label={isExpanded ? "Restore" : "Expand"}
+                >
+                  {isExpanded ? (
+                    <Minimize2 size={16} strokeWidth={2} />
+                  ) : (
+                    <Maximize2 size={16} strokeWidth={2} />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="floxa-pro-window-btn floxa-btn-close-call"
+                  title="Leave call"
+                  onClick={() => webRTCService.endCall()}
+                  aria-label="Leave call"
+                >
+                  <X size={16} strokeWidth={2.2} />
+                </button>
               </div>
-              <span className="floxa-pro-btn-text">End</span>
-            </button>
+            </div>
+
+            <div className="floxa-video-viewport">
+              {/* Remote Video (Main View) - Always mounted in DOM layout to keep video decoding pipeline alive */}
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                muted
+                onLoadedMetadata={(e) => {
+                  e.currentTarget.play().catch(() => {});
+                  if (e.currentTarget.videoWidth > 0) {
+                    setIsRemoteVideoActive(true);
+                  }
+                }}
+                onLoadedData={(e) => {
+                  if (e.currentTarget.videoWidth > 0) {
+                    setIsRemoteVideoActive(true);
+                  }
+                }}
+                onPlaying={(e) => {
+                  if (e.currentTarget.videoWidth > 0) {
+                    setIsRemoteVideoActive(true);
+                  }
+                }}
+                className="floxa-remote-video"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  zIndex: 1,
+                }}
+              />
+
+              {/* Placeholder while remote video stream is connecting or remote camera is off */}
+              {!isRemoteVideoActive ? (
+                <div className="floxa-remote-placeholder">
+                  <div className="floxa-remote-placeholder-avatar">
+                    {otherPartyAvatar ? (
+                      <img src={otherPartyAvatar} alt={otherPartyName} className="floxa-remote-avatar-img" />
+                    ) : (
+                      <span className="floxa-remote-avatar-initials">{getInitials(otherPartyName)}</span>
+                    )}
+                  </div>
+                  <span className="floxa-remote-placeholder-name">{otherPartyName}</span>
+                  <span className="floxa-remote-placeholder-status">
+                    <span className="floxa-placeholder-spinner" /> Connecting live video...
+                  </span>
+                </div>
+              ) : null}
+
+              {/* Unmute floating banner if browser autoplay policy forced muted initial playback */}
+              {isAutoplayMuted ? (
+                <button
+                  type="button"
+                  className="floxa-unmute-chip"
+                  onClick={handleUnmuteRemoteAudio}
+                  title="Click to enable sound"
+                >
+                  <VolumeX size={14} />
+                  <span>Click to enable sound</span>
+                </button>
+              ) : null}
+
+              {/* Local Video (Corner Self-View Tile) */}
+              <div className="floxa-local-pip-container">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  onLoadedMetadata={(e) => {
+                    e.currentTarget.play().catch(() => {});
+                  }}
+                  className="floxa-local-video"
+                />
+                <div className="floxa-local-pip-tag">
+                  <span>You</span>
+                  {isVideoMuted ? <span className="floxa-pip-muted">Cam Off</span> : null}
+                </div>
+              </div>
+
+              {/* Standard Professional Bottom Control Dock */}
+              <div className="floxa-pro-control-bar" onClick={(e) => e.stopPropagation()}>
+                {/* Audio Mute/Unmute */}
+                <button
+                  type="button"
+                  className={`floxa-pro-ctrl-btn ${isAudioMuted ? "muted" : "active"}`}
+                  onClick={() => webRTCService.toggleAudio()}
+                  title={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
+                >
+                  <div className="floxa-pro-btn-icon">
+                    {isAudioMuted ? <MicOff size={20} /> : <Mic size={20} />}
+                  </div>
+                  <span className="floxa-pro-btn-text">{isAudioMuted ? "Unmute" : "Mute"}</span>
+                </button>
+
+                {/* Video Camera Toggle */}
+                <button
+                  type="button"
+                  className={`floxa-pro-ctrl-btn ${isVideoMuted ? "muted" : "active"}`}
+                  onClick={() => webRTCService.toggleVideo()}
+                  title={isVideoMuted ? "Start camera" : "Stop camera"}
+                >
+                  <div className="floxa-pro-btn-icon">
+                    {isVideoMuted ? <VideoOff size={20} /> : <Video size={20} />}
+                  </div>
+                  <span className="floxa-pro-btn-text">{isVideoMuted ? "Start Video" : "Stop Video"}</span>
+                </button>
+
+                {/* End Call */}
+                <button
+                  type="button"
+                  className="floxa-pro-ctrl-btn floxa-pro-end-btn"
+                  onClick={() => webRTCService.endCall()}
+                  title="End video call"
+                >
+                  <div className="floxa-pro-btn-icon">
+                    <PhoneOff size={20} />
+                  </div>
+                  <span className="floxa-pro-btn-text">End</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
