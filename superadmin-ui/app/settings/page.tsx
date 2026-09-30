@@ -165,7 +165,7 @@ export default function AdminSettingsPage() {
       </div>
 
       {/* SECTION 2: SUPERADMIN PROFILE & PASSWORD */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "20px", marginBottom: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px", marginBottom: "24px" }}>
         {/* Profile */}
         <div style={{
           backgroundColor: "rgba(6, 22, 15, 0.72)",
@@ -362,7 +362,7 @@ export default function AdminSettingsPage() {
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "18px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#89aca0", marginBottom: "6px" }}>
                   New Password
@@ -510,7 +510,7 @@ export default function AdminSettingsPage() {
           ) : null}
 
           {/* 4-Stat Metric Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "14px" }}>
+          <div className="admin-stats-grid">
             {/* Database Health */}
             <div style={{
               backgroundColor: "rgba(2, 14, 9, 0.6)",

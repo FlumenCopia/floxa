@@ -279,7 +279,7 @@ export default function Consultant360Drawer({
             </div>
           </div>
         ) : consultant ? (
-          <div style={{ padding: "22px", flex: 1, display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "18px 14px", flex: 1, display: "flex", flexDirection: "column" }}>
             {/* Feedback alert */}
             {feedback ? (
               <div style={{
@@ -385,12 +385,7 @@ export default function Consultant360Drawer({
             </div>
 
             {/* Quick Stats Ribbon */}
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "8px",
-              marginBottom: "18px",
-            }}>
+            <div className="admin-stat-ribbon">
               <div style={{ backgroundColor: "rgba(6, 22, 15, 0.6)", padding: "10px", borderRadius: "6px", border: "1px solid rgba(77, 255, 160, 0.12)" }}>
                 <div style={{ fontSize: "10px", color: "#607f72", marginBottom: "2px" }}>Projects</div>
                 <div style={{ fontSize: "18px", fontWeight: 700, color: "#4a9eff" }}>{stats.totalProjects ?? 0}</div>
@@ -410,12 +405,7 @@ export default function Consultant360Drawer({
             </div>
 
             {/* Navigation Tabs */}
-            <div style={{
-              display: "flex",
-              borderBottom: "1px solid rgba(77, 255, 160, 0.15)",
-              marginBottom: "18px",
-              gap: "4px",
-            }}>
+            <div className="admin-tabs-scroll">
               {[
                 { id: "projects", label: `Projects (${projects.length})`, icon: FolderKanban },
                 { id: "clients", label: `Clients (${clients.length})`, icon: Users },
@@ -554,6 +544,8 @@ export default function Consultant360Drawer({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: "8px",
                       }}
                     >
                       <div>
@@ -765,6 +757,7 @@ export default function Consultant360Drawer({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
+                    flexWrap: "wrap",
                     gap: "10px",
                   }}>
                     <div style={{ fontSize: "12px", color: "#e8f5ef" }}>

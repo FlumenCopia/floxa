@@ -72,7 +72,7 @@ export default function AdminProjectsPage() {
   return (
     <div>
       {/* Title & Refresh */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px", gap: "16px", flexWrap: "wrap" }}>
+      <div className="admin-page-header">
         <div>
           <h1 style={{ fontSize: "24px", fontWeight: 700, margin: "0 0 4px 0", color: "#f3f8f4", letterSpacing: "-0.01em" }}>
             Platform Projects
@@ -81,7 +81,7 @@ export default function AdminProjectsPage() {
             Monitor active branding deliverables and client portal progress across all agency workspaces.
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="admin-header-actions">
           <button
             onClick={handleDownloadCsv}
             disabled={downloadingCsv}
@@ -141,7 +141,7 @@ export default function AdminProjectsPage() {
       ) : null}
 
       {/* Search Bar */}
-      <div style={{
+      <div className="admin-filter-bar" style={{
         backgroundColor: "rgba(6, 22, 15, 0.72)",
         backdropFilter: "blur(20px)",
         border: "1px solid rgba(77, 255, 160, 0.2)",
@@ -151,7 +151,7 @@ export default function AdminProjectsPage() {
       }}>
         <form
           onSubmit={handleSearchSubmit}
-          style={{ display: "flex", alignItems: "center", gap: "10px" }}
+          style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%" }}
         >
           <div style={{
             display: "flex",
@@ -207,8 +207,8 @@ export default function AdminProjectsPage() {
         borderRadius: "10px",
         overflow: "hidden",
       }}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+        <div className="admin-table-wrapper">
+          <table className="admin-table" style={{ borderCollapse: "collapse", fontSize: "12px" }}>
             <thead>
               <tr style={{
                 backgroundColor: "rgba(2, 14, 9, 0.55)",
@@ -325,6 +325,8 @@ export default function AdminProjectsPage() {
             borderTop: "1px solid rgba(77, 255, 160, 0.12)",
             fontSize: "12px",
             color: "#607f72",
+            flexWrap: "wrap",
+            gap: "10px",
           }}>
             <div>
               Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total projects)

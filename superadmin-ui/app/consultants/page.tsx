@@ -263,7 +263,7 @@ export default function AdminConsultantsPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px", gap: "16px", flexWrap: "wrap" }}>
+      <div className="admin-page-header">
         <div>
           <h1 style={{ fontSize: "24px", fontWeight: 700, margin: "0 0 4px 0", color: "#f3f8f4", letterSpacing: "-0.01em" }}>
             Consultants & Agencies
@@ -272,7 +272,7 @@ export default function AdminConsultantsPage() {
             Manage customer accounts, monitor active projects, and configure access.
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="admin-header-actions">
           <button
             onClick={() => {
               setIsCreateModalOpen(true);
@@ -449,23 +449,21 @@ export default function AdminConsultantsPage() {
       ) : null}
 
       {/* Filter and Search */}
-      <div style={{
-        backgroundColor: "rgba(6, 22, 15, 0.72)",
-        backdropFilter: "blur(20px)",
-        border: "1px solid rgba(77, 255, 160, 0.2)",
-        borderRadius: "10px",
-        padding: "14px 18px",
-        marginBottom: "18px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexWrap: "wrap",
-        gap: "12px",
-      }}>
+      <div
+        className="admin-filter-bar"
+        style={{
+          backgroundColor: "rgba(6, 22, 15, 0.72)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(77, 255, 160, 0.2)",
+          borderRadius: "10px",
+          padding: "14px 18px",
+          marginBottom: "18px",
+        }}
+      >
         {/* Search */}
         <form
           onSubmit={handleSearchSubmit}
-          style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: "260px" }}
+          style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0, width: "100%" }}
         >
           <div style={{
             display: "flex",
@@ -546,8 +544,8 @@ export default function AdminConsultantsPage() {
         borderRadius: "10px",
         overflow: "hidden",
       }}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+        <div className="admin-table-wrapper" style={{ overflowX: "auto" }}>
+          <table className="admin-table" style={{ width: "100%", minWidth: "680px", borderCollapse: "collapse", fontSize: "12px" }}>
             <thead>
               <tr style={{
                 backgroundColor: "rgba(2, 14, 9, 0.55)",
@@ -703,6 +701,8 @@ export default function AdminConsultantsPage() {
             borderTop: "1px solid rgba(77, 255, 160, 0.12)",
             fontSize: "12px",
             color: "#607f72",
+            flexWrap: "wrap",
+            gap: "10px",
           }}>
             <div>
               Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total consultants)
@@ -756,16 +756,7 @@ export default function AdminConsultantsPage() {
           justifyContent: "center",
           padding: "20px",
         }}>
-          <div style={{
-            backgroundColor: "#06160f",
-            border: "1px solid rgba(77, 255, 160, 0.25)",
-            borderRadius: "12px",
-            width: "100%",
-            maxWidth: "520px",
-            padding: "24px",
-            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6)",
-            position: "relative",
-          }}>
+          <div className="admin-modal-card">
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
               <UserPlus size={18} color="#4dffa0" />
               <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: "#f3f8f4" }}>
@@ -791,7 +782,7 @@ export default function AdminConsultantsPage() {
             ) : null}
 
             <form onSubmit={handleCreateCustomer}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+              <div className="admin-form-grid-2">
                 <div>
                   <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px", fontWeight: 600 }}>
                     Full Name *
@@ -885,7 +876,7 @@ export default function AdminConsultantsPage() {
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+              <div className="admin-form-grid-2">
                 <div>
                   <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px", fontWeight: 600 }}>
                     Company / Agency Name

@@ -84,9 +84,9 @@ export default function AdminOverviewPage() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "28px", gap: "16px", flexWrap: "wrap" }}>
+      <div className="admin-page-header">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px", flexWrap: "wrap" }}>
             <h1 style={{ fontSize: "24px", fontWeight: 700, margin: 0, color: "#f3f8f4", letterSpacing: "-0.01em" }}>
               Platform Overview
             </h1>
@@ -112,28 +112,30 @@ export default function AdminOverviewPage() {
             Real-time platform revenue metrics, subscription counts, project volume, and system usage.
           </p>
         </div>
-        <button
-          onClick={fetchMetrics}
-          disabled={loading}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            backgroundColor: "rgba(6, 22, 15, 0.72)",
-            border: "1px solid rgba(77, 255, 160, 0.25)",
-            color: "#e8f5ef",
-            padding: "8px 16px",
-            borderRadius: "6px",
-            fontSize: "13px",
-            fontWeight: 600,
-            cursor: "pointer",
-            backdropFilter: "blur(12px)",
-            transition: "all 0.15s ease",
-          }}
-        >
-          <RefreshCw size={14} className={loading ? "spin" : ""} style={{ color: "#4dffa0" }} />
-          <span>Refresh</span>
-        </button>
+        <div className="admin-header-actions">
+          <button
+            onClick={fetchMetrics}
+            disabled={loading}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              backgroundColor: "rgba(6, 22, 15, 0.72)",
+              border: "1px solid rgba(77, 255, 160, 0.25)",
+              color: "#e8f5ef",
+              padding: "8px 16px",
+              borderRadius: "6px",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              backdropFilter: "blur(12px)",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <RefreshCw size={14} className={loading ? "spin" : ""} style={{ color: "#4dffa0" }} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -151,16 +153,8 @@ export default function AdminOverviewPage() {
       ) : null}
 
       {/* SECTION 1: REVENUE & SUBSCRIPTIONS */}
-      <div style={{
-        backgroundColor: "rgba(6, 22, 15, 0.72)",
-        backdropFilter: "blur(20px)",
-        border: "1px solid rgba(77, 255, 160, 0.2)",
-        borderRadius: "10px",
-        padding: "20px 22px",
-        marginBottom: "24px",
-        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+      <div className="admin-card">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
           <div>
             <h2 style={{ fontSize: "13px", fontWeight: 700, margin: 0, color: "#f3f8f4", textTransform: "uppercase", letterSpacing: "0.08em" }}>
               Revenue & Subscriptions
@@ -175,11 +169,7 @@ export default function AdminOverviewPage() {
           </div>
         </div>
 
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "14px",
-        }}>
+        <div className="admin-stats-grid">
           {/* MRR */}
           <div style={{
             backgroundColor: "rgba(2, 14, 9, 0.55)",
@@ -258,12 +248,7 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* SECTION 2: PLATFORM OPERATIONS */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-        gap: "16px",
-        marginBottom: "24px",
-      }}>
+      <div className="admin-stats-grid" style={{ marginBottom: "24px" }}>
         {/* Total Consultants */}
         <div style={{
           backgroundColor: "rgba(6, 22, 15, 0.72)",
@@ -403,7 +388,7 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* SECTION 3: SYSTEM USAGE & SUBSCRIPTION BREAKDOWN */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "20px", marginBottom: "24px" }}>
+      <div className="admin-two-col-grid">
         {/* Module: AI Tool Usage & Quotas */}
         <div style={{
           backgroundColor: "rgba(6, 22, 15, 0.72)",
@@ -412,7 +397,7 @@ export default function AdminOverviewPage() {
           borderRadius: "10px",
           padding: "20px 22px",
         }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <div style={{
                 width: "32px",
@@ -449,7 +434,7 @@ export default function AdminOverviewPage() {
           </div>
 
           {/* Quick Counters */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
+          <div className="admin-form-grid-2">
             <div style={{
               backgroundColor: "rgba(2, 14, 9, 0.55)",
               border: "1px solid rgba(77, 255, 160, 0.12)",
@@ -688,14 +673,8 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* SECTION 4: RECENT AGENCIES */}
-      <div style={{
-        backgroundColor: "rgba(6, 22, 15, 0.72)",
-        backdropFilter: "blur(20px)",
-        border: "1px solid rgba(77, 255, 160, 0.18)",
-        borderRadius: "10px",
-        padding: "20px 22px",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+      <div className="admin-card">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
           <div>
             <h2 style={{ fontSize: "14px", fontWeight: 700, margin: 0, color: "#f3f8f4" }}>
               Recently Onboarded Agencies
@@ -714,8 +693,8 @@ export default function AdminOverviewPage() {
         </div>
 
         {metrics?.recentConsultants && metrics.recentConsultants.length > 0 ? (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+          <div className="admin-table-wrapper">
+            <table className="admin-table" style={{ fontSize: "12px" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(77, 255, 160, 0.12)", color: "#607f72", textAlign: "left" }}>
                   <th style={{ padding: "10px 14px", fontWeight: 600 }}>Consultant</th>
@@ -802,15 +781,7 @@ export default function AdminOverviewPage() {
           zIndex: 1000,
           padding: "20px",
         }}>
-          <div style={{
-            backgroundColor: "#06160f",
-            border: "1px solid rgba(77, 255, 160, 0.35)",
-            borderRadius: "10px",
-            width: "100%",
-            maxWidth: "460px",
-            padding: "22px",
-            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.7)",
-          }}>
+          <div className="admin-modal-card">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <div style={{

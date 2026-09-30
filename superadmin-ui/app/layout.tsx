@@ -547,6 +547,212 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               display: inline-flex;
             }
           }
+
+          /* Mobile Phone Responsive Optimizations */
+          @media (max-width: 768px) {
+            .topbar {
+              padding: 0 12px;
+              gap: 8px;
+              height: 52px;
+            }
+            .topbar-live-badge,
+            .topbar-install-btn {
+              display: none !important;
+            }
+            .topbar-title {
+              font-size: 12px;
+              max-width: 180px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .content-scroll {
+              padding: 14px 12px;
+            }
+          }
+
+          /* Responsive Layout Components */
+          .admin-page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+          }
+          @media (max-width: 640px) {
+            .admin-page-header {
+              flex-direction: column;
+              align-items: stretch;
+              gap: 12px;
+              margin-bottom: 16px;
+            }
+          }
+
+          .admin-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+          }
+          @media (max-width: 640px) {
+            .admin-header-actions {
+              width: 100%;
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+              gap: 8px;
+            }
+            .admin-header-actions button,
+            .admin-header-actions a {
+              justify-content: center;
+              padding: 9px 12px !important;
+              font-size: 12px !important;
+            }
+          }
+
+          .admin-filter-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+          }
+          @media (max-width: 640px) {
+            .admin-filter-bar {
+              flex-direction: column;
+              align-items: stretch;
+              gap: 10px;
+            }
+            .admin-filter-bar form {
+              width: 100% !important;
+              min-width: 0 !important;
+            }
+            .admin-filter-bar select {
+              width: 100% !important;
+            }
+          }
+
+          .admin-table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .admin-table {
+            width: 100%;
+            min-width: 680px;
+            border-collapse: collapse;
+          }
+
+          .admin-card {
+            background-color: rgba(6, 22, 15, 0.72);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(77, 255, 160, 0.2);
+            border-radius: 10px;
+            padding: 20px 22px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+          }
+          @media (max-width: 640px) {
+            .admin-card {
+              padding: 16px 14px;
+              margin-bottom: 16px;
+            }
+          }
+
+          .admin-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+          }
+          @media (max-width: 640px) {
+            .admin-stats-grid {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 10px;
+            }
+          }
+          @media (max-width: 420px) {
+            .admin-stats-grid {
+              grid-template-columns: 1fr;
+              gap: 10px;
+            }
+          }
+
+          .admin-stat-ribbon {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 18px;
+          }
+          @media (max-width: 640px) {
+            .admin-stat-ribbon {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 8px;
+            }
+          }
+
+          .admin-two-col-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 20px;
+            margin-bottom: 24px;
+          }
+          @media (max-width: 900px) {
+            .admin-two-col-grid {
+              grid-template-columns: 1fr;
+              gap: 16px;
+              margin-bottom: 20px;
+            }
+          }
+
+          .admin-tabs-scroll {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            border-bottom: 1px solid rgba(77, 255, 160, 0.15);
+            margin-bottom: 18px;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+          }
+          .admin-tabs-scroll::-webkit-scrollbar {
+            display: none;
+          }
+
+          .admin-form-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+          }
+          @media (max-width: 540px) {
+            .admin-form-grid-2 {
+              grid-template-columns: 1fr;
+              gap: 10px;
+              margin-bottom: 10px;
+            }
+          }
+
+          .admin-modal-card {
+            background-color: #06160f;
+            border: 1px solid rgba(77, 255, 160, 0.25);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 520px;
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            position: relative;
+            max-height: 92vh;
+            overflow-y: auto;
+          }
+          @media (max-width: 540px) {
+            .admin-modal-card {
+              padding: 16px 14px;
+              max-height: 95vh;
+            }
+          }
         `}</style>
       </head>
       <body>
@@ -709,20 +915,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <div className="spacer" />
 
                   {/* Live Status Pill */}
-                  <div style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    backgroundColor: "rgba(77, 255, 160, 0.08)",
-                    border: "1px solid rgba(77, 255, 160, 0.25)",
-                    color: "#4dffa0",
-                    padding: "4px 10px",
-                    borderRadius: "20px",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                  }}>
+                  <div
+                    className="topbar-live-badge"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      backgroundColor: "rgba(77, 255, 160, 0.08)",
+                      border: "1px solid rgba(77, 255, 160, 0.25)",
+                      color: "#4dffa0",
+                      padding: "4px 10px",
+                      borderRadius: "20px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                    }}
+                  >
                     <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#4dffa0", display: "inline-block", boxShadow: "0 0 6px #4dffa0" }} />
                     <span>Live Platform</span>
                   </div>
@@ -730,6 +939,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   {/* Install App Button */}
                   {isMounted && !isInstalled && (
                     <button
+                      className="topbar-install-btn"
                       onClick={() => promptInstall()}
                       title="Install SuperAdmin App"
                       style={{

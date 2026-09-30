@@ -34,7 +34,7 @@ export default function AdminLoginPage() {
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: "#060d09",
-      padding: "20px",
+      padding: "16px 12px",
       backgroundImage: "radial-gradient(ellipse at 50% 20%, rgba(16, 185, 129, 0.08) 0%, transparent 70%)",
     }}>
       <div style={{
@@ -43,7 +43,7 @@ export default function AdminLoginPage() {
         backgroundColor: "rgba(13, 27, 20, 0.85)",
         border: "1px solid rgba(16, 185, 129, 0.25)",
         borderRadius: "18px",
-        padding: "36px 32px",
+        padding: "30px 22px",
         boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.7)",
       }}>
         {/* Header */}
