@@ -400,7 +400,7 @@ export default function Consultant360Drawer({
               </div>
               <div style={{ backgroundColor: "rgba(6, 22, 15, 0.6)", padding: "10px", borderRadius: "6px", border: "1px solid rgba(77, 255, 160, 0.12)" }}>
                 <div style={{ fontSize: "10px", color: "#607f72", marginBottom: "2px" }}>Monthly Rev</div>
-                <div style={{ fontSize: "18px", fontWeight: 700, color: "#4dffa0" }}>${stats.mrrContribution ?? 0}</div>
+                <div style={{ fontSize: "18px", fontWeight: 700, color: "#4dffa0" }}>₹{stats.mrrContribution?.toLocaleString("en-IN") ?? 0}</div>
               </div>
             </div>
 

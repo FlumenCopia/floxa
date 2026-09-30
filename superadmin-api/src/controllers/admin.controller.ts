@@ -13,9 +13,9 @@ export function escapeRegex(text: string): string {
 
 export const PLAN_PRICING: Record<string, number> = {
   free: 0,
-  starter: 29,
-  pro: 79,
-  enterprise: 199,
+  starter: 2499,
+  pro: 6999,
+  enterprise: 16999,
 };
 
 export async function getMetrics(req: AdminAuthRequest, res: Response) {
@@ -153,7 +153,7 @@ export async function getMetrics(req: AdminAuthRequest, res: Response) {
     const arr = mrr * 12;
     const arpu = totalConsultants > 0 ? Number((mrr / totalConsultants).toFixed(2)) : 0;
     const conversionRate = totalConsultants > 0 ? Number(((paidConsultants / totalConsultants) * 100).toFixed(1)) : 0;
-    const estimatedApiCost = Number((totalAiRuns * 0.045).toFixed(2));
+    const estimatedApiCost = Number((totalAiRuns * 3.75).toFixed(2));
 
     res.json({
       success: true,

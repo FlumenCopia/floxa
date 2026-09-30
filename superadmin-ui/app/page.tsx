@@ -181,7 +181,7 @@ export default function AdminOverviewPage() {
               Monthly Recurring (MRR)
             </div>
             <div style={{ fontSize: "28px", fontWeight: 700, color: "#e8f5ef", letterSpacing: "-0.02em" }}>
-              ${loading ? "..." : (revenue.mrr ?? 0)}
+              ₹{loading ? "..." : (revenue.mrr?.toLocaleString("en-IN") ?? 0)}
               <span style={{ fontSize: "13px", fontWeight: 500, color: "#749b88", marginLeft: "4px" }}>/mo</span>
             </div>
             <div style={{ fontSize: "11px", color: "#89aca0", marginTop: "4px" }}>
@@ -200,7 +200,7 @@ export default function AdminOverviewPage() {
               Annual Run-Rate (ARR)
             </div>
             <div style={{ fontSize: "28px", fontWeight: 700, color: "#e8f5ef", letterSpacing: "-0.02em" }}>
-              ${loading ? "..." : (revenue.arr?.toLocaleString() ?? 0)}
+              ₹{loading ? "..." : (revenue.arr?.toLocaleString("en-IN") ?? 0)}
               <span style={{ fontSize: "13px", fontWeight: 500, color: "#749b88", marginLeft: "4px" }}>/yr</span>
             </div>
             <div style={{ fontSize: "11px", color: "#89aca0", marginTop: "4px" }}>
@@ -237,7 +237,7 @@ export default function AdminOverviewPage() {
               Average Revenue / User
             </div>
             <div style={{ fontSize: "28px", fontWeight: 700, color: "#e8f5ef", letterSpacing: "-0.02em" }}>
-              ${loading ? "..." : (revenue.arpu ?? 0)}
+              ₹{loading ? "..." : (revenue.arpu?.toLocaleString("en-IN") ?? 0)}
               <span style={{ fontSize: "13px", fontWeight: 500, color: "#749b88", marginLeft: "4px" }}>/mo</span>
             </div>
             <div style={{ fontSize: "11px", color: "#89aca0", marginTop: "4px" }}>
@@ -429,7 +429,7 @@ export default function AdminOverviewPage() {
               fontSize: "11px",
               fontWeight: 700,
             }}>
-              Est. Spend: ${aiUsage.estimatedApiCost ?? 0}
+              Est. Spend: ₹{aiUsage.estimatedApiCost?.toLocaleString("en-IN") ?? 0}
             </span>
           </div>
 
@@ -558,7 +558,7 @@ export default function AdminOverviewPage() {
                 </span>
               </div>
               <span style={{ fontSize: "12px", color: "#4dffa0", fontWeight: 700 }}>
-                MRR: ${revenue.mrr ?? 0}/mo
+                MRR: ₹{revenue.mrr?.toLocaleString("en-IN") ?? 0}/mo
               </span>
             </div>
 
@@ -572,10 +572,10 @@ export default function AdminOverviewPage() {
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
                   <span style={{ fontSize: "12px", fontWeight: 600, color: "#f0b429" }}>
-                    Enterprise Agency ($199/mo)
+                    Enterprise Agency (₹{revenue.planPricing?.enterprise?.toLocaleString("en-IN") ?? "16,999"}/mo)
                   </span>
                   <span style={{ fontSize: "12px", fontWeight: 700, color: "#e8f5ef" }}>
-                    ${revenue.revenueByPlan?.enterprise ?? 0}/mo
+                    ₹{revenue.revenueByPlan?.enterprise?.toLocaleString("en-IN") ?? 0}/mo
                   </span>
                 </div>
                 <div style={{ fontSize: "10px", color: "#89aca0" }}>
@@ -592,10 +592,10 @@ export default function AdminOverviewPage() {
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
                   <span style={{ fontSize: "12px", fontWeight: 600, color: "#4dffa0" }}>
-                    Professional Tier ($79/mo)
+                    Professional Tier (₹{revenue.planPricing?.pro?.toLocaleString("en-IN") ?? "6,999"}/mo)
                   </span>
                   <span style={{ fontSize: "12px", fontWeight: 700, color: "#e8f5ef" }}>
-                    ${revenue.revenueByPlan?.pro ?? 0}/mo
+                    ₹{revenue.revenueByPlan?.pro?.toLocaleString("en-IN") ?? 0}/mo
                   </span>
                 </div>
                 <div style={{ fontSize: "10px", color: "#89aca0" }}>
@@ -612,10 +612,10 @@ export default function AdminOverviewPage() {
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
                   <span style={{ fontSize: "12px", fontWeight: 600, color: "#4a9eff" }}>
-                    Starter Tier ($29/mo)
+                    Starter Tier (₹{revenue.planPricing?.starter?.toLocaleString("en-IN") ?? "2,499"}/mo)
                   </span>
                   <span style={{ fontSize: "12px", fontWeight: 700, color: "#e8f5ef" }}>
-                    ${revenue.revenueByPlan?.starter ?? 0}/mo
+                    ₹{revenue.revenueByPlan?.starter ?? 0}/mo
                   </span>
                 </div>
                 <div style={{ fontSize: "10px", color: "#89aca0" }}>
@@ -632,10 +632,10 @@ export default function AdminOverviewPage() {
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "3px" }}>
                   <span style={{ fontSize: "12px", fontWeight: 600, color: "#89aca0" }}>
-                    Free Trial ($0)
+                    Free Trial (₹0)
                   </span>
                   <span style={{ fontSize: "12px", fontWeight: 700, color: "#607f72" }}>
-                    $0/mo
+                    ₹0/mo
                   </span>
                 </div>
                 <div style={{ fontSize: "10px", color: "#607f72" }}>
