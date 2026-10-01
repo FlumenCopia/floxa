@@ -27,10 +27,10 @@ function getTransporter() {
   const port = parseInt(process.env.EMAIL_PORT || '587', 10);
   const user = process.env.EMAIL_HOST_USER !== undefined
     ? process.env.EMAIL_HOST_USER.trim()
-    : 'nidhinkg100@gmail.com';
+    : 'contactmiscarchive@gmail.com';
   const pass = process.env.EMAIL_HOST_PASSWORD !== undefined
     ? process.env.EMAIL_HOST_PASSWORD.replace(/\s+/g, '')
-    : 'npks lyug idet kwgb';
+    : 'onorlcovemxsxtwd';
 
   if (!user || !pass) {
     return null;
