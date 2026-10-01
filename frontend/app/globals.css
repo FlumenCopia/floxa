@@ -2779,6 +2779,23 @@ textarea {
   flex-shrink: 0;
 }
 
+.nav-dot.nav-dot-help {
+  background: #ffb800;
+  box-shadow: 0 0 10px rgba(255, 184, 0, 0.95), 0 0 4px #ffb800;
+  animation: floxaPulseHelp 1.8s infinite ease-in-out;
+}
+
+@keyframes floxaPulseHelp {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(255, 184, 0, 0.8);
+  }
+  50% {
+    transform: scale(1.35);
+    box-shadow: 0 0 14px rgba(255, 184, 0, 1), 0 0 6px #ffb800;
+  }
+}
+
 .mobile-tab-item .nav-dot {
   position: absolute;
   top: -2px;

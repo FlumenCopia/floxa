@@ -222,7 +222,13 @@ function NavItem({ item, onClick }) {
       <Icon type={item.icon} />
       <span className="nav-label-wrap">
         <span>{item.label}</span>
-        {item.dot ? <span className="nav-dot" aria-hidden="true" /> : null}
+        {item.dot ? (
+          <span
+            className={`nav-dot ${item.dotClass || ""}`.trim()}
+            aria-hidden="true"
+            title={item.dotTitle || undefined}
+          />
+        ) : null}
       </span>
       {!item.dot && item.badge ? (
         <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span>
@@ -255,7 +261,13 @@ function MobileTabItem({ item, onClick }) {
       <Icon type={item.icon} />
       <span className="nav-label-wrap">
         <span>{item.label}</span>
-        {item.dot ? <span className="nav-dot" aria-hidden="true" /> : null}
+        {item.dot ? (
+          <span
+            className={`nav-dot ${item.dotClass || ""}`.trim()}
+            aria-hidden="true"
+            title={item.dotTitle || undefined}
+          />
+        ) : null}
       </span>
       {!item.dot && item.badge ? (
         <span className={`nav-badge ${item.badgeClass || ""}`.trim()}>{item.badge}</span>
@@ -334,6 +346,12 @@ export default function Floxaheader({
       ? notifications.filter((notification) => !notification.is_read && notification.visible_to_consultant !== false && notification.actor_type !== "consultant").length
       : notificationCount);
 
+  const unreadHelpNotifications = (headerNotifications.length ? headerNotifications : notifications).filter(
+    (notification) => !notification.is_read && notification.action === "client_help_requested"
+  );
+  const unreadHelpCount = unreadHelpNotifications.length;
+  const latestHelpNotification = unreadHelpNotifications[0] || null;
+
   const resolvedPrimaryNavItems = primaryNavItems.map((item) => ({
     ...item,
     active: item.label.toLowerCase() === resolvedActiveNav.toLowerCase(),
@@ -350,27 +368,98 @@ export default function Floxaheader({
         : item.badgeClass,
   }));
 
-  const resolvedMobileTabItems = mobileTabItems.map((item) => ({
-    ...item,
-    active:
-      (resolvedActiveNav?.toLowerCase() === "dashboard" && item.label.toLowerCase() === "home") ||
-      (resolvedActiveNav?.toLowerCase() === "projects" && item.label.toLowerCase() === "projects") ||
-      (resolvedActiveNav?.toLowerCase() === "chat" && item.label.toLowerCase() === "chat") ||
-      (resolvedActiveNav?.toLowerCase() === "ai suite" && item.label.toLowerCase() === "ai") ||
-      (resolvedActiveNav?.toLowerCase() === "client portal" && item.label.toLowerCase() === "portal") ||
-      (resolvedActiveNav?.toLowerCase() === "settings" && item.label.toLowerCase() === "settings"),
-    dot: item.label === "Projects" && visibleNotificationCount > 0,
-    badge:
-      item.label === "Chat" && unreadChatCount > 0
-        ? unreadChatCount
-        : item.label !== "Projects" && item.badge
-          ? item.badge
-          : null,
-    badgeClass:
-      item.label === "Chat"
-        ? "nav-badge-chat"
-        : item.badgeClass,
-  }));
+  const resolvedClientNavItems = clientNavItems.map((item) => {
+    if (item.label === "CLIENT PORTAL") {
+      let portalRoute = item.route;
+      if (latestHelpNotification) {
+        let portalToken = latestHelpNotification.portal_token || latestHelpNotification.metadata?.portal_token;
+        let pageId = latestHelpNotification.page_id || latestHelpNotification.metadata?.page_id;
+        let projectId = latestHelpNotification.project_id || latestHelpNotification.metadata?.project_id;
+
+        if (!portalToken && typeof latestHelpNotification.metadata === "string") {
+          try {
+            const parsed = JSON.parse(latestHelpNotification.metadata);
+            portalToken = parsed?.portal_token;
+            pageId = pageId || parsed?.page_id;
+            projectId = projectId || parsed?.project_id;
+          } catch {}
+        }
+
+        const stepMatch = String(pageId || "").match(/\d+/);
+        const stepParam = stepMatch ? `&step=${stepMatch[0]}` : "";
+
+        if (portalToken) {
+          portalRoute = `/client-portal?token=${encodeURIComponent(portalToken)}&mode=consultant${stepParam}`;
+        } else if (projectId) {
+          portalRoute = `/client-portal?projectId=${encodeURIComponent(projectId)}&mode=consultant${stepParam}`;
+        }
+      }
+
+      return {
+        ...item,
+        route: portalRoute,
+        active: resolvedActiveNav?.toLowerCase() === "client portal",
+        dot: unreadHelpCount > 0,
+        dotClass: unreadHelpCount > 0 ? "nav-dot-help" : "",
+        dotTitle: unreadHelpCount > 0 ? `Client requested help in portal (${unreadHelpCount})` : undefined,
+      };
+    }
+    return item;
+  });
+
+  const resolvedMobileTabItems = mobileTabItems.map((item) => {
+    let portalRoute = item.route;
+    if (item.label.toLowerCase() === "portal" && latestHelpNotification) {
+      let portalToken = latestHelpNotification.portal_token || latestHelpNotification.metadata?.portal_token;
+      let pageId = latestHelpNotification.page_id || latestHelpNotification.metadata?.page_id;
+      let projectId = latestHelpNotification.project_id || latestHelpNotification.metadata?.project_id;
+
+      if (!portalToken && typeof latestHelpNotification.metadata === "string") {
+        try {
+          const parsed = JSON.parse(latestHelpNotification.metadata);
+          portalToken = parsed?.portal_token;
+          pageId = pageId || parsed?.page_id;
+          projectId = projectId || parsed?.project_id;
+        } catch {}
+      }
+
+      const stepMatch = String(pageId || "").match(/\d+/);
+      const stepParam = stepMatch ? `&step=${stepMatch[0]}` : "";
+
+      if (portalToken) {
+        portalRoute = `/client-portal?token=${encodeURIComponent(portalToken)}&mode=consultant${stepParam}`;
+      } else if (projectId) {
+        portalRoute = `/client-portal?projectId=${encodeURIComponent(projectId)}&mode=consultant${stepParam}`;
+      }
+    }
+
+    return {
+      ...item,
+      route: portalRoute,
+      active:
+        (resolvedActiveNav?.toLowerCase() === "dashboard" && item.label.toLowerCase() === "home") ||
+        (resolvedActiveNav?.toLowerCase() === "projects" && item.label.toLowerCase() === "projects") ||
+        (resolvedActiveNav?.toLowerCase() === "chat" && item.label.toLowerCase() === "chat") ||
+        (resolvedActiveNav?.toLowerCase() === "ai suite" && item.label.toLowerCase() === "ai") ||
+        (resolvedActiveNav?.toLowerCase() === "client portal" && item.label.toLowerCase() === "portal") ||
+        (resolvedActiveNav?.toLowerCase() === "settings" && item.label.toLowerCase() === "settings"),
+      dot:
+        (item.label === "Projects" && visibleNotificationCount > 0) ||
+        (item.label === "Portal" && unreadHelpCount > 0),
+      dotClass: item.label === "Portal" && unreadHelpCount > 0 ? "nav-dot-help" : "",
+      dotTitle: item.label === "Portal" && unreadHelpCount > 0 ? `Client requested help in portal (${unreadHelpCount})` : undefined,
+      badge:
+        item.label === "Chat" && unreadChatCount > 0
+          ? unreadChatCount
+          : item.label !== "Projects" && item.badge
+            ? item.badge
+            : null,
+      badgeClass:
+        item.label === "Chat"
+          ? "nav-badge-chat"
+          : item.badgeClass,
+    };
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -743,8 +832,19 @@ export default function Floxaheader({
   }, [isSidebarOpen]);
 
   const closeSidebar = () => setIsSidebarOpen(false);
-  const handleNavigation = () => {
+  const handleNavigation = (route, item) => {
     closeSidebar();
+    if (item?.label === "CLIENT PORTAL" && latestHelpNotification?.id) {
+      setHeaderNotifications((current) =>
+        current.map((n) =>
+          n.id === latestHelpNotification.id ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
+        )
+      );
+      const projectId = latestHelpNotification.project_id || latestHelpNotification.metadata?.project_id;
+      if (projectId) {
+        markProjectActivitiesRead(projectId, ["client_help_requested"]).catch(() => {});
+      }
+    }
   };
 
 
@@ -952,8 +1052,8 @@ export default function Floxaheader({
 
         <div className="nav-section">
           <div className="nav-lbl">Client</div>
-          {clientNavItems.map((item) => (
-            <NavItem key={item.label} item={item} onClick={() => handleNavigation(item.route)} />
+          {resolvedClientNavItems.map((item) => (
+            <NavItem key={item.label} item={item} onClick={() => handleNavigation(item.route, item)} />
           ))}
         </div>
 

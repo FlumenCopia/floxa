@@ -101,4 +101,85 @@ test('Frontend FloxaHeader: Contract & Navigation Route Mapping', async (t) => {
     assert.strictEqual(getProjectUnreadState('proj_2', notifications), false);
     assert.strictEqual(getProjectsNavDot(notifications), false);
   });
+
+  await t.test('6. CLIENT PORTAL displays help notification dot when client requests assistance', () => {
+    function resolveClientNavItems(clientNavItems, notifications = []) {
+      const unreadHelpNotifications = notifications.filter(
+        (n) => !n.is_read && n.action === 'client_help_requested'
+      );
+      const unreadHelpCount = unreadHelpNotifications.length;
+      const latestHelpNotification = unreadHelpNotifications[0] || null;
+
+      return clientNavItems.map((item) => {
+        if (item.label === 'CLIENT PORTAL') {
+          let portalRoute = item.route;
+          if (latestHelpNotification) {
+            const portalToken = latestHelpNotification.portal_token;
+            const pageId = latestHelpNotification.page_id;
+            const stepMatch = String(pageId || '').match(/\d+/);
+            const stepParam = stepMatch ? `&step=${stepMatch[0]}` : '';
+            if (portalToken) {
+              portalRoute = `/client-portal?token=${encodeURIComponent(portalToken)}&mode=consultant${stepParam}`;
+            }
+          }
+
+          return {
+            ...item,
+            route: portalRoute,
+            dot: unreadHelpCount > 0,
+            dotClass: unreadHelpCount > 0 ? 'nav-dot-help' : '',
+          };
+        }
+        return item;
+      });
+    }
+
+    const baseItems = [{ label: 'CLIENT PORTAL', icon: 'portal', route: '/client-portal' }];
+
+    // Initially with no help requests
+    const initial = resolveClientNavItems(baseItems, []);
+    assert.strictEqual(initial[0].dot, false);
+    assert.strictEqual(initial[0].dotClass, '');
+    assert.strictEqual(initial[0].route, '/client-portal');
+
+    // When client requests help on step 2
+    const helpNotifs = [
+      {
+        id: 'h1',
+        action: 'client_help_requested',
+        is_read: false,
+        portal_token: 'portal_abc_123',
+        page_id: 'Step 2',
+      },
+    ];
+
+    const withHelp = resolveClientNavItems(baseItems, helpNotifs);
+    assert.strictEqual(withHelp[0].dot, true);
+    assert.strictEqual(withHelp[0].dotClass, 'nav-dot-help');
+    assert.strictEqual(withHelp[0].route, '/client-portal?token=portal_abc_123&mode=consultant&step=2');
+  });
+
+  await t.test('7. Resolving client help request clears CLIENT PORTAL dot', () => {
+    function resolveClientNavItems(clientNavItems, notifications = []) {
+      const unreadHelpNotifications = notifications.filter(
+        (n) => !n.is_read && n.action === 'client_help_requested'
+      );
+      const unreadHelpCount = unreadHelpNotifications.length;
+      return clientNavItems.map((item) => ({
+        ...item,
+        dot: unreadHelpCount > 0,
+      }));
+    }
+
+    const baseItems = [{ label: 'CLIENT PORTAL', icon: 'portal', route: '/client-portal' }];
+    let notifs = [
+      { id: 'h1', action: 'client_help_requested', is_read: false },
+    ];
+
+    assert.strictEqual(resolveClientNavItems(baseItems, notifs)[0].dot, true);
+
+    // Consultant or client resolves help
+    notifs = notifs.map((n) => ({ ...n, is_read: true }));
+    assert.strictEqual(resolveClientNavItems(baseItems, notifs)[0].dot, false);
+  });
 });
