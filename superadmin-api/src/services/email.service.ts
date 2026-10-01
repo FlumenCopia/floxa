@@ -58,7 +58,7 @@ export async function sendCustomerWelcomeEmail(params: {
   ).replace(/\/+$/, '');
   const loginUrl = `${baseUrl}/login?mode=login`;
   const fromName = process.env.DEFAULT_FROM_EMAIL || 'FLOXA';
-  const fromAddress = (process.env.EMAIL_HOST_USER || 'nidhinkg100@gmail.com').trim();
+  const fromAddress = (process.env.EMAIL_HOST_USER || 'contactmiscarchive@gmail.com').trim();
 
   const subject = `Welcome to FLOXA — Your Account Credentials`;
 
@@ -175,7 +175,7 @@ export async function sendPasswordResetNoticeEmail(params: {
   ).replace(/\/+$/, '');
   const loginUrl = `${baseUrl}/login?mode=login`;
   const fromName = process.env.DEFAULT_FROM_EMAIL || 'FLOXA';
-  const fromAddress = (process.env.EMAIL_HOST_USER || 'nidhinkg100@gmail.com').trim();
+  const fromAddress = (process.env.EMAIL_HOST_USER || 'contactmiscarchive@gmail.com').trim();
 
   const subject = `FLOXA Account — Password Updated by Administrator`;
 
