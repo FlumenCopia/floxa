@@ -839,6 +839,80 @@ export const clientPortalService = {
     return { success: true, data: updated.brandDNA };
   },
 
+  saveClientFontPreferences(projectId, fontData) {
+    const keys = [
+      `floxa-client-fonts-${projectId || "default"}`,
+      "floxa-client-fonts-current",
+    ];
+    if (activeToken) {
+      keys.push(`floxa-client-fonts-${activeToken}`);
+    }
+    if (typeof window !== "undefined") {
+      try {
+        keys.forEach((k) => localStorage.setItem(k, JSON.stringify(fontData)));
+      } catch {}
+    }
+    try {
+      const project = readProject();
+      if (project) {
+        writeProject({
+          ...project,
+          brandDNA: {
+            ...project.brandDNA,
+            selectedFonts: fontData,
+            typography_directives: {
+              ...(project.brandDNA?.typography_directives || {}),
+              primary_headline: fontData.selectedFont || fontData.headlineFont,
+              secondary_body: fontData.selectedFont || fontData.bodyFont,
+            },
+          },
+        });
+      }
+    } catch {}
+
+    const chosen = fontData?.selectedFont || fontData?.headlineFont || fontData?.bodyFont || "";
+    const targetToken = activeToken || projectId;
+    if (targetToken && chosen && targetToken !== "test-token") {
+      try {
+        apiRequest(`/client-portal/${targetToken}/discovery/`, {
+          method: "POST",
+          body: JSON.stringify({
+            selected_font: chosen,
+            selectedFont: chosen,
+          }),
+        }).catch(() => {});
+      } catch {}
+    }
+  },
+
+  getClientFontPreferences(projectId, token) {
+    const keys = [
+      `floxa-client-fonts-${projectId || ""}`,
+      `floxa-client-fonts-${token || ""}`,
+      `floxa-client-fonts-${activeToken || ""}`,
+      "floxa-client-fonts-current",
+    ].filter(Boolean);
+
+    if (typeof window !== "undefined") {
+      for (const k of keys) {
+        try {
+          const raw = localStorage.getItem(k);
+          if (raw) return JSON.parse(raw);
+        } catch {}
+      }
+    }
+    try {
+      const project = readProject();
+      if (project?.brandDNA?.selectedFonts) {
+        return project.brandDNA.selectedFonts;
+      }
+    } catch {}
+    return {
+      headlineFont: "Playfair Display",
+      bodyFont: "Plus Jakarta Sans",
+    };
+  },
+
   async getDiscoveryDraft(target, portalTokenArg = activeToken) {
     const hasNumericId = hasBackendProjectId(target);
     const token = (!hasNumericId && target && target !== "test-token")

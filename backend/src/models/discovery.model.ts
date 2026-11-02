@@ -27,6 +27,7 @@ export interface IProjectDiscovery {
   emotions: string[];
   competitors: IDiscoveryCompetitor[];
   visualStyles: string[];
+  selectedFont?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -69,6 +70,7 @@ const projectDiscoverySchema = new Schema<IProjectDiscovery>(
     emotions: { type: [String], default: [] },
     competitors: { type: [discoveryCompetitorSchema], default: [] },
     visualStyles: { type: [String], default: [] },
+    selectedFont: { type: String, default: '', trim: true },
   },
   {
     collection: 'project_discoveries',

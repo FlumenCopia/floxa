@@ -241,6 +241,16 @@ export function buildDiscoveryPayload({ basics = {}, sliders, emotions, persona,
     )
       .slice(0, 3)
       .map((style) => ({ style })),
+    selected_font: typeof window !== "undefined"
+      ? (clientPortalService.getClientFontPreferences()?.selectedFont ||
+         clientPortalService.getClientFontPreferences()?.headlineFont ||
+         clientPortalService.getClientFontPreferences()?.bodyFont || "")
+      : "",
+    selectedFont: typeof window !== "undefined"
+      ? (clientPortalService.getClientFontPreferences()?.selectedFont ||
+         clientPortalService.getClientFontPreferences()?.headlineFont ||
+         clientPortalService.getClientFontPreferences()?.bodyFont || "")
+      : "",
   };
 }
 
@@ -318,6 +328,25 @@ export function DiscoveryFlow({
     whyChooseUs: readStoredDraft(draftKey).basics?.whyChooseUs ?? "",
     brandFeeling: readStoredDraft(draftKey).basics?.brandFeeling ?? "",
   }));
+
+  const fontPrefs = clientPortalService.getClientFontPreferences(project?.id, token);
+  const headlineFont = fontPrefs?.headlineFont || "Playfair Display";
+  const bodyFont = fontPrefs?.bodyFont || "Plus Jakarta Sans";
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    [headlineFont, bodyFont].forEach((fName) => {
+      if (!fName) return;
+      const id = `gfont-discovery-${fName.replace(/\s+/g, "-").toLowerCase()}`;
+      if (!document.getElementById(id)) {
+        const link = document.createElement("link");
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?family=${fName.replace(/\s+/g, "+")}:wght@400;600;700;800&display=swap`;
+        document.head.appendChild(link);
+      }
+    });
+  }, [headlineFont, bodyFont]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [activeHelpSession, setActiveHelpSession] = useState(null);
@@ -930,7 +959,13 @@ export function DiscoveryFlow({
   }
 
   return (
-    <div className="client-discovery-screen">
+    <div
+      className="client-discovery-screen"
+      style={{
+        "--client-headline-font": `"${headlineFont}", serif`,
+        "--client-body-font": `"${bodyFont}", sans-serif`,
+      }}
+    >
       <div className={`client-discovery-content ${isReadOnly ? "consultant-view-locked" : ""}`.trim()}>
         {isConsultantMode ? (
           isReadOnly ? (
@@ -957,6 +992,16 @@ export function DiscoveryFlow({
           <div className="client-small-logo">
             <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-small-logo-img" />
           </div>
+          <button
+            type="button"
+            className="client-discovery-font-badge"
+            onClick={() => onNext("fonts")}
+            title="Edit selected brand typography"
+          >
+            <span>Brand Font:</span>
+            <strong>{bodyFont || headlineFont}</strong>
+            <span className="badge-edit-label">Change</span>
+          </button>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {!isConsultantMode ? (
               isCurrentStepHelpActive ? (
@@ -984,6 +1029,15 @@ export function DiscoveryFlow({
                 </button>
               )
             ) : null}
+            <button
+              type="button"
+              className="client-guide-btn"
+              style={{ marginRight: "8px" }}
+              onClick={() => window.dispatchEvent(new CustomEvent("floxa:open_client_intro"))}
+              title="View Client Journey Guide"
+            >
+              <span>How It Works</span>
+            </button>
             <div>
               Phase 2 of 9 <span>{pct}%</span>
             </div>
@@ -1227,7 +1281,7 @@ export function DiscoveryFlow({
               Back
             </button>
           ) : (
-            <button type="button" onClick={() => onNext("profile")}>
+            <button type="button" onClick={() => onNext("fonts")}>
               Back
             </button>
           )}

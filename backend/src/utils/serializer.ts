@@ -153,6 +153,8 @@ export function serializeDiscovery(discovery: any) {
     competitors,
     top_competitors: competitors,
     visual_styles: visualStyles,
+    selected_font: discovery.selectedFont || '',
+    selectedFont: discovery.selectedFont || '',
     created_at: discovery.createdAt ? new Date(discovery.createdAt).toISOString() : null,
     updated_at: discovery.updatedAt ? new Date(discovery.updatedAt).toISOString() : null,
   };

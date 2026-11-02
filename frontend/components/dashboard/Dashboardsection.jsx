@@ -5,6 +5,8 @@ import { getConsultantActivities, getProjects } from "@/lib/projectApi";
 import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
 import { useRouter } from "next/navigation";
 import ProjectCreateWizard from "./ProjectCreateWizard";
+import ConsultantTour from "./ConsultantTour";
+import { getCurrentConsultant } from "@/lib/authApi";
 import { FolderKanban, IndianRupee, Sparkles, Clock, Plus } from "lucide-react";
 
 function KpiIcon({ type }) {
@@ -32,12 +34,21 @@ function formatActivityTime(value) {
 export default function Dashboardsection() {
       const router = useRouter();
 
+  const [consultant, setConsultant] = useState(null);
   const [projects, setProjects] = useState([]);
   const [totalProjectsCount, setTotalProjectsCount] = useState(0);
   const [activities, setActivities] = useState([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+
+  useEffect(() => {
+    getCurrentConsultant()
+      .then((data) => {
+        if (data) setConsultant(data);
+      })
+      .catch((err) => console.error("Failed to load consultant profile:", err));
+  }, []);
 
   useEffect(() => {
     async function loadProjects() {
@@ -121,6 +132,7 @@ export default function Dashboardsection() {
 
   return (
     <div className="content">
+      <ConsultantTour consultant={consultant} onOpenWizard={handleOpenWizard} />
       <div className="screen active" id="screen-dashboard">
         {isWizardOpen ? (
           <ProjectCreateWizard

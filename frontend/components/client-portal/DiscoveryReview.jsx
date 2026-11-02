@@ -145,6 +145,12 @@ export function DiscoveryReview({
     { label: "Why choose you?", value: basics.whyChooseUs },
     { label: "Brand feeling", value: basics.brandFeeling },
   ];
+  const fontPrefs = clientPortalService.getClientFontPreferences(project?.id);
+  const chosenFont = fontPrefs?.selectedFont || fontPrefs?.bodyFont || fontPrefs?.headlineFont || "Plus Jakarta Sans";
+  const typographyItems = [
+    { label: "Selected Brand Font", value: chosenFont },
+  ];
+
   const audienceItems = [
     { label: "Emotions", value: emotions },
     { label: "Primary customer", value: persona },
@@ -213,6 +219,15 @@ export function DiscoveryReview({
               action={(
                 <button type="button" onClick={() => onNext("profile")}>
                   Edit Profile
+                </button>
+              )}
+            />
+            <ReviewSection
+              title="Google Fonts Selection"
+              items={typographyItems}
+              action={(
+                <button type="button" onClick={() => onNext("fonts")}>
+                  Edit Fonts
                 </button>
               )}
             />

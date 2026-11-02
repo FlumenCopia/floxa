@@ -192,7 +192,7 @@ export function ProfileScreen({
 
       await onProjectRefresh();
       setClientData(response.data);
-      onNext(profileReturnScreen || "discovery");
+      onNext(profileReturnScreen || "fonts");
     } catch (err) {
       console.error("Client profile save failed:", err);
       setError(formatProfileSaveError(err));
@@ -213,9 +213,18 @@ export function ProfileScreen({
             <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-small-logo-img" />
           </div>
 
-          <button
-            type="button"
-            className="client-offcanvas-toggle-btn"
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              type="button"
+              className="client-guide-btn"
+              onClick={() => window.dispatchEvent(new CustomEvent("floxa:open_client_intro"))}
+              title="View Client Journey Guide"
+            >
+              <span>How It Works</span>
+            </button>
+            <button
+              type="button"
+              className="client-offcanvas-toggle-btn"
             onClick={() => setOffcanvasOpen(true)}
             title="Toggle Menu"
             aria-label="Toggle Menu"
@@ -236,6 +245,7 @@ export function ProfileScreen({
               <line x1="4" y1="17" x2="20" y2="17" />
             </svg>
           </button>
+          </div>
         </div>
 
         <h1>
@@ -315,7 +325,7 @@ export function ProfileScreen({
             Back
           </button>
           <button type="button" onClick={handleNext} disabled={saving}>
-            {saving ? "Saving..." : "Begin Discovery"}
+            {saving ? "Saving..." : (profileReturnScreen ? "Save Profile" : "Continue to Font Selection →")}
           </button>
         </div>
       </div>

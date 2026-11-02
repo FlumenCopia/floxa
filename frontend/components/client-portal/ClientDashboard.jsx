@@ -6,7 +6,8 @@ import { supportSocket } from "../../services/supportSocketService";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/lib/api";
 import { showError, showSuccess } from "@/lib/toast";
-import { Bell, Clock, FileText } from "lucide-react";
+import { Bell, Clock, FileText, Compass } from "lucide-react";
+import "./ClientPortalIntroModal.css";
 
 const phaseLabels = [
   "Discovery",
@@ -1334,6 +1335,15 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
         </div>
 
         <div className="client-dashboard-actions">
+          <button
+            type="button"
+            className="client-guide-btn"
+            onClick={() => window.dispatchEvent(new CustomEvent("floxa:open_client_intro"))}
+            title="How this client portal works"
+          >
+            <Compass size={14} strokeWidth={2} />
+            <span>How It Works</span>
+          </button>
           <div className="client-notification-wrap" ref={notificationsRef}>
             <button
               type="button"
@@ -1611,69 +1621,80 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                     </div>
                   ) : null}
 
-                  {brandDNAReport.typography_directives ? (
-                    <div style={{ marginBottom: "2rem" }}>
-                      <div className="client-discovery-report-header" style={{ marginBottom: "1rem" }}>
-                        <span>Typography Pairing</span>
-                        <h4 style={{ margin: 0, fontSize: "1.15rem", color: "#ffffff", fontWeight: 600 }}>
-                          Selected Font Directives
-                        </h4>
+                  {(() => {
+                    const typographyDirectives = brandDNAReport.typography_directives || {
+                      primary_headline: clientPortalService.getClientFontPreferences(project?.id)?.headlineFont,
+                      secondary_body: clientPortalService.getClientFontPreferences(project?.id)?.bodyFont,
+                    };
+
+                    if (!typographyDirectives?.primary_headline && !typographyDirectives?.secondary_body) {
+                      return null;
+                    }
+
+                    return (
+                      <div style={{ marginBottom: "2rem" }}>
+                        <div className="client-discovery-report-header" style={{ marginBottom: "1rem" }}>
+                          <span>Typography Pairing (Google Fonts)</span>
+                          <h4 style={{ margin: 0, fontSize: "1.15rem", color: "#ffffff", fontWeight: 600 }}>
+                            Selected Font Directives
+                          </h4>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+                          {typographyDirectives.primary_headline ? (
+                            <div
+                              style={{
+                                background: "rgba(10, 24, 18, 0.5)",
+                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                                borderRadius: "12px",
+                                padding: "14px",
+                              }}
+                            >
+                              <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4dffa0", marginBottom: "4px" }}>
+                                Primary Headline Font
+                              </div>
+                              <strong style={{ color: "#ffffff", fontSize: "0.95rem" }}>
+                                {typographyDirectives.primary_headline}
+                              </strong>
+                            </div>
+                          ) : null}
+                          {typographyDirectives.secondary_body ? (
+                            <div
+                              style={{
+                                background: "rgba(10, 24, 18, 0.5)",
+                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                                borderRadius: "12px",
+                                padding: "14px",
+                              }}
+                            >
+                              <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4dffa0", marginBottom: "4px" }}>
+                                Secondary Body Font
+                              </div>
+                              <strong style={{ color: "#ffffff", fontSize: "0.95rem" }}>
+                                {typographyDirectives.secondary_body}
+                              </strong>
+                            </div>
+                          ) : null}
+                          {typographyDirectives.accent_callout ? (
+                            <div
+                              style={{
+                                background: "rgba(10, 24, 18, 0.5)",
+                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                                borderRadius: "12px",
+                                padding: "14px",
+                              }}
+                            >
+                              <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4dffa0", marginBottom: "4px" }}>
+                                Accent / Microcopy
+                              </div>
+                              <strong style={{ color: "#ffffff", fontSize: "0.95rem" }}>
+                                {typographyDirectives.accent_callout}
+                              </strong>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
-                        {brandDNAReport.typography_directives.primary_headline ? (
-                          <div
-                            style={{
-                              background: "rgba(10, 24, 18, 0.5)",
-                              border: "1px solid rgba(255, 255, 255, 0.1)",
-                              borderRadius: "12px",
-                              padding: "14px",
-                            }}
-                          >
-                            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4dffa0", marginBottom: "4px" }}>
-                              Primary Headline
-                            </div>
-                            <strong style={{ color: "#ffffff", fontSize: "0.95rem" }}>
-                              {brandDNAReport.typography_directives.primary_headline}
-                            </strong>
-                          </div>
-                        ) : null}
-                        {brandDNAReport.typography_directives.secondary_body ? (
-                          <div
-                            style={{
-                              background: "rgba(10, 24, 18, 0.5)",
-                              border: "1px solid rgba(255, 255, 255, 0.1)",
-                              borderRadius: "12px",
-                              padding: "14px",
-                            }}
-                          >
-                            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4dffa0", marginBottom: "4px" }}>
-                              Secondary Body
-                            </div>
-                            <strong style={{ color: "#ffffff", fontSize: "0.95rem" }}>
-                              {brandDNAReport.typography_directives.secondary_body}
-                            </strong>
-                          </div>
-                        ) : null}
-                        {brandDNAReport.typography_directives.accent_callout ? (
-                          <div
-                            style={{
-                              background: "rgba(10, 24, 18, 0.5)",
-                              border: "1px solid rgba(255, 255, 255, 0.1)",
-                              borderRadius: "12px",
-                              padding: "14px",
-                            }}
-                          >
-                            <div style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "#4dffa0", marginBottom: "4px" }}>
-                              Accent / Microcopy
-                            </div>
-                            <strong style={{ color: "#ffffff", fontSize: "0.95rem" }}>
-                              {brandDNAReport.typography_directives.accent_callout}
-                            </strong>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
+                    );
+                  })()}
 
                   {brandDNAReport.copywriting_hooks?.length > 0 ? (
                     <div style={{ marginBottom: "2rem" }}>

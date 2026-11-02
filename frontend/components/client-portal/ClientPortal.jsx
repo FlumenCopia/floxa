@@ -9,12 +9,14 @@ import "./ClientPortal.css";
 import { DiscoveryFlow } from "./DiscoveryFlow";
 import { DiscoveryReview } from "./DiscoveryReview";
 import { ProfileScreen } from "./ProfileScreen";
+import { FontSelectionScreen } from "./FontSelectionScreen";
 import { LoginScreen, SplashScreen, WelcomeStage } from "./SplashScreen";
 import { VideoCallModal } from "./VideoCallModal";
 import { ClientPortalChatWidget } from "./ClientPortalChatWidget";
 import { webRTCService } from "../../services/webRTCService";
 import { supportSocket } from "../../services/supportSocketService";
 import { ClientSecurityShield } from "./ClientSecurityShield";
+import { ClientPortalIntroModal } from "./ClientPortalIntroModal";
 
 function getResumeScreen(status) {
   const normalizedStatus = String(status || "").toLowerCase();
@@ -34,7 +36,7 @@ function getResumeScreen(status) {
   return "profile";
 }
 
-const VALID_SCREENS = ["splash", "login", "profile", "discovery", "review", "dashboard"];
+const VALID_SCREENS = ["splash", "login", "profile", "fonts", "discovery", "review", "dashboard"];
 
 function getScreenStorageKey(token) {
   return `floxa-client-screen-${token || "test-token"}`;
@@ -520,6 +522,7 @@ export function ClientPortal({ token, isConsultant = false }) {
         />
       ) : null}
       {currentScreen === "profile" ? <ProfileScreen {...screenProps} /> : null}
+      {currentScreen === "fonts" ? <FontSelectionScreen {...screenProps} /> : null}
       {currentScreen === "discovery" ? (
         <DiscoveryFlow
           key={`discovery-flow-${token || project?.portal_token || "portal"}`}
@@ -535,6 +538,15 @@ export function ClientPortal({ token, isConsultant = false }) {
         <ClientDashboard
           {...screenProps}
           onSignOut={() => setIsSignOutModalOpen(true)}
+        />
+      ) : null}
+
+      {/* Client Walkthrough Intro Modal */}
+      {currentScreen !== "splash" && currentScreen !== "login" ? (
+        <ClientPortalIntroModal
+          token={token}
+          projectId={project?.id || project?._id}
+          clientName={project?.client_name || project?.name}
         />
       ) : null}
 

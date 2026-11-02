@@ -182,6 +182,8 @@ function extractDiscoveryData(body: any, existingDiscovery: any) {
     why_choose_us: 'whyChooseUs',
     brand_feeling: 'brandFeeling',
     audience_archetype: 'audienceArchetype',
+    selected_font: 'selectedFont',
+    selectedFont: 'selectedFont',
   };
 
   const finalData: any = {};

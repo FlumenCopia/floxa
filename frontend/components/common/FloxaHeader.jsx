@@ -34,6 +34,7 @@ import { webRTCService } from "@/services/webRTCService";
 import { chatService } from "@/services/chatService";
 import { VideoCallModal } from "@/components/client-portal/VideoCallModal";
 import "@/components/client-portal/ClientPortal.css";
+import "@/components/dashboard/ConsultantTour.css";
 
 const primaryNavItems = [
   { label: "DASHBOARD", icon: "grid", route: "/" },
@@ -236,12 +237,15 @@ function NavItem({ item, onClick }) {
     </>
   );
 
+  const tourAttr = item.label ? item.label.toLowerCase().trim().replace(/\s+/g, "-") : undefined;
+
   if (item.route) {
     return (
       <Link
         href={item.route}
         className={`nav-item ${item.active ? "active" : ""}`.trim()}
         onClick={onClick}
+        data-tour={tourAttr}
       >
         {content}
       </Link>
@@ -249,7 +253,12 @@ function NavItem({ item, onClick }) {
   }
 
   return (
-    <button className={`nav-item ${item.active ? "active" : ""}`.trim()} type="button" onClick={onClick}>
+    <button
+      className={`nav-item ${item.active ? "active" : ""}`.trim()}
+      type="button"
+      onClick={onClick}
+      data-tour={tourAttr}
+    >
       {content}
     </button>
   );
@@ -1125,6 +1134,21 @@ export default function Floxaheader({
               onChange={(event) => setProjectSearch(event.target.value)}
             />
           </form>
+          <button
+            type="button"
+            className="tour-nav-btn"
+            onClick={() => {
+              if (pathname !== "/") {
+                router.push("/?tour=true");
+              } else {
+                window.dispatchEvent(new CustomEvent("floxa:start_tour"));
+              }
+            }}
+            title="Take a tour of FLOXA"
+          >
+            <Compass size={14} strokeWidth={2} />
+            <span>Tour</span>
+          </button>
           <div className="notification-wrap">
             <button
               className="icon-btn"

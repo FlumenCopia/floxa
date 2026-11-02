@@ -4,12 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { clientPortalService } from "../../services/clientPortalService";
 import Floxaheader from "../common/FloxaHeader";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset } from "@/lib/api";
 import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
 import { showError, showSuccess } from "@/lib/toast";
-import { FileText, X, ArrowRight, Trash2, Lock, Share2, Pencil, AlertCircle, Download, Palette, Type, Sparkles, CheckCircle2, XCircle } from "lucide-react";
+import { FileText, X, ArrowRight, Trash2, Lock, Share2, Pencil, AlertCircle, Download, Palette, Type, MessageSquare, CheckCircle2, XCircle, ChevronDown, Check, Search, FolderKanban, Plus } from "lucide-react";
+import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
 import {
   askProjectAssistant,
   generateAgreement,
@@ -396,13 +398,59 @@ function formatRevisionLimit(value) {
   return revisionText.toLowerCase().includes("revision") ? revisionText : `${revisionText} revisions`;
 }
 
-function SummaryHeader({ project }) {
-  if (!project?.id) {
-    return null;
-  }
+function SummaryHeader({
+  project,
+  projects = [],
+  onSelectProject,
+  isLoadingProjects,
+  onOpenWizard,
+}) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const buttonRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 100, left: 100, width: 420 });
+
+  const updateDropdownPos = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const width = Math.min(420, Math.max(320, window.innerWidth - 32));
+    let left = rect.left;
+    if (left + width > window.innerWidth - 16) {
+      left = Math.max(16, window.innerWidth - width - 16);
+    }
+    setDropdownPos({
+      top: rect.bottom + 8,
+      left: Math.max(16, left),
+      width: width,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    updateDropdownPos();
+    window.addEventListener("resize", updateDropdownPos);
+    window.addEventListener("scroll", updateDropdownPos, true);
+    return () => {
+      window.removeEventListener("resize", updateDropdownPos);
+      window.removeEventListener("scroll", updateDropdownPos, true);
+    };
+  }, [isDropdownOpen, updateDropdownPos]);
+
+  // Handle Escape key
+  useEffect(() => {
+    if (!isDropdownOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setIsDropdownOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isDropdownOpen]);
 
   const progress = Number(project?.progress ?? 0);
-  const title = project?.company_name || "No project selected";
+  const title = project?.company_name || project?.title || (isLoadingProjects ? "Loading projects..." : "Select a Project");
   const email = project?.client_email || "No email available";
   const sector = project?.sector || "No sector available";
   const value = formatProjectValue(project?.project_value);
@@ -425,26 +473,228 @@ function SummaryHeader({ project }) {
     }
   }
 
+  const filteredProjects = projects.filter((p) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    const name = (p.company_name || p.title || "").toLowerCase();
+    const client = (p.client_name || "").toLowerCase();
+    const sec = (p.sector || "").toLowerCase();
+    return name.includes(q) || client.includes(q) || sec.includes(q);
+  });
+
   return (
     <section className="discovery-card discovery-summary">
       <div className="discovery-summary-main">
         <div className="discovery-summary-copy">
           <div className="discovery-summary-head">
-            <h1 className="discovery-summary-title">{title}</h1>
-            <span className={`badge ${getStatusClass(status)}`}>{getStatusLabel(status)}</span>
+            <button
+              ref={buttonRef}
+              type="button"
+              className={`discovery-project-switcher-btn ${isDropdownOpen ? "open" : ""}`}
+              onClick={() => setIsDropdownOpen((prev) => !prev)}
+              aria-expanded={isDropdownOpen}
+              aria-haspopup="listbox"
+              title="Click to switch project"
+            >
+              <div className="discovery-switcher-title-row">
+                <FolderKanban size={17} className="discovery-switcher-folder-icon" />
+                <h1 className="discovery-summary-title">{title}</h1>
+                {project?.id ? (
+                  <span className={`badge ${getStatusClass(status)}`}>{getStatusLabel(status)}</span>
+                ) : null}
+                <ChevronDown
+                  size={16}
+                  className={`discovery-switcher-chevron ${isDropdownOpen ? "open" : ""}`}
+                />
+              </div>
+            </button>
+
+            {/* Portal Dropdown mounted to body - completely immune to container overflow */}
+            {isDropdownOpen && typeof document !== "undefined"
+              ? createPortal(
+                  <div
+                    className="discovery-project-portal-backdrop"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    <div
+                      ref={dropdownRef}
+                      className="discovery-project-dropdown"
+                      style={{
+                        top: `${dropdownPos.top}px`,
+                        left: `${dropdownPos.left}px`,
+                        width: `${dropdownPos.width}px`,
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      role="listbox"
+                    >
+                      <div className="discovery-dropdown-search-wrap">
+                        <div className="discovery-dropdown-search-box">
+                          <Search size={15} className="discovery-dropdown-search-icon" />
+                          <input
+                            type="text"
+                            className="discovery-dropdown-search-input"
+                            placeholder="Search by project, client, or sector..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            autoFocus
+                          />
+                          {searchQuery ? (
+                            <button
+                              type="button"
+                              className="discovery-dropdown-clear-btn"
+                              onClick={() => setSearchQuery("")}
+                              title="Clear search"
+                            >
+                              <X size={13} />
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="discovery-dropdown-list">
+                        {isLoadingProjects && projects.length === 0 ? (
+                          <div className="discovery-dropdown-empty">Loading projects...</div>
+                        ) : null}
+
+                        {!isLoadingProjects && projects.length === 0 ? (
+                          <div className="discovery-dropdown-empty-state">
+                            <div className="discovery-dropdown-empty-icon-wrap">
+                              <FolderKanban size={26} strokeWidth={1.8} />
+                            </div>
+                            <div className="discovery-dropdown-empty-title">No Projects Yet</div>
+                            <div className="discovery-dropdown-empty-desc">
+                              Create your first brand project to begin tracking Discovery & Brand DNA.
+                            </div>
+                            {onOpenWizard ? (
+                              <button
+                                type="button"
+                                className="discovery-dropdown-empty-action"
+                                onClick={() => {
+                                  setIsDropdownOpen(false);
+                                  onOpenWizard();
+                                }}
+                              >
+                                <Plus size={14} strokeWidth={2.2} />
+                                <span>Create Your First Project</span>
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        {!isLoadingProjects && projects.length > 0 && filteredProjects.length === 0 ? (
+                          <div className="discovery-dropdown-empty">
+                            No projects matching &ldquo;{searchQuery}&rdquo;
+                          </div>
+                        ) : null}
+
+                        {filteredProjects.map((p) => {
+                          const isSelected =
+                            (project?.id && (p.id === project.id || p._id === project.id)) ||
+                            (project?._id && (p.id === project._id || p._id === project._id));
+                          const pStatus = p.workflow_status || p.status || "discovery";
+                          return (
+                            <div
+                              key={p.id || p._id}
+                              className={`discovery-dropdown-item ${isSelected ? "selected" : ""}`}
+                              role="option"
+                              aria-selected={isSelected}
+                              onClick={() => {
+                                onSelectProject(p.id || p._id);
+                                setIsDropdownOpen(false);
+                                setSearchQuery("");
+                              }}
+                            >
+                              <div className="discovery-dropdown-item-info">
+                                <div className="discovery-dropdown-item-title">
+                                  {p.company_name || p.title}
+                                </div>
+                                <div className="discovery-dropdown-item-sub">
+                                  {p.client_name ? `Client: ${p.client_name}` : ""}
+                                  {p.client_name && p.sector ? " • " : ""}
+                                  {p.sector || ""}
+                                </div>
+                              </div>
+
+                              <div className="discovery-dropdown-item-meta">
+                                <span className={`badge ${getStatusClass(pStatus)}`}>
+                                  {getStatusLabel(pStatus)}
+                                </span>
+                                {isSelected ? (
+                                  <Check size={16} className="discovery-dropdown-check" />
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {onOpenWizard && projects.length > 0 ? (
+                        <div className="discovery-dropdown-footer">
+                          <button
+                            type="button"
+                            className="discovery-dropdown-new-btn"
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              onOpenWizard();
+                            }}
+                          >
+                            <Plus size={14} strokeWidth={2.2} />
+                            <span>Create New Project</span>
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>,
+                  document.body
+                )
+              : null}
           </div>
-          <div className="discovery-summary-meta">{email} - {sector} - {value}</div>
+
+          <div className="discovery-summary-meta">
+            {project?.id ? (
+              <>
+                <span>{email}</span>
+                <span className="discovery-meta-dot">•</span>
+                <span>{sector}</span>
+                <span className="discovery-meta-dot">•</span>
+                <span>{value}</span>
+                <span className="discovery-meta-dot">•</span>
+                <span
+                  className="discovery-meta-switch-hint"
+                  onClick={() => setIsDropdownOpen(true)}
+                >
+                  Switch project ▾
+                </span>
+              </>
+            ) : (
+              <span>Select a project from the dropdown above to inspect discovery progress and deliverables.</span>
+            )}
+          </div>
         </div>
 
-        <div className="discovery-summary-actions">
-          <div className="discovery-progress-ring" style={{ "--progress": `${progress}%` }}>
-            <span>{progress}%</span>
+        {project?.id ? (
+          <div className="discovery-summary-actions">
+            <div className="discovery-progress-ring" style={{ "--progress": `${progress}%` }}>
+              <span>{progress}%</span>
+            </div>
+            <button className="btn btn-secondary discovery-link-btn" type="button" onClick={handleCopyPortalLink}>
+              <span className="discovery-btn-icon" aria-hidden="true" />
+              Link
+            </button>
           </div>
-          <button className="btn btn-secondary discovery-link-btn" type="button" onClick={handleCopyPortalLink}>
-            <span className="discovery-btn-icon" aria-hidden="true" />
-            Link
-          </button>
-        </div>
+        ) : onOpenWizard ? (
+          <div className="discovery-summary-actions">
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={onOpenWizard}
+              style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px" }}
+            >
+              <Plus size={15} />
+              <span>New Project</span>
+            </button>
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -468,8 +718,37 @@ function OverviewPanel({
     return new Date(secondActivity.created_at || 0) - new Date(firstActivity.created_at || 0);
   });
 
+  const clientFont = project?.discovery?.selectedFont || project?.discovery?.selected_font || (typeof window !== "undefined" && project?.id ? clientPortalService.getClientFontPreferences(project.id)?.selectedFont : "");
+
   return (
     <div className="discovery-overview-grid">
+      {clientFont ? (
+        <section className="discovery-card discovery-panel discovery-overview-card" style={{ gridColumn: "1 / -1", border: "1px solid rgba(77, 255, 160, 0.25)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+            <h2 className="discovery-panel-title" style={{ margin: 0, color: "#4dffa0", fontSize: "14px" }}>Client Brand Typography Directive</h2>
+            <span style={{
+              fontSize: "10px",
+              padding: "2px 8px",
+              borderRadius: "999px",
+              background: "rgba(77, 255, 160, 0.15)",
+              color: "#4dffa0",
+              fontWeight: 600,
+              textTransform: "uppercase"
+            }}>Selected in Portal</span>
+          </div>
+          <div style={{
+            fontFamily: `"${clientFont}", sans-serif`,
+            fontSize: "24px",
+            color: "#ffffff",
+            margin: "6px 0 2px"
+          }}>
+            {clientFont}
+          </div>
+          <p style={{ margin: 0, fontSize: "12px", color: "#89aca0" }}>
+            The client chose this Google Font during onboarding to establish their brand identity.
+          </p>
+        </section>
+      ) : null}
       <section className="discovery-card discovery-panel discovery-overview-card discovery-overview-timeline-card">
         <h2 className="discovery-panel-title">Timeline</h2>
         <div className="discovery-timeline">
@@ -807,6 +1086,24 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
   };
   const brief = savedBrief;
 
+  const clientFont =
+    summary?.selected_font ||
+    summary?.selectedFont ||
+    brandDNA?.typography_directives?.primary_headline ||
+    (typeof window !== "undefined" && projectId ? clientPortalService.getClientFontPreferences(projectId)?.selectedFont : "");
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !clientFont) return;
+    const id = `gfont-consultant-${clientFont.replace(/\s+/g, "-").toLowerCase()}`;
+    if (!document.getElementById(id)) {
+      const link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = `https://fonts.googleapis.com/css2?family=${clientFont.replace(/\s+/g, "+")}:wght@400;600;700&display=swap`;
+      document.head.appendChild(link);
+    }
+  }, [clientFont]);
+
   async function handleDownloadPdf() {
     if (!projectId || downloadingBrief) {
       return;
@@ -856,11 +1153,11 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
           </div>
           <div className="brand-dna-loading-info">
             <div className="brand-dna-loading-title">
-              <Sparkles size={16} color="#4dffa0" />
+              <FileText size={16} color="#4dffa0" />
               <span>{loadingStepText}</span>
             </div>
             <div className="brand-dna-loading-subtext">
-              Floxa AI is synthesizing your Brand DNA from the discovery inputs. This may take a few seconds...
+              Synthesizing your Brand DNA from the discovery inputs. This may take a few seconds...
             </div>
           </div>
         </div>
@@ -920,6 +1217,40 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
               <BriefValue>{brief.competitors}</BriefValue>
             </div>
 
+            {clientFont ? (
+              <div className="discovery-form-block" style={{
+                background: "rgba(77, 255, 160, 0.05)",
+                border: "1px solid rgba(77, 255, 160, 0.28)",
+                borderRadius: "10px",
+                padding: "14px 16px",
+                marginTop: "12px",
+              }}>
+                <div className="discovery-form-label" style={{ color: "#4dffa0", fontWeight: 700, display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span>Client Selected Typography (Brand Directive)</span>
+                  <span style={{
+                    fontSize: "10px",
+                    padding: "2px 8px",
+                    borderRadius: "999px",
+                    background: "rgba(77, 255, 160, 0.2)",
+                    color: "#4dffa0",
+                    fontWeight: 600,
+                    textTransform: "uppercase"
+                  }}>Client Chosen</span>
+                </div>
+                <div style={{
+                  fontFamily: `"${clientFont}", sans-serif`,
+                  fontSize: "24px",
+                  color: "#ffffff",
+                  margin: "8px 0 4px"
+                }}>
+                  {clientFont}
+                </div>
+                <span style={{ fontSize: "12px", color: "#89aca0" }}>
+                  Selected by client in onboarding portal to guide logo concepts, headings, and branding deliverables.
+                </span>
+              </div>
+            ) : null}
+
 
             {brandDNAError ? (
               <div className="discovery-form-block">
@@ -943,7 +1274,6 @@ function BrandDnaPanel({ summary, brandDNA, generatingBrandDNA, brandDNAError, o
               <div className="brand-dna-section-header" style={{ margin: "0 0 12px" }}>
                 <div>
                   <div className="brand-dna-section-title">
-                    <Sparkles size={16} color="#4dffa0" />
                     Poster Concept Angles
                   </div>
                   <div className="brand-dna-section-subtitle">
@@ -4290,6 +4620,8 @@ export default function Discovery() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
+  const requestedProjectId = searchParams.get("projectId") || searchParams.get("id");
+
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window === "undefined") {
       return "Overview";
@@ -4299,6 +4631,9 @@ export default function Discovery() {
   });
   const [gateDeliverables, setGateDeliverables] = useState(true);
   const [project, setProject] = useState(null);
+  const [allProjects, setAllProjects] = useState([]);
+  const [isLoadingAllProjects, setIsLoadingAllProjects] = useState(true);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [discoverySummary, setDiscoverySummary] = useState(null);
   const [discoverySummaryLoading, setDiscoverySummaryLoading] = useState(false);
   const [brandDNA, setBrandDNA] = useState(null);
@@ -4348,19 +4683,26 @@ export default function Discovery() {
     }
   }, [activeTab]);
 
-  const refreshProject = useCallback(async () => {
+  const refreshProject = useCallback(async (targetId) => {
     const searchParams = new URLSearchParams(window.location.search);
-    const projectId = searchParams.get("projectId") || searchParams.get("id");
+    const projectId = targetId || searchParams.get("projectId") || searchParams.get("id");
 
     if (!projectId) {
       try {
-        const data = await getProjects();
+        const data = await getProjects({ page_size: 100 });
         const projectRows = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+        setAllProjects(projectRows);
+
         if (projectRows.length > 0) {
-          const firstProj = projectRows[0];
-          setProject(firstProj);
+          const savedPid = typeof window !== "undefined" ? localStorage.getItem("floxa_active_project_id") : null;
+          const targetProj = projectRows.find((p) => p.id === savedPid || p._id === savedPid) || projectRows[0];
+          const chosenId = targetProj.id || targetProj._id;
+
           const currentTab = requestedTab || new URLSearchParams(window.location.search).get("tab") || "Overview";
-          router.replace(`/discovery?projectId=${firstProj.id}&tab=${currentTab}`);
+          router.replace(`/discovery?projectId=${chosenId}&tab=${currentTab}`);
+
+          const fullProject = await getProject(chosenId);
+          setProject(fullProject);
         }
       } catch (err) {
         console.error("Failed to auto-select initial project:", err);
@@ -4376,6 +4718,31 @@ export default function Discovery() {
     }
   }, [requestedTab, router]);
 
+  // Load all projects on mount for the selector dropdown
+  useEffect(() => {
+    let isMounted = true;
+    async function loadProjectsList() {
+      setIsLoadingAllProjects(true);
+      try {
+        const data = await getProjects({ page_size: 100 });
+        const projectRows = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
+        if (isMounted) {
+          setAllProjects(projectRows);
+        }
+      } catch (e) {
+        console.error("Failed to fetch projects list:", e);
+      } finally {
+        if (isMounted) {
+          setIsLoadingAllProjects(false);
+        }
+      }
+    }
+    loadProjectsList();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setActiveTab(getDiscoveryTabFromQuery(requestedTab));
@@ -4385,16 +4752,26 @@ export default function Discovery() {
   }, [requestedTab]);
 
   useEffect(() => {
-    async function loadProject() {
-      try {
-        await refreshProject();
-      } catch (error) {
-        console.error("Failed to load project:", error);
+    if (requestedProjectId) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("floxa_active_project_id", requestedProjectId);
       }
+      getProject(requestedProjectId)
+        .then((data) => setProject(data))
+        .catch((err) => console.error("Failed to load project:", err));
+    } else {
+      refreshProject();
     }
+  }, [requestedProjectId, refreshProject]);
 
-    loadProject();
-  }, [refreshProject]);
+  const handleSelectProject = useCallback((selectedId) => {
+    if (!selectedId) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("floxa_active_project_id", selectedId);
+    }
+    const currentTab = requestedTab || new URLSearchParams(window.location.search).get("tab") || "Overview";
+    router.push(`/discovery?projectId=${selectedId}&tab=${currentTab}`);
+  }, [requestedTab, router]);
 
   useEffect(() => {
     if (!["Brand DNA"].includes(activeTab) || !project?.id) {
@@ -4691,7 +5068,24 @@ export default function Discovery() {
         <div className="content">
           <div className="screen">
             <div className="discovery-shell">
-              {project?.id ? <SummaryHeader project={project} /> : null}
+              <SummaryHeader
+                project={project}
+                projects={allProjects}
+                onSelectProject={handleSelectProject}
+                isLoadingProjects={isLoadingAllProjects}
+                onOpenWizard={() => setIsWizardOpen(true)}
+              />
+
+              {isWizardOpen ? (
+                <ProjectCreateWizard
+                  onClose={() => setIsWizardOpen(false)}
+                  onProjectCreated={(newProj) => {
+                    setAllProjects((prev) => [newProj, ...prev]);
+                    handleSelectProject(newProj.id || newProj._id);
+                    setIsWizardOpen(false);
+                  }}
+                />
+              ) : null}
 
               <div
                 ref={tabsRef}
@@ -4727,24 +5121,44 @@ export default function Discovery() {
                 ))}
               </div>
 
-              {renderTabPanel(
-                activeTab,
-                gateDeliverables,
-                project,
-                setGateDeliverables,
-                discoverySummary,
-                discoverySummaryLoading,
-                brandDNA,
-                generatingBrandDNA,
-                brandDNAError,
-                handleGenerateBrandDNA,
-                projectActivities,
-                projectActivitiesLoading,
-                overviewPaymentItems,
-                consultantActivities,
-                consultantActivitiesLoading,
-                refreshProject,
-                setActiveTab
+              {!project?.id && !isLoadingAllProjects && allProjects.length === 0 ? (
+                <div className="discovery-card discovery-empty-page-state">
+                  <div className="discovery-empty-icon-wrap">
+                    <FolderKanban size={44} strokeWidth={1.8} />
+                  </div>
+                  <h2 className="discovery-empty-title">Welcome to Brand Discovery</h2>
+                  <p className="discovery-empty-desc">
+                    You haven&apos;t created any client projects yet. Launch your first project to unlock the Discovery questionnaire, Brand DNA briefs, visual Moodboards, and Milestone Approvals.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-primary discovery-empty-create-btn"
+                    onClick={() => setIsWizardOpen(true)}
+                  >
+                    <Plus size={16} strokeWidth={2.4} />
+                    Create Your First Project
+                  </button>
+                </div>
+              ) : (
+                renderTabPanel(
+                  activeTab,
+                  gateDeliverables,
+                  project,
+                  setGateDeliverables,
+                  discoverySummary,
+                  discoverySummaryLoading,
+                  brandDNA,
+                  generatingBrandDNA,
+                  brandDNAError,
+                  handleGenerateBrandDNA,
+                  projectActivities,
+                  projectActivitiesLoading,
+                  overviewPaymentItems,
+                  consultantActivities,
+                  consultantActivitiesLoading,
+                  refreshProject,
+                  setActiveTab
+                )
               )}
             </div>
 
@@ -4758,9 +5172,7 @@ export default function Discovery() {
                   aria-haspopup="dialog"
                   aria-expanded={isAssistantOpen}
                 >
-                  <span className="project-ai-floating-symbol" aria-hidden="true">
-                    ✦
-                  </span>
+                  <MessageSquare size={13} style={{ marginRight: "6px", display: "inline-block", verticalAlign: "middle" }} />
                   <span className="project-ai-floating-label">Ask about this project…</span>
                 </button>
 
