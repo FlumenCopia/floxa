@@ -2,69 +2,47 @@
 
 function renderProjectDeadlineBadge(row) {
   const hasBrandDna = Boolean(row.has_brand_dna || row.hasBrandDna);
-  if (hasBrandDna) {
-    return (
-      <div style={{ marginTop: "4px" }}>
-        <span className="deadline-table-tag done" title="Brand DNA completed">✓ Brand DNA</span>
-      </div>
-    );
-  }
-
   const deadline = row.deliveryDeadline || row.delivery_deadline ? new Date(row.deliveryDeadline || row.delivery_deadline) : null;
   const status = row.deadlineStatus || row.deadline_status || "awaiting_client";
 
+  let deadlineTag = null;
   if (status === "flag_3") {
-    return (
-      <div style={{ marginTop: "4px" }}>
-        <span className="deadline-table-tag flag-3" title="48h+ past committed deadline. Critical SLA breach.">🛑 Flag 3</span>
-      </div>
-    );
-  }
-
-  if (status === "flag_2") {
-    return (
-      <div style={{ marginTop: "4px" }}>
-        <span className="deadline-table-tag flag-2" title="24h-48h past committed deadline. Urgent SLA warning.">🚨 Flag 2</span>
-      </div>
-    );
-  }
-
-  if (status === "flag_1") {
-    return (
-      <div style={{ marginTop: "4px" }}>
-        <span className="deadline-table-tag flag-1" title="0-24h past committed deadline. Finalize delivery today.">⚠️ Flag 1</span>
-      </div>
-    );
-  }
-
-  if (deadline && status === "on_track") {
+    deadlineTag = <span className="deadline-table-tag flag-3" title="48h+ past committed deadline. Critical SLA breach.">🛑 Flag 3</span>;
+  } else if (status === "flag_2") {
+    deadlineTag = <span className="deadline-table-tag flag-2" title="24h-48h past committed deadline. Urgent SLA warning.">🚨 Flag 2</span>;
+  } else if (status === "flag_1") {
+    deadlineTag = <span className="deadline-table-tag flag-1" title="0-24h past committed deadline. Finalize delivery today.">⚠️ Flag 1</span>;
+  } else if (deadline && status === "on_track") {
     const days = Number(row.deadlineDaysRemaining || row.deadline_days_remaining || 1);
     const dayText = days > 1 ? `${days}d` : "today";
-    return (
-      <div style={{ marginTop: "4px" }}>
-        <span className="deadline-table-tag on-track" title={`Committed delivery deadline: ${deadline.toLocaleDateString()}`}>
-          🟢 Due in {dayText}
-        </span>
-      </div>
+    deadlineTag = (
+      <span className="deadline-table-tag on-track" title={`Committed delivery deadline: ${deadline.toLocaleDateString()}`}>
+        🟢 Due in {dayText}
+      </span>
     );
-  }
-
-  const hasSubmitted = Boolean(row.clientSubmittedAt || row.client_submitted_at);
-  if (hasSubmitted || status === "pending_deadline") {
-    return (
-      <div style={{ marginTop: "4px" }}>
+  } else {
+    const hasSubmitted = Boolean(row.clientSubmittedAt || row.client_submitted_at);
+    if (hasSubmitted || status === "pending_deadline" || hasBrandDna) {
+      deadlineTag = (
         <span className="deadline-table-tag pending" title="Client submitted discovery. Consultant must set delivery deadline.">
           ⏳ Set Deadline
         </span>
-      </div>
-    );
+      );
+    } else {
+      deadlineTag = (
+        <span className="deadline-table-tag awaiting" title="Client has not submitted discovery yet">
+          Awaiting Intake
+        </span>
+      );
+    }
   }
 
   return (
-    <div style={{ marginTop: "4px" }}>
-      <span className="deadline-table-tag awaiting" title="Client has not submitted discovery yet">
-        Awaiting Intake
-      </span>
+    <div style={{ marginTop: "4px", display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+      {hasBrandDna ? (
+        <span className="deadline-table-tag done" title="Brand DNA completed">✓ Brand DNA</span>
+      ) : null}
+      {deadlineTag}
     </div>
   );
 }

@@ -70,7 +70,7 @@ export function serializeProject(project: any, workflowStatus?: string) {
     else if (deadlineFlagsCount === 3) deadlineStatus = 'flag_3';
     else if (deadlineFlagsCount === 2) deadlineStatus = 'flag_2';
     else if (deadlineFlagsCount === 1) deadlineStatus = 'flag_1';
-  } else if (hasBrandDNA) {
+  } else if (project.clientSignedOff || project.status === 'delivered') {
     deadlineStatus = 'completed';
     deadlineFlagsCount = 0;
   } else if (deliveryDeadline) {

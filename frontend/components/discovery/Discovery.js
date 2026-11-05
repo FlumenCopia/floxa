@@ -421,13 +421,6 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
   const warningKey = project?.id ? `${project.id}_${status}` : null;
 
   const hasBrandDna = Boolean(project.has_brand_dna || project.hasBrandDna);
-  if (hasBrandDna && !isWarningFlag) {
-    return (
-      <span className="consultant-deadline-pill done" title="Brand DNA strategy has been finalized">
-        ✓ Brand DNA Ready
-      </span>
-    );
-  }
 
   // Automatically pop up the warning alert when a warning flag is active (once per flag/session)
   useEffect(() => {
@@ -476,7 +469,15 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
         title: "Committed deadline passed. Finalize Brand DNA.",
       };
     }
-    if (deadline && status === "on_track") {
+    if (project.clientSignedOff || project.status === "delivered" || status === "completed") {
+      return {
+        cls: "done",
+        icon: <CalendarCheck size={13} />,
+        label: "✓ Project Delivered",
+        title: "Final deliverables accepted by client",
+      };
+    }
+    if (deadline && (status === "on_track" || deadline.getTime() > Date.now())) {
       const days = Number(project.deadline_days_remaining || project.deadlineDaysRemaining || 1);
       const formatted = deadline.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       return {
@@ -489,8 +490,8 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
     return {
       cls: "set-btn",
       icon: <Calendar size={13} />,
-      label: "📅 Set Delivery Deadline",
-      title: "Review discovery answers and set committed delivery date",
+      label: "📅 Set Deliverables Date",
+      title: "Review discovery answers and set committed deliverable date",
     };
   };
 
@@ -580,7 +581,13 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
     : "Unset";
 
   return (
-    <>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+      {hasBrandDna ? (
+        <span className="consultant-deadline-pill done" title="Brand DNA strategy has been finalized">
+          ✓ Brand DNA Ready
+        </span>
+      ) : null}
+
       <button
         ref={badgeRef}
         type="button"
@@ -858,7 +865,7 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
             document.body
           )
         : null}
-    </>
+    </div>
   );
 }
 
@@ -3496,7 +3503,7 @@ function ConceptsPanel({ projectId, project, onProjectRefresh, onNavigateTab }) 
   );
 }
 
-function DeliverablesPanel({ projectId, onProjectRefresh }) {
+function DeliverablesPanel({ project, projectId, onProjectRefresh }) {
   const [deliverables, setDeliverables] = useState([]);
   const [summaryData, setSummaryData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -3750,6 +3757,56 @@ function DeliverablesPanel({ projectId, onProjectRefresh }) {
 
   return (
     <div className="discovery-stack" style={{ gap: "1.5rem" }}>
+      {/* Deliverable Deadline Commitment Bar */}
+      {project?.id ? (
+        <section
+          className="discovery-card"
+          style={{
+            background: "rgba(10, 25, 20, 0.75)",
+            border: "1px solid rgba(77, 255, 160, 0.22)",
+            borderRadius: "14px",
+            padding: "16px 20px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "12px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "10px",
+                background: project.deliveryDeadline || project.delivery_deadline ? "rgba(16, 185, 129, 0.16)" : "rgba(56, 189, 248, 0.16)",
+                color: project.deliveryDeadline || project.delivery_deadline ? "#34d399" : "#38bdf8",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CalendarCheck size={20} />
+            </div>
+            <div>
+              <div style={{ fontSize: "14px", fontWeight: 700, color: "#f8fafc" }}>
+                {project.deliveryDeadline || project.delivery_deadline
+                  ? `Committed Deliverables Deadline: ${new Date(project.deliveryDeadline || project.delivery_deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                  : "Committed Deliverables Deadline: Not Set Yet"}
+              </div>
+              <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
+                {project.deliveryDeadline || project.delivery_deadline
+                  ? `Client portal shows deliverables due ${project.deadlineDaysRemaining ? `in ${project.deadlineDaysRemaining} days` : "today"}.`
+                  : "Commit a delivery deadline so your client sees the delivery date on their portal."}
+              </div>
+            </div>
+          </div>
+          <div>
+            <ConsultantDeadlineBadge project={project} onProjectUpdated={onProjectRefresh} />
+          </div>
+        </section>
+      ) : null}
+
       {/* Top Action Card: Auto-Generate Deliverables */}
       <section
         className="discovery-card"
@@ -5070,7 +5127,7 @@ function renderTabPanel(
         />
       );
     case "Deliverables":
-      return <DeliverablesPanel projectId={project?.id} onProjectRefresh={onProjectRefresh} />;
+      return <DeliverablesPanel project={project} projectId={project?.id} onProjectRefresh={onProjectRefresh} />;
     case "Agreement":
       return <AgreementPanel projectId={project?.id} onProjectRefresh={onProjectRefresh} />;
     case "Payments":

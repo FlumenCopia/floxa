@@ -6,7 +6,7 @@ import { supportSocket } from "../../services/supportSocketService";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/lib/api";
 import { showError, showSuccess } from "@/lib/toast";
-import { Bell, Clock, FileText, Compass, AlertTriangle } from "lucide-react";
+import { Bell, Clock, FileText, Compass, AlertTriangle, Calendar, CalendarCheck } from "lucide-react";
 import "./ClientPortalIntroModal.css";
 
 const phaseLabels = [
@@ -1340,10 +1340,10 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
             project?.deadlineStatus === "flag_3" ||
             project?.deadline_status === "flag_1" ||
             project?.deadline_status === "flag_2" ||
-            project?.deadline_status === "flag_3") && !project?.hasBrandDna && !project?.has_brand_dna && (
+            project?.deadline_status === "flag_3") ? (
             <div
               className="client-topbar-overdue-pill"
-              title="Milestone delivery is delayed. Your consultant has been alerted."
+              title="Milestone delivery is in final review. Your consultant has been alerted."
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1358,9 +1358,32 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               }}
             >
               <AlertTriangle size={13} />
-              <span>Delivery Delayed</span>
+              <span>Delivery In Progress</span>
             </div>
-          )}
+          ) : (project?.deliveryDeadline || project?.delivery_deadline) ? (
+            <div
+              className="client-topbar-deadline-pill"
+              title={`Committed delivery deadline: ${new Date(project.deliveryDeadline || project.delivery_deadline).toLocaleDateString()}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                borderRadius: "999px",
+                background: "rgba(16, 185, 129, 0.12)",
+                border: "1px solid rgba(16, 185, 129, 0.35)",
+                color: "#4ade80",
+                fontSize: "12px",
+                fontWeight: 600,
+              }}
+            >
+              <Calendar size={13} />
+              <span>
+                Target Delivery: {new Date(project.deliveryDeadline || project.delivery_deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                {project?.deadlineDaysRemaining ? ` (${project.deadlineDaysRemaining}d)` : ""}
+              </span>
+            </div>
+          ) : null}
           <button
             type="button"
             className="client-guide-btn"
@@ -2099,6 +2122,49 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
 
           {panel === "delivery" ? (
             <div className="client-delivery-container">
+              {/* Delivery Commitment Status Card */}
+              {project?.deliveryDeadline || project?.delivery_deadline ? (
+                <div className="client-deadline-badge-note on-track" style={{ marginBottom: "20px" }}>
+                  <div className="client-deadline-badge-icon">
+                    <CalendarCheck size={22} />
+                  </div>
+                  <div className="client-deadline-badge-content">
+                    <div className="client-deadline-badge-tag">
+                      <span>Target Delivery Commitment</span>
+                      {project?.deadlineDaysRemaining ? (
+                        <span className="client-deadline-countdown">Due in {project.deadlineDaysRemaining} days</span>
+                      ) : null}
+                    </div>
+                    <div className="client-deadline-badge-title">
+                      Target Delivery: {new Date(project.deliveryDeadline || project.delivery_deadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                    </div>
+                    <p className="client-deadline-badge-desc">
+                      Your consultant has committed to deliver the final brand package by this date.
+                    </p>
+                    {project?.deadlineNote ? (
+                      <div className="client-deadline-badge-consultant-note">
+                        &ldquo;{project.deadlineNote}&rdquo;
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <div className="client-deadline-badge-note pending" style={{ marginBottom: "20px" }}>
+                  <div className="client-deadline-badge-icon">
+                    <Clock size={22} />
+                  </div>
+                  <div className="client-deadline-badge-content">
+                    <div className="client-deadline-badge-tag">
+                      <span>Delivery Schedule</span>
+                    </div>
+                    <div className="client-deadline-badge-title">Awaiting Delivery Date</div>
+                    <p className="client-deadline-badge-desc">
+                      Your consultant will set a committed delivery date for your final deliverables.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {deliverablesLoading ? (
                 <div className="client-delivery-empty">
                   <h3>Loading deliverables...</h3>
