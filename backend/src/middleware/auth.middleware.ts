@@ -70,6 +70,13 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     Consultant.findById(payload.userId)
       .then((user) => {
         if (!user || !user.isActive) {
+          if (user && user.isSuspended) {
+            res.status(403).json({
+              detail: 'Your consultant account has been suspended due to milestone deadline violations. Please contact SuperAdmin.',
+              code: 'ACCOUNT_SUSPENDED_DEADLINE_BREACH',
+            });
+            return;
+          }
           res.status(401).json({ detail: 'User not found or inactive.' });
           return;
         }

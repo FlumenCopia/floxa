@@ -17,6 +17,7 @@ import {
   Key,
   Copy,
   CheckCircle2,
+  Bell,
 } from "lucide-react";
 import { adminApi } from "../../services/api";
 import Consultant360Drawer from "../../components/Consultant360Drawer";
@@ -536,6 +537,52 @@ export default function AdminConsultantsPage() {
         </div>
       </div>
 
+      {/* Pending Reactivation Requests Banner */}
+      {consultants.some((c) => c.reactivationRequest?.status === "pending") && (
+        <div style={{
+          marginBottom: "16px",
+          padding: "12px 18px",
+          borderRadius: "8px",
+          backgroundColor: "rgba(240, 180, 41, 0.12)",
+          border: "1px solid rgba(240, 180, 41, 0.45)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          boxShadow: "0 0 16px rgba(240, 180, 41, 0.12)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#f0b429", fontWeight: 600, fontSize: "13px" }}>
+            <Bell size={16} />
+            <span>
+              Action Required: Reactivation requested by consultant (
+              {consultants
+                .filter((c) => c.reactivationRequest?.status === "pending")
+                .map((c) => c.email)
+                .join(", ")}
+              )
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              const pendingC = consultants.find((c) => c.reactivationRequest?.status === "pending");
+              if (pendingC) setDrawerConsultantId(pendingC.id);
+            }}
+            style={{
+              backgroundColor: "#f0b429",
+              color: "#001a0e",
+              border: "none",
+              padding: "6px 14px",
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Review &amp; Reactivate
+          </button>
+        </div>
+      )}
+
       {/* Consultants Table */}
       <div style={{
         backgroundColor: "rgba(6, 22, 15, 0.72)",
@@ -641,6 +688,24 @@ export default function AdminConsultantsPage() {
                           <span style={{ width: "5px", height: "5px", borderRadius: "50%", backgroundColor: c.isActive ? "#4dffa0" : "#ff6b6b", display: "inline-block" }} />
                           {c.isActive ? "Active" : "Suspended"}
                         </span>
+                        {c.reactivationRequest?.status === "pending" && (
+                          <div style={{ marginTop: "4px" }}>
+                            <span style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              backgroundColor: "rgba(240, 180, 41, 0.18)",
+                              color: "#f0b429",
+                              border: "1px solid rgba(240, 180, 41, 0.4)",
+                            }}>
+                              ⚠️ Reactivation Requested
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       <td style={{ padding: "14px 16px", textAlign: "right" }}>

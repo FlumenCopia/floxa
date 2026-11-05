@@ -361,6 +361,11 @@ export async function getConsultantDetails(req: AdminAuthRequest, res: Response)
           avatar: consultant.avatar,
           isActive: consultant.isActive,
           isStaff: consultant.isStaff,
+          isSuspended: Boolean(consultant.isSuspended),
+          suspendedAt: consultant.suspendedAt || null,
+          suspensionReason: consultant.suspensionReason || '',
+          suspendedDueToProjectId: consultant.suspendedDueToProjectId ? consultant.suspendedDueToProjectId.toString() : null,
+          reactivationRequest: consultant.reactivationRequest || null,
           subscription: consultant.subscription || {
             plan: 'free',
             status: consultant.isActive ? 'active' : 'suspended',
@@ -402,6 +407,30 @@ export async function updateConsultantStatus(req: AdminAuthRequest, res: Respons
     }
 
     consultant.isActive = isActive;
+    if (isActive) {
+      consultant.isSuspended = false;
+      consultant.suspendedAt = null;
+      consultant.suspensionReason = '';
+      if (consultant.reactivationRequest) {
+        consultant.reactivationRequest.status = 'resolved';
+      }
+      if (consultant.suspendedDueToProjectId) {
+        try {
+          await Project.findByIdAndUpdate(consultant.suspendedDueToProjectId, {
+            deadlineFlagsCount: 0,
+            deadlineBreached: false,
+          });
+        } catch (projErr) {
+          console.warn('Failed to clear project deadline flags:', projErr);
+        }
+      }
+      consultant.suspendedDueToProjectId = null;
+    } else {
+      consultant.isSuspended = true;
+      consultant.suspendedAt = new Date();
+      consultant.suspensionReason = req.body.reason || 'admin_manual_suspension';
+    }
+    consultant.tokenVersion = (consultant.tokenVersion || 0) + 1;
     if (consultant.subscription) {
       consultant.subscription.status = isActive ? 'active' : 'suspended';
     }

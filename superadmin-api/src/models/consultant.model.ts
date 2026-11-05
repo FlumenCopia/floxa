@@ -10,6 +10,15 @@ export interface IConsultantAdminView {
   avatar: string | null;
   isActive: boolean;
   isStaff: boolean;
+  isSuspended?: boolean;
+  suspendedAt?: Date | null;
+  suspensionReason?: string;
+  suspendedDueToProjectId?: any;
+  reactivationRequest?: {
+    requestedAt?: Date | null;
+    message?: string;
+    status?: 'pending' | 'resolved' | 'none';
+  };
   subscription?: {
     plan?: string;
     status?: string;
@@ -35,6 +44,15 @@ const consultantSchema = new Schema(
     avatar: { type: String, default: null },
     isActive: { type: Boolean, default: true },
     isStaff: { type: Boolean, default: false },
+    isSuspended: { type: Boolean, default: false },
+    suspendedAt: { type: Date, default: null },
+    suspensionReason: { type: String, default: '', trim: true },
+    suspendedDueToProjectId: { type: Schema.Types.ObjectId, ref: 'Project', default: null },
+    reactivationRequest: {
+      requestedAt: { type: Date, default: null },
+      message: { type: String, default: '' },
+      status: { type: String, enum: ['pending', 'resolved', 'none'], default: 'none' },
+    },
     subscription: {
       plan: { type: String, default: 'free' },
       status: { type: String, default: 'active' },

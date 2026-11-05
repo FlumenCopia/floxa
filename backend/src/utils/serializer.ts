@@ -48,6 +48,60 @@ export function serializeProject(project: any, workflowStatus?: string) {
   const clientName = project.client?.name || project.companyName || project.title || '';
   const clientEmail = project.client?.email || '';
 
+  const hasBrandDNA = Boolean(
+    project.brandDNA ||
+    project.brand_dna ||
+    project.has_brand_dna ||
+    project.hasBrandDna
+  );
+
+  const clientSubmittedAt = project.clientSubmittedAt || project.discovery?.submittedAt || null;
+  const deliveryDeadline = project.deliveryDeadline ? new Date(project.deliveryDeadline) : null;
+  const now = Date.now();
+
+  let deadlineStatus = 'awaiting_client';
+  let deadlineFlagsCount = 0;
+  let deadlineDaysRemaining = 0;
+  let deadlineHoursOverdue = 0;
+
+  if (project.deadlineFlagsCount >= 1 && project.deadlineFlagsCount <= 4) {
+    deadlineFlagsCount = project.deadlineFlagsCount;
+    if (deadlineFlagsCount === 4) deadlineStatus = 'suspended';
+    else if (deadlineFlagsCount === 3) deadlineStatus = 'flag_3';
+    else if (deadlineFlagsCount === 2) deadlineStatus = 'flag_2';
+    else if (deadlineFlagsCount === 1) deadlineStatus = 'flag_1';
+  } else if (hasBrandDNA) {
+    deadlineStatus = 'completed';
+    deadlineFlagsCount = 0;
+  } else if (deliveryDeadline) {
+    const diffMs = deliveryDeadline.getTime() - now;
+    if (diffMs >= 0) {
+      deadlineStatus = 'on_track';
+      deadlineDaysRemaining = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      deadlineFlagsCount = 0;
+    } else {
+      deadlineHoursOverdue = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60));
+      if (deadlineHoursOverdue >= 96) {
+        deadlineStatus = 'suspended';
+        deadlineFlagsCount = 4;
+      } else if (deadlineHoursOverdue >= 72) {
+        deadlineStatus = 'flag_3';
+        deadlineFlagsCount = 3;
+      } else if (deadlineHoursOverdue >= 48) {
+        deadlineStatus = 'flag_2';
+        deadlineFlagsCount = 2;
+      } else if (deadlineHoursOverdue >= 24) {
+        deadlineStatus = 'flag_1';
+        deadlineFlagsCount = 1;
+      } else {
+        deadlineStatus = 'overdue';
+        deadlineFlagsCount = 0;
+      }
+    }
+  } else if (clientSubmittedAt) {
+    deadlineStatus = 'pending_deadline';
+  }
+
   return {
     id: project.id,
     project_id: project.id,
@@ -69,11 +123,26 @@ export function serializeProject(project: any, workflowStatus?: string) {
     client_signed_off: Boolean(project.clientSignedOff),
     signed_off_at: project.signedOffAt ? new Date(project.signedOffAt).toISOString() : null,
     is_archived: Boolean(project.isArchived),
+    client_submitted_at: clientSubmittedAt ? new Date(clientSubmittedAt).toISOString() : null,
+    delivery_deadline: deliveryDeadline ? deliveryDeadline.toISOString() : null,
+    deliveryDeadline: deliveryDeadline ? deliveryDeadline.toISOString() : null,
+    deadline_set_at: project.deadlineSetAt ? new Date(project.deadlineSetAt).toISOString() : null,
+    deadlineSetAt: project.deadlineSetAt ? new Date(project.deadlineSetAt).toISOString() : null,
+    deadline_status: deadlineStatus,
+    deadlineStatus: deadlineStatus,
+    deadline_flags_count: deadlineFlagsCount,
+    deadlineFlagsCount: deadlineFlagsCount,
+    deadline_days_remaining: deadlineDaysRemaining,
+    deadlineDaysRemaining: deadlineDaysRemaining,
+    deadline_hours_overdue: deadlineHoursOverdue,
+    deadlineHoursOverdue: deadlineHoursOverdue,
+    deadline_note: project.deadlineNote || '',
+    deadlineNote: project.deadlineNote || '',
     has_help_request: Boolean(project.has_help_request),
     help_request: project.help_request || null,
     unread_count: Number(project.unread_count || 0),
     latest_activity: project.latest_activity || null,
-    has_brand_dna: Boolean(project.brandDNA || project.brand_dna || project.has_brand_dna),
+    has_brand_dna: hasBrandDNA,
     is_agreement_completed: Boolean(
       project.projectAgreement?.signedAt ||
       ['signed', 'active', 'completed', 'locked'].includes(project.projectAgreement?.status || '')

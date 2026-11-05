@@ -1,5 +1,7 @@
 "use client";
 
+import { setProjectDeadline } from "@/lib/projectApi";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,7 +12,7 @@ import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset } from "@/lib/api";
 import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
 import { showError, showSuccess } from "@/lib/toast";
-import { FileText, X, ArrowRight, Trash2, Lock, Share2, Pencil, AlertCircle, Download, Palette, Type, MessageSquare, CheckCircle2, XCircle, ChevronDown, Check, Search, FolderKanban, Plus } from "lucide-react";
+import { FileText, X, ArrowRight, Trash2, Lock, Share2, Pencil, AlertCircle, Download, Palette, Type, MessageSquare, CheckCircle2, XCircle, ChevronDown, Check, Search, FolderKanban, Plus, Calendar, CalendarCheck, AlertTriangle } from "lucide-react";
 import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
 import {
   askProjectAssistant,
@@ -398,12 +400,475 @@ function formatRevisionLimit(value) {
   return revisionText.toLowerCase().includes("revision") ? revisionText : `${revisionText} revisions`;
 }
 
+
+function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [warningAlertOpen, setWarningAlertOpen] = useState(false);
+  const [dismissedWarnings, setDismissedWarnings] = useState({});
+  const [isAttentionPulsing, setIsAttentionPulsing] = useState(false);
+  const [selectedDays, setSelectedDays] = useState(5);
+  const [customDate, setCustomDate] = useState("");
+  const [deadlineNote, setDeadlineNote] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const badgeRef = useRef(null);
+
+  if (!project?.id) return null;
+
+  const rawDeadline = project.delivery_deadline || project.deliveryDeadline;
+  const deadline = rawDeadline ? new Date(rawDeadline) : null;
+  const status = project.deadline_status || project.deadlineStatus || "pending_deadline";
+  const isWarningFlag = ["flag_1", "flag_2", "flag_3"].includes(status);
+  const warningKey = project?.id ? `${project.id}_${status}` : null;
+
+  const hasBrandDna = Boolean(project.has_brand_dna || project.hasBrandDna);
+  if (hasBrandDna && !isWarningFlag) {
+    return (
+      <span className="consultant-deadline-pill done" title="Brand DNA strategy has been finalized">
+        ✓ Brand DNA Ready
+      </span>
+    );
+  }
+
+  // Automatically pop up the warning alert when a warning flag is active (once per flag/session)
+  useEffect(() => {
+    if (isWarningFlag && warningKey && !dismissedWarnings[warningKey]) {
+      setWarningAlertOpen(true);
+    }
+  }, [project?.id, status, isWarningFlag, warningKey, dismissedWarnings]);
+
+  const handleAcknowledgeWarning = () => {
+    setWarningAlertOpen(false);
+    if (warningKey) {
+      setDismissedWarnings((prev) => ({ ...prev, [warningKey]: true }));
+    }
+    // Highlight and draw attention to the red badge in header
+    setIsAttentionPulsing(true);
+    if (badgeRef.current) {
+      badgeRef.current.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+    setTimeout(() => {
+      setIsAttentionPulsing(false);
+    }, 6000);
+  };
+
+  const getPillContent = () => {
+    if (status === "flag_3") {
+      return {
+        cls: "flag-3",
+        icon: <AlertTriangle size={13} />,
+        label: "🛑 Flag 3: Final Notice",
+        title: "Over 72h past committed deadline. Automatic suspension in 24h.",
+      };
+    }
+    if (status === "flag_2") {
+      return {
+        cls: "flag-2",
+        icon: <AlertTriangle size={13} />,
+        label: "🚨 Flag 2: Urgent",
+        title: "24h-48h past committed deadline.",
+      };
+    }
+    if (status === "flag_1") {
+      return {
+        cls: "flag-1",
+        icon: <AlertCircle size={13} />,
+        label: "⚠️ Flag 1: Overdue",
+        title: "Committed deadline passed. Finalize Brand DNA.",
+      };
+    }
+    if (deadline && status === "on_track") {
+      const days = Number(project.deadline_days_remaining || project.deadlineDaysRemaining || 1);
+      const formatted = deadline.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      return {
+        cls: "on-track",
+        icon: <CalendarCheck size={13} />,
+        label: `Due ${formatted} (${days > 1 ? `${days}d` : "today"})`,
+        title: `Click to adjust deadline (Committed: ${formatted})`,
+      };
+    }
+    return {
+      cls: "set-btn",
+      icon: <Calendar size={13} />,
+      label: "📅 Set Delivery Deadline",
+      title: "Review discovery answers and set committed delivery date",
+    };
+  };
+
+  const pill = getPillContent();
+
+  const handleOpenSetModal = () => {
+    if (deadline) {
+      const yyyy = deadline.getFullYear();
+      const mm = String(deadline.getMonth() + 1).padStart(2, "0");
+      const dd = String(deadline.getDate()).padStart(2, "0");
+      setCustomDate(`${yyyy}-${mm}-${dd}`);
+      setDeadlineNote(project.deadline_note || project.deadlineNote || "");
+    } else {
+      const d = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      setCustomDate(`${yyyy}-${mm}-${dd}`);
+      setSelectedDays(5);
+    }
+    setModalOpen(true);
+  };
+
+  const handlePillClick = () => {
+    if (isWarningFlag) {
+      setWarningAlertOpen(true);
+    } else {
+      handleOpenSetModal();
+    }
+  };
+
+  const handleSelectPreset = (days) => {
+    setSelectedDays(days);
+    const d = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    setCustomDate(`${yyyy}-${mm}-${dd}`);
+  };
+
+  const handleSaveDeadline = async () => {
+    if (!customDate) {
+      showError("Please pick a deadline date.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const targetDate = new Date(`${customDate}T18:00:00`);
+      const updated = await setProjectDeadline(project.id, {
+        deadline: targetDate.toISOString(),
+        note: deadlineNote,
+      });
+      if (updated) {
+        showSuccess(`Delivery deadline committed for ${targetDate.toLocaleDateString()}`);
+        if (onProjectUpdated) {
+          onProjectUpdated(updated);
+        }
+      }
+      setModalOpen(false);
+      setWarningAlertOpen(false);
+    } catch (err) {
+      console.error("Failed to set deadline:", err);
+      showError(err.message || "Failed to commit delivery deadline.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const minDate = (() => {
+    const d = new Date(Date.now() + 12 * 60 * 60 * 1000);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  })();
+
+  const maxDate = (() => {
+    const d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  })();
+
+  const formattedDeadlineStr = deadline
+    ? deadline.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "Unset";
+
+  return (
+    <>
+      <button
+        ref={badgeRef}
+        type="button"
+        className={`consultant-deadline-pill ${pill.cls} ${isAttentionPulsing ? "pulse-attention" : ""}`}
+        title={pill.title}
+        onClick={handlePillClick}
+      >
+        {pill.icon}
+        <span>{pill.label}</span>
+      </button>
+
+      {/* 1. EXACT ALERT TEMPLATE (Identical to user template image: #ef0013 Red header, #ffffff White body, #0075d5 Blue OK button) */}
+      {warningAlertOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div className="deadline-modal-backdrop" onClick={handleAcknowledgeWarning}>
+              <div
+                style={{
+                  background: "#ffffff",
+                  borderRadius: "10px",
+                  width: "100%",
+                  maxWidth: "460px",
+                  overflow: "hidden",
+                  boxShadow: "0 20px 60px rgba(0, 0, 0, 0.65)",
+                  animation: "templateModalPop 0.18s ease-out",
+                  border: "none",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Red Top Banner - Exact #ef0013 Red from user's image */}
+                <div
+                  style={{
+                    background: "#ef0013",
+                    color: "#ffffff",
+                    padding: "16px 20px",
+                    textAlign: "center",
+                    fontSize: "22px",
+                    fontWeight: 700,
+                    letterSpacing: "0.01em",
+                    border: "none",
+                  }}
+                >
+                  Alert!
+                </div>
+
+                {/* Pure White Body */}
+                <div
+                  style={{
+                    background: "#ffffff",
+                    padding: "24px 28px 26px",
+                    color: "#232321",
+                    textAlign: "center",
+                    fontSize: "14px",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: "0 0 16px",
+                      fontSize: "14px",
+                      color: "#232321",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Project <strong>&ldquo;{project.company_name || project.title}&rdquo;</strong> is now{" "}
+                    <span style={{ color: "#ef0013", fontWeight: 700 }}>
+                      {status === "flag_1" ? "24 hours overdue" : status === "flag_2" ? "48 hours overdue" : "72 hours overdue"}
+                    </span>.
+                    <br />
+                    Please deliver the Brand DNA promptly to avoid warning escalation and automatic consultant account suspension.
+                  </p>
+
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      padding: "12px 16px",
+                      marginBottom: "20px",
+                      fontSize: "13px",
+                      textAlign: "left",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                      <span style={{ color: "#64748b" }}>Target Milestone:</span>
+                      <strong style={{ color: "#0f172a" }}>Brand DNA Strategy</strong>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                      <span style={{ color: "#64748b" }}>Committed Date:</span>
+                      <strong style={{ color: "#0f172a" }}>{formattedDeadlineStr}</strong>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                      <span style={{ color: "#64748b" }}>Warning Level:</span>
+                      <strong style={{ color: "#ef0013" }}>
+                        {status === "flag_1" ? "Warning 1 of 3" : status === "flag_2" ? "Warning 2 of 3 (Urgent)" : "Warning 3 of 3 (Final Notice)"}
+                      </strong>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0" }}>
+                      <span style={{ color: "#64748b" }}>Automatic Suspension:</span>
+                      <strong style={{ color: "#ef0013" }}>
+                        {status === "flag_1" ? "In 72 hours (at 96h total)" : status === "flag_2" ? "In 48 hours (at 96h total)" : "In 24 hours (at 96h total)"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "18px" }}>
+                    {/* "Adjust Deadline" commented out per requirements: deadline modification is restricted during warning escalation */}
+                    {/*
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWarningAlertOpen(false);
+                        handleOpenSetModal();
+                      }}
+                      style={{
+                        background: "#f1f5f9",
+                        color: "#334155",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "6px",
+                        padding: "10px 18px",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Adjust Deadline
+                    </button>
+                    */}
+                    <button
+                      type="button"
+                      onClick={handleAcknowledgeWarning}
+                      style={{
+                        background: "#0075d5",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "6px",
+                        padding: "10px 36px",
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        boxShadow: "0 2px 6px rgba(0, 117, 213, 0.3)",
+                      }}
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {/* 2. SET / ADJUST DEADLINE MODAL */}
+      {modalOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div className="deadline-modal-backdrop" onClick={() => setModalOpen(false)}>
+              <div className="deadline-modal-card" onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
+                  <div>
+                    <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 700, color: "#ffffff" }}>
+                      Commit Delivery Deadline
+                    </h3>
+                    <p style={{ margin: 0, fontSize: "12px", color: "#94a3b8" }}>
+                      Reflected on the client portal. If missed, the 3-flag system triggers.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setModalOpen(false)}
+                    style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", padding: "4px" }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div style={{ fontSize: "12px", fontWeight: 600, color: "#cbd5e1", marginTop: "12px" }}>
+                  Quick Delivery Turnaround:
+                </div>
+                <div className="deadline-preset-grid">
+                  <button
+                    type="button"
+                    className={`deadline-preset-btn ${selectedDays === 3 ? "selected" : ""}`}
+                    onClick={() => handleSelectPreset(3)}
+                  >
+                    <span style={{ fontSize: "14px" }}>⚡ 3 Days</span>
+                    <span style={{ fontSize: "10px", opacity: 0.8 }}>Sprint</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`deadline-preset-btn ${selectedDays === 5 ? "selected" : ""}`}
+                    onClick={() => handleSelectPreset(5)}
+                  >
+                    <span style={{ fontSize: "14px" }}>📅 5 Days</span>
+                    <span style={{ fontSize: "10px", opacity: 0.8 }}>Standard</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`deadline-preset-btn ${selectedDays === 7 ? "selected" : ""}`}
+                    onClick={() => handleSelectPreset(7)}
+                  >
+                    <span style={{ fontSize: "14px" }}>🗓️ 7 Days</span>
+                    <span style={{ fontSize: "10px", opacity: 0.8 }}>Comprehensive</span>
+                  </button>
+                </div>
+
+                <div style={{ marginBottom: "14px" }}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#cbd5e1", marginBottom: "6px" }}>
+                    Committed Target Date:
+                  </label>
+                  <input
+                    type="date"
+                    min={minDate}
+                    max={maxDate}
+                    value={customDate}
+                    onChange={(e) => {
+                      setCustomDate(e.target.value);
+                      setSelectedDays(null);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: "8px",
+                      background: "rgba(0,0,0,0.35)",
+                      border: "1px solid rgba(77,255,160,0.25)",
+                      color: "#ffffff",
+                      fontSize: "13px",
+                      fontFamily: "inherit",
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: "18px" }}>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#cbd5e1", marginBottom: "6px" }}>
+                    Client Note (Optional):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Synthesizing full positioning & poster directions"
+                    value={deadlineNote}
+                    onChange={(e) => setDeadlineNote(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: "8px",
+                      background: "rgba(0,0,0,0.35)",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      color: "#ffffff",
+                      fontSize: "13px",
+                      fontFamily: "inherit",
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={() => setModalOpen(false)}
+                    className="btn btn-secondary"
+                    style={{ padding: "8px 16px", fontSize: "13px" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmitting || !customDate}
+                    onClick={handleSaveDeadline}
+                    className="btn btn-primary"
+                    style={{ padding: "8px 20px", fontSize: "13px" }}
+                  >
+                    {isSubmitting ? "Committing..." : "Commit Deadline"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+    </>
+  );
+}
+
 function SummaryHeader({
   project,
   projects = [],
   onSelectProject,
   isLoadingProjects,
   onOpenWizard,
+  onProjectUpdated = () => {},
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -674,6 +1139,7 @@ function SummaryHeader({
 
         {project?.id ? (
           <div className="discovery-summary-actions">
+            <ConsultantDeadlineBadge project={project} onProjectUpdated={onProjectUpdated} />
             <div className="discovery-progress-ring" style={{ "--progress": `${progress}%` }}>
               <span>{progress}%</span>
             </div>
@@ -5074,6 +5540,7 @@ export default function Discovery() {
                 onSelectProject={handleSelectProject}
                 isLoadingProjects={isLoadingAllProjects}
                 onOpenWizard={() => setIsWizardOpen(true)}
+                onProjectUpdated={(updated) => setProject(updated)}
               />
 
               {isWizardOpen ? (

@@ -8,6 +8,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 router.get('/csrf/', authController.getCsrf);
 router.post('/login/', authController.login);
+router.post('/request-reactivation/', authController.requestReactivation);
 router.post('/token/refresh/', authController.refreshToken);
 router.get('/me/', requireAuth, authController.getMe);
 router.patch('/me/', requireAuth, upload.single('avatar'), authController.updateMe);

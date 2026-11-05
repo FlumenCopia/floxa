@@ -6,7 +6,7 @@ import { supportSocket } from "../../services/supportSocketService";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/lib/api";
 import { showError, showSuccess } from "@/lib/toast";
-import { Bell, Clock, FileText, Compass } from "lucide-react";
+import { Bell, Clock, FileText, Compass, AlertTriangle } from "lucide-react";
 import "./ClientPortalIntroModal.css";
 
 const phaseLabels = [
@@ -1335,6 +1335,32 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
         </div>
 
         <div className="client-dashboard-actions">
+          {(project?.deadlineStatus === "flag_1" ||
+            project?.deadlineStatus === "flag_2" ||
+            project?.deadlineStatus === "flag_3" ||
+            project?.deadline_status === "flag_1" ||
+            project?.deadline_status === "flag_2" ||
+            project?.deadline_status === "flag_3") && !project?.hasBrandDna && !project?.has_brand_dna && (
+            <div
+              className="client-topbar-overdue-pill"
+              title="Milestone delivery is delayed. Your consultant has been alerted."
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                borderRadius: "999px",
+                background: "rgba(239, 68, 68, 0.16)",
+                border: "1px solid rgba(239, 68, 68, 0.45)",
+                color: "#f87171",
+                fontSize: "12px",
+                fontWeight: 600,
+              }}
+            >
+              <AlertTriangle size={13} />
+              <span>Delivery Delayed</span>
+            </div>
+          )}
           <button
             type="button"
             className="client-guide-btn"

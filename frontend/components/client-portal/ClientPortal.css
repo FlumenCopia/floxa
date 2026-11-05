@@ -6345,3 +6345,129 @@ td {
   opacity: 0.8;
   margin-left: 2px;
 }
+
+/* Delivery Commitment Badge Note (Client Portal) */
+.client-deadline-badge-note {
+  max-width: 620px;
+  margin: 0 auto;
+  border-radius: 14px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  text-align: left;
+  backdrop-filter: blur(12px);
+  transition: all 0.2s ease;
+}
+
+.client-deadline-badge-note.on-track {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+.client-deadline-badge-note.on-track .client-deadline-badge-icon {
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+}
+.client-deadline-badge-note.on-track .client-deadline-badge-tag {
+  color: #10b981;
+}
+
+.client-deadline-badge-note.pending {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+.client-deadline-badge-note.pending .client-deadline-badge-icon {
+  background: rgba(56, 189, 248, 0.16);
+  color: #38bdf8;
+}
+.client-deadline-badge-note.pending .client-deadline-badge-tag {
+  color: #38bdf8;
+}
+
+.client-deadline-badge-note.flag-1 {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.client-deadline-badge-note.flag-1 .client-deadline-badge-icon {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+}
+.client-deadline-badge-note.flag-1 .client-deadline-badge-tag {
+  color: #f59e0b;
+}
+
+.client-deadline-badge-note.flag-overdue {
+  background: rgba(239, 68, 68, 0.09);
+  border: 1px solid rgba(239, 68, 68, 0.32);
+}
+.client-deadline-badge-note.flag-overdue .client-deadline-badge-icon {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+}
+.client-deadline-badge-note.flag-overdue .client-deadline-badge-tag {
+  color: #ef4444;
+}
+
+.client-deadline-badge-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.client-deadline-badge-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.client-deadline-badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 6px;
+}
+
+.client-deadline-countdown {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.client-deadline-badge-title {
+  color: #f8fafc;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.client-deadline-badge-desc {
+  color: #94a3b8;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.client-deadline-badge-desc strong {
+  color: #e2e8f0;
+}
+
+.client-deadline-badge-consultant-note {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 2px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  font-style: italic;
+}

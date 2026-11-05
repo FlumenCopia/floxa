@@ -18,6 +18,15 @@ export interface IConsultant {
   avatar: string | null;
   isActive: boolean;
   isStaff: boolean;
+  isSuspended?: boolean;
+  suspendedAt?: Date | null;
+  suspensionReason?: string;
+  suspendedDueToProjectId?: any;
+  reactivationRequest?: {
+    requestedAt?: Date | null;
+    message?: string;
+    status?: 'pending' | 'resolved' | 'none';
+  };
   aiUsage?: {
     plan?: string;
     toolRuns?: Record<string, number>;
@@ -88,6 +97,29 @@ const consultantSchema = new Schema<IConsultant>(
     isStaff: {
       type: Boolean,
       default: false,
+    },
+    isSuspended: {
+      type: Boolean,
+      default: false,
+    },
+    suspendedAt: {
+      type: Date,
+      default: null,
+    },
+    suspensionReason: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    suspendedDueToProjectId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Project',
+      default: null,
+    },
+    reactivationRequest: {
+      requestedAt: { type: Date, default: null },
+      message: { type: String, default: '' },
+      status: { type: String, enum: ['pending', 'resolved', 'none'], default: 'none' },
     },
     subscription: {
       plan: {

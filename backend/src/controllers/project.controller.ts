@@ -1,3 +1,4 @@
+import { setProjectDeliveryDeadline } from '../services/deadlineMonitoring.service.js';
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { Project } from '../models/project.model.js';
@@ -694,5 +695,32 @@ export async function chatAssistant(req: any, res: Response, next: NextFunction)
   } catch (err: any) {
     const statusCode = err.status && err.status !== 401 ? err.status : 502;
     res.status(statusCode).json({ detail: err.message || 'AI Assistant service unavailable.' });
+  }
+}
+
+export async function setProjectDeadline(req: any, res: Response, next: NextFunction) {
+  try {
+    const { id } = req.params;
+    const { deadline, note } = req.body;
+
+    if (!deadline) {
+      res.status(400).json({ detail: 'Please provide a valid deadline date.' });
+      return;
+    }
+
+    const consultantId = req.user?.id || req.user?._id;
+    const updated = await setProjectDeliveryDeadline(id, consultantId, deadline, note);
+
+    if (!updated) {
+      res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
+
+    res.json(serializeProject(updated));
+  } catch (err: any) {
+    if (err.status) {
+      return res.status(err.status).json({ detail: err.message });
+    }
+    next(err);
   }
 }

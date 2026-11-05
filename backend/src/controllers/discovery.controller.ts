@@ -1,3 +1,4 @@
+import { onBrandDnaCompleted } from '../services/deadlineMonitoring.service.js';
 import { Request, Response, NextFunction } from 'express';
 import { ProjectDiscovery } from '../models/discovery.model.js';
 import { BrandDNA } from '../models/brandDNA.model.js';
@@ -352,10 +353,11 @@ export async function handleSaveDiscovery(req: any, res: Response, markSubmitted
       ]);
       if (fullProject) {
         const newProgress = calculateProjectProgress(fullProject);
-        await Project.findByIdAndUpdate(id, {
-          status: 'discovery',
-          progress: newProgress,
-        });
+        const updateFields: any = { status: 'discovery', progress: newProgress };
+        if (!fullProject.clientSubmittedAt) {
+          updateFields.clientSubmittedAt = new Date();
+        }
+        await Project.findByIdAndUpdate(id, { $set: updateFields });
       }
     } catch (progErr) {
       console.error('Failed to update project status/progress:', progErr);
@@ -480,6 +482,7 @@ export async function generateBrandDNA(req: any, res: Response, next: NextFuncti
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
+    await onBrandDnaCompleted(id);
     await logProjectActivity({
       projectId: id,
       consultantId: String(project.consultantId),

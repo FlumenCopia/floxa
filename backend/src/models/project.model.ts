@@ -28,6 +28,11 @@ export interface IProject {
   clientSignedOff: boolean;
   signedOffAt: Date | null;
   clientLastSeenAt?: Date | null;
+  clientSubmittedAt?: Date | null;
+  deliveryDeadline?: Date | null;
+  deadlineSetAt?: Date | null;
+  deadlineFlagsCount?: number;
+  deadlineNote?: string;
   isArchived: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -80,6 +85,11 @@ const projectSchema = new Schema<IProject>(
     clientSignedOff: { type: Boolean, default: false },
     signedOffAt: { type: Date, default: null },
     clientLastSeenAt: { type: Date, default: null },
+    clientSubmittedAt: { type: Date, default: null },
+    deliveryDeadline: { type: Date, default: null },
+    deadlineSetAt: { type: Date, default: null },
+    deadlineFlagsCount: { type: Number, default: 0 },
+    deadlineNote: { type: String, default: '' },
     isArchived: { type: Boolean, default: false },
   },
   {

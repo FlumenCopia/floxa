@@ -11642,3 +11642,299 @@ body.screenshot-shield-active > *:not(.floxa-screenshot-shield) {
   font-size: 14px;
   font-weight: 700;
 }
+
+/* Delivery Deadline & 3-Flag System */
+.deadline-table-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-top: 5px;
+  white-space: nowrap;
+}
+
+.deadline-table-tag.on-track {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.deadline-table-tag.pending {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.deadline-table-tag.flag-1 {
+  background: rgba(245, 158, 11, 0.16);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.deadline-table-tag.flag-2 {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.deadline-table-tag.flag-3 {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  font-weight: 700;
+}
+
+.deadline-table-tag.done {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+}
+
+.deadline-table-tag.awaiting {
+  background: rgba(148, 163, 184, 0.08);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* Consultant Discovery Header Deadline Pill */
+.consultant-deadline-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.consultant-deadline-pill.on-track {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.consultant-deadline-pill.on-track:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.consultant-deadline-pill.set-btn {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.35);
+}
+.consultant-deadline-pill.set-btn:hover {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: #38bdf8;
+}
+
+.consultant-deadline-pill.flag-1 {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.consultant-deadline-pill.flag-1:hover {
+  background: rgba(245, 158, 11, 0.24);
+}
+
+.consultant-deadline-pill.flag-2 {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.consultant-deadline-pill.flag-3 {
+  background: rgba(239, 68, 68, 0.24);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.6);
+  font-weight: 700;
+}
+
+.consultant-deadline-pill.done {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.3);
+  cursor: default;
+}
+
+/* Deadline Modal Popover */
+.deadline-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.deadline-modal-card {
+  background: #0d1e16;
+  border: 1px solid rgba(77, 255, 160, 0.25);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 440px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  color: #ffffff;
+}
+
+.deadline-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.deadline-preset-btn {
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.deadline-preset-btn:hover {
+  background: rgba(77, 255, 160, 0.12);
+  border-color: rgba(77, 255, 160, 0.35);
+  color: #4dffa0;
+}
+
+.deadline-preset-btn.selected {
+  background: rgba(77, 255, 160, 0.18);
+  border-color: #4dffa0;
+  color: #4dffa0;
+}
+
+
+/* Warning Alert Modal & Pulse Attention */
+@keyframes deadlinePulseAttention {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 0, 19, 0.9);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 22px 8px rgba(239, 0, 19, 1);
+    transform: scale(1.08);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 0, 19, 0);
+    transform: scale(1);
+  }
+}
+
+.consultant-deadline-pill.pulse-attention {
+  animation: deadlinePulseAttention 1s infinite ease-in-out !important;
+  border-color: #ef0013 !important;
+  color: #ffffff !important;
+  background: rgba(239, 0, 19, 0.6) !important;
+}
+
+/* Exact Alert Template from User Image */
+.template-alert-modal-card {
+  background: #ffffff !important;
+  border-radius: 10px !important;
+  width: 100% !important;
+  max-width: 460px !important;
+  overflow: hidden !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
+  animation: templateModalPop 0.18s ease-out !important;
+  border: none !important;
+}
+
+@keyframes templateModalPop {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.template-alert-header {
+  background: #ef0013 !important; /* Exact Red sampled from image */
+  color: #ffffff !important;
+  padding: 18px 20px !important;
+  text-align: center !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+  border: none !important;
+}
+
+.template-alert-body {
+  background: #ffffff !important;
+  padding: 24px 28px 26px !important;
+  color: #232321 !important;
+  text-align: center !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+.template-alert-message {
+  margin: 0 0 16px !important;
+  font-size: 14px !important;
+  color: #232321 !important;
+  line-height: 1.6 !important;
+}
+
+.template-alert-details-box {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  padding: 12px 16px !important;
+  margin-bottom: 20px !important;
+  font-size: 13px !important;
+  text-align: left !important;
+}
+
+.template-alert-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  padding: 4px 0 !important;
+}
+
+.template-alert-btn-ok {
+  background: #0075d5 !important; /* Exact Blue sampled from image */
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 10px 36px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease !important;
+  box-shadow: 0 2px 6px rgba(0, 117, 213, 0.3) !important;
+}
+
+.template-alert-btn-ok:hover {
+  background: #0060b0 !important;
+}
+
+.template-alert-btn-adjust {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  padding: 10px 18px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease !important;
+}
+
+.template-alert-btn-adjust:hover {
+  background: #e2e8f0 !important;
+}

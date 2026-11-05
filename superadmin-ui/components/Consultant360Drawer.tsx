@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Sliders,
   AlertCircle,
+  Bell,
   CheckCircle2,
   Key,
 } from "lucide-react";
@@ -382,6 +383,102 @@ export default function Consultant360Drawer({
                   <Calendar size={11} /> Joined: {consultant.createdAt ? new Date(consultant.createdAt).toLocaleDateString() : "Recent"}
                 </span>
               </div>
+
+              {!consultant.isActive ? (
+                <div style={{
+                  marginTop: "12px",
+                  padding: "10px 14px",
+                  borderRadius: "6px",
+                  backgroundColor: "rgba(255, 107, 107, 0.08)",
+                  border: "1px solid rgba(255, 107, 107, 0.25)",
+                  fontSize: "11px",
+                  lineHeight: "1.6",
+                }}>
+                  <div style={{ fontWeight: 700, color: "#ff8e8e", display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                    <AlertCircle size={13} />
+                    <span>Suspension Information</span>
+                  </div>
+                  <div style={{ color: "#d1a5a5" }}>
+                    <strong style={{ color: "#e8f5ef" }}>Reason:</strong>{" "}
+                    {consultant.suspensionReason === "deadline_breach"
+                      ? "Milestone Deadline Breach (Automatic suspension at 96h overdue, following 3 warnings)"
+                      : consultant.suspensionReason || "Administrative suspension"}
+                  </div>
+                  {consultant.suspendedAt ? (
+                    <div style={{ color: "#d1a5a5" }}>
+                      <strong style={{ color: "#e8f5ef" }}>Suspended At:</strong>{" "}
+                      {new Date(consultant.suspendedAt).toLocaleString("en-US", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </div>
+                  ) : null}
+                  {consultant.suspendedDueToProjectId ? (
+                    <div style={{ color: "#d1a5a5" }}>
+                      <strong style={{ color: "#e8f5ef" }}>Associated Project:</strong>{" "}
+                      <span style={{ color: "#4dffa0" }}>
+                        {projects.find((p: any) => p.id === consultant.suspendedDueToProjectId)?.title ||
+                          projects.find((p: any) => p.id === consultant.suspendedDueToProjectId)?.companyName ||
+                          consultant.suspendedDueToProjectId}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+                          {consultant.reactivationRequest && consultant.reactivationRequest.status === "pending" ? (
+                <div style={{
+                  marginTop: "12px",
+                  padding: "12px 14px",
+                  borderRadius: "8px",
+                  backgroundColor: "rgba(240, 180, 41, 0.12)",
+                  border: "1px solid rgba(240, 180, 41, 0.45)",
+                  fontSize: "12px",
+                  lineHeight: "1.5",
+                  boxShadow: "0 0 16px rgba(240, 180, 41, 0.15)",
+                }}>
+                  <div style={{ fontWeight: 700, color: "#f0b429", display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+                    <Bell size={14} />
+                    <span>⚠️ Urgent Reactivation Request Dispatched by Consultant</span>
+                  </div>
+                  <div style={{
+                    backgroundColor: "rgba(0, 0, 0, 0.3)",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid rgba(240, 180, 41, 0.2)",
+                    color: "#fef08a",
+                    fontSize: "12px",
+                    marginBottom: "8px",
+                    fontStyle: "italic",
+                  }}>
+                    &quot;{consultant.reactivationRequest.message || "Consultant requested account review and reactivation."}&quot;
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                    <span style={{ color: "#9ca3af", fontSize: "11px" }}>
+                      Requested: {consultant.reactivationRequest.requestedAt ? new Date(consultant.reactivationRequest.requestedAt).toLocaleString() : "Just now"}
+                    </span>
+                    <button
+                      onClick={handleToggleStatus}
+                      disabled={togglingStatus}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        backgroundColor: "#4dffa0",
+                        color: "#001a0e",
+                        border: "none",
+                        padding: "6px 14px",
+                        borderRadius: "6px",
+                        fontWeight: 700,
+                        fontSize: "12px",
+                        cursor: togglingStatus ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      <UserCheck size={13} />
+                      <span>Approve &amp; Activate Now</span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {/* Quick Stats Ribbon */}

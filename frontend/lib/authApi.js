@@ -29,6 +29,13 @@ function notifyConsultantChange(consultant) {
   });
 }
 
+export async function requestReactivation(email, message) {
+  return apiRequest("/auth/request-reactivation/", {
+    method: "POST",
+    body: JSON.stringify({ email, message }),
+  });
+}
+
 export async function loginConsultant(data) {
   clearCurrentConsultantCache();
   return apiRequest("/auth/login/", {

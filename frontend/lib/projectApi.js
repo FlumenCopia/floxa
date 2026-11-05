@@ -89,6 +89,15 @@ export function normalizeProject(project) {
     createdLabel: formatDate(project.created_at),
     updatedLabel: formatDate(project.updated_at),
     portalToken: project.portal_token,
+    clientSubmittedAt: project.client_submitted_at || null,
+    deliveryDeadline: project.delivery_deadline || null,
+    deadlineSetAt: project.deadline_set_at || null,
+    deadlineStatus: project.deadline_status || "awaiting_client",
+    deadlineFlagsCount: Number(project.deadline_flags_count || 0),
+    deadlineDaysRemaining: Number(project.deadline_days_remaining || 0),
+    deadlineHoursOverdue: Number(project.deadline_hours_overdue || 0),
+    deadlineNote: project.deadline_note || "",
+    hasBrandDna: Boolean(project.has_brand_dna),
   };
 }
 
@@ -595,5 +604,12 @@ export async function runAiSuiteTool(projectId, toolId) {
   return apiRequest('/ai-suite/run/', {
     method: 'POST',
     body: JSON.stringify({ projectId, toolId }),
+  });
+}
+
+export async function setProjectDeadline(projectId, { deadline, note }) {
+  return apiRequest(`/projects/${projectId}/deadline/`, {
+    method: "PATCH",
+    body: JSON.stringify({ deadline, note }),
   });
 }

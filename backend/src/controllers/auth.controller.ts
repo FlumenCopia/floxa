@@ -1,3 +1,4 @@
+import { logProjectActivity } from '../services/project.service.js';
 import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
@@ -45,6 +46,15 @@ export async function login(req: Request, res: Response, next: NextFunction) {
     }
 
     if (!consultant.isActive) {
+      if (consultant.isSuspended) {
+        res.status(403).json({
+          detail: 'Your consultant account has been automatically suspended due to milestone deadline violations. Please contact SuperAdmin.',
+          code: 'ACCOUNT_SUSPENDED_DEADLINE_BREACH',
+          suspendedAt: consultant.suspendedAt,
+          suspensionReason: consultant.suspensionReason,
+        });
+        return;
+      }
       res.status(400).json({ detail: 'Consultant account is inactive.' });
       return;
     }
@@ -84,6 +94,13 @@ export async function refreshToken(req: Request, res: Response) {
     const payload = jwt.verify(token, ENV.JWT_REFRESH_SECRET) as { userId: string; tokenVersion?: number };
     const user = await Consultant.findById(payload.userId);
     if (!user || !user.isActive) {
+      if (user && user.isSuspended) {
+        res.status(403).json({
+          detail: 'Your consultant account has been suspended due to milestone deadline violations. Please contact SuperAdmin.',
+          code: 'ACCOUNT_SUSPENDED_DEADLINE_BREACH',
+        });
+        return;
+      }
       res.status(401).json({ detail: 'User not found or inactive.' });
       return;
     }
@@ -409,6 +426,57 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
     clearAuthCookies(res);
 
     res.json({ detail: 'Password has been reset successfully. You can now log in with your new password.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+export async function requestReactivation(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { email, message } = req.body || {};
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    if (!cleanEmail) {
+      res.status(400).json({ detail: 'Consultant email is required.' });
+      return;
+    }
+
+    const consultant = await Consultant.findOne({ email: cleanEmail });
+    if (!consultant) {
+      res.status(404).json({ detail: 'No consultant found with this email address.' });
+      return;
+    }
+
+    const userMsg = (message || 'My deliverable is ready. Please review and reactivate my account.').trim();
+
+    consultant.reactivationRequest = {
+      requestedAt: new Date(),
+      message: userMsg,
+      status: 'pending',
+    };
+    await consultant.save();
+
+    if (consultant.suspendedDueToProjectId) {
+      try {
+        await logProjectActivity({
+          projectId: consultant.suspendedDueToProjectId.toString(),
+          consultantId: String(consultant._id),
+          actorType: 'consultant',
+          action: 'reactivation_requested',
+          description: `Consultant requested account reactivation: "${userMsg}"`,
+          visibleToClient: false,
+        });
+      } catch (actErr) {
+        console.warn('Failed to log project activity for reactivation:', actErr);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Account reactivation request dispatched to SuperAdmin.',
+      reactivationRequest: consultant.reactivationRequest,
+    });
   } catch (err) {
     next(err);
   }

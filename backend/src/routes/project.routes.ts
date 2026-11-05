@@ -41,6 +41,8 @@ router.use('/:id', requireProjectOwnership);
 // Single project
 router.get('/:id/', projectController.getProject);
 router.patch('/:id/', projectController.updateProject);
+router.patch('/:id/deadline/', projectController.setProjectDeadline);
+router.post('/:id/deadline/', projectController.setProjectDeadline);
 router.post('/:id/invite/retry/', projectController.retryInvite);
 router.get('/:id/activities/', projectController.getProjectActivities);
 router.post('/:id/activities/mark-read/', projectController.markProjectActivitiesRead);
