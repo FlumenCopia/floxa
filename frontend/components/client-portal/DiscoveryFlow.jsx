@@ -101,20 +101,6 @@ export function normalizeCompetitors(rawComps) {
   }));
 }
 
-export function normalizeCompetitors(rawComps) {
-  const defaults = [
-    { name: "", rating: "neutral", reason: "" },
-    { name: "", rating: "neutral", reason: "" },
-    { name: "", rating: "neutral", reason: "" },
-  ];
-  if (!Array.isArray(rawComps)) return defaults;
-  return defaults.map((def, idx) => ({
-    name: rawComps[idx]?.name ?? "",
-    rating: rawComps[idx]?.rating || "neutral",
-    reason: rawComps[idx]?.reason ?? "",
-  }));
-}
-
 export const allSliderDefinitions = [...slidersOne, ...slidersTwo];
 
 export function getSliderDefinitionsForStep(step) {
