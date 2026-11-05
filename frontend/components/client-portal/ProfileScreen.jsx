@@ -190,8 +190,14 @@ export function ProfileScreen({
         throw new Error(response.error ?? "Unable to save your profile.");
       }
 
-      await onProjectRefresh();
       setClientData(response.data);
+
+      try {
+        await onProjectRefresh();
+      } catch (refreshErr) {
+        console.warn("Background project refresh after profile save:", refreshErr);
+      }
+
       onNext(profileReturnScreen || "fonts");
     } catch (err) {
       console.error("Client profile save failed:", err);

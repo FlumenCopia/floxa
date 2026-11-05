@@ -22,7 +22,9 @@ function getResumeScreen(status) {
   const normalizedStatus = String(status || "").toLowerCase();
 
   if (normalizedStatus === "profile_complete") {
-    return "discovery";
+
+
+    return "fonts";
   }
 
   if (normalizedStatus === "discovery_complete") {
@@ -180,7 +182,13 @@ function getBackendResumeScreen(savedProfile, savedDiscovery, project) {
     return "review";
   }
 
-  return "discovery";
+  // 4. Discovery questionnaire already in progress
+  if (hasDiscoveryAnswers(savedDiscovery)) {
+    return "discovery";
+  }
+
+  // 5. Profile is complete, but discovery questionnaire has not been answered yet: route to font selection!
+  return "fonts";
 }
 
 function writeDiscoveryDraft(projectId, discovery) {
@@ -261,7 +269,7 @@ export function ClientPortal({ token, isConsultant = false }) {
       writeStoredStep(token, options.step);
     }
     setProfileReturnScreen(
-      nextScreen === "profile" && ["dashboard", "review"].includes(screen) ? screen : ""
+      nextScreen === "profile" && ["dashboard", "review", "fonts"].includes(screen) ? screen : ""
     );
     writeStoredScreen(token, nextScreen);
     setScreen(nextScreen);

@@ -95,7 +95,7 @@ export function FontSelectionScreen({
   onProjectRefresh = () => {},
 }) {
   const projectId = project?.id || project?._id || project?.project_id || "";
-  const companyName = clientData?.company_name || project?.company_name || project?.name || "";
+  const companyName = clientData?.company_name || clientData?.clientCompany || project?.company_name || project?.name || "";
 
   // Single selected brand font
   const [selectedFont, setSelectedFont] = useState("Plus Jakarta Sans");
@@ -112,6 +112,13 @@ export function FontSelectionScreen({
     : "Everyone has the right to freedom of thought, conscience and religion";
   const [previewText, setPreviewText] = useState(defaultSample);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Sync previewText with companyName if updated
+  useEffect(() => {
+    if (companyName && (!previewText || previewText === "Everyone has the right to freedom of thought, conscience and religion")) {
+      setPreviewText(`${companyName} • Signature Identity`);
+    }
+  }, [companyName, previewText]);
 
   // Load stored preferences
   useEffect(() => {
