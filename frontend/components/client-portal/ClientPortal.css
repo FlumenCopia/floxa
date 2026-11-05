@@ -6304,21 +6304,8 @@ td {
 
 /* =========================================================================
    Live Client Selected Brand Typography Inheritance
-   Applies selected brand font to all question headings, inputs, and cards
+   Applies selected brand font strictly to user typing (inputs & textareas)
    ========================================================================= */
-
-.client-discovery-screen,
-.client-discovery-content {
-  font-family: var(--client-body-font, inherit);
-}
-
-.client-discovery-content h1,
-.client-discovery-content h2,
-.client-discovery-content h3,
-.client-discovery-heading {
-  font-family: var(--client-headline-font, var(--client-body-font, inherit)) !important;
-  letter-spacing: -0.01em;
-}
 
 .client-discovery-screen textarea,
 .client-discovery-screen input[type="text"],
@@ -6334,12 +6321,6 @@ td {
   font-family: var(--client-body-font, inherit) !important;
   font-size: 15px !important;
   letter-spacing: 0.01em !important;
-}
-
-.client-persona-grid button strong,
-.client-competitor-card strong,
-.client-section-label {
-  font-family: var(--client-body-font, inherit);
 }
 
 .client-discovery-font-badge {

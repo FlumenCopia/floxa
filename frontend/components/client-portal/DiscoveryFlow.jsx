@@ -86,6 +86,35 @@ export const defaultCompetitors = [
   { name: "", rating: "neutral", reason: "" },
 ];
 
+
+export function normalizeCompetitors(rawComps) {
+  const defaults = [
+    { name: "", rating: "neutral", reason: "" },
+    { name: "", rating: "neutral", reason: "" },
+    { name: "", rating: "neutral", reason: "" },
+  ];
+  if (!Array.isArray(rawComps)) return defaults;
+  return defaults.map((def, idx) => ({
+    name: rawComps[idx]?.name ?? "",
+    rating: rawComps[idx]?.rating || "neutral",
+    reason: rawComps[idx]?.reason ?? "",
+  }));
+}
+
+export function normalizeCompetitors(rawComps) {
+  const defaults = [
+    { name: "", rating: "neutral", reason: "" },
+    { name: "", rating: "neutral", reason: "" },
+    { name: "", rating: "neutral", reason: "" },
+  ];
+  if (!Array.isArray(rawComps)) return defaults;
+  return defaults.map((def, idx) => ({
+    name: rawComps[idx]?.name ?? "",
+    rating: rawComps[idx]?.rating || "neutral",
+    reason: rawComps[idx]?.reason ?? "",
+  }));
+}
+
 export const allSliderDefinitions = [...slidersOne, ...slidersTwo];
 
 export function getSliderDefinitionsForStep(step) {
@@ -118,7 +147,7 @@ export function toBackendSliderValue(value) {
 }
 
 export function getCompetitorNameForPayload(competitor) {
-  return competitor.name.trim();
+  return (competitor?.name || "").trim();
 }
 
 export function validateDiscoveryInputQuality(text, fieldLabel) {
@@ -319,9 +348,9 @@ export function DiscoveryFlow({
       )
     ).slice(0, 3);
   });
-  const [comps, setComps] = useState([
-    ...(readStoredDraft(draftKey).comps ?? defaultCompetitors),
-  ]);
+  const [comps, setComps] = useState(() =>
+    normalizeCompetitors(readStoredDraft(draftKey).comps ?? defaultCompetitors)
+  );
   const [basics, setBasics] = useState(() => ({
     whatDo: readStoredDraft(draftKey).basics?.whatDo ?? "",
     targetCustomer: readStoredDraft(draftKey).basics?.targetCustomer ?? "",
@@ -336,24 +365,24 @@ export function DiscoveryFlow({
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-      const fontsToLoad = Array.from(new Set([selectedBrandFont, headlineFont, bodyFont].filter(Boolean)));
-      fontsToLoad.forEach((fName) => {
-        if (!fName) return;
-        const id = `gfont-discovery-${fName.replace(/\s+/g, "-").toLowerCase()}`;
-        if (!document.getElementById(id)) {
-          const link = document.createElement("link");
-          link.id = id;
-          link.rel = "stylesheet";
-          link.href = `https://fonts.googleapis.com/css2?family=${fName.replace(/\s+/g, "+")}:wght@400;500;600;700;800&display=swap`;
-          document.head.appendChild(link);
+    const fontsToLoad = Array.from(new Set([selectedBrandFont, headlineFont, bodyFont].filter(Boolean)));
+    fontsToLoad.forEach((fName) => {
+      if (!fName) return;
+      const id = `gfont-discovery-${fName.replace(/\s+/g, "-").toLowerCase()}`;
+      if (!document.getElementById(id)) {
+        const link = document.createElement("link");
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?family=${fName.replace(/\s+/g, "+")}:wght@400;500;600;700;800&display=swap`;
+        document.head.appendChild(link);
+      }
+      try {
+        if (document.fonts && document.fonts.load) {
+          document.fonts.load(`1em "${fName}"`);
+          document.fonts.load(`bold 1em "${fName}"`);
         }
-        try {
-          if (document.fonts && document.fonts.load) {
-            document.fonts.load(`1em "${fName}"`);
-            document.fonts.load(`bold 1em "${fName}"`);
-          }
-        } catch { }
-      });
+      } catch { }
+    });
   }, [selectedBrandFont, headlineFont, bodyFont]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -430,7 +459,7 @@ export function DiscoveryFlow({
         setStyles(data.value || []);
       } else if (data.field_key === "comps" || data.field_key === "competitors") {
         if (Array.isArray(data.value)) {
-          setComps(data.value);
+          setComps(normalizeCompetitors(data.value));
         }
       }
     });
@@ -493,7 +522,7 @@ export function DiscoveryFlow({
         }
 
         if (Array.isArray(d.competitors) && d.competitors.length > 0) {
-          setComps(d.competitors);
+          setComps(normalizeCompetitors(d.competitors));
         }
 
         if (Array.isArray(d.visual_styles) && d.visual_styles.length > 0) {
@@ -661,7 +690,7 @@ export function DiscoveryFlow({
   const handleCompsChange = (updater) => {
     if (isReadOnly) return;
     setComps((current) => {
-      const next = updater(current);
+      const next = normalizeCompetitors(updater(current));
       supportSocket.syncField({
         pageId,
         fieldKey: "comps",
@@ -972,7 +1001,6 @@ export function DiscoveryFlow({
       style={{
         "--client-headline-font": `"${headlineFont}", serif, sans-serif`,
         "--client-body-font": `"${bodyFont}", serif, sans-serif`,
-        fontFamily: `"${bodyFont}", serif, sans-serif`,
       }}
     >
       <div className={`client-discovery-content ${isReadOnly ? "consultant-view-locked" : ""}`.trim()}>
@@ -1205,14 +1233,14 @@ export function DiscoveryFlow({
             </div>
 
             <div className="client-section-label">Rate competitor brands</div>
-            {comps.map((competitor, index) => (
+            {normalizeCompetitors(comps).map((competitor, index) => (
               <div className="client-competitor-card" key={index}>
                 <input
-                  value={competitor.name}
+                  value={competitor?.name || ""}
                   disabled={isReadOnly}
                   onChange={(event) =>
                     handleCompsChange((current) =>
-                      current.map((item, itemIndex) =>
+                      normalizeCompetitors(current).map((item, itemIndex) =>
                         itemIndex === index ? { ...item, name: event.target.value } : item
                       )
                     )
@@ -1227,25 +1255,25 @@ export function DiscoveryFlow({
                       disabled={isReadOnly}
                       onClick={() =>
                         handleCompsChange((current) =>
-                          current.map((item, itemIndex) =>
+                          normalizeCompetitors(current).map((item, itemIndex) =>
                             itemIndex === index
-                              ? { ...item, rating: item.rating === rating ? "" : rating }
+                              ? { ...item, rating: item.rating === rating ? "neutral" : rating }
                               : item
                           )
                         )
                       }
-                      className={competitor.rating === rating ? rating : ""}
+                      className={competitor?.rating === rating ? rating : ""}
                     >
                       {rating === "like" ? "Like" : "Dislike"}
                     </button>
                   ))}
                 </div>
                 <input
-                  value={competitor.reason}
+                  value={competitor?.reason || ""}
                   disabled={isReadOnly}
                   onChange={(event) =>
                     handleCompsChange((current) =>
-                      current.map((item, itemIndex) =>
+                      normalizeCompetitors(current).map((item, itemIndex) =>
                         itemIndex === index ? { ...item, reason: event.target.value } : item
                       )
                     )
