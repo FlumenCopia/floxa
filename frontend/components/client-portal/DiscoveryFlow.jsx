@@ -243,13 +243,13 @@ export function buildDiscoveryPayload({ basics = {}, sliders, emotions, persona,
       .map((style) => ({ style })),
     selected_font: typeof window !== "undefined"
       ? (clientPortalService.getClientFontPreferences()?.selectedFont ||
-         clientPortalService.getClientFontPreferences()?.headlineFont ||
-         clientPortalService.getClientFontPreferences()?.bodyFont || "")
+        clientPortalService.getClientFontPreferences()?.headlineFont ||
+        clientPortalService.getClientFontPreferences()?.bodyFont || "")
       : "",
     selectedFont: typeof window !== "undefined"
       ? (clientPortalService.getClientFontPreferences()?.selectedFont ||
-         clientPortalService.getClientFontPreferences()?.headlineFont ||
-         clientPortalService.getClientFontPreferences()?.bodyFont || "")
+        clientPortalService.getClientFontPreferences()?.headlineFont ||
+        clientPortalService.getClientFontPreferences()?.bodyFont || "")
       : "",
   };
 }
@@ -330,23 +330,31 @@ export function DiscoveryFlow({
   }));
 
   const fontPrefs = clientPortalService.getClientFontPreferences(project?.id, token);
-  const headlineFont = fontPrefs?.headlineFont || "Playfair Display";
-  const bodyFont = fontPrefs?.bodyFont || "Plus Jakarta Sans";
+  const selectedBrandFont = fontPrefs?.selectedFont || fontPrefs?.headlineFont || fontPrefs?.bodyFont || "Playfair Display";
+  const headlineFont = fontPrefs?.headlineFont || selectedBrandFont;
+  const bodyFont = fontPrefs?.bodyFont || selectedBrandFont;
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    [headlineFont, bodyFont].forEach((fName) => {
-      if (!fName) return;
-      const id = `gfont-discovery-${fName.replace(/\s+/g, "-").toLowerCase()}`;
-      if (!document.getElementById(id)) {
-        const link = document.createElement("link");
-        link.id = id;
-        link.rel = "stylesheet";
-        link.href = `https://fonts.googleapis.com/css2?family=${fName.replace(/\s+/g, "+")}:wght@400;600;700;800&display=swap`;
-        document.head.appendChild(link);
-      }
-    });
-  }, [headlineFont, bodyFont]);
+      const fontsToLoad = Array.from(new Set([selectedBrandFont, headlineFont, bodyFont].filter(Boolean)));
+      fontsToLoad.forEach((fName) => {
+        if (!fName) return;
+        const id = `gfont-discovery-${fName.replace(/\s+/g, "-").toLowerCase()}`;
+        if (!document.getElementById(id)) {
+          const link = document.createElement("link");
+          link.id = id;
+          link.rel = "stylesheet";
+          link.href = `https://fonts.googleapis.com/css2?family=${fName.replace(/\s+/g, "+")}:wght@400;500;600;700;800&display=swap`;
+          document.head.appendChild(link);
+        }
+        try {
+          if (document.fonts && document.fonts.load) {
+            document.fonts.load(`1em "${fName}"`);
+            document.fonts.load(`bold 1em "${fName}"`);
+          }
+        } catch { }
+      });
+  }, [selectedBrandFont, headlineFont, bodyFont]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [activeHelpSession, setActiveHelpSession] = useState(null);
@@ -962,8 +970,9 @@ export function DiscoveryFlow({
     <div
       className="client-discovery-screen"
       style={{
-        "--client-headline-font": `"${headlineFont}", serif`,
-        "--client-body-font": `"${bodyFont}", sans-serif`,
+        "--client-headline-font": `"${headlineFont}", serif, sans-serif`,
+        "--client-body-font": `"${bodyFont}", serif, sans-serif`,
+        fontFamily: `"${bodyFont}", serif, sans-serif`,
       }}
     >
       <div className={`client-discovery-content ${isReadOnly ? "consultant-view-locked" : ""}`.trim()}>

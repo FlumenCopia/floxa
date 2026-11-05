@@ -1167,16 +1167,14 @@
   place-items: center;
   position: relative;
   flex-shrink: 0;
-  background: conic-gradient(
-    from 180deg,
-    #13261f 0deg,
-    #1b3a2f calc(var(--orb-deg, 360deg) * 0.25),
-    #335a4b calc(var(--orb-deg, 360deg) * 0.5),
-    #507d6c calc(var(--orb-deg, 360deg) * 0.75),
-    #6c9c8c var(--orb-deg, 360deg),
-    rgba(10, 22, 17, 0.95) var(--orb-deg, 360deg),
-    rgba(10, 22, 17, 0.95) 360deg
-  );
+  background: conic-gradient(from 180deg,
+      #13261f 0deg,
+      #1b3a2f calc(var(--orb-deg, 360deg) * 0.25),
+      #335a4b calc(var(--orb-deg, 360deg) * 0.5),
+      #507d6c calc(var(--orb-deg, 360deg) * 0.75),
+      #6c9c8c var(--orb-deg, 360deg),
+      rgba(10, 22, 17, 0.95) var(--orb-deg, 360deg),
+      rgba(10, 22, 17, 0.95) 360deg);
   box-shadow:
     0 24px 60px rgba(0, 0, 0, 0.75),
     inset 0 1px 2px rgba(255, 255, 255, 0.14);
@@ -2603,6 +2601,7 @@
 }
 
 @media (min-width: 1025px) {
+
   .client-offcanvas-toggle-btn,
   .client-offcanvas-close-btn,
   .client-offcanvas-backdrop {
@@ -2624,6 +2623,7 @@
 
 /* --- Mobile Landscape / Tablet Portrait (<= 768px) --- */
 @media (max-width: 768px) {
+
   /* Visual Panel: Centered Stage Navigation in Offcanvas (Orb hidden) */
   .client-dashboard-visual-panel,
   .client-profile-visual-panel {
@@ -2765,7 +2765,8 @@
 
   .client-line-field input,
   .client-line-field select {
-    font-size: 16px; /* prevent iOS Safari auto-zoom */
+    font-size: 16px;
+    /* prevent iOS Safari auto-zoom */
   }
 
   .client-field-grid {
@@ -6068,6 +6069,7 @@ td {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -6093,6 +6095,7 @@ td {
     transform: scale(0.96);
     opacity: 0;
   }
+
   to {
     transform: scale(1);
     opacity: 1;
@@ -6301,17 +6304,42 @@ td {
 
 /* =========================================================================
    Live Client Selected Brand Typography Inheritance
+   Applies selected brand font to all question headings, inputs, and cards
    ========================================================================= */
 
+.client-discovery-screen,
+.client-discovery-content {
+  font-family: var(--client-body-font, inherit);
+}
+
+.client-discovery-content h1,
+.client-discovery-content h2,
+.client-discovery-content h3,
+.client-discovery-heading {
+  font-family: var(--client-headline-font, var(--client-body-font, inherit)) !important;
+  letter-spacing: -0.01em;
+}
 
 .client-discovery-screen textarea,
 .client-discovery-screen input[type="text"],
+.client-discovery-screen input,
+.client-discovery-screen select,
 .client-discovery-content textarea,
 .client-discovery-content input[type="text"],
+.client-discovery-content input,
+.client-discovery-content select,
+.client-competitor-card input,
+.client-textarea-field textarea,
 .client-discovery-screen .floxa-input {
   font-family: var(--client-body-font, inherit) !important;
   font-size: 15px !important;
   letter-spacing: 0.01em !important;
+}
+
+.client-persona-grid button strong,
+.client-competitor-card strong,
+.client-section-label {
+  font-family: var(--client-body-font, inherit);
 }
 
 .client-discovery-font-badge {
@@ -6364,10 +6392,12 @@ td {
   background: rgba(16, 185, 129, 0.08);
   border: 1px solid rgba(16, 185, 129, 0.28);
 }
+
 .client-deadline-badge-note.on-track .client-deadline-badge-icon {
   background: rgba(16, 185, 129, 0.16);
   color: #34d399;
 }
+
 .client-deadline-badge-note.on-track .client-deadline-badge-tag {
   color: #10b981;
 }
@@ -6376,10 +6406,12 @@ td {
   background: rgba(56, 189, 248, 0.08);
   border: 1px solid rgba(56, 189, 248, 0.25);
 }
+
 .client-deadline-badge-note.pending .client-deadline-badge-icon {
   background: rgba(56, 189, 248, 0.16);
   color: #38bdf8;
 }
+
 .client-deadline-badge-note.pending .client-deadline-badge-tag {
   color: #38bdf8;
 }
@@ -6388,10 +6420,12 @@ td {
   background: rgba(245, 158, 11, 0.08);
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
+
 .client-deadline-badge-note.flag-1 .client-deadline-badge-icon {
   background: rgba(245, 158, 11, 0.18);
   color: #fbbf24;
 }
+
 .client-deadline-badge-note.flag-1 .client-deadline-badge-tag {
   color: #f59e0b;
 }
@@ -6400,10 +6434,12 @@ td {
   background: rgba(239, 68, 68, 0.09);
   border: 1px solid rgba(239, 68, 68, 0.32);
 }
+
 .client-deadline-badge-note.flag-overdue .client-deadline-badge-icon {
   background: rgba(239, 68, 68, 0.18);
   color: #f87171;
 }
+
 .client-deadline-badge-note.flag-overdue .client-deadline-badge-tag {
   color: #ef4444;
 }
