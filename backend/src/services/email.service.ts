@@ -136,7 +136,9 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
   }
 
   const { name: consultantName, email: consultantEmail } = await resolveConsultantInfo(project);
-  const fromName = consultantName ? `${consultantName} via FLOXA` : ENV.DEFAULT_FROM_EMAIL;
+  const fromName = consultantName
+    ? (consultantEmail ? `${consultantName} (${consultantEmail}) via FLOXA` : `${consultantName} via FLOXA`)
+    : (consultantEmail ? `${consultantEmail} via FLOXA` : ENV.DEFAULT_FROM_EMAIL);
   const replyTo = consultantEmail || undefined;
 
   const clientName = project.client?.name || project.companyName || 'Client';
@@ -147,7 +149,12 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
     <div style="max-width: 600px; margin: auto; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
       <h2 style="color: #0f172a; margin-top: 0;">Welcome to your FLOXA Project Portal</h2>
       <p>Hello ${clientName},</p>
-      <p>Your consultant${consultantName ? `, <strong>${consultantName}</strong>` : ''}${consultantEmail ? ` (<a href="mailto:${consultantEmail}" style="color: #10b981;">${consultantEmail}</a>)` : ''}, has invited you to collaborate on <strong>${project.title}</strong>.</p>
+      <p>Your consultant${consultantName ? `, <strong>${consultantName}</strong>` : ''}, has invited you to collaborate on <strong>${project.title}</strong>.</p>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #10b981; border-radius: 6px; padding: 12px 16px; margin: 16px 0;">
+        <span style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700;">Your Dedicated Consultant</span>
+        <strong style="font-size: 14px; color: #0f172a;">${consultantName || 'Your Consultant'}</strong>
+        ${consultantEmail ? `<span style="display: block; font-size: 13px; color: #10b981; margin-top: 3px;"><a href="mailto:${consultantEmail}" style="color: #10b981; text-decoration: none;">${consultantEmail}</a></span>` : ''}
+      </div>
       <p style="margin: 24px 0;">
         <a href="${portalUrl}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
           Access Client Portal
@@ -178,7 +185,9 @@ export async function sendAgreementSignatureRequestEmail(project: any, agreement
   if (!clientEmail) return;
 
   const { name: consultantName, email: consultantEmail } = await resolveConsultantInfo(project);
-  const fromName = consultantName ? `${consultantName} via FLOXA` : ENV.DEFAULT_FROM_EMAIL;
+  const fromName = consultantName
+    ? (consultantEmail ? `${consultantName} (${consultantEmail}) via FLOXA` : `${consultantName} via FLOXA`)
+    : (consultantEmail ? `${consultantEmail} via FLOXA` : ENV.DEFAULT_FROM_EMAIL);
   const replyTo = consultantEmail || undefined;
 
   const effectiveBase = (baseUrlOverride || ENV.FRONTEND_BASE_URL || 'https://floxa.flumenx.in').replace(/\/+$/, '');
@@ -189,6 +198,11 @@ export async function sendAgreementSignatureRequestEmail(project: any, agreement
       <h2 style="color: #0f172a; margin-top: 0;">Action Required: Sign Your Project Agreement</h2>
       <p>Hello,</p>
       <p>Your consultant${consultantName ? `, <strong>${consultantName}</strong>` : ''}, has prepared the project agreement for <strong>${project.title}</strong> ready for signature.</p>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #10b981; border-radius: 6px; padding: 12px 16px; margin: 16px 0;">
+        <span style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700;">Your Dedicated Consultant</span>
+        <strong style="font-size: 14px; color: #0f172a;">${consultantName || 'Your Consultant'}</strong>
+        ${consultantEmail ? `<span style="display: block; font-size: 13px; color: #10b981; margin-top: 3px;"><a href="mailto:${consultantEmail}" style="color: #10b981; text-decoration: none;">${consultantEmail}</a></span>` : ''}
+      </div>
       <p style="margin: 24px 0;">
         <a href="${signingUrl}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
           Review and Sign Agreement
