@@ -278,7 +278,7 @@ export async function createProject(req: any, res: Response, next: NextFunction)
       description: `Consultant created project: ${project.title}`,
     });
 
-    const populatedProject = await Project.findById(project.id).populate('client');
+    const populatedProject = await Project.findById(project.id).populate(['client', 'consultant']);
 
     let inviteEmailSent = false;
     let inviteEmailStatus = 'not_sent';
@@ -405,7 +405,7 @@ export async function updateProject(req: any, res: Response, next: NextFunction)
 export async function retryInvite(req: any, res: Response, next: NextFunction) {
   try {
     const { id } = req.params;
-    const project = await Project.findOne({ _id: id, consultantId: req.user.id }).populate('client');
+    const project = await Project.findOne({ _id: id, consultantId: req.user.id }).populate(['client', 'consultant']);
 
     if (!project) {
       res.status(404).json({ detail: 'Project not found.' });

@@ -2,6 +2,7 @@ import fs from 'fs';
 import nodemailer from 'nodemailer';
 import { ENV } from '../config/env.js';
 import { resolveSafeMediaPath } from './storage.service.js';
+import { Consultant } from '../models/consultant.model.js';
 
 let testEmailDispatcher: ((params: {
   to: string | string[];
@@ -76,12 +77,29 @@ export function sanitizeEmailError(error: any): string {
   return sanitized;
 }
 
+async function resolveConsultantInfo(project: any): Promise<{ name: string; email: string }> {
+  let consultant = project?.consultant && typeof project.consultant === 'object' && project.consultant.email ? project.consultant : null;
+  const consultantId = consultant?._id || consultant?.id || project?.consultantId || project?.consultant;
+  if (!consultant && consultantId) {
+    try {
+      consultant = await Consultant.findById(consultantId).lean();
+    } catch (err) {
+      console.warn('[email.service] Failed to resolve consultant for email branding:', err);
+    }
+  }
+  const name = String(consultant?.name || consultant?.agencyName || '').trim();
+  const email = String(consultant?.email || '').trim();
+  return { name, email };
+}
+
 export async function sendEmail(params: {
   to: string | string[];
   subject: string;
   text?: string;
   html?: string;
   attachments?: Array<{ filename: string; content?: Buffer; path?: string; contentType?: string }>;
+  fromName?: string;
+  replyTo?: string;
 }) {
   if (testEmailDispatcher) {
     await testEmailDispatcher(params);
@@ -92,9 +110,12 @@ export async function sendEmail(params: {
     throw new Error('Email service is not configured.');
   }
 
+  const senderDisplayName = (params.fromName || ENV.DEFAULT_FROM_EMAIL || 'FLOXA').trim();
+
   try {
     await transporter.sendMail({
-      from: `"${ENV.DEFAULT_FROM_EMAIL}" <${ENV.EMAIL_HOST_USER}>`,
+      from: `"${senderDisplayName}" <${ENV.EMAIL_HOST_USER}>`,
+      replyTo: params.replyTo || undefined,
       to: params.to,
       subject: params.subject,
       text: params.text,
@@ -114,25 +135,32 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
     return;
   }
 
+  const { name: consultantName, email: consultantEmail } = await resolveConsultantInfo(project);
+  const fromName = consultantName ? `${consultantName} via FLOXA` : ENV.DEFAULT_FROM_EMAIL;
+  const replyTo = consultantEmail || undefined;
+
   const clientName = project.client?.name || project.companyName || 'Client';
   const effectiveBase = (baseUrlOverride || ENV.FRONTEND_BASE_URL || 'https://floxa.flumenx.in').replace(/\/+$/, '');
   const portalUrl = `${effectiveBase}/client/${project.portalToken}`;
 
   const html = `
-    <div style=" max-width: 600px; margin: auto; padding: 20px;">
-      <h2>Welcome to your FLOXA Project Portal</h2>
+    <div style="max-width: 600px; margin: auto; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+      <h2 style="color: #0f172a; margin-top: 0;">Welcome to your FLOXA Project Portal</h2>
       <p>Hello ${clientName},</p>
-      <p>Your consultant has invited you to collaborate on <strong>${project.title}</strong>.</p>
+      <p>Your consultant${consultantName ? `, <strong>${consultantName}</strong>` : ''}${consultantEmail ? ` (<a href="mailto:${consultantEmail}" style="color: #10b981;">${consultantEmail}</a>)` : ''}, has invited you to collaborate on <strong>${project.title}</strong>.</p>
       <p style="margin: 24px 0;">
-        <a href="${portalUrl}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+        <a href="${portalUrl}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
           Access Client Portal
         </a>
       </p>
       ${rawPortalPassword
-      ? `<p><strong>Portal Password:</strong> <code>${rawPortalPassword}</code></p>`
+      ? `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin: 16px 0;">
+           <strong style="color: #334155;">Portal Password:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #0f172a;">${rawPortalPassword}</code>
+         </div>`
       : ''
     }
-      <p>If the button doesn't work, copy this link into your browser:<br/><a href="${portalUrl}">${portalUrl}</a></p>
+      <p style="color: #64748b; font-size: 13px;">If the button doesn't work, copy this link into your browser:<br/><a href="${portalUrl}" style="color: #10b981;">${portalUrl}</a></p>
+      ${consultantEmail ? `<p style="color: #64748b; font-size: 12px; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">You can reply directly to this email to contact <strong>${consultantName || 'your consultant'}</strong> (${consultantEmail}).</p>` : ''}
     </div>
   `;
 
@@ -140,6 +168,8 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
     to: clientEmail,
     subject: `Your Project Portal: ${project.title}`,
     html,
+    fromName,
+    replyTo,
   });
 }
 
@@ -147,19 +177,24 @@ export async function sendAgreementSignatureRequestEmail(project: any, agreement
   const clientEmail = project.client?.email;
   if (!clientEmail) return;
 
+  const { name: consultantName, email: consultantEmail } = await resolveConsultantInfo(project);
+  const fromName = consultantName ? `${consultantName} via FLOXA` : ENV.DEFAULT_FROM_EMAIL;
+  const replyTo = consultantEmail || undefined;
+
   const effectiveBase = (baseUrlOverride || ENV.FRONTEND_BASE_URL || 'https://floxa.flumenx.in').replace(/\/+$/, '');
   const signingUrl = `${effectiveBase}/client/${project.portalToken}?agreement=1`;
 
   const html = `
-    <div style=" max-width: 600px; margin: auto; padding: 20px;">
-      <h2>Action Required: Sign Your Project Agreement</h2>
+    <div style="max-width: 600px; margin: auto; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+      <h2 style="color: #0f172a; margin-top: 0;">Action Required: Sign Your Project Agreement</h2>
       <p>Hello,</p>
-      <p>Your project agreement for <strong>${project.title}</strong> is ready for signature.</p>
+      <p>Your consultant${consultantName ? `, <strong>${consultantName}</strong>` : ''}, has prepared the project agreement for <strong>${project.title}</strong> ready for signature.</p>
       <p style="margin: 24px 0;">
-        <a href="${signingUrl}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+        <a href="${signingUrl}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
           Review and Sign Agreement
         </a>
       </p>
+      ${consultantEmail ? `<p style="color: #64748b; font-size: 12px; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">You can reply directly to this email to contact <strong>${consultantName || 'your consultant'}</strong> (${consultantEmail}).</p>` : ''}
     </div>
   `;
 
@@ -167,6 +202,8 @@ export async function sendAgreementSignatureRequestEmail(project: any, agreement
     to: clientEmail,
     subject: `Signature Request: Project Agreement for ${project.title}`,
     html,
+    fromName,
+    replyTo,
   });
 }
 
