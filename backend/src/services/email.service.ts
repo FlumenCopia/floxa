@@ -136,9 +136,7 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
   }
 
   const { name: consultantName, email: consultantEmail } = await resolveConsultantInfo(project);
-  const fromName = consultantName
-    ? (consultantEmail ? `${consultantName} (${consultantEmail}) via FLOXA` : `${consultantName} via FLOXA`)
-    : (consultantEmail ? `${consultantEmail} via FLOXA` : ENV.DEFAULT_FROM_EMAIL);
+  const fromName = consultantName ? `${consultantName} via FLOXA` : ENV.DEFAULT_FROM_EMAIL;
   const replyTo = consultantEmail || undefined;
 
   const clientName = project.client?.name || project.companyName || 'Client';
@@ -150,22 +148,23 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
       <h2 style="color: #0f172a; margin-top: 0;">Welcome to your FLOXA Project Portal</h2>
       <p>Hello ${clientName},</p>
       <p>Your consultant${consultantName ? `, <strong>${consultantName}</strong>` : ''}, has invited you to collaborate on <strong>${project.title}</strong>.</p>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #10b981; border-radius: 6px; padding: 12px 16px; margin: 16px 0;">
-        <span style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700;">Your Dedicated Consultant</span>
-        <strong style="font-size: 14px; color: #0f172a;">${consultantName || 'Your Consultant'}</strong>
-        ${consultantEmail ? `<span style="display: block; font-size: 13px; color: #10b981; margin-top: 3px;"><a href="mailto:${consultantEmail}" style="color: #10b981; text-decoration: none;">${consultantEmail}</a></span>` : ''}
-      </div>
-      <p style="margin: 24px 0;">
-        <a href="${portalUrl}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-          Access Client Portal
-        </a>
-      </p>
-      ${rawPortalPassword
-      ? `<div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin: 16px 0;">
-           <strong style="color: #334155;">Portal Password:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #0f172a;">${rawPortalPassword}</code>
-         </div>`
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 18px; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Your Client Portal Login Details</p>
+        <p style="margin: 6px 0; font-size: 14px; color: #1e293b;">
+          <strong>Your Login Email:</strong> <code style="background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-weight: 600; color: #0f172a; font-size: 13px;">${clientEmail}</code>
+        </p>
+        ${rawPortalPassword
+      ? `<p style="margin: 6px 0; font-size: 14px; color: #1e293b;">
+             <strong>Portal Password:</strong> <code style="background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-weight: 600; color: #0f172a; font-size: 13px;">${rawPortalPassword}</code>
+           </p>`
       : ''
     }
+      </div>
+      <p style="margin: 24px 0;">
+        <a href="${portalUrl}" style="background-color: #10b981; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+          Access Client Portal &rarr;
+        </a>
+      </p>
       <p style="color: #64748b; font-size: 13px;">If the button doesn't work, copy this link into your browser:<br/><a href="${portalUrl}" style="color: #10b981;">${portalUrl}</a></p>
       ${consultantEmail ? `<p style="color: #64748b; font-size: 12px; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">You can reply directly to this email to contact <strong>${consultantName || 'your consultant'}</strong> (${consultantEmail}).</p>` : ''}
     </div>
@@ -185,9 +184,7 @@ export async function sendAgreementSignatureRequestEmail(project: any, agreement
   if (!clientEmail) return;
 
   const { name: consultantName, email: consultantEmail } = await resolveConsultantInfo(project);
-  const fromName = consultantName
-    ? (consultantEmail ? `${consultantName} (${consultantEmail}) via FLOXA` : `${consultantName} via FLOXA`)
-    : (consultantEmail ? `${consultantEmail} via FLOXA` : ENV.DEFAULT_FROM_EMAIL);
+  const fromName = consultantName ? `${consultantName} via FLOXA` : ENV.DEFAULT_FROM_EMAIL;
   const replyTo = consultantEmail || undefined;
 
   const effectiveBase = (baseUrlOverride || ENV.FRONTEND_BASE_URL || 'https://floxa.flumenx.in').replace(/\/+$/, '');
@@ -198,10 +195,9 @@ export async function sendAgreementSignatureRequestEmail(project: any, agreement
       <h2 style="color: #0f172a; margin-top: 0;">Action Required: Sign Your Project Agreement</h2>
       <p>Hello,</p>
       <p>Your consultant${consultantName ? `, <strong>${consultantName}</strong>` : ''}, has prepared the project agreement for <strong>${project.title}</strong> ready for signature.</p>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #10b981; border-radius: 6px; padding: 12px 16px; margin: 16px 0;">
-        <span style="display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700;">Your Dedicated Consultant</span>
-        <strong style="font-size: 14px; color: #0f172a;">${consultantName || 'Your Consultant'}</strong>
-        ${consultantEmail ? `<span style="display: block; font-size: 13px; color: #10b981; margin-top: 3px;"><a href="mailto:${consultantEmail}" style="color: #10b981; text-decoration: none;">${consultantEmail}</a></span>` : ''}
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 16px 0;">
+        <span style="font-size: 13px; color: #475569;">Registered Client Email:</span>
+        <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #0f172a; font-size: 13px;">${clientEmail}</code>
       </div>
       <p style="margin: 24px 0;">
         <a href="${signingUrl}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
