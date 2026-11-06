@@ -32,10 +32,10 @@ export async function setProjectDeliveryDeadline(
     throw error;
   }
 
-  // Cannot modify if current deadline has already passed
-  if (project.deliveryDeadline && new Date(project.deliveryDeadline).getTime() < now) {
+  // One-time commitment: Once set, delivery deadline cannot be changed
+  if (project.deliveryDeadline) {
     const error: any = new Error(
-      'Committed deadline has already passed. Deadline extensions require SuperAdmin authorization.'
+      'Delivery deadline has already been committed and cannot be changed.'
     );
     error.status = 400;
     throw error;

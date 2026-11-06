@@ -403,6 +403,7 @@ function formatRevisionLimit(value) {
 
 function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [warningAlertOpen, setWarningAlertOpen] = useState(false);
   const [dismissedWarnings, setDismissedWarnings] = useState({});
   const [isAttentionPulsing, setIsAttentionPulsing] = useState(false);
@@ -421,6 +422,7 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
   const warningKey = project?.id ? `${project.id}_${status}` : null;
 
   const hasBrandDna = Boolean(project.has_brand_dna || project.hasBrandDna);
+  const isDeadlineLocked = Boolean(deadline);
 
   // Automatically pop up the warning alert when a warning flag is active (once per flag/session)
   useEffect(() => {
@@ -481,10 +483,10 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
       const days = Number(project.deadline_days_remaining || project.deadlineDaysRemaining || 1);
       const formatted = deadline.toLocaleDateString("en-US", { month: "short", day: "numeric" });
       return {
-        cls: "on-track",
-        icon: <CalendarCheck size={13} />,
+        cls: "on-track locked",
+        icon: <Lock size={12} />,
         label: `Due ${formatted} (${days > 1 ? `${days}d` : "today"})`,
-        title: `Click to adjust deadline (Committed: ${formatted})`,
+        title: `Committed delivery deadline: ${formatted}. Locked & cannot be changed.`,
       };
     }
     return {
@@ -518,6 +520,8 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
   const handlePillClick = () => {
     if (isWarningFlag) {
       setWarningAlertOpen(true);
+    } else if (isDeadlineLocked) {
+      showSuccess(`Delivery deadline committed for ${formattedDeadlineStr}. Committed dates are locked.`);
     } else {
       handleOpenSetModal();
     }
@@ -532,7 +536,16 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
     setCustomDate(`${yyyy}-${mm}-${dd}`);
   };
 
-  const handleSaveDeadline = async () => {
+  const handleOpenConfirmModal = () => {
+    if (!customDate) {
+      showError("Please pick a deadline date.");
+      return;
+    }
+    setModalOpen(false);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmAndSaveDeadline = async () => {
     if (!customDate) {
       showError("Please pick a deadline date.");
       return;
@@ -550,6 +563,7 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
           onProjectUpdated(updated);
         }
       }
+      setShowConfirmModal(false);
       setModalOpen(false);
       setWarningAlertOpen(false);
     } catch (err) {
@@ -853,11 +867,130 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
                   <button
                     type="button"
                     disabled={isSubmitting || !customDate}
-                    onClick={handleSaveDeadline}
+                    onClick={handleOpenConfirmModal}
                     className="btn btn-primary"
                     style={{ padding: "8px 20px", fontSize: "13px" }}
                   >
-                    {isSubmitting ? "Committing..." : "Commit Deadline"}
+                    Review &amp; Commit Deadline &rarr;
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {/* 3. STRICT ONE-TIME DEADLINE CONFIRMATION MODAL */}
+      {showConfirmModal && typeof document !== "undefined"
+        ? createPortal(
+            <div className="deadline-modal-backdrop" onClick={() => !isSubmitting && setShowConfirmModal(false)}>
+              <div
+                className="deadline-modal-card"
+                style={{ maxWidth: "520px", border: "1px solid rgba(239, 68, 68, 0.45)", background: "#111f1a" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+                  <div
+                    style={{
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "10px",
+                      background: "rgba(239, 68, 68, 0.16)",
+                      color: "#f87171",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <AlertTriangle size={22} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#f87171" }}>
+                      Confirm Delivery Deadline Commitment
+                    </h3>
+                    <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                      Please read carefully before setting this date.
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    background: "rgba(239, 68, 68, 0.08)",
+                    border: "1px solid rgba(239, 68, 68, 0.28)",
+                    borderRadius: "10px",
+                    padding: "16px",
+                    marginBottom: "18px",
+                    fontSize: "13px",
+                    lineHeight: "1.6",
+                    color: "#e2e8f0",
+                  }}
+                >
+                  <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#fca5a5", fontSize: "13.5px" }}>
+                    ⚠️ Critical SLA &amp; Account Suspension Notice:
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: "18px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <li>
+                      <strong>Carefully Read Brand DNA:</strong> Ensure you have thoroughly analyzed the client&apos;s Brand DNA and project requirements to confirm you need this exact time for deliverables.
+                    </li>
+                    <li>
+                      <strong>One-Time Setting (Cannot Be Changed):</strong> Once committed, this delivery date <strong>CANNOT be modified or extended</strong> under any circumstances.
+                    </li>
+                    <li>
+                      <strong>Strict 3-Warning Suspension:</strong> Any delay past this committed date will immediately trigger automated SLA warnings (Flag 1, Flag 2, Flag 3) leading to <strong>automatic consultant account suspension</strong>.
+                    </li>
+                  </ul>
+                </div>
+
+                <div
+                  style={{
+                    background: "rgba(0, 0, 0, 0.4)",
+                    border: "1px solid rgba(77, 255, 160, 0.25)",
+                    borderRadius: "8px",
+                    padding: "12px 16px",
+                    marginBottom: "20px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{ fontSize: "13px", color: "#94a3b8" }}>Target Delivery Date:</span>
+                  <strong style={{ fontSize: "14px", color: "#4dffa0" }}>
+                    {customDate ? new Date(`${customDate}T18:00:00`).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : ""}
+                  </strong>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      setShowConfirmModal(false);
+                      setModalOpen(true);
+                    }}
+                    className="btn btn-secondary"
+                    style={{ padding: "9px 18px", fontSize: "13px" }}
+                  >
+                    Go Back &amp; Change Date
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={handleConfirmAndSaveDeadline}
+                    style={{
+                      padding: "9px 22px",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      background: "#ef4444",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: isSubmitting ? "not-allowed" : "pointer",
+                      boxShadow: "0 2px 8px rgba(239, 68, 68, 0.4)",
+                    }}
+                  >
+                    {isSubmitting ? "Locking Deadline..." : "Yes, Commit & Lock Date"}
                   </button>
                 </div>
               </div>

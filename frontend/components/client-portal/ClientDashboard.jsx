@@ -499,11 +499,14 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
 
     checkInitialBrandDNA();
+    if (typeof onProjectRefresh === "function") {
+      onProjectRefresh();
+    }
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [onProjectRefresh]);
 
   useEffect(() => {
     const portalToken = project?.portal_token || project?.portalToken;
@@ -522,6 +525,12 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
       // Do not store or display internal system draft events in client portal
       if (isInternalDraft) {
         return;
+      }
+
+      if (newActivity?.action === "delivery_deadline_set" || (newActivity?.action && newActivity.action.includes("deadline"))) {
+        if (typeof onProjectRefresh === "function") {
+          onProjectRefresh();
+        }
       }
 
       setNotifications((current) => {
@@ -1380,7 +1389,12 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
               <Calendar size={13} />
               <span>
                 Target Delivery: {new Date(project.deliveryDeadline || project.delivery_deadline).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                {project?.deadlineDaysRemaining ? ` (${project.deadlineDaysRemaining}d)` : ""}
+                {(() => {
+                  const days = project.deadlineDaysRemaining || project.deadline_days_remaining;
+                  if (days) return ` (${days}d)`;
+                  const diff = Math.ceil((new Date(project.deliveryDeadline || project.delivery_deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  return diff > 0 ? ` (${diff}d)` : "";
+                })()}
               </span>
             </div>
           ) : null}
