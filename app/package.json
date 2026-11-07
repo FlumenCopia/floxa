@@ -33,6 +33,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:android": "eas build -p android --profile preview",
+    "build:ios-simulator": "eas build -p ios --profile preview-simulator",
     "build:ios": "eas build -p ios --profile preview",
     "build:all": "eas build --profile preview --all"
   },
