@@ -3,7 +3,7 @@
     "name": "Floxa",
     "slug": "floxa-mobile",
     "version": "1.0.0",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
