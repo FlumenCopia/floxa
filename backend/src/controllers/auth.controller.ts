@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { Consultant } from '../models/consultant.model.js';
+import { DeviceToken } from '../models/deviceToken.model.js';
 import { ENV } from '../config/env.js';
 import { hashPassword, verifyPassword } from '../utils/crypto.js';
 import { generateTokens, setAuthCookies, clearAuthCookies } from '../services/auth.service.js';
@@ -481,3 +482,56 @@ export async function requestReactivation(req: Request, res: Response, next: Nex
     next(err);
   }
 }
+
+export async function registerDeviceToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  try {
+    const { token, platform, role, portalToken, voipToken, deviceName, appVersion } = req.body;
+    if (!token || typeof token !== 'string') {
+      res.status(400).json({ detail: 'Device token is required.' });
+      return;
+    }
+
+    const deviceRole = role === 'client' ? 'client' : 'consultant';
+    const userId = req.user ? req.user._id : null;
+    const cleanPortalToken = typeof portalToken === 'string' ? portalToken.trim() : undefined;
+    const platformStr = String(platform || '').toLowerCase();
+    const validPlatform = (platformStr === 'ios' || platformStr === 'android' || platformStr === 'web') ? platformStr : 'android';
+
+    const updated = await DeviceToken.findOneAndUpdate(
+      { token: token.trim() },
+      {
+        token: token.trim(),
+        platform: validPlatform,
+        role: deviceRole,
+        userId: deviceRole === 'consultant' ? userId : null,
+        portalToken: deviceRole === 'client' ? cleanPortalToken : null,
+        voipToken: voipToken ? String(voipToken).trim() : null,
+        deviceName: deviceName ? String(deviceName).trim() : '',
+        appVersion: appVersion ? String(appVersion).trim() : '1.0.0',
+        isActive: true,
+        lastSeenAt: new Date(),
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({ success: true, message: 'Device token registered successfully.', deviceTokenId: updated._id });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function unregisterDeviceToken(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      res.status(400).json({ detail: 'Device token is required.' });
+      return;
+    }
+
+    await DeviceToken.deleteOne({ token: String(token).trim() });
+    res.json({ success: true, message: 'Device token unregistered successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+

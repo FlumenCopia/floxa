@@ -13,6 +13,7 @@ import { logProjectActivity, onActivityCreated } from '../services/project.servi
 import { serializeProjectActivity, serializeClientPortalActivity } from '../utils/serializer.js';
 import { unsignPortalAccessToken } from '../utils/crypto.js';
 import { resolveSafeMediaPath, getMimeType } from '../services/storage.service.js';
+import { notifyConsultant, notifyClient } from '../services/pushNotification.service.js';
 
 export interface ClientConnection {
   ws: WebSocket;
@@ -560,12 +561,19 @@ export function setupWebSocketServer(server: Server) {
                 );
 
               if (!hasConnectedClient) {
+                notifyClient(project.portalToken, {
+                  title: `Incoming ${content.data?.is_video ? 'Video' : 'Audio'} Call`,
+                  body: `${project.projectTitle || 'Floxa'}: Consultant is calling you...`,
+                  isCall: true,
+                  data: { projectId: project.id, type: 'call' },
+                }).catch(() => {});
+
                 ws.send(
                   JSON.stringify({
                     type: 'WEBRTC_SIGNAL',
                     action: 'call_reject',
                     project_id: project.id,
-                    data: { reason: 'Client is currently offline.' },
+                    data: { reason: 'Client is offline. A call notification was sent to their phone.' },
                   })
                 );
                 return;
@@ -598,7 +606,7 @@ export function setupWebSocketServer(server: Server) {
                 }
               });
             }
-          } else if (content.type === 'CHAT_MESSAGE_SEND') {
+          } else if (content.type === 'CHAT_MESSAGE_SEND' || content.type === 'CHAT_MESSAGE') {
             const projectId = content.projectId || content.project_id;
             const text = String(content.text || '').trim();
             const mediaUrl = content.mediaUrl ? String(content.mediaUrl) : null;
@@ -640,6 +648,14 @@ export function setupWebSocketServer(server: Server) {
               clientTempId,
               createdAt: new Date(),
             });
+
+            if (!isClientOnline) {
+              notifyClient(project.portalToken, {
+                title: project.title || 'New Message',
+                body: `${consultant.name || 'Consultant'}: ${text || 'Sent an attachment'}`,
+                data: { projectId: project.id, type: 'chat' },
+              }).catch(() => {});
+            }
 
             const chatPayload = JSON.stringify({
               type: 'CHAT_MESSAGE_NEW',
@@ -1248,13 +1264,20 @@ export function setupWebSocketServer(server: Server) {
               (projectRoomConns && Array.from(projectRoomConns).some((c) => c.role === 'consultant' && c.ws.readyState === WebSocket.OPEN));
 
             if (!hasConnectedConsultant) {
+              notifyConsultant(consId, {
+                title: `Incoming ${dataPayload?.is_video ? 'Video' : 'Audio'} Call`,
+                body: `${currentProject.clientName || 'Client'} is calling you for ${currentProject.projectTitle}...`,
+                isCall: true,
+                data: { projectId: currentProjectId, type: 'call' },
+              }).catch(() => {});
+
               ws.send(
                 JSON.stringify({
                   type: 'WEBRTC_SIGNAL',
                   action: 'call_reject',
                   project_id: currentProjectId,
                   portal_token: currentProject.portalToken,
-                  data: { reason: 'Consultant is currently offline.' },
+                  data: { reason: 'Consultant is offline. A call notification was sent to their phone.' },
                 })
               );
               return;
@@ -1303,7 +1326,7 @@ export function setupWebSocketServer(server: Server) {
               }
             });
           }
-        } else if (msgType === 'CHAT_MESSAGE_SEND') {
+        } else if (msgType === 'CHAT_MESSAGE_SEND' || msgType === 'CHAT_MESSAGE') {
           const text = String(content.text || '').trim();
           const mediaUrl = content.mediaUrl ? String(content.mediaUrl) : null;
           const messageType = ['text', 'voice', 'image', 'file'].includes(content.messageType)

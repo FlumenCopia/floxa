@@ -26,9 +26,10 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
     return next();
   }
 
-  // If using Authorization Bearer token header, CSRF is not enforced (same as Django DRF)
+  // If using Authorization Bearer token header or Client Portal token header, CSRF is not enforced (token-based API authentication)
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  const portalHeader = req.headers['x-client-portal-token'];
+  if ((authHeader && authHeader.startsWith('Bearer ')) || portalHeader) {
     return next();
   }
 
