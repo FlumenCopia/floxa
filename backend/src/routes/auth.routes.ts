@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import * as authController from '../controllers/auth.controller.js';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, optionalAuth } from '../middleware/auth.middleware.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -16,5 +16,10 @@ router.post('/change-password/', requireAuth, authController.changePassword);
 router.post('/forgot-password/', authController.forgotPassword);
 router.post('/reset-password/', authController.resetPassword);
 router.post('/logout/', authController.logout);
+
+// Mobile device push notification tokens
+router.post('/device-token/', optionalAuth, authController.registerDeviceToken);
+router.post('/device-token/unregister/', authController.unregisterDeviceToken);
+
 
 export default router;

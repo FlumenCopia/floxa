@@ -50,4 +50,11 @@ export {
   type ChatMessageStatus,
   type ChatMessageType,
 } from './chatMessage.model.js';
+export {
+  DeviceToken,
+  type IDeviceToken,
+  type DevicePlatform,
+  type DeviceUserRole,
+} from './deviceToken.model.js';
+
 

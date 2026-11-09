@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Floxa",
+    "slug": "floxa-mobile",
+    "version": "1.0.0",
+    "newArchEnabled": true,
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "floxa",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.flumenx.floxa",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Floxa requires camera access for WebRTC video consultations with clients.",
+        "NSMicrophoneUsageDescription": "Floxa requires microphone access for audio calls and voice note recordings.",
+        "NSPhotoLibraryUsageDescription": "Floxa requires photo access to attach images to project chat.",
+        "UIBackgroundModes": [
+          "audio",
+          "voip",
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.flumenx.floxa",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.WAKE_LOCK"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Floxa to access your microphone for voice notes and calls."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Floxa to access your photos for project chat attachments."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ffb69e78-feba-4ed0-934d-e1f63c8b52f6"
+      }
+    }
+  }
+}
