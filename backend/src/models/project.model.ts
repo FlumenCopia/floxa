@@ -32,7 +32,10 @@ export interface IProject {
   deliveryDeadline?: Date | null;
   deadlineSetAt?: Date | null;
   deadlineFlagsCount?: number;
+  deadlineBreached?: boolean;
   deadlineNote?: string;
+  slaPausedAt?: Date | null;
+  totalClientWaitMs?: number;
   isArchived: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -89,7 +92,10 @@ const projectSchema = new Schema<IProject>(
     deliveryDeadline: { type: Date, default: null },
     deadlineSetAt: { type: Date, default: null },
     deadlineFlagsCount: { type: Number, default: 0 },
+    deadlineBreached: { type: Boolean, default: false },
     deadlineNote: { type: String, default: '' },
+    slaPausedAt: { type: Date, default: null },
+    totalClientWaitMs: { type: Number, default: 0 },
     isArchived: { type: Boolean, default: false },
   },
   {

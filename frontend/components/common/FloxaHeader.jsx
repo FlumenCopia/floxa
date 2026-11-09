@@ -93,6 +93,7 @@ const notificationTabByAction = {
   payment_received: "payments",
   payment_paid: "payments",
   project_created: "overview",
+  account_reactivated: "overview",
 };
 
 let cachedConsultant = null;
@@ -347,13 +348,14 @@ export default function Floxaheader({
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const notificationsRequestRef = useRef(false);
   const resolvedActiveNav = pathname === "/project" ? "Projects" : pathname === "/chat" ? "Chat" : activeNav;
-  const visibleNotifications = headerNotifications.length ? headerNotifications : notifications;
+  const rawNotifications = headerNotifications.length ? headerNotifications : notifications;
+  const visibleNotifications = rawNotifications.filter(
+    (notification) => notification && notification.visible_to_consultant !== false && notification.actor_type !== "consultant"
+  );
   const visibleNotificationsLoading = headerNotificationsLoading || notificationsLoading;
-  const visibleNotificationCount = headerNotifications.length
-    ? headerNotifications.filter((notification) => !notification.is_read && notification.visible_to_consultant !== false && notification.actor_type !== "consultant").length
-    : (notifications.length
-      ? notifications.filter((notification) => !notification.is_read && notification.visible_to_consultant !== false && notification.actor_type !== "consultant").length
-      : notificationCount);
+  const visibleNotificationCount = rawNotifications.length
+    ? visibleNotifications.filter((notification) => !notification.is_read).length
+    : notificationCount;
 
   const unreadHelpNotifications = (headerNotifications.length ? headerNotifications : notifications).filter(
     (notification) => !notification.is_read && notification.action === "client_help_requested"

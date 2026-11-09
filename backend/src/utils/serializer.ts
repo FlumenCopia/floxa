@@ -59,22 +59,40 @@ export function serializeProject(project: any, workflowStatus?: string) {
   const deliveryDeadline = project.deliveryDeadline ? new Date(project.deliveryDeadline) : null;
   const now = Date.now();
 
+  const isSlaPaused = Boolean(project.slaPausedAt);
+  let totalClientWaitMs = Number(project.totalClientWaitMs || 0);
+  if (isSlaPaused && project.slaPausedAt) {
+    const currentPause = Math.max(0, now - new Date(project.slaPausedAt).getTime());
+    totalClientWaitMs += currentPause;
+  }
+
+  const effectiveDeliveryDeadline = deliveryDeadline
+    ? new Date(deliveryDeadline.getTime() + totalClientWaitMs)
+    : null;
+
   let deadlineStatus = 'awaiting_client';
   let deadlineFlagsCount = 0;
   let deadlineDaysRemaining = 0;
   let deadlineHoursOverdue = 0;
 
-  if (project.deadlineFlagsCount >= 1 && project.deadlineFlagsCount <= 4) {
+  if (project.clientSignedOff || project.status === 'delivered') {
+    deadlineStatus = 'completed';
+    deadlineFlagsCount = 0;
+  } else if (project.deadlineFlagsCount >= 1 && project.deadlineFlagsCount <= 4) {
     deadlineFlagsCount = project.deadlineFlagsCount;
     if (deadlineFlagsCount === 4) deadlineStatus = 'suspended';
     else if (deadlineFlagsCount === 3) deadlineStatus = 'flag_3';
     else if (deadlineFlagsCount === 2) deadlineStatus = 'flag_2';
     else if (deadlineFlagsCount === 1) deadlineStatus = 'flag_1';
-  } else if (project.clientSignedOff || project.status === 'delivered') {
-    deadlineStatus = 'completed';
-    deadlineFlagsCount = 0;
-  } else if (deliveryDeadline) {
-    const diffMs = deliveryDeadline.getTime() - now;
+
+    if (effectiveDeliveryDeadline) {
+      const diffMs = effectiveDeliveryDeadline.getTime() - now;
+      if (diffMs < 0) {
+        deadlineHoursOverdue = Math.floor(Math.abs(diffMs) / (1000 * 60 * 60));
+      }
+    }
+  } else if (effectiveDeliveryDeadline) {
+    const diffMs = effectiveDeliveryDeadline.getTime() - now;
     if (diffMs >= 0) {
       deadlineStatus = 'on_track';
       deadlineDaysRemaining = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
@@ -138,6 +156,11 @@ export function serializeProject(project: any, workflowStatus?: string) {
     deadlineHoursOverdue: deadlineHoursOverdue,
     deadline_note: project.deadlineNote || '',
     deadlineNote: project.deadlineNote || '',
+    is_sla_paused: isSlaPaused,
+    sla_paused_at: project.slaPausedAt ? new Date(project.slaPausedAt).toISOString() : null,
+    total_client_wait_ms: totalClientWaitMs,
+    effective_delivery_deadline: effectiveDeliveryDeadline ? effectiveDeliveryDeadline.toISOString() : null,
+    effectiveDeliveryDeadline: effectiveDeliveryDeadline ? effectiveDeliveryDeadline.toISOString() : null,
     has_help_request: Boolean(project.has_help_request),
     help_request: project.help_request || null,
     unread_count: Number(project.unread_count || 0),

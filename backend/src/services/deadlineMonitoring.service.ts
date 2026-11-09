@@ -1,9 +1,137 @@
-
 import { Project, IProject } from '../models/project.model.js';
 import { BrandDNA } from '../models/brandDNA.model.js';
 import { Consultant } from '../models/consultant.model.js';
 import { ProjectActivity } from '../models/activity.model.js';
+import { Moodboard } from '../models/moodboard.model.js';
+import { Concept } from '../models/concept.model.js';
+import { ProjectAgreement } from '../models/agreement.model.js';
+import { PaymentMilestone } from '../models/paymentMilestone.model.js';
+import { Deliverable } from '../models/deliverable.model.js';
 import { logProjectActivity } from './project.service.js';
+
+export interface ClientWaitStatus {
+  awaitingClient: boolean;
+  reason?:
+    | 'delivered_or_signed_off'
+    | 'awaiting_intake'
+    | 'awaiting_moodboard_selection'
+    | 'awaiting_concept_approval'
+    | 'awaiting_agreement_signature'
+    | 'awaiting_milestone_payment'
+    | 'deliverables_completed_awaiting_signoff';
+  detail?: string;
+}
+
+/**
+ * Determines whether a project is currently blocked waiting for a client action.
+ * When awaitingClient is true, the consultant's SLA clock is paused.
+ */
+export async function isProjectAwaitingClientAction(project: any): Promise<ClientWaitStatus> {
+  const projectId = project._id || project.id;
+
+  // 1. If project is delivered or client signed off, it's completed
+  if (project.status === 'delivered' || project.clientSignedOff) {
+    return { awaitingClient: true, reason: 'delivered_or_signed_off', detail: 'Project is delivered or signed off.' };
+  }
+
+  // 2. Awaiting Discovery Intake from client
+  const hasIntake = Boolean(project.clientSubmittedAt || project.discovery?.submittedAt);
+  if (!hasIntake) {
+    return { awaitingClient: true, reason: 'awaiting_intake', detail: 'Waiting for client to submit discovery intake questionnaire.' };
+  }
+
+  // 3. Waiting for client milestone payment (any milestone requested by consultant but not yet paid by client)
+  const requestedMilestone = await PaymentMilestone.findOne({
+    projectId,
+    status: 'requested',
+  });
+  if (requestedMilestone) {
+    return {
+      awaitingClient: true,
+      reason: 'awaiting_milestone_payment',
+      detail: `Waiting for client to pay requested ${requestedMilestone.type} milestone payment.`,
+    };
+  }
+
+  // 4. Waiting for client agreement signature (agreement is shared with client but not yet signed)
+  const agreement = await ProjectAgreement.findOne({ projectId });
+  if (agreement && ['shared', 'signature_requested'].includes(agreement.status) && !agreement.signedAt) {
+    return {
+      awaitingClient: true,
+      reason: 'awaiting_agreement_signature',
+      detail: 'Waiting for client to digitally sign project agreement.',
+    };
+  }
+
+  // 5. Waiting for client moodboard selection (consultant has shared moodboards, client has not selected one)
+  const sharedMoodboards = await Moodboard.find({ projectId, isShared: true });
+  if (sharedMoodboards.length > 0 && !sharedMoodboards.some((m) => m.isSelected)) {
+    return {
+      awaitingClient: true,
+      reason: 'awaiting_moodboard_selection',
+      detail: 'Waiting for client to select a moodboard direction.',
+    };
+  }
+
+  // 6. Waiting for client concept approval (consultant has shared concept(s), client has not approved)
+  const sharedConcepts = await Concept.find({ projectId, status: 'shared' });
+  if (sharedConcepts.length > 0 && !sharedConcepts.some((c) => c.status === 'approved')) {
+    return {
+      awaitingClient: true,
+      reason: 'awaiting_concept_approval',
+      detail: 'Waiting for client to review and approve shared design concepts.',
+    };
+  }
+
+  // 7. Deliverables completed & shared, awaiting final client download and signoff
+  const sharedDeliverables = await Deliverable.find({ projectId, status: 'shared' });
+  if (sharedDeliverables.length > 0) {
+    return {
+      awaitingClient: true,
+      reason: 'deliverables_completed_awaiting_signoff',
+      detail: 'Final deliverables shared with client; awaiting client sign-off.',
+    };
+  }
+
+  return { awaitingClient: false };
+}
+
+/**
+ * Pure calculation of a project's active SLA timeline, accounting for paused client wait duration.
+ */
+export function calculateProjectActiveSla(project: any, now = Date.now()) {
+  const originalDeadline = project.deliveryDeadline ? new Date(project.deliveryDeadline).getTime() : null;
+  if (!originalDeadline) {
+    return {
+      originalDeadline: null,
+      effectiveDeadline: null,
+      isPaused: false,
+      totalClientWaitMs: 0,
+      diffMs: 0,
+      hoursOverdue: 0,
+      daysRemaining: 0,
+    };
+  }
+
+  const isPaused = Boolean(project.slaPausedAt);
+  const currentPauseDuration = isPaused ? Math.max(0, now - new Date(project.slaPausedAt).getTime()) : 0;
+  const totalClientWaitMs = Number(project.totalClientWaitMs || 0) + currentPauseDuration;
+  const effectiveDeadline = originalDeadline + totalClientWaitMs;
+  const diffMs = effectiveDeadline - now;
+
+  const hoursOverdue = diffMs < 0 ? Math.floor(Math.abs(diffMs) / (1000 * 60 * 60)) : 0;
+  const daysRemaining = diffMs > 0 ? Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24))) : 0;
+
+  return {
+    originalDeadline: new Date(originalDeadline),
+    effectiveDeadline: new Date(effectiveDeadline),
+    isPaused,
+    totalClientWaitMs,
+    diffMs,
+    hoursOverdue,
+    daysRemaining,
+  };
+}
 
 /**
  * Sets or updates the committed delivery deadline for a project.
@@ -69,7 +197,10 @@ export async function setProjectDeliveryDeadline(
         deliveryDeadline: deadlineDate,
         deadlineSetAt: new Date(),
         deadlineFlagsCount: 0,
+        deadlineBreached: false,
         deadlineNote: (note || '').trim(),
+        slaPausedAt: null,
+        totalClientWaitMs: 0,
       },
     },
     { new: true }
@@ -99,7 +230,8 @@ export async function setProjectDeliveryDeadline(
 }
 
 /**
- * When Brand DNA is completed/generated, clears any overdue flags.
+ * When Brand DNA is completed/generated, clears any overdue flags that were active
+ * while preparing Brand DNA. SLA monitoring continues for remaining project stages.
  */
 export async function onBrandDnaCompleted(projectId: string): Promise<void> {
   try {
@@ -115,12 +247,17 @@ export async function onBrandDnaCompleted(projectId: string): Promise<void> {
 
 /**
  * Periodic background scan that enforces:
- * - 24 hours overdue: Warning 1 (Gentle notice + warning of suspension risk)
- * - 48 hours overdue: Warning 2 (Urgent notice + warning that suspension is approaching)
- * - 72 hours overdue: Warning 3 (Final warning of impending suspension within 24h)
- * - 96 hours overdue: Automatic consultant account suspension (Grace period expired)
+ * - 24 active hours overdue: Warning 1 (Gentle notice + warning of suspension risk)
+ * - 48 active hours overdue: Warning 2 (Urgent notice + warning that suspension is approaching)
+ * - 72 active hours overdue: Warning 3 (Final warning of impending suspension within 24h)
+ * - 96 active hours overdue: Automatic consultant account suspension (Grace period expired)
+ *
+ * Client-Wait Protection:
+ * Automatically pauses SLA clock whenever the project is waiting for client intake, moodboard selection,
+ * concept approval, agreement signature, or milestone payment. Active overdue hours are calculated
+ * strictly excluding all verified client-wait duration.
  */
-export async function checkAndEscalateDeadlines(): Promise<void> {
+export async function checkAndEscalateDeadlines(currentTime?: number): Promise<void> {
   try {
     const activeProjects = await Project.find({
       isArchived: false,
@@ -128,26 +265,58 @@ export async function checkAndEscalateDeadlines(): Promise<void> {
       deliveryDeadline: { $ne: null },
     });
 
-    const now = Date.now();
+    const now = typeof currentTime === 'number' ? currentTime : Date.now();
 
     for (const proj of activeProjects) {
       if (!proj.deliveryDeadline) continue;
 
-      // Check if Brand DNA is already completed
-      const brandDNA = await BrandDNA.findOne({ projectId: proj._id });
-      if (brandDNA) {
+      // 1. Exclude projects already delivered or client signed off
+      if (proj.status === 'delivered' || proj.clientSignedOff) {
         if (proj.deadlineFlagsCount && proj.deadlineFlagsCount > 0) {
-          await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: 0 } });
+          await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: 0, slaPausedAt: null } });
         }
         continue;
       }
 
-      const deadlineTime = new Date(proj.deliveryDeadline).getTime();
-      const diffMs = deadlineTime - now;
+      // 2. Check if project is currently waiting for client action
+      const waitStatus = await isProjectAwaitingClientAction(proj);
 
-      // If still within deadline, ensure flags are clean
+      if (waitStatus.awaitingClient) {
+        // Project is waiting for client: Pause SLA clock!
+        if (!proj.slaPausedAt) {
+          await Project.findByIdAndUpdate(proj._id, {
+            $set: { slaPausedAt: new Date(now) },
+          });
+        }
+        // While paused, do NOT escalate warning flags or suspend consultant
+        continue;
+      }
+
+      // 3. Project is NOT waiting for client (Consultant is responsible for current stage):
+      let totalClientWaitMs = Number(proj.totalClientWaitMs || 0);
+
+      // If project was previously paused, finalize the pause duration and resume SLA clock
+      if (proj.slaPausedAt) {
+        const pauseStarted = new Date(proj.slaPausedAt).getTime();
+        const pauseDuration = Math.max(0, now - pauseStarted);
+        totalClientWaitMs += pauseDuration;
+
+        await Project.findByIdAndUpdate(proj._id, {
+          $set: {
+            totalClientWaitMs,
+            slaPausedAt: null,
+          },
+        });
+      }
+
+      // 4. Calculate active overdue time excluding all client wait duration
+      const originalDeadline = new Date(proj.deliveryDeadline).getTime();
+      const effectiveDeadline = originalDeadline + totalClientWaitMs;
+      const diffMs = effectiveDeadline - now;
+
+      // If still within active deadline, clear early warning flags (flags < 4)
       if (diffMs >= 0) {
-        if (proj.deadlineFlagsCount && proj.deadlineFlagsCount > 0) {
+        if (proj.deadlineFlagsCount && proj.deadlineFlagsCount > 0 && proj.deadlineFlagsCount < 4) {
           await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: 0 } });
         }
         continue;
@@ -157,23 +326,26 @@ export async function checkAndEscalateDeadlines(): Promise<void> {
       const title = proj.companyName || proj.title || 'Client Project';
       const consultantId = String(proj.consultantId);
 
-      // Timeline Evaluation
+      // Contextual description for notifications:
+      // If Brand DNA is not delivered yet, mention Brand DNA.
+      // If Brand DNA is already generated, mention Project Deliverables.
+      const hasBrandDNA = await BrandDNA.findOne({ projectId: proj._id });
+      const targetDeliverable = hasBrandDNA ? 'project deliverables' : 'Brand DNA';
+
+      // 5. Timeline Evaluation & Warning Escalation
       if (hoursOverdue >= 96) {
-        // Stage 2: Automatic Consultant Account Suspension (96h / 4 days overdue)
-        // Project-specific guard: If this project has already been escalated to suspension (flag 4),
-        // do not re-suspend the consultant for this project, preserving any SuperAdmin manual reactivation.
+        // Flag 4: Automatic Consultant Account Suspension (96h overdue)
         if (proj.deadlineFlagsCount === 4) {
-          continue;
+          continue; // Already suspended, avoid repeated suspension
         }
 
-        await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: 4 } });
+        await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: 4, deadlineBreached: true } });
 
-        // Suspend consultant idempotently
         const consultant = await Consultant.findById(proj.consultantId);
         if (consultant && (consultant.isActive || !consultant.isSuspended)) {
           consultant.isActive = false;
           consultant.isSuspended = true;
-          consultant.suspendedAt = new Date();
+          consultant.suspendedAt = new Date(now);
           consultant.suspensionReason = 'deadline_breach';
           consultant.suspendedDueToProjectId = proj._id;
           consultant.tokenVersion = (consultant.tokenVersion || 0) + 1;
@@ -183,7 +355,6 @@ export async function checkAndEscalateDeadlines(): Promise<void> {
           await consultant.save();
         }
 
-        // Deduplicate notification in ProjectActivity
         const actionName = 'account_suspended_deadline_breach';
         const recentNotif = await ProjectActivity.findOne({
           projectId: proj._id,
@@ -196,15 +367,15 @@ export async function checkAndEscalateDeadlines(): Promise<void> {
             consultantId,
             actorType: 'system',
             action: actionName,
-            description: `🔒 Account Suspended (96h Overdue): Consultant account automatically suspended for failing to deliver Brand DNA for '${title}' (96 hours overdue, following 3 warnings). Please contact SuperAdmin.`,
+            description: `🔒 Account Suspended (96h Overdue): Consultant account automatically suspended for failing to deliver ${targetDeliverable} for '${title}' (96 hours overdue, following 3 warnings). Please contact SuperAdmin.`,
             visibleToClient: false,
           });
         }
       } else if (hoursOverdue >= 72) {
-        // Warning 3 – Final Warning (72h to 95h overdue)
+        // Warning 3 (72h to 95h overdue)
         const targetFlag = 3;
         const actionName = 'deadline_warning_3';
-        const description = `🛑 Warning 3 - Final Notice (72h Overdue): Project '${title}' is 3 days past committed deadline. This is your final grace day. Your consultant account will be AUTOMATICALLY SUSPENDED in 24 hours if Brand DNA is not delivered.`;
+        const description = `🛑 Warning 3 - Final Notice (72h Overdue): Project '${title}' is 3 days past committed deadline. This is your final grace day. Your consultant account will be AUTOMATICALLY SUSPENDED in 24 hours if ${targetDeliverable} is not delivered.`;
 
         if (proj.deadlineFlagsCount !== targetFlag) {
           await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: targetFlag } });
@@ -256,7 +427,7 @@ export async function checkAndEscalateDeadlines(): Promise<void> {
         // Warning 1 (24h to 47h overdue)
         const targetFlag = 1;
         const actionName = 'deadline_warning_1';
-        const description = `⚠️ Warning 1 (24h Overdue): Project '${title}' passed its committed delivery deadline yesterday. Please deliver Brand DNA promptly to avoid warning escalation and automatic account suspension.`;
+        const description = `⚠️ Warning 1 (24h Overdue): Project '${title}' passed its committed delivery deadline yesterday. Please deliver ${targetDeliverable} promptly to avoid warning escalation and automatic account suspension.`;
 
         if (proj.deadlineFlagsCount !== targetFlag) {
           await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: targetFlag } });

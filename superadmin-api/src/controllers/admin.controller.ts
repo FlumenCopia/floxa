@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { Consultant } from '../models/consultant.model.js';
 import { Project } from '../models/project.model.js';
 import { Client } from '../models/client.model.js';
+import { ProjectActivity } from '../models/activity.model.js';
 import { sendCustomerWelcomeEmail, sendPasswordResetNoticeEmail } from '../services/email.service.js';
 import type { AdminAuthRequest } from '../middleware/auth.middleware.js';
 
@@ -414,16 +415,72 @@ export async function updateConsultantStatus(req: AdminAuthRequest, res: Respons
       if (consultant.reactivationRequest) {
         consultant.reactivationRequest.status = 'resolved';
       }
+      // BUG-CRITICAL-01 Fix: Reset project deadline so the old overdue deadline
+      // cannot trigger immediate re-suspension in the background SLA cron.
+      // Option A: Consultant must commit a fresh delivery deadline after reactivation.
+      const resetDeadlineFields = {
+        deliveryDeadline: null,
+        deadlineSetAt: null,
+        deadlineFlagsCount: 0,
+        deadlineBreached: false,
+        deadlineNote: 'Reactivation approved by SuperAdmin. Awaiting fresh deadline commitment.',
+        slaPausedAt: null,
+        totalClientWaitMs: 0,
+      };
+
+      const suspendedProjectId = consultant.suspendedDueToProjectId;
+      let targetProjectId = suspendedProjectId;
+      if (!targetProjectId) {
+        try {
+          const fallbackProject = await Project.findOne({ consultantId: consultant._id, isArchived: false })
+            .sort({ updatedAt: -1 })
+            .select('_id');
+          if (fallbackProject) {
+            targetProjectId = fallbackProject._id;
+          }
+        } catch {
+          // ignore fallback error
+        }
+      }
+
       if (consultant.suspendedDueToProjectId) {
         try {
           await Project.findByIdAndUpdate(consultant.suspendedDueToProjectId, {
-            deadlineFlagsCount: 0,
-            deadlineBreached: false,
+            $set: resetDeadlineFields,
           });
         } catch (projErr) {
           console.warn('Failed to clear project deadline flags:', projErr);
         }
       }
+
+      // Also reset any other projects belonging to this consultant that reached suspension (flags = 4)
+      try {
+        await Project.updateMany(
+          { consultantId: consultant._id, deadlineFlagsCount: 4 },
+          { $set: resetDeadlineFields }
+        );
+      } catch (projErr) {
+        console.warn('Failed to reset overdue projects on consultant reactivation:', projErr);
+      }
+
+      // Log notification activity for consultant: "SuperAdmin activated your account"
+      if (targetProjectId) {
+        try {
+          await ProjectActivity.create({
+            projectId: targetProjectId,
+            consultantId: consultant._id,
+            actorType: 'system',
+            action: 'account_reactivated',
+            description: '✅ SuperAdmin approved your reactivation request. Your account has been reactivated. Please set a fresh delivery deadline.',
+            isRead: false,
+            visibleToClient: false,
+            createdAt: new Date(),
+          });
+        } catch (actErr) {
+          console.warn('Failed to log account reactivation activity:', actErr);
+        }
+      }
+
       consultant.suspendedDueToProjectId = null;
     } else {
       consultant.isSuspended = true;

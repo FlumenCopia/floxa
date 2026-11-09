@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { clientPortalService } from "../../services/clientPortalService";
+import { supportSocket } from "@/services/supportSocketService";
 import Floxaheader from "../common/FloxaHeader";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset } from "@/lib/api";
@@ -104,6 +105,12 @@ const assistantSourceLabels = {
 };
 
 const activityActionsByTab = {
+  Overview: [
+    "client_profile_submitted",
+    "client_profile_updated",
+    "discovery_submitted",
+    "discovery_updated",
+  ],
   Discovery: [
     "client_profile_submitted",
     "client_profile_updated",
@@ -112,10 +119,12 @@ const activityActionsByTab = {
   ],
   Moodboards: [
     "moodboard_selected",
+    "moodboard_feedback_submitted",
   ],
   Concepts: [
     "concept_approved",
     "concept_changes_requested",
+    "concept_feedback_submitted",
   ],
   Agreement: [
     "agreement_opened",
@@ -130,6 +139,25 @@ const activityActionsByTab = {
   ],
   Payments: [
     "payment_requested",
+    "payment_received",
+    "payment_paid",
+  ],
+  Activity: [
+    "client_help_requested",
+    "client_profile_submitted",
+    "client_profile_updated",
+    "discovery_submitted",
+    "discovery_updated",
+    "moodboard_selected",
+    "moodboard_feedback_submitted",
+    "concept_approved",
+    "concept_changes_requested",
+    "concept_feedback_submitted",
+    "agreement_signed",
+    "agreement_accepted",
+    "deliverable_downloaded",
+    "deliverable_accepted",
+    "project_signed_off",
     "payment_received",
     "payment_paid",
   ],
@@ -5508,24 +5536,57 @@ export default function Discovery() {
 
   useEffect(() => {
     if (!project?.id) {
+      setProjectActivities([]);
       return;
     }
 
-    async function loadProjectActivities() {
-      setProjectActivitiesLoading(true);
+    let isMounted = true;
 
+    async function loadProjectActivities() {
       try {
         const data = await getProjectActivities(project.id);
-        setProjectActivities(Array.isArray(data) ? data : []);
+        if (isMounted && Array.isArray(data)) {
+          setProjectActivities(data);
+        }
       } catch (error) {
         console.error("Failed to load project activities:", error);
-        setProjectActivities([]);
-      } finally {
-        setProjectActivitiesLoading(false);
       }
     }
 
     loadProjectActivities();
+
+    // 1. Live WebSocket listener for real-time tab notification dots
+    const unsubscribeLiveNotif = supportSocket.on("notification", (activity) => {
+      if (!isMounted || !activity) return;
+      const actProjectId = String(
+        activity.project_id ||
+        (typeof activity.project === "object" ? activity.project?.id : activity.project) ||
+        activity.metadata?.project_id ||
+        ""
+      );
+      if (actProjectId && actProjectId === String(project.id)) {
+        setProjectActivities((current) => {
+          const exists = current.some((n) => n.id === activity.id);
+          if (exists) {
+            return current.map((n) => (n.id === activity.id ? activity : n));
+          }
+          return [activity, ...current];
+        });
+      }
+    });
+
+    // 2. Background polling fallback every 8 seconds to guarantee tabs stay synchronized
+    const pollInterval = window.setInterval(() => {
+      if (isMounted) {
+        loadProjectActivities();
+      }
+    }, 8000);
+
+    return () => {
+      isMounted = false;
+      unsubscribeLiveNotif();
+      window.clearInterval(pollInterval);
+    };
   }, [project?.id]);
 
   useEffect(() => {
@@ -5615,7 +5676,9 @@ export default function Discovery() {
     }
 
     return projectActivities.filter((activity) =>
-      !activity.is_read && actions.includes(activity.action)
+      !activity.is_read &&
+      activity.actor_type !== "consultant" &&
+      actions.includes(activity.action)
     );
   }, [projectActivities]);
 

@@ -464,8 +464,9 @@ export async function requestReactivation(req: Request, res: Response, next: Nex
           consultantId: String(consultant._id),
           actorType: 'consultant',
           action: 'reactivation_requested',
-          description: `Consultant requested account reactivation: "${userMsg}"`,
+          description: `Reactivation request submitted to SuperAdmin: "${userMsg}"`,
           visibleToClient: false,
+          isRead: true,
         });
       } catch (actErr) {
         console.warn('Failed to log project activity for reactivation:', actErr);

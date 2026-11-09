@@ -182,4 +182,20 @@ test('Frontend FloxaHeader: Contract & Navigation Route Mapping', async (t) => {
     notifs = notifs.map((n) => ({ ...n, is_read: true }));
     assert.strictEqual(resolveClientNavItems(baseItems, notifs)[0].dot, false);
   });
+
+  await t.test('8. Excludes outbound consultant actions from notification dropdown while displaying account_reactivated', () => {
+    const rawNotifications = [
+      { id: '1', action: 'reactivation_requested', actor_type: 'consultant', description: 'Reactivation request submitted', is_read: false },
+      { id: '2', action: 'account_reactivated', actor_type: 'system', description: '✅ SuperAdmin approved your reactivation request.', is_read: false },
+      { id: '3', action: 'discovery_submitted', actor_type: 'client', description: 'Client submitted discovery', is_read: false },
+    ];
+
+    const visibleNotifications = rawNotifications.filter(
+      (n) => n && n.visible_to_consultant !== false && n.actor_type !== 'consultant'
+    );
+
+    assert.strictEqual(visibleNotifications.length, 2);
+    assert.strictEqual(visibleNotifications.some((n) => n.action === 'reactivation_requested'), false);
+    assert.strictEqual(visibleNotifications.some((n) => n.action === 'account_reactivated'), true);
+  });
 });
