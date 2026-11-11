@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import { ENV } from '../config/env.js';
 import { resolveSafeMediaPath } from './storage.service.js';
 import { Consultant } from '../models/consultant.model.js';
+import { escapeHtml } from '../utils/crypto.js';
 
 let testEmailDispatcher: ((params: {
   to: string | string[];
@@ -33,7 +34,7 @@ const transporter = nodemailer.createTransport({
     pass: ENV.EMAIL_HOST_PASSWORD,
   },
   tls: {
-    rejectUnauthorized: false,
+    rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false',
   },
 });
 
@@ -146,27 +147,27 @@ export async function sendClientPortalInvite(project: any, rawPortalPassword?: s
   const html = `
     <div style="max-width: 600px; margin: auto; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
       <h2 style="color: #0f172a; margin-top: 0;">Welcome to your FLOXA Project Portal</h2>
-      <p>Hello ${clientName},</p>
-      <p>Your consultant${consultantName ? `, <strong>${consultantName}</strong>` : ''}, has invited you to collaborate on <strong>${project.title}</strong>.</p>
+      <p>Hello ${escapeHtml(clientName)},</p>
+      <p>Your consultant${consultantName ? `, <strong>${escapeHtml(consultantName)}</strong>` : ''}, has invited you to collaborate on <strong>${escapeHtml(project.title)}</strong>.</p>
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 18px; margin: 20px 0;">
         <p style="margin: 0 0 10px 0; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Your Client Portal Login Details</p>
         <p style="margin: 6px 0; font-size: 14px; color: #1e293b;">
-          <strong>Your Login Email:</strong> <code style="background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-weight: 600; color: #0f172a; font-size: 13px;">${clientEmail}</code>
+          <strong>Your Login Email:</strong> <code style="background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-weight: 600; color: #0f172a; font-size: 13px;">${escapeHtml(clientEmail)}</code>
         </p>
         ${rawPortalPassword
       ? `<p style="margin: 6px 0; font-size: 14px; color: #1e293b;">
-             <strong>Portal Password:</strong> <code style="background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-weight: 600; color: #0f172a; font-size: 13px;">${rawPortalPassword}</code>
+             <strong>Portal Password:</strong> <code style="background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-weight: 600; color: #0f172a; font-size: 13px;">${escapeHtml(rawPortalPassword)}</code>
            </p>`
       : ''
     }
       </div>
       <p style="margin: 24px 0;">
-        <a href="${portalUrl}" style="background-color: #10b981; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        <a href="${escapeHtml(portalUrl)}" style="background-color: #10b981; color: white; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
           Access Client Portal &rarr;
         </a>
       </p>
-      <p style="color: #64748b; font-size: 13px;">If the button doesn't work, copy this link into your browser:<br/><a href="${portalUrl}" style="color: #10b981;">${portalUrl}</a></p>
-      ${consultantEmail ? `<p style="color: #64748b; font-size: 12px; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">You can reply directly to this email to contact <strong>${consultantName || 'your consultant'}</strong> (${consultantEmail}).</p>` : ''}
+      <p style="color: #64748b; font-size: 13px;">If the button doesn't work, copy this link into your browser:<br/><a href="${escapeHtml(portalUrl)}" style="color: #10b981;">${escapeHtml(portalUrl)}</a></p>
+      ${consultantEmail ? `<p style="color: #64748b; font-size: 12px; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">You can reply directly to this email to contact <strong>${escapeHtml(consultantName || 'your consultant')}</strong> (${escapeHtml(consultantEmail)}).</p>` : ''}
     </div>
   `;
 
@@ -194,17 +195,17 @@ export async function sendAgreementSignatureRequestEmail(project: any, agreement
     <div style="max-width: 600px; margin: auto; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
       <h2 style="color: #0f172a; margin-top: 0;">Action Required: Sign Your Project Agreement</h2>
       <p>Hello,</p>
-      <p>Your consultant${consultantName ? `, <strong>${consultantName}</strong>` : ''}, has prepared the project agreement for <strong>${project.title}</strong> ready for signature.</p>
+      <p>Your consultant${consultantName ? `, <strong>${escapeHtml(consultantName)}</strong>` : ''}, has prepared the project agreement for <strong>${escapeHtml(project.title)}</strong> ready for signature.</p>
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 16px 0;">
         <span style="font-size: 13px; color: #475569;">Registered Client Email:</span>
-        <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #0f172a; font-size: 13px;">${clientEmail}</code>
+        <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-weight: 600; color: #0f172a; font-size: 13px;">${escapeHtml(clientEmail)}</code>
       </div>
       <p style="margin: 24px 0;">
-        <a href="${signingUrl}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+        <a href="${escapeHtml(signingUrl)}" style="background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
           Review and Sign Agreement
         </a>
       </p>
-      ${consultantEmail ? `<p style="color: #64748b; font-size: 12px; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">You can reply directly to this email to contact <strong>${consultantName || 'your consultant'}</strong> (${consultantEmail}).</p>` : ''}
+      ${consultantEmail ? `<p style="color: #64748b; font-size: 12px; margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px;">You can reply directly to this email to contact <strong>${escapeHtml(consultantName || 'your consultant')}</strong> (${escapeHtml(consultantEmail)}).</p>` : ''}
     </div>
   `;
 
@@ -303,19 +304,19 @@ The FLOXA Team`;
       </div>
       <h3 style="margin: 0 0 16px 0; color: #ffffff; font-size: 18px;">Password Reset Request</h3>
       <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #b4cfc4;">
-        Hello <strong>${consultantName}</strong>,
+        Hello <strong>${escapeHtml(consultantName)}</strong>,
       </p>
       <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #b4cfc4;">
         We received a request to reset your password. Click the button below to choose a new password:
       </p>
       <div style="margin-bottom: 28px;">
-        <a href="${resetUrl}" style="background-color: #4dffa0; color: #001a0e; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; display: inline-block;">
+        <a href="${escapeHtml(resetUrl)}" style="background-color: #4dffa0; color: #001a0e; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; display: inline-block;">
           Reset My Password
         </a>
       </div>
       <p style="margin: 0 0 16px 0; font-size: 12px; line-height: 1.5; color: #89aca0;">
         Or copy and paste this link into your browser:<br/>
-        <a href="${resetUrl}" style="color: #4dffa0; word-break: break-all;">${resetUrl}</a>
+        <a href="${escapeHtml(resetUrl)}" style="color: #4dffa0; word-break: break-all;">${escapeHtml(resetUrl)}</a>
       </p>
       <p style="margin: 0 0 0 0; font-size: 12px; line-height: 1.5; color: #6b8f80; border-top: 1px solid rgba(77, 255, 160, 0.1); padding-top: 16px;">
         This link expires in 30 minutes. If you did not request this reset, no action is needed.

@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { ENV } from '../config/env.js';
 import { Project } from '../models/project.model.js';
 import { buildBrandDNAData, calculateCluster } from './discovery.service.js';
+import { decryptSecret } from '../utils/crypto.js';
 
 let aiClient: GoogleGenAI | null = null;
 
@@ -44,7 +45,7 @@ export function getActiveModels(): string[] {
 }
 
 export function getAiClient(customApiKey?: string): GoogleGenAI {
-  const key = (customApiKey || ENV.GEMINI_API_KEY || '').trim();
+  const key = decryptSecret(customApiKey) || (ENV.GEMINI_API_KEY || '').trim();
 
   if (!key) {
     throw new Error('Gemini API is not configured. Please configure your Gemini API Key in Settings > Integrations & API Keys.');
@@ -286,7 +287,7 @@ export async function generateProjectAssistantReply(
     return 'Project context is unavailable. Please verify the project ID.';
   }
 
-  const effectiveKey = (customApiKey || project?.consultant?.integrations?.geminiApiKey || '').trim();
+  const effectiveKey = (decryptSecret(customApiKey) || decryptSecret(project?.consultant?.integrations?.geminiApiKey)).trim();
 
   if (!effectiveKey) {
     return '⚠️ Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key to activate the AI Assistant.';
@@ -368,7 +369,7 @@ AGENCY WORKFLOW & STAGE-AWARE RULES:
 
 export async function generateAiBrandDNA(project: any, discovery: any, customApiKey?: string): Promise<any> {
   const fallback = buildBrandDNAData(project, discovery);
-  const effectiveKey = (customApiKey || project?.consultant?.integrations?.geminiApiKey || ENV.GEMINI_API_KEY || '').trim();
+  const effectiveKey = (decryptSecret(customApiKey) || decryptSecret(project?.consultant?.integrations?.geminiApiKey) || ENV.GEMINI_API_KEY || '').trim();
 
   if (!effectiveKey) {
     console.warn('[FLOXA Brand DNA] Google Gemini API Key is not configured. Falling back to deterministic Brand DNA generation.');

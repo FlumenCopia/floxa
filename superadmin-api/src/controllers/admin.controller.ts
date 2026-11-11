@@ -453,10 +453,13 @@ export async function updateConsultantStatus(req: AdminAuthRequest, res: Respons
         }
       }
 
-      // Also reset any other projects belonging to this consultant that reached suspension (flags = 4)
+      // Also reset any other overdue projects belonging to this consultant that reached final warning / suspension (flags >= 3 or breached)
       try {
         await Project.updateMany(
-          { consultantId: consultant._id, deadlineFlagsCount: 4 },
+          {
+            consultantId: consultant._id,
+            $or: [{ deadlineFlagsCount: { $gte: 3 } }, { deadlineBreached: true }],
+          },
           { $set: resetDeadlineFields }
         );
       } catch (projErr) {

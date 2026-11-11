@@ -1,10 +1,12 @@
 import { Response } from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { SuperAdmin } from '../models/superadmin.model.js';
 import { Consultant } from '../models/consultant.model.js';
 import { Project } from '../models/project.model.js';
 import { PlatformSetting } from '../models/setting.model.js';
 import type { AdminAuthRequest } from '../middleware/auth.middleware.js';
+import { encryptSecret, decryptSecret } from '../utils/security.js';
 
 // 1. Get SuperAdmin Profile
 export async function getAdminProfile(req: AdminAuthRequest, res: Response) {
@@ -86,9 +88,36 @@ export async function changeAdminPassword(req: AdminAuthRequest, res: Response) 
     }
 
     admin.password = await bcrypt.hash(newPassword, 10);
+    admin.tokenVersion = (admin.tokenVersion || 0) + 1;
     await admin.save();
 
-    res.json({ success: true, message: 'Password updated successfully.' });
+    const jwtSecret = process.env.JWT_SECRET;
+    let rotatedToken: string | undefined;
+    if (jwtSecret) {
+      rotatedToken = jwt.sign(
+        {
+          adminId: admin.id,
+          email: admin.email,
+          role: 'superadmin',
+          tokenVersion: admin.tokenVersion,
+        },
+        jwtSecret,
+        { algorithm: 'HS256', expiresIn: '7d' }
+      );
+      res.cookie('floxa_superadmin_token', rotatedToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Password updated successfully.',
+      ...(rotatedToken ? { token: rotatedToken } : {}),
+    });
   } catch (err: any) {
     res.status(500).json({ detail: 'Failed to update password.', error: err.message });
   }
@@ -263,9 +292,9 @@ export async function getIntegrations(req: AdminAuthRequest, res: Response) {
     const setting = await PlatformSetting.findOne({ key: 'platform_integrations' });
     const raw = setting?.value || {};
 
-    const geminiKey = raw.geminiApiKey || process.env.GEMINI_API_KEY || '';
+    const geminiKey = decryptSecret(raw.geminiApiKey || '') || process.env.GEMINI_API_KEY || '';
     const razorpayKey = raw.razorpayKeyId || process.env.RAZORPAY_KEY_ID || '';
-    const razorpaySecret = raw.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || '';
+    const razorpaySecret = decryptSecret(raw.razorpayKeySecret || '') || process.env.RAZORPAY_KEY_SECRET || '';
     const smtpUser = raw.smtpUser || process.env.EMAIL_HOST_USER || '';
     const smtpHost = raw.smtpHost || process.env.EMAIL_HOST || '';
 
@@ -295,14 +324,26 @@ export async function updateIntegrations(req: AdminAuthRequest, res: Response) {
     const existing = await PlatformSetting.findOne({ key: 'platform_integrations' });
     const current = existing?.value || {};
 
-    const updated = {
+    const updated: Record<string, any> = {
       ...current,
-      ...(typeof geminiApiKey === 'string' ? { geminiApiKey: geminiApiKey.trim() } : {}),
       ...(typeof razorpayKeyId === 'string' ? { razorpayKeyId: razorpayKeyId.trim() } : {}),
-      ...(typeof razorpayKeySecret === 'string' ? { razorpayKeySecret: razorpayKeySecret.trim() } : {}),
       ...(typeof smtpUser === 'string' ? { smtpUser: smtpUser.trim() } : {}),
       ...(typeof smtpHost === 'string' ? { smtpHost: smtpHost.trim() } : {}),
     };
+
+    if (typeof geminiApiKey === 'string') {
+      const val = geminiApiKey.trim();
+      if (!val.includes('•')) {
+        updated.geminiApiKey = val ? encryptSecret(val) : '';
+      }
+    }
+
+    if (typeof razorpayKeySecret === 'string') {
+      const val = razorpayKeySecret.trim();
+      if (!val.includes('•')) {
+        updated.razorpayKeySecret = val ? encryptSecret(val) : '';
+      }
+    }
 
     const saved = await PlatformSetting.findOneAndUpdate(
       { key: 'platform_integrations' },
@@ -323,9 +364,10 @@ export async function updateIntegrations(req: AdminAuthRequest, res: Response) {
 export async function testGeminiConnection(req: AdminAuthRequest, res: Response) {
   try {
     const setting = await PlatformSetting.findOne({ key: 'platform_integrations' });
+    const rawSubmitted = typeof req.body.apiKey === 'string' ? req.body.apiKey.trim() : '';
     const apiKey =
-      req.body.apiKey ||
-      setting?.value?.geminiApiKey ||
+      (rawSubmitted && !rawSubmitted.includes('•') ? rawSubmitted : '') ||
+      decryptSecret(setting?.value?.geminiApiKey || '') ||
       process.env.GEMINI_API_KEY ||
       '';
 
@@ -335,8 +377,9 @@ export async function testGeminiConnection(req: AdminAuthRequest, res: Response)
     }
 
     const startTime = Date.now();
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models';
     const response = await fetch(url, {
+      headers: { 'x-goog-api-key': apiKey },
       signal: AbortSignal.timeout(10000),
     });
     const latency = Date.now() - startTime;

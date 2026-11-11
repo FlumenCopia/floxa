@@ -32,6 +32,9 @@ export const AuthScreen: React.FC = () => {
 
   // Client fields
   const [portalToken, setPortalToken] = useState('');
+  const [portalEmail, setPortalEmail] = useState('');
+  const [portalPassword, setPortalPassword] = useState('');
+  const [needsPortalPassword, setNeedsPortalPassword] = useState(false);
 
   // Password Recovery modal
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -57,9 +60,25 @@ export const AuthScreen: React.FC = () => {
       Alert.alert('Portal Token Required', 'Please enter your client portal link or access token.');
       return;
     }
+    if (needsPortalPassword && (!portalEmail.trim() || !portalPassword)) {
+      Alert.alert('Verification Required', 'Please enter your registered client email and portal password.');
+      return;
+    }
     try {
-      await loginClient(portalToken);
+      await loginClient(
+        portalToken,
+        portalEmail.trim() ? portalEmail : undefined,
+        portalPassword || undefined
+      );
     } catch (err: any) {
+      if (err?.requiresPortalPassword) {
+        setNeedsPortalPassword(true);
+        Alert.alert(
+          'Portal Password Required',
+          'This portal is password protected. Enter the registered client email and portal password sent by your consultant.'
+        );
+        return;
+      }
       Alert.alert('Client Access Failed', err.message);
     }
   };
@@ -255,6 +274,39 @@ export const AuthScreen: React.FC = () => {
                         autoCapitalize="none"
                       />
                     </View>
+
+                    {needsPortalPassword && (
+                      <>
+                        <View style={styles.pillInputWrap}>
+                          <View style={styles.inputIconBox}>
+                            <Mail size={18} color="#6b7280" strokeWidth={2} />
+                          </View>
+                          <TextInput
+                            style={styles.pillInput}
+                            placeholder="Registered Client Email"
+                            placeholderTextColor="#9ca3af"
+                            value={portalEmail}
+                            onChangeText={setPortalEmail}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                          />
+                        </View>
+
+                        <View style={styles.pillInputWrap}>
+                          <View style={styles.inputIconBox}>
+                            <Lock size={18} color="#6b7280" strokeWidth={2} />
+                          </View>
+                          <TextInput
+                            style={styles.pillInput}
+                            placeholder="Portal Password"
+                            placeholderTextColor="#9ca3af"
+                            value={portalPassword}
+                            onChangeText={setPortalPassword}
+                            secureTextEntry
+                          />
+                        </View>
+                      </>
+                    )}
 
                     <Text style={styles.portalHelperText}>
                       Enter the unique collaboration key provided by your brand consultant.

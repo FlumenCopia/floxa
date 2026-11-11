@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
+import { escapeHtml } from '../utils/security.js';
 
 dotenv.config();
 
@@ -25,12 +26,8 @@ function getTransporter() {
   dotenv.config();
   const host = process.env.EMAIL_HOST || 'smtp.gmail.com';
   const port = parseInt(process.env.EMAIL_PORT || '587', 10);
-  const user = process.env.EMAIL_HOST_USER !== undefined
-    ? process.env.EMAIL_HOST_USER.trim()
-    : 'contactmiscarchive@gmail.com';
-  const pass = process.env.EMAIL_HOST_PASSWORD !== undefined
-    ? process.env.EMAIL_HOST_PASSWORD.replace(/\s+/g, '')
-    : 'onorlcovemxsxtwd';
+  const user = (process.env.EMAIL_HOST_USER || '').trim();
+  const pass = (process.env.EMAIL_HOST_PASSWORD || '').replace(/\s+/g, '');
 
   if (!user || !pass) {
     return null;
@@ -41,7 +38,7 @@ function getTransporter() {
     port,
     secure: port === 465,
     auth: { user, pass },
-    tls: { rejectUnauthorized: false },
+    tls: { rejectUnauthorized: process.env.EMAIL_TLS_REJECT_UNAUTHORIZED !== 'false' },
   });
 }
 
@@ -58,7 +55,7 @@ export async function sendCustomerWelcomeEmail(params: {
   ).replace(/\/+$/, '');
   const loginUrl = `${baseUrl}/login?mode=login`;
   const fromName = process.env.DEFAULT_FROM_EMAIL || 'FLOXA';
-  const fromAddress = (process.env.EMAIL_HOST_USER || 'contactmiscarchive@gmail.com').trim();
+  const fromAddress = (process.env.EMAIL_HOST_USER || '').trim();
 
   const subject = `Welcome to FLOXA — Your Account Credentials`;
 
@@ -87,7 +84,7 @@ The FLOXA Team`;
       </h3>
 
       <p style="margin: 0 0 18px 0; font-size: 14px; line-height: 1.6; color: #b4cfc4;">
-        Hello <strong>${name || 'there'}</strong>,
+        Hello <strong>${escapeHtml(name || 'there')}</strong>,
       </p>
 
       <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #b4cfc4;">
@@ -102,23 +99,23 @@ The FLOXA Team`;
 
         <div style="margin-bottom: 10px; font-size: 13px;">
           <span style="color: #89aca0;">Login Portal: </span>
-          <a href="${loginUrl}" style="color: #4dffa0; text-decoration: underline; word-break: break-all;">${loginUrl}</a>
+          <a href="${escapeHtml(loginUrl)}" style="color: #4dffa0; text-decoration: underline; word-break: break-all;">${escapeHtml(loginUrl)}</a>
         </div>
 
         <div style="margin-bottom: 10px; font-size: 13px;">
           <span style="color: #89aca0;">Email Address: </span>
-          <strong style="color: #ffffff;">${email}</strong>
+          <strong style="color: #ffffff;">${escapeHtml(email)}</strong>
         </div>
 
         <div style="font-size: 13px;">
           <span style="color: #89aca0;">Temporary Password: </span>
-          <code style="background: rgba(77, 255, 160, 0.12); color: #4dffa0; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; font-weight: 700;">${rawPassword}</code>
+          <code style="background: rgba(77, 255, 160, 0.12); color: #4dffa0; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; font-weight: 700;">${escapeHtml(rawPassword)}</code>
         </div>
       </div>
 
       <!-- Action Button -->
       <div style="margin-bottom: 24px;">
-        <a href="${loginUrl}" style="background-color: #4dffa0; color: #001a0e; padding: 12px 26px; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; display: inline-block;">
+        <a href="${escapeHtml(loginUrl)}" style="background-color: #4dffa0; color: #001a0e; padding: 12px 26px; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; display: inline-block;">
           Sign In to Your Account
         </a>
       </div>
@@ -175,7 +172,7 @@ export async function sendPasswordResetNoticeEmail(params: {
   ).replace(/\/+$/, '');
   const loginUrl = `${baseUrl}/login?mode=login`;
   const fromName = process.env.DEFAULT_FROM_EMAIL || 'FLOXA';
-  const fromAddress = (process.env.EMAIL_HOST_USER || 'contactmiscarchive@gmail.com').trim();
+  const fromAddress = (process.env.EMAIL_HOST_USER || '').trim();
 
   const subject = `FLOXA Account — Password Updated by Administrator`;
 
@@ -204,7 +201,7 @@ The FLOXA Team`;
       </h3>
 
       <p style="margin: 0 0 18px 0; font-size: 14px; line-height: 1.6; color: #b4cfc4;">
-        Hello <strong>${name || 'there'}</strong>,
+        Hello <strong>${escapeHtml(name || 'there')}</strong>,
       </p>
 
       <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #b4cfc4;">
@@ -214,22 +211,22 @@ The FLOXA Team`;
       <div style="background: rgba(2, 14, 9, 0.75); border: 1px solid rgba(77, 255, 160, 0.25); border-radius: 8px; padding: 18px 20px; margin-bottom: 24px;">
         <div style="margin-bottom: 10px; font-size: 13px;">
           <span style="color: #89aca0;">Login Portal: </span>
-          <a href="${loginUrl}" style="color: #4dffa0; text-decoration: underline;">${loginUrl}</a>
+          <a href="${escapeHtml(loginUrl)}" style="color: #4dffa0; text-decoration: underline;">${escapeHtml(loginUrl)}</a>
         </div>
 
         <div style="margin-bottom: 10px; font-size: 13px;">
           <span style="color: #89aca0;">Email Address: </span>
-          <strong style="color: #ffffff;">${email}</strong>
+          <strong style="color: #ffffff;">${escapeHtml(email)}</strong>
         </div>
 
         <div style="font-size: 13px;">
           <span style="color: #89aca0;">New Password: </span>
-          <code style="background: rgba(77, 255, 160, 0.12); color: #4dffa0; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; font-weight: 700;">${rawPassword}</code>
+          <code style="background: rgba(77, 255, 160, 0.12); color: #4dffa0; padding: 3px 8px; border-radius: 4px; font-family: monospace; font-size: 14px; font-weight: 700;">${escapeHtml(rawPassword)}</code>
         </div>
       </div>
 
       <div style="margin-bottom: 24px;">
-        <a href="${loginUrl}" style="background-color: #4dffa0; color: #001a0e; padding: 12px 26px; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; display: inline-block;">
+        <a href="${escapeHtml(loginUrl)}" style="background-color: #4dffa0; color: #001a0e; padding: 12px 26px; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 14px; display: inline-block;">
           Sign In Now
         </a>
       </div>

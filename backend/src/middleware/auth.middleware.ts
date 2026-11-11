@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { ENV } from '../config/env.js';
-import { Consultant } from '../models/consultant.model.js';
 import { Project } from '../models/project.model.js';
+import { resolveAuthenticatedConsultant } from '../services/auth.service.js';
 import type { AuthenticatedRequest } from '../types/express.js';
 export type { AuthenticatedRequest };
 
@@ -21,28 +20,14 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
     return next();
   }
 
-  try {
-    const payload = jwt.verify(token, ENV.JWT_ACCESS_SECRET) as { userId: string; tokenVersion?: number };
-    if (payload && payload.userId) {
-      Consultant.findById(payload.userId)
-        .then((user) => {
-          if (
-            user &&
-            user.isActive &&
-            (payload.tokenVersion === undefined || user.tokenVersion === undefined || payload.tokenVersion === user.tokenVersion)
-          ) {
-            req.user = user;
-          }
-          next();
-        })
-        .catch(() => next());
-      return;
-    }
-  } catch {
-    // Token invalid or expired
-  }
-
-  next();
+  resolveAuthenticatedConsultant(token)
+    .then(({ user }) => {
+      if (user) {
+        req.user = user;
+      }
+      next();
+    })
+    .catch(() => next());
 }
 
 export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -60,45 +45,19 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     return;
   }
 
-  try {
-    const payload = jwt.verify(token, ENV.JWT_ACCESS_SECRET) as { userId: string; tokenVersion?: number };
-    if (!payload || !payload.userId) {
-      res.status(401).json({ detail: 'Given token not valid for any token type' });
-      return;
-    }
+  resolveAuthenticatedConsultant(token)
+    .then(({ user, errorStatus, errorBody }) => {
+      if (!user) {
+        res.status(errorStatus || 401).json(errorBody || { detail: 'User not found or inactive.' });
+        return;
+      }
 
-    Consultant.findById(payload.userId)
-      .then((user) => {
-        if (!user || !user.isActive) {
-          if (user && user.isSuspended) {
-            res.status(403).json({
-              detail: 'Your consultant account has been suspended due to milestone deadline violations. Please contact SuperAdmin.',
-              code: 'ACCOUNT_SUSPENDED_DEADLINE_BREACH',
-            });
-            return;
-          }
-          res.status(401).json({ detail: 'User not found or inactive.' });
-          return;
-        }
-
-        if (
-          payload.tokenVersion !== undefined &&
-          user.tokenVersion !== undefined &&
-          payload.tokenVersion !== user.tokenVersion
-        ) {
-          res.status(401).json({ detail: 'Given token not valid for any token type', code: 'token_not_valid' });
-          return;
-        }
-
-        req.user = user;
-        next();
-      })
-      .catch(() => {
-        res.status(500).json({ detail: 'Database error during authentication.' });
-      });
-  } catch (err) {
-    res.status(401).json({ detail: 'Given token not valid for any token type', code: 'token_not_valid' });
-  }
+      req.user = user;
+      next();
+    })
+    .catch(() => {
+      res.status(500).json({ detail: 'Database error during authentication.' });
+    });
 }
 
 export async function requireProjectOwnership(req: AuthenticatedRequest, res: Response, next: NextFunction) {

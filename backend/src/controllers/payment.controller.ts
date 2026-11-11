@@ -8,6 +8,7 @@ import { completePaymentMilestone, PaymentCompletionError } from '../services/pa
 import { verifyWebhookSignature, verifyWebhookSignatureWithSecret } from '../services/razorpay.service.js';
 import { serializePaymentMilestone } from '../utils/serializer.js';
 import { ENV } from '../config/env.js';
+import { decryptSecret } from '../utils/crypto.js';
 
 export async function getMilestones(req: Request<{ id: string }>, res: Response, next: NextFunction) {
   try {
@@ -42,21 +43,21 @@ export async function createMilestones(req: Request<{ id: string }>, res: Respon
 
     for (const item of defaults) {
       const amount = (val * item.pct) / 100;
-      await PaymentMilestone.findOneAndUpdate(
-        { projectId: id, type: item.type },
-        {
-          $set: {
-            percentage: item.pct,
-            amount,
-          },
-          $setOnInsert: {
-            projectId: id,
-            type: item.type,
-            status: item.status,
-          },
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
+      const existingMilestone = await PaymentMilestone.findOne({ projectId: id, type: item.type });
+      if (!existingMilestone) {
+        await PaymentMilestone.create({
+          projectId: id,
+          type: item.type,
+          percentage: item.pct,
+          amount,
+          status: item.status,
+        });
+      } else if (['locked', 'ready'].includes(existingMilestone.status)) {
+        // Never overwrite amounts/percentages of requested or already-paid milestones
+        existingMilestone.percentage = item.pct;
+        existingMilestone.amount = amount;
+        await existingMilestone.save();
+      }
     }
 
     await recalculatePaymentMilestones(id);
@@ -202,15 +203,18 @@ export async function handleRazorpayWebhook(
   const orderId = paymentEntity?.order_id || orderEntity?.id || '';
 
   let webhookSecret = (ENV.RAZORPAY_WEBHOOK_SECRET || '').trim();
+  let isConsultantWebhook = false;
 
   if (orderId) {
     const transaction = await PaymentTransaction.findOne({ razorpayOrderId: orderId }).populate({
       path: 'project',
       populate: { path: 'consultant' },
     });
-    const consultantSecret = (transaction?.project as any)?.consultant?.integrations?.razorpayWebhookSecret;
-    if (consultantSecret && typeof consultantSecret === 'string' && consultantSecret.trim().length > 0) {
-      webhookSecret = consultantSecret.trim();
+    const rawConsultantSecret = (transaction?.project as any)?.consultant?.integrations?.razorpayWebhookSecret;
+    const consultantSecret = decryptSecret(rawConsultantSecret);
+    if (consultantSecret && consultantSecret.length > 0) {
+      webhookSecret = consultantSecret;
+      isConsultantWebhook = true;
     }
   }
 
@@ -218,7 +222,8 @@ export async function handleRazorpayWebhook(
   if (webhookSecret) {
     isSignatureValid = verifyWebhookSignatureWithSecret(rawBody, signature, webhookSecret);
   }
-  if (!isSignatureValid && ENV.RAZORPAY_WEBHOOK_SECRET && ENV.RAZORPAY_WEBHOOK_SECRET !== webhookSecret) {
+  // Never fall back to platform webhook secret if this order belongs to a consultant with their own webhook secret
+  if (!isSignatureValid && !isConsultantWebhook && ENV.RAZORPAY_WEBHOOK_SECRET && ENV.RAZORPAY_WEBHOOK_SECRET !== webhookSecret) {
     isSignatureValid = verifyWebhookSignatureWithSecret(rawBody, signature, ENV.RAZORPAY_WEBHOOK_SECRET);
   }
 
@@ -237,15 +242,8 @@ export async function handleRazorpayWebhook(
     return;
   }
 
-  const existing = await RazorpayWebhookEvent.findOne({ razorpayEventId: eventId });
-  if (existing && ['processed', 'ignored'].includes(existing.processingStatus)) {
-    res.status(200).json({ detail: 'Webhook already handled.' });
-    return;
-  }
-
-  let eventRecord;
   try {
-    eventRecord = await RazorpayWebhookEvent.findOneAndUpdate(
+    await RazorpayWebhookEvent.findOneAndUpdate(
       { razorpayEventId: eventId },
       {
         $setOnInsert: {
@@ -259,11 +257,29 @@ export async function handleRazorpayWebhook(
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
-  } catch {
-    eventRecord = await RazorpayWebhookEvent.findOne({ razorpayEventId: eventId });
+  } catch (err: any) {
+    // Ignore duplicate key error when concurrent webhook attempts upsert simultaneously
+    if (err?.code !== 11000) throw err;
   }
 
-  if (eventRecord && ['processed', 'ignored'].includes(eventRecord.processingStatus)) {
+  // Atomically claim the event for processing to prevent parallel duplicate executions
+  const eventRecord = await RazorpayWebhookEvent.findOneAndUpdate(
+    {
+      razorpayEventId: eventId,
+      processingStatus: { $in: ['received', 'failed'] },
+    },
+    {
+      $set: {
+        processingStatus: 'processing',
+        eventType,
+        paymentId,
+        orderId,
+      },
+    },
+    { new: true }
+  );
+
+  if (!eventRecord) {
     res.status(200).json({ detail: 'Webhook already handled.' });
     return;
   }

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Project, IProject } from '../models/project.model.js';
 import { BrandDNA } from '../models/brandDNA.model.js';
 import { Consultant } from '../models/consultant.model.js';
@@ -8,6 +9,19 @@ import { ProjectAgreement } from '../models/agreement.model.js';
 import { PaymentMilestone } from '../models/paymentMilestone.model.js';
 import { Deliverable } from '../models/deliverable.model.js';
 import { logProjectActivity } from './project.service.js';
+import { disconnectConsultantSockets } from '../websocket/socketServer.js';
+
+const schedulerLockSchema = new mongoose.Schema(
+  {
+    _id: { type: String, required: true },
+    lockedUntil: { type: Date, default: null },
+    owner: { type: String, default: '' },
+  },
+  { collection: 'scheduler_locks', versionKey: false }
+);
+
+const SchedulerLock =
+  mongoose.models.SchedulerLock || mongoose.model('SchedulerLock', schedulerLockSchema);
 
 export interface ClientWaitStatus {
   awaitingClient: boolean;
@@ -73,9 +87,12 @@ export async function isProjectAwaitingClientAction(project: any): Promise<Clien
     };
   }
 
-  // 6. Waiting for client concept approval (consultant has shared concept(s), client has not approved)
-  const sharedConcepts = await Concept.find({ projectId, status: 'shared' });
-  if (sharedConcepts.length > 0 && !sharedConcepts.some((c) => c.status === 'approved')) {
+  // 6. Waiting for client concept approval (consultant has shared concept(s), none approved yet)
+  const [sharedConceptsCount, approvedConceptsCount] = await Promise.all([
+    Concept.countDocuments({ projectId, status: 'shared' }),
+    Concept.countDocuments({ projectId, status: 'approved' }),
+  ]);
+  if (sharedConceptsCount > 0 && approvedConceptsCount === 0) {
     return {
       awaitingClient: true,
       reason: 'awaiting_concept_approval',
@@ -258,7 +275,38 @@ export async function onBrandDnaCompleted(projectId: string): Promise<void> {
  * strictly excluding all verified client-wait duration.
  */
 export async function checkAndEscalateDeadlines(currentTime?: number): Promise<void> {
+  const lockOwner = `${process.pid}-${Math.random().toString(36).slice(2, 10)}`;
+  const nowDate = new Date();
+  let lockAcquired = false;
+
   try {
+    try {
+      const lock = await SchedulerLock.findOneAndUpdate(
+        {
+          _id: 'sla_deadline_check',
+          $or: [{ lockedUntil: null }, { lockedUntil: { $lte: nowDate } }],
+        },
+        {
+          $set: {
+            lockedUntil: new Date(nowDate.getTime() + 4 * 60 * 1000),
+            owner: lockOwner,
+          },
+        },
+        { upsert: true, new: true }
+      );
+      lockAcquired = Boolean(lock && lock.owner === lockOwner);
+    } catch (lockErr: any) {
+      // E11000 duplicate key means another worker won the lock race simultaneously
+      if (lockErr?.code === 11000) {
+        return;
+      }
+      throw lockErr;
+    }
+
+    if (!lockAcquired) {
+      return;
+    }
+
     const activeProjects = await Project.find({
       isArchived: false,
       status: { $nin: ['delivered', 'archived'] },
@@ -332,14 +380,17 @@ export async function checkAndEscalateDeadlines(currentTime?: number): Promise<v
       const hasBrandDNA = await BrandDNA.findOne({ projectId: proj._id });
       const targetDeliverable = hasBrandDNA ? 'project deliverables' : 'Brand DNA';
 
-      // 5. Timeline Evaluation & Warning Escalation
+      // 5. Timeline Evaluation & Atomic Idempotent Warning Escalation
       if (hoursOverdue >= 96) {
         // Flag 4: Automatic Consultant Account Suspension (96h overdue)
-        if (proj.deadlineFlagsCount === 4) {
-          continue; // Already suspended, avoid repeated suspension
+        const claimed = await Project.findOneAndUpdate(
+          { _id: proj._id, deadlineFlagsCount: { $lt: 4 } },
+          { $set: { deadlineFlagsCount: 4, deadlineBreached: true } },
+          { new: true }
+        );
+        if (!claimed) {
+          continue; // Already escalated to 4
         }
-
-        await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: 4, deadlineBreached: true } });
 
         const consultant = await Consultant.findById(proj.consultantId);
         if (consultant && (consultant.isActive || !consultant.isSuspended)) {
@@ -353,15 +404,16 @@ export async function checkAndEscalateDeadlines(currentTime?: number): Promise<v
             consultant.subscription.status = 'suspended';
           }
           await consultant.save();
+          disconnectConsultantSockets(consultant.id, 4001, 'Account suspended due to SLA breach');
         }
 
         const actionName = 'account_suspended_deadline_breach';
-        const recentNotif = await ProjectActivity.findOne({
+        const existingNotif = await ProjectActivity.findOne({
           projectId: proj._id,
           action: actionName,
         });
 
-        if (!recentNotif) {
+        if (!existingNotif) {
           await logProjectActivity({
             projectId: proj._id.toString(),
             consultantId,
@@ -377,81 +429,75 @@ export async function checkAndEscalateDeadlines(currentTime?: number): Promise<v
         const actionName = 'deadline_warning_3';
         const description = `🛑 Warning 3 - Final Notice (72h Overdue): Project '${title}' is 3 days past committed deadline. This is your final grace day. Your consultant account will be AUTOMATICALLY SUSPENDED in 24 hours if ${targetDeliverable} is not delivered.`;
 
-        if (proj.deadlineFlagsCount !== targetFlag) {
-          await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: targetFlag } });
-        }
+        const claimed = await Project.findOneAndUpdate(
+          { _id: proj._id, deadlineFlagsCount: { $lt: targetFlag } },
+          { $set: { deadlineFlagsCount: targetFlag } },
+          { new: true }
+        );
+        if (!claimed) continue;
 
-        const recentNotif = await ProjectActivity.findOne({
-          projectId: proj._id,
+        await logProjectActivity({
+          projectId: proj._id.toString(),
+          consultantId,
+          actorType: 'system',
           action: actionName,
-          createdAt: { $gte: new Date(now - 24 * 60 * 60 * 1000) },
+          description,
+          visibleToClient: false,
         });
-
-        if (!recentNotif) {
-          await logProjectActivity({
-            projectId: proj._id.toString(),
-            consultantId,
-            actorType: 'system',
-            action: actionName,
-            description,
-            visibleToClient: false,
-          });
-        }
       } else if (hoursOverdue >= 48) {
         // Warning 2 (48h to 71h overdue)
         const targetFlag = 2;
         const actionName = 'deadline_warning_2';
         const description = `🚨 Warning 2 (48h Overdue): Project '${title}' is 2 days past committed deadline. Failure to deliver within the remaining grace period will result in automatic account suspension.`;
 
-        if (proj.deadlineFlagsCount !== targetFlag) {
-          await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: targetFlag } });
-        }
+        const claimed = await Project.findOneAndUpdate(
+          { _id: proj._id, deadlineFlagsCount: { $lt: targetFlag } },
+          { $set: { deadlineFlagsCount: targetFlag } },
+          { new: true }
+        );
+        if (!claimed) continue;
 
-        const recentNotif = await ProjectActivity.findOne({
-          projectId: proj._id,
+        await logProjectActivity({
+          projectId: proj._id.toString(),
+          consultantId,
+          actorType: 'system',
           action: actionName,
-          createdAt: { $gte: new Date(now - 24 * 60 * 60 * 1000) },
+          description,
+          visibleToClient: false,
         });
-
-        if (!recentNotif) {
-          await logProjectActivity({
-            projectId: proj._id.toString(),
-            consultantId,
-            actorType: 'system',
-            action: actionName,
-            description,
-            visibleToClient: false,
-          });
-        }
       } else if (hoursOverdue >= 24) {
         // Warning 1 (24h to 47h overdue)
         const targetFlag = 1;
         const actionName = 'deadline_warning_1';
         const description = `⚠️ Warning 1 (24h Overdue): Project '${title}' passed its committed delivery deadline yesterday. Please deliver ${targetDeliverable} promptly to avoid warning escalation and automatic account suspension.`;
 
-        if (proj.deadlineFlagsCount !== targetFlag) {
-          await Project.findByIdAndUpdate(proj._id, { $set: { deadlineFlagsCount: targetFlag } });
-        }
+        const claimed = await Project.findOneAndUpdate(
+          { _id: proj._id, deadlineFlagsCount: { $lt: targetFlag } },
+          { $set: { deadlineFlagsCount: targetFlag } },
+          { new: true }
+        );
+        if (!claimed) continue;
 
-        const recentNotif = await ProjectActivity.findOne({
-          projectId: proj._id,
+        await logProjectActivity({
+          projectId: proj._id.toString(),
+          consultantId,
+          actorType: 'system',
           action: actionName,
-          createdAt: { $gte: new Date(now - 24 * 60 * 60 * 1000) },
+          description,
+          visibleToClient: false,
         });
-
-        if (!recentNotif) {
-          await logProjectActivity({
-            projectId: proj._id.toString(),
-            consultantId,
-            actorType: 'system',
-            action: actionName,
-            description,
-            visibleToClient: false,
-          });
-        }
       }
     }
   } catch (err) {
     console.error('Error running checkAndEscalateDeadlines:', err);
+  } finally {
+    if (lockAcquired) {
+      try {
+        await SchedulerLock.updateOne(
+          { _id: 'sla_deadline_check', owner: lockOwner },
+          { $set: { lockedUntil: null, owner: '' } }
+        );
+      } catch {}
+    }
   }
 }

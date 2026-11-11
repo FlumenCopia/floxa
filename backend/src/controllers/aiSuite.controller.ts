@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import mongoose from 'mongoose';
 import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import { Consultant } from '../models/consultant.model.js';
 import { Project } from '../models/project.model.js';
@@ -8,6 +9,7 @@ import {
   generateAiProposal,
 } from '../services/gemini.service.js';
 import { ENV } from '../config/env.js';
+import { decryptSecret } from '../utils/crypto.js';
 
 export const ACTIVE_SUITE_TOOLS = [
   'proposal-generator',
@@ -52,8 +54,8 @@ export async function runAiSuiteTool(req: AuthenticatedRequest, res: Response) {
     const projectId = String(req.body?.projectId || '').trim();
     const toolId = String(req.body?.toolId || '').trim();
 
-    if (!projectId) {
-      res.status(400).json({ detail: 'Project ID is required.' });
+    if (!projectId || !mongoose.isValidObjectId(projectId)) {
+      res.status(400).json({ detail: 'Valid Project ID is required.' });
       return;
     }
 
@@ -83,7 +85,7 @@ export async function runAiSuiteTool(req: AuthenticatedRequest, res: Response) {
       return;
     }
 
-    const consultantApiKey = consultant.integrations?.geminiApiKey;
+    const consultantApiKey = decryptSecret(consultant.integrations?.geminiApiKey);
     const hasOwnKey = Boolean(consultantApiKey && consultantApiKey.trim().length > 0);
     const hasPlatformKey = Boolean(ENV.GEMINI_API_KEY && ENV.GEMINI_API_KEY.trim().length > 0);
 
@@ -97,53 +99,103 @@ export async function runAiSuiteTool(req: AuthenticatedRequest, res: Response) {
 
     const plan = consultant.aiUsage?.plan || 'free';
     const isPro = plan === 'pro' || hasOwnKey;
-    const toolRuns = (consultant.aiUsage?.toolRuns || {}) as Record<string, number>;
-    const currentRuns = Number(toolRuns[toolId] || 0);
+    const runsField = `aiUsage.toolRuns.${toolId}`;
 
-    if (!isPro && currentRuns >= FREE_TRIAL_LIMIT_PER_TOOL) {
-      res.status(403).json({
-        code: 'TRIAL_LIMIT_REACHED',
-        detail: `You have completed your ${FREE_TRIAL_LIMIT_PER_TOOL} free runs for this suite. Configure your own Gemini API Key in Settings or upgrade to Floxa Pro to unlock unlimited AI generations.`,
-        toolId,
-        runsUsed: currentRuns,
-        freeLimit: FREE_TRIAL_LIMIT_PER_TOOL,
-      });
-      return;
-    }
+    let reservedType: 'none' | 'trial' | 'bonus' = 'none';
+    let updatedConsultant: any = consultant.toObject();
 
-    // Run the corresponding AI generator with customApiKey if configured
-    let output = '';
-    let isInsufficient = false;
-
-    if (toolId === 'moodboard-directions') {
-      const res = await generateAiMoodboardDirections(projectId, consultantApiKey);
-      output = res.text;
-      isInsufficient = res.isInsufficient;
-    } else if (toolId === 'enhance-brand-dna') {
-      const res = await generateAiBrandDNAOverview(projectId, consultantApiKey);
-      output = res.text;
-      isInsufficient = res.isInsufficient;
-    } else if (toolId === 'proposal-generator') {
-      const res = await generateAiProposal(projectId, consultantApiKey);
-      output = res.text;
-      isInsufficient = res.isInsufficient;
-    }
-
-    // Only increment usage count if real, valid generation occurred (don't penalize user for incomplete input)
-    let newRuns = currentRuns;
-    if (!isInsufficient) {
-      const updatedConsultant = await Consultant.findByIdAndUpdate(
-        user._id,
-        { $inc: { [`aiUsage.toolRuns.${toolId}`]: 1 } },
+    if (!isPro) {
+      // Atomic slot reservation prevents TOCTOU race conditions on concurrent requests
+      const reservedTrial = await Consultant.findOneAndUpdate(
+        {
+          _id: user._id,
+          $or: [
+            { [runsField]: { $exists: false } },
+            { [runsField]: { $lt: FREE_TRIAL_LIMIT_PER_TOOL } },
+          ],
+        },
+        { $inc: { [runsField]: 1 } },
         { new: true }
       ).lean();
 
-      const updatedRuns = (updatedConsultant?.aiUsage?.toolRuns || {}) as Record<string, number>;
-      newRuns = Number(updatedRuns[toolId] || currentRuns + 1);
+      if (reservedTrial) {
+        reservedType = 'trial';
+        updatedConsultant = reservedTrial;
+      } else {
+        const reservedBonus = await Consultant.findOneAndUpdate(
+          {
+            _id: user._id,
+            'aiUsage.bonusCredits': { $gt: 0 },
+          },
+          { $inc: { 'aiUsage.bonusCredits': -1, [runsField]: 1 } },
+          { new: true }
+        ).lean();
+
+        if (reservedBonus) {
+          reservedType = 'bonus';
+          updatedConsultant = reservedBonus;
+        } else {
+          const currentRuns = Number(((consultant.aiUsage?.toolRuns || {}) as Record<string, number>)[toolId] || 0);
+          res.status(403).json({
+            code: 'TRIAL_LIMIT_REACHED',
+            detail: `You have completed your ${FREE_TRIAL_LIMIT_PER_TOOL} free runs for this suite. Configure your own Gemini API Key in Settings or upgrade to Floxa Pro to unlock unlimited AI generations.`,
+            toolId,
+            runsUsed: currentRuns,
+            freeLimit: FREE_TRIAL_LIMIT_PER_TOOL,
+          });
+          return;
+        }
+      }
     }
 
-    const runsRemaining = isPro ? 'unlimited' : Math.max(0, FREE_TRIAL_LIMIT_PER_TOOL - newRuns);
-    const isLocked = !isPro && newRuns >= FREE_TRIAL_LIMIT_PER_TOOL;
+    let output = '';
+    let isInsufficient = false;
+
+    try {
+      if (toolId === 'moodboard-directions') {
+        const result = await generateAiMoodboardDirections(projectId, consultantApiKey);
+        output = result.text;
+        isInsufficient = result.isInsufficient;
+      } else if (toolId === 'enhance-brand-dna') {
+        const result = await generateAiBrandDNAOverview(projectId, consultantApiKey);
+        output = result.text;
+        isInsufficient = result.isInsufficient;
+      } else if (toolId === 'proposal-generator') {
+        const result = await generateAiProposal(projectId, consultantApiKey);
+        output = result.text;
+        isInsufficient = result.isInsufficient;
+      }
+    } catch (genErr) {
+      if (reservedType === 'trial') {
+        await Consultant.updateOne({ _id: user._id }, { $inc: { [runsField]: -1 } });
+      } else if (reservedType === 'bonus') {
+        await Consultant.updateOne({ _id: user._id }, { $inc: { 'aiUsage.bonusCredits': 1, [runsField]: -1 } });
+      }
+      throw genErr;
+    }
+
+    if (isInsufficient && reservedType !== 'none') {
+      // Do not charge quota if generation could not run due to insufficient project input
+      const rollbackInc: Record<string, number> = { [runsField]: -1 };
+      if (reservedType === 'bonus') rollbackInc['aiUsage.bonusCredits'] = 1;
+      updatedConsultant = await Consultant.findByIdAndUpdate(
+        user._id,
+        { $inc: rollbackInc },
+        { new: true }
+      ).lean();
+    } else if (isPro && !isInsufficient) {
+      updatedConsultant = await Consultant.findByIdAndUpdate(
+        user._id,
+        { $inc: { [runsField]: 1 } },
+        { new: true }
+      ).lean();
+    }
+
+    const updatedRuns = (updatedConsultant?.aiUsage?.toolRuns || {}) as Record<string, number>;
+    const newRuns = Math.max(0, Number(updatedRuns[toolId] || 0));
+    const bonusRemaining = Number(updatedConsultant?.aiUsage?.bonusCredits || 0);
+    const runsRemaining = isPro ? 'unlimited' : Math.max(0, FREE_TRIAL_LIMIT_PER_TOOL - newRuns) + bonusRemaining;
+    const isLocked = !isPro && newRuns >= FREE_TRIAL_LIMIT_PER_TOOL && bonusRemaining <= 0;
 
     res.json({
       success: true,

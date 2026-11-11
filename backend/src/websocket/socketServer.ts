@@ -5,10 +5,10 @@ import fs from 'fs';
 import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage, Server } from 'http';
 import url from 'url';
-import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { Consultant, Project, ProjectDiscovery, ProjectActivity, Moodboard, Concept, ChatMessage } from '../models/index.js';
 import { ENV } from '../config/env.js';
+import { resolveAuthenticatedConsultant } from '../services/auth.service.js';
 import { logProjectActivity, onActivityCreated } from '../services/project.service.js';
 import { serializeProjectActivity, serializeClientPortalActivity } from '../utils/serializer.js';
 import { unsignPortalAccessToken } from '../utils/crypto.js';
@@ -153,15 +153,12 @@ function parseCookies(cookieHeader?: string): Record<string, string> {
   return list;
 }
 
-function verifyConsultantToken(rawToken?: string): string | null {
+async function authenticateConsultantWs(rawToken?: string) {
   if (!rawToken || rawToken === 'active') return null;
-  try {
-    const cleanToken = rawToken.startsWith('Bearer ') ? rawToken.slice(7).trim() : rawToken;
-    const payload = jwt.verify(cleanToken, ENV.JWT_ACCESS_SECRET) as { userId?: string; id?: string };
-    return payload.userId || payload.id || null;
-  } catch {
-    return null;
-  }
+  const cleanToken = rawToken.startsWith('Bearer ') ? rawToken.slice(7).trim() : rawToken.trim();
+  if (!cleanToken) return null;
+  const { user } = await resolveAuthenticatedConsultant(cleanToken);
+  return user;
 }
 
 /**
@@ -362,15 +359,33 @@ export function broadcastProjectRead(projectId: string, consultantId?: string) {
         cws.send(payload);
       }
     });
-  } else {
-    consultantSockets.forEach((sockets) => {
-      sockets.forEach((cws) => {
-        if (cws.readyState === WebSocket.OPEN) {
-          cws.send(payload);
-        }
-      });
-    });
   }
+}
+
+/**
+ * Terminates all active WebSocket connections for a consultant (on password reset or suspension).
+ */
+export function disconnectConsultantSockets(consultantId: string, code = 4001, reason = 'Session revoked') {
+  const id = String(consultantId);
+  const direct = consultantSockets.get(id);
+  if (direct) {
+    direct.forEach((cws) => {
+      try {
+        cws.close(code, reason);
+      } catch {}
+    });
+    consultantSockets.delete(id);
+  }
+
+  projectSockets.forEach((conns) => {
+    conns.forEach((c) => {
+      if (c.role === 'consultant' && c.consultantId === id) {
+        try {
+          c.ws.close(code, reason);
+        } catch {}
+      }
+    });
+  });
 }
 
 /**
@@ -474,9 +489,10 @@ export function setupWebSocketServer(server: Server) {
           cookies['jwt'];
       }
 
-      const consultantId = verifyConsultantToken(rawToken);
+      const consultant = await authenticateConsultantWs(rawToken);
+      const consultantId = consultant ? String(consultant.id) : null;
 
-      if (!consultantId) {
+      if (!consultantId || !consultant) {
         ws.send(
           JSON.stringify({
             type: 'ERROR',
@@ -502,19 +518,6 @@ export function setupWebSocketServer(server: Server) {
           ws.close(4001);
           return;
         }
-      }
-
-      const consultant = await Consultant.findById(consultantId);
-
-      if (!consultant || !consultant.isActive) {
-        ws.send(
-          JSON.stringify({
-            type: 'ERROR',
-            message: 'Authentication credentials required. Connection rejected.',
-          })
-        );
-        ws.close(4001);
-        return;
       }
 
       if (!consultantSockets.has(consultantId)) {
@@ -693,6 +696,13 @@ export function setupWebSocketServer(server: Server) {
             const isTyping = Boolean(content.isTyping);
             if (!projectId || !mongoose.isValidObjectId(projectId)) return;
 
+            const ownsProject = await Project.exists({
+              _id: projectId,
+              consultantId: consultant.id,
+              isArchived: false,
+            });
+            if (!ownsProject) return;
+
             const typingPayload = JSON.stringify({
               type: 'CHAT_TYPING',
               projectId,
@@ -708,6 +718,13 @@ export function setupWebSocketServer(server: Server) {
           } else if (content.type === 'CHAT_MESSAGES_READ') {
             const projectId = content.projectId || content.project_id;
             if (!projectId || !mongoose.isValidObjectId(projectId)) return;
+
+            const ownsProject = await Project.exists({
+              _id: projectId,
+              consultantId: consultant.id,
+              isArchived: false,
+            });
+            if (!ownsProject) return;
 
             const now = new Date();
             await ChatMessage.updateMany(
@@ -735,9 +752,16 @@ export function setupWebSocketServer(server: Server) {
             });
           } else if (content.type === 'PROJECT_READ') {
             const projectId = content.projectId || content.project_id;
-            if (projectId) {
-              broadcastProjectRead(String(projectId), consultant.id);
-            }
+            if (!projectId || !mongoose.isValidObjectId(projectId)) return;
+
+            const ownsProject = await Project.exists({
+              _id: projectId,
+              consultantId: consultant.id,
+              isArchived: false,
+            });
+            if (!ownsProject) return;
+
+            broadcastProjectRead(String(projectId), consultant.id);
           }
         } catch {}
       });
@@ -783,14 +807,17 @@ export function setupWebSocketServer(server: Server) {
 
     // Only authenticate as consultant if explicitly requested via query parameter
     // This prevents client portal tabs from being misclassified as consultants due to background cookies
-    const explicitConsultantToken =
-      (query.consultant_token as string) ||
-      (query.role === 'consultant' ? (query.token as string) : null) ||
-      (query.mode === 'consultant' ? (query.token as string) : null);
+    const wantsConsultantRole =
+      Boolean(query.consultant_token) ||
+      query.role === 'consultant' ||
+      query.mode === 'consultant';
 
-    if (explicitConsultantToken) {
-      let rawToken = explicitConsultantToken;
-      if (rawToken === 'active') {
+    if (wantsConsultantRole) {
+      let rawToken =
+        (query.consultant_token as string) ||
+        (query.token as string) ||
+        '';
+      if (!rawToken || rawToken === 'active') {
         rawToken =
           cookies[ENV.AUTH_ACCESS_COOKIE_NAME] ||
           cookies['floxa_access'] ||
@@ -798,32 +825,38 @@ export function setupWebSocketServer(server: Server) {
           cookies['jwt'] ||
           '';
       }
-      consultantId = verifyConsultantToken(rawToken);
-      if (consultantId) {
-        const ownerId = String(project.consultantId || '');
-        if (consultantId !== ownerId) {
-          ws.send(JSON.stringify({ type: 'ERROR', message: 'Permission denied' }));
-          ws.close(4003);
-          return;
-        }
-        role = 'consultant';
+      const consultant = await authenticateConsultantWs(rawToken);
+      if (!consultant) {
+        ws.send(JSON.stringify({ type: 'ERROR', message: 'Consultant authentication failed.' }));
+        ws.close(4001);
+        return;
       }
+
+      consultantId = String(consultant.id);
+      const ownerId = String(project.consultantId || '');
+      if (consultantId !== ownerId) {
+        ws.send(JSON.stringify({ type: 'ERROR', message: 'Permission denied' }));
+        ws.close(4003);
+        return;
+      }
+      role = 'consultant';
     }
 
-    // If client, verify portal password access credentials if project is password-protected
+    // If client, verify portal password access credentials if project is password-protected (FAIL CLOSED)
     if (role === 'client' && project.portalPasswordHash) {
       const signedAccess =
         cookies[ENV.PORTAL_ACCESS_COOKIE_NAME] ||
         (query.portal_access_token as string) ||
         (query.access_token as string);
 
-      if (signedAccess) {
-        const verified = unsignPortalAccessToken(signedAccess, ENV.PORTAL_ACCESS_MAX_AGE);
-        if (verified && verified !== portalToken) {
-          ws.send(JSON.stringify({ type: 'ERROR', message: 'Portal password verification required' }));
-          ws.close(4003);
-          return;
-        }
+      const verified = signedAccess
+        ? unsignPortalAccessToken(String(signedAccess), ENV.PORTAL_ACCESS_MAX_AGE)
+        : null;
+
+      if (!verified || verified !== portalToken) {
+        ws.send(JSON.stringify({ type: 'ERROR', message: 'Portal password verification required' }));
+        ws.close(4003);
+        return;
       }
     }
 
@@ -1116,11 +1149,9 @@ export function setupWebSocketServer(server: Server) {
 
         // 2b. PROJECT READ
         else if (msgType === 'PROJECT_READ') {
-          const pId = content.projectId || content.project_id || currentProjectId;
+          if (role !== 'consultant') return;
           const projectConsId = String(currentProject?.consultantId || '');
-          if (pId) {
-            broadcastProjectRead(String(pId), projectConsId);
-          }
+          broadcastProjectRead(currentProjectId, projectConsId);
         }
 
         // 3. FIELD SYNC (CO-EDITING)
@@ -1227,8 +1258,9 @@ export function setupWebSocketServer(server: Server) {
 
         // 5. CONSULTANT JOINED ANNOUNCEMENT
         else if (msgType === 'CONSULTANT_JOINED') {
+          if (role !== 'consultant') return;
           let consultantName = 'Consultant';
-          if (role === 'consultant' && consultantId) {
+          if (consultantId) {
             const cons = await Consultant.findById(consultantId);
             if (cons) consultantName = cons.name || cons.email;
           }
@@ -1343,12 +1375,13 @@ export function setupWebSocketServer(server: Server) {
           if ((!text && !mediaUrl) || text.length > 5000) return;
 
           const consId = String(currentProject.consultantId || '');
-          const isExplicitConsultant = content.senderRole === 'consultant' || Boolean(query.consultant_token);
-          const senderRole: 'client' | 'consultant' = isExplicitConsultant ? 'consultant' : 'client';
-          const senderName =
-            senderRole === 'consultant'
-              ? (content.senderName || 'Consultant')
-              : (currentProject.clientName || 'Client');
+          // Bind senderRole strictly to the authenticated socket role (never trust client-supplied senderRole)
+          const senderRole: 'client' | 'consultant' = role;
+          let senderName = currentProject.clientName || 'Client';
+          if (senderRole === 'consultant') {
+            const cons = consultantId ? await Consultant.findById(consultantId).select('name email').lean() : null;
+            senderName = cons?.name || cons?.email || 'Consultant';
+          }
 
           let isRecipientOnline = false;
           if (senderRole === 'client') {
@@ -1415,8 +1448,7 @@ export function setupWebSocketServer(server: Server) {
           }
         } else if (msgType === 'CHAT_TYPING') {
           const isTyping = Boolean(content.isTyping);
-          const typingRole: 'client' | 'consultant' =
-            content.senderRole === 'consultant' || Boolean(query.consultant_token) ? 'consultant' : 'client';
+          const typingRole: 'client' | 'consultant' = role;
           const typingPayload = JSON.stringify({
             type: 'CHAT_TYPING',
             projectId: currentProjectId,
@@ -1445,8 +1477,7 @@ export function setupWebSocketServer(server: Server) {
           }
         } else if (msgType === 'CHAT_MESSAGES_READ') {
           const now = new Date();
-          const readerRole: 'client' | 'consultant' =
-            content.readBy === 'consultant' || Boolean(query.consultant_token) ? 'consultant' : 'client';
+          const readerRole: 'client' | 'consultant' = role;
           const targetRole = readerRole === 'client' ? 'consultant' : 'client';
           await ChatMessage.updateMany(
             { projectId: currentProjectId, senderRole: targetRole, status: { $ne: 'read' } },

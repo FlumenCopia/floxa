@@ -27,36 +27,41 @@ function getValidatedOriginAndReferer(request: NextRequest) {
 
   let validOrigin: string | null = null;
   let validReferer: string | null = null;
+  let untrustedOrigin = false;
 
   if (incomingOrigin) {
     const cleanOrigin = incomingOrigin.trim().replace(/\/+$/, "");
     if (ALLOWED_ORIGINS.includes(cleanOrigin)) {
       validOrigin = cleanOrigin;
+    } else {
+      untrustedOrigin = true;
     }
   }
 
   if (incomingReferer) {
-    const cleanReferer = incomingReferer.trim();
-    for (const allowed of ALLOWED_ORIGINS) {
-      if (cleanReferer.startsWith(allowed)) {
-        validReferer = cleanReferer;
+    try {
+      const parsedReferer = new URL(incomingReferer.trim());
+      const refererOrigin = `${parsedReferer.protocol}//${parsedReferer.host}`.replace(/\/+$/, "");
+      if (ALLOWED_ORIGINS.includes(refererOrigin)) {
+        validReferer = incomingReferer.trim();
         if (!validOrigin) {
-          validOrigin = allowed;
+          validOrigin = refererOrigin;
         }
-        break;
+      } else {
+        untrustedOrigin = true;
       }
+    } catch {
+      untrustedOrigin = true;
     }
   }
 
-  if (!validOrigin) {
-    const hostHeader = request.headers.get("host") || "";
-    const protoHeader = request.headers.get("x-forwarded-proto") || "https";
-    const requestOrigin = `${protoHeader}://${hostHeader}`.replace(/\/+$/, "");
+  if (!validOrigin && !untrustedOrigin) {
+    const hostHeader = (request.headers.get("host") || "").trim();
+    const protoHeader = (request.headers.get("x-forwarded-proto") || "http").split(",")[0].trim();
+    const requestOrigin = hostHeader ? `${protoHeader}://${hostHeader}`.replace(/\/+$/, "") : "";
 
-    if (ALLOWED_ORIGINS.includes(requestOrigin)) {
+    if (requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)) {
       validOrigin = requestOrigin;
-    } else {
-      validOrigin = "https://floxa.flumenx.in";
     }
   }
 
@@ -64,7 +69,7 @@ function getValidatedOriginAndReferer(request: NextRequest) {
     validReferer = `${validOrigin}/`;
   }
 
-  return { validOrigin, validReferer, untrustedOrigin: Boolean(incomingOrigin && !validOrigin) };
+  return { validOrigin, validReferer, untrustedOrigin };
 }
 
 async function proxyRequest(

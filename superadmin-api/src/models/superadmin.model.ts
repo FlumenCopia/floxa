@@ -8,6 +8,7 @@ export interface ISuperAdmin {
   name: string;
   role: 'superadmin';
   isActive: boolean;
+  tokenVersion: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -38,6 +39,10 @@ const superAdminSchema = new Schema<ISuperAdmin>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    tokenVersion: {
+      type: Number,
+      default: 0,
     },
   },
   {

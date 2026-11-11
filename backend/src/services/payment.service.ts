@@ -88,43 +88,41 @@ export async function completePaymentMilestone(
 async function executeAtomicPaymentCompletion(
   params: CompletePaymentMilestoneParams
 ): Promise<CompletePaymentMilestoneResult> {
-  let session: ClientSession | null = null;
   const topologyType = (mongoose.connection as any)?.client?.topology?.description?.type;
   const isReplicaSet =
     topologyType === 'ReplicaSetWithPrimary' || topologyType === 'Sharded';
 
-  if (isReplicaSet) {
-    try {
-      session = await mongoose.startSession();
-      session.startTransaction();
-    } catch {
-      session = null;
-    }
+  if (!isReplicaSet) {
+    throw new PaymentCompletionError(
+      'MongoDB Replica Set transaction support is required for atomic payment completion.',
+      503
+    );
+  }
+
+  let session: ClientSession;
+  try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+  } catch {
+    throw new PaymentCompletionError(
+      'Failed to start database transaction for payment completion.',
+      503
+    );
   }
 
   try {
     const result = await runPaymentCompletion(params, session);
-    if (session) {
-      await session.commitTransaction();
-    }
+    await session.commitTransaction();
     return result;
   } catch (error: any) {
-    if (session) {
-      try {
-        await session.abortTransaction();
-      } catch {}
-    }
-    const errMsg = (error?.message || '').toLowerCase();
-    if (session && errMsg.includes('transaction numbers are only allowed')) {
-      return await runPaymentCompletion(params, null);
-    }
+    try {
+      await session.abortTransaction();
+    } catch {}
     throw error;
   } finally {
-    if (session) {
-      try {
-        await session.endSession();
-      } catch {}
-    }
+    try {
+      await session.endSession();
+    } catch {}
   }
 }
 
@@ -201,10 +199,15 @@ async function runPaymentCompletion(
     })}`;
     const description = `Client paid ${amountDisplay} for the ${milestoneLabel} milestone.`;
 
+    const milestoneIdStr = String((milestone as any).id);
+    const escapedMilestoneId = milestoneIdStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const existingActivity = await ProjectActivity.findOne({
       projectId: (milestone as any).projectId,
       action: 'payment_received',
-      metadata: new RegExp((milestone as any).id, 'i'),
+      $or: [
+        { 'metadata.payment_milestone_id': milestoneIdStr },
+        { metadata: new RegExp(`"payment_milestone_id"\\s*:\\s*"${escapedMilestoneId}"`, 'i') },
+      ],
     }).session(session || null);
 
     let activityCreated = false;
@@ -363,10 +366,15 @@ async function runPaymentCompletion(
     session: session || undefined,
   });
 
+  const milestoneIdStr = String((milestone as any).id);
+  const escapedMilestoneId = milestoneIdStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const existingActivity = await ProjectActivity.findOne({
     projectId: (milestone as any).projectId,
     action: 'payment_received',
-    metadata: new RegExp((milestone as any).id, 'i'),
+    $or: [
+      { 'metadata.payment_milestone_id': milestoneIdStr },
+      { metadata: new RegExp(`"payment_milestone_id"\\s*:\\s*"${escapedMilestoneId}"`, 'i') },
+    ],
   }).session(session || null);
 
   let activityCreated = false;

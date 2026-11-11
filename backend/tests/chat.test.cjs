@@ -133,7 +133,10 @@ test('Phase 6: Real-Time WhatsApp Chat System Tests', async (t) => {
   await t.test('6.7 POST /api/projects/:id/messages/upload/ uploads voice note and returns media metadata', async () => {
     const FormData = require('form-data');
     const form = new FormData();
-    const fakeAudioBuffer = Buffer.from('FAKE_WEBM_AUDIO_DATA_FOR_TESTING');
+    const fakeAudioBuffer = Buffer.concat([
+      Buffer.from([0x1a, 0x45, 0xdf, 0xa3]),
+      Buffer.from('WEBM_AUDIO_DATA_FOR_TESTING'),
+    ]);
     form.append('file', fakeAudioBuffer, {
       filename: 'voice_recording.webm',
       contentType: 'audio/webm',
@@ -156,15 +159,25 @@ test('Phase 6: Real-Time WhatsApp Chat System Tests', async (t) => {
     assert.equal(data.mediaDuration, 6);
     assert.ok(data.mediaUrl.startsWith('/media/chat_attachments/'));
 
-    // Verify static serving works for chat_attachments
-    const mediaRes = await fetch(`${serverInfo.baseUrl}${data.mediaUrl}`);
-    assert.equal(mediaRes.status, 200);
+    // Verify unauthenticated access to chat_attachments is blocked (FILE-01)
+    const unauthMediaRes = await fetch(`${serverInfo.baseUrl}${data.mediaUrl}`);
+    assert.equal(unauthMediaRes.status, 403);
+
+    // Verify authenticated consultant access succeeds with private cache headers
+    const authMediaRes = await fetch(`${serverInfo.baseUrl}${data.mediaUrl}`, {
+      headers: { Authorization: `Bearer ${token1}` },
+    });
+    assert.equal(authMediaRes.status, 200);
+    assert.ok((authMediaRes.headers.get('cache-control') || '').includes('private'));
   });
 
   await t.test('6.8 POST /api/client-portal/:token/messages/upload/ uploads client photo/file attachment', async () => {
     const FormData = require('form-data');
     const form = new FormData();
-    const fakeImageBuffer = Buffer.from('FAKE_JPEG_IMAGE_DATA');
+    const fakeImageBuffer = Buffer.concat([
+      Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+      Buffer.from('JPEG_IMAGE_DATA_FOR_TESTING'),
+    ]);
     form.append('file', fakeImageBuffer, {
       filename: 'client_photo.jpg',
       contentType: 'image/jpeg',

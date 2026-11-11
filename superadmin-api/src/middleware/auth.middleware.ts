@@ -16,11 +16,13 @@ function getJwtSecret(): string {
 
 export async function requireAdminAuth(req: AdminAuthRequest, res: Response, next: NextFunction) {
   let token: string | null = null;
+  let explicitBearerProvided = false;
 
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
+    explicitBearerProvided = true;
     token = authHeader.substring(7).trim();
-  } else if (req.cookies && req.cookies.floxa_superadmin_token) {
+  } else if (!explicitBearerProvided && req.cookies && req.cookies.floxa_superadmin_token) {
     token = req.cookies.floxa_superadmin_token;
   }
 
@@ -38,7 +40,10 @@ export async function requireAdminAuth(req: AdminAuthRequest, res: Response, nex
   }
 
   try {
-    const payload = jwt.verify(token, jwtSecret) as { adminId: string };
+    const payload = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }) as {
+      adminId: string;
+      tokenVersion?: number;
+    };
     if (!payload || !payload.adminId) {
       res.status(401).json({ detail: 'Invalid SuperAdmin authentication token.' });
       return;
@@ -50,9 +55,16 @@ export async function requireAdminAuth(req: AdminAuthRequest, res: Response, nex
       return;
     }
 
+    const tokenVer = payload.tokenVersion ?? 0;
+    const adminVer = admin.tokenVersion ?? 0;
+    if (tokenVer !== adminVer) {
+      res.status(401).json({ detail: 'SuperAdmin session has expired or been revoked.' });
+      return;
+    }
+
     req.admin = admin;
     next();
-  } catch (err) {
+  } catch {
     res.status(401).json({ detail: 'Invalid or expired SuperAdmin token.' });
   }
 }

@@ -30,6 +30,9 @@ async function proxyMedia(
       "accept",
       "user-agent",
       "cookie",
+      "authorization",
+      "x-portal-access-token",
+      "x-client-portal-token",
     ];
 
     for (const h of headersToForward) {
@@ -68,7 +71,11 @@ async function proxyMedia(
       }
     }
 
-    if (!resHeaders.has("cache-control")) {
+    const topDir = (pathSegments[0] || "").toLowerCase();
+    const isPublicMediaDir = topDir === "consultant_avatars" || topDir === "public";
+    if (!isPublicMediaDir || !backendRes.ok) {
+      resHeaders.set("cache-control", "private, no-store, no-cache, must-revalidate");
+    } else if (!resHeaders.has("cache-control")) {
       resHeaders.set("cache-control", "public, max-age=86400, stale-while-revalidate=604800");
     }
 

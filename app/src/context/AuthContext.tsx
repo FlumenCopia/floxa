@@ -7,7 +7,7 @@ import { AuthState, ConsultantUser, ClientProjectUser, UserRole } from '../types
 
 interface AuthContextType extends AuthState {
   loginConsultant: (email: string, password: string) => Promise<void>;
-  loginClient: (portalToken: string) => Promise<void>;
+  loginClient: (portalToken: string, clientEmail?: string, portalPassword?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (updatedUser: any) => Promise<void>;
 }
@@ -116,13 +116,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const loginClient = async (portalTokenInput: string) => {
+  const loginClient = async (portalTokenInput: string, clientEmail?: string, portalPassword?: string) => {
     setState((prev) => ({ ...prev, isLoading: true }));
     try {
-      const cleanToken = portalTokenInput.trim().replace(/^.*\/client\//i, '');
-      const response = await api.get(`/client-portal/${cleanToken}/`, {
-        headers: { 'x-client-portal-token': cleanToken },
-      });
+      const cleanToken = portalTokenInput.trim().replace(/^.*\/client\//i, '').replace(/\/+$/, '');
+      let portalAccessToken: string | null = await storage.getItem(storage.KEYS.PORTAL_ACCESS_TOKEN);
+
+      if (clientEmail && portalPassword) {
+        const verifyRes = await api.post(`/client-portal/${cleanToken}/verify-password/`, {
+          email: clientEmail.trim().toLowerCase(),
+          password: portalPassword,
+        });
+        if (verifyRes.data?.access_token) {
+          portalAccessToken = String(verifyRes.data.access_token);
+          await storage.setItem(storage.KEYS.PORTAL_ACCESS_TOKEN, portalAccessToken);
+        }
+      }
+
+      const headers: Record<string, string> = { 'x-client-portal-token': cleanToken };
+      if (portalAccessToken) {
+        headers['x-portal-access-token'] = portalAccessToken;
+      }
+
+      const response = await api.get(`/client-portal/${cleanToken}/`, { headers });
 
       const project = response.data;
       const clientUser: ClientProjectUser = {
@@ -152,8 +168,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       registerForPushNotificationsAsync('client', cleanToken).catch(() => {});
     } catch (err: any) {
       setState((prev) => ({ ...prev, isLoading: false }));
-      const msg = err.response?.data?.detail || 'Invalid portal token or project not found';
-      throw new Error(msg);
+      const detail = err.response?.data?.detail || 'Invalid portal token or project not found';
+      const wrapped: any = new Error(detail);
+      if (err.response?.status === 403 && String(detail).toLowerCase().includes('password')) {
+        wrapped.requiresPortalPassword = true;
+      }
+      throw wrapped;
     }
   };
 
@@ -185,6 +205,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await storage.removeItem(storage.KEYS.REFRESH_TOKEN);
       await storage.removeItem(storage.KEYS.USER_ROLE);
       await storage.removeItem(storage.KEYS.PORTAL_TOKEN);
+      await storage.removeItem(storage.KEYS.PORTAL_ACCESS_TOKEN);
       await storage.removeItem(storage.KEYS.USER_PROFILE);
 
       setState({

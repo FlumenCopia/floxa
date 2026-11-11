@@ -4,9 +4,21 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { Consultant } from '../models/consultant.model.js';
 import { DeviceToken } from '../models/deviceToken.model.js';
-import { ENV } from '../config/env.js';
-import { hashPassword, verifyPassword } from '../utils/crypto.js';
-import { generateTokens, setAuthCookies, clearAuthCookies } from '../services/auth.service.js';
+import { ENV, resolveSafeFrontendOrigin } from '../config/env.js';
+import {
+  hashPassword,
+  verifyPassword,
+  encryptSecret,
+  unsignPortalAccessToken,
+} from '../utils/crypto.js';
+import {
+  generateTokens,
+  setAuthCookies,
+  clearAuthCookies,
+  verifyRefreshJwt,
+} from '../services/auth.service.js';
+import { Project } from '../models/project.model.js';
+import { disconnectConsultantSockets } from '../websocket/socketServer.js';
 import { generateCsrfToken, setCsrfCookie } from '../middleware/csrf.middleware.js';
 import { serializeConsultant } from '../utils/serializer.js';
 import { validateAndProcessAvatar, saveFile, deleteStoredFile } from '../services/storage.service.js';
@@ -86,15 +98,20 @@ export async function refreshToken(req: Request, res: Response) {
     req.body?.refresh ||
     '';
 
-  if (!token) {
+  if (!token || typeof token !== 'string') {
     res.status(400).json({ detail: 'Refresh token is required.' });
     return;
   }
 
   try {
-    const payload = jwt.verify(token, ENV.JWT_REFRESH_SECRET) as { userId: string; tokenVersion?: number };
+    const payload = verifyRefreshJwt(token);
+    if (!payload) {
+      res.status(401).json({ detail: 'Invalid refresh token.' });
+      return;
+    }
+
     const user = await Consultant.findById(payload.userId);
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || user.isSuspended) {
       if (user && user.isSuspended) {
         res.status(403).json({
           detail: 'Your consultant account has been suspended due to milestone deadline violations. Please contact SuperAdmin.',
@@ -106,19 +123,26 @@ export async function refreshToken(req: Request, res: Response) {
       return;
     }
 
-    if (
-      payload.tokenVersion !== undefined &&
-      user.tokenVersion !== undefined &&
-      payload.tokenVersion !== user.tokenVersion
-    ) {
+    const tokenVer = payload.tokenVersion ?? 0;
+    const currentVer = user.tokenVersion ?? 0;
+    if (tokenVer !== currentVer) {
       res.status(401).json({ detail: 'Refresh token has expired due to password change.' });
       return;
     }
 
-    const { accessToken } = generateTokens(user.id, user.email, user.tokenVersion || 0);
-    setAuthCookies(res, accessToken);
+    // Rotate both access and refresh tokens on refresh
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(
+      user.id,
+      user.email,
+      currentVer
+    );
+    setAuthCookies(res, accessToken, newRefreshToken);
 
-    res.json({ detail: 'Token refreshed successfully.' });
+    res.json({
+      detail: 'Token refreshed successfully.',
+      access: accessToken,
+      refresh: newRefreshToken,
+    });
   } catch {
     res.status(400).json({ detail: 'Invalid refresh token.' });
   }
@@ -185,10 +209,10 @@ export async function updateMe(
     if (hasIntegrationData) {
       const existing = req.user?.integrations || {};
       const newIntegrations: Record<string, string> = {
-        geminiApiKey: existing.geminiApiKey || '',
+        geminiApiKey: existing.geminiApiKey ? encryptSecret(existing.geminiApiKey) : '',
         razorpayKeyId: existing.razorpayKeyId || '',
-        razorpayKeySecret: existing.razorpayKeySecret || '',
-        razorpayWebhookSecret: existing.razorpayWebhookSecret || '',
+        razorpayKeySecret: existing.razorpayKeySecret ? encryptSecret(existing.razorpayKeySecret) : '',
+        razorpayWebhookSecret: existing.razorpayWebhookSecret ? encryptSecret(existing.razorpayWebhookSecret) : '',
       };
 
       const gKey =
@@ -198,7 +222,9 @@ export async function updateMe(
         rawBody.geminiApiKey;
       if (gKey !== undefined) {
         const val = String(gKey).trim();
-        if (!val.includes('•')) newIntegrations.geminiApiKey = val;
+        if (!val.includes('•')) {
+          newIntegrations.geminiApiKey = val ? encryptSecret(val) : '';
+        }
       }
 
       const rId =
@@ -217,7 +243,9 @@ export async function updateMe(
         rawBody.razorpayKeySecret;
       if (rSec !== undefined) {
         const val = String(rSec).trim();
-        if (!val.includes('•')) newIntegrations.razorpayKeySecret = val;
+        if (!val.includes('•')) {
+          newIntegrations.razorpayKeySecret = val ? encryptSecret(val) : '';
+        }
       }
 
       const rWh =
@@ -227,7 +255,9 @@ export async function updateMe(
         rawBody.razorpayWebhookSecret;
       if (rWh !== undefined) {
         const val = String(rWh).trim();
-        if (!val.includes('•')) newIntegrations.razorpayWebhookSecret = val;
+        if (!val.includes('•')) {
+          newIntegrations.razorpayWebhookSecret = val ? encryptSecret(val) : '';
+        }
       }
 
       updateData.integrations = newIntegrations;
@@ -332,6 +362,8 @@ export async function changePassword(req: AuthenticatedRequest, res: Response, n
     consultant.passwordResetExpires = null;
     await consultant.save();
 
+    disconnectConsultantSockets(consultant.id, 4001, 'Password changed');
+
     // Issue refreshed auth cookies with incremented tokenVersion for the active session
     const { accessToken, refreshToken: newRefresh } = generateTokens(consultant.id, consultant.email, newVersion);
     setAuthCookies(res, accessToken, newRefresh);
@@ -365,10 +397,9 @@ export async function forgotPassword(req: Request, res: Response, next: NextFunc
       await consultant.save();
 
       try {
-        const origin = req.get('origin') || req.headers?.origin || req.headers?.referer;
-        const baseUrlOverride = origin && typeof origin === 'string' && !origin.includes('localhost')
-          ? origin.replace(/\/reset-password.*|\/forgot-password.*|\/login.*|\/$/, '')
-          : undefined;
+        const baseUrlOverride = resolveSafeFrontendOrigin(
+          (req.get('origin') || req.headers?.origin || req.headers?.referer) as string | undefined
+        );
         await sendPasswordResetEmail(consultant, rawToken, baseUrlOverride);
       } catch (err: any) {
         console.warn('[AUTH] Could not send password reset email:', err?.message || err);
@@ -422,6 +453,8 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
     consultant.passwordResetExpires = null;
     consultant.tokenVersion = (consultant.tokenVersion || 0) + 1;
     await consultant.save();
+
+    disconnectConsultantSockets(consultant.id, 4001, 'Password reset');
 
     // Clear existing auth cookies to ensure complete session revocation
     clearAuthCookies(res);
@@ -486,15 +519,50 @@ export async function requestReactivation(req: Request, res: Response, next: Nex
 
 export async function registerDeviceToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { token, platform, role, portalToken, voipToken, deviceName, appVersion } = req.body;
-    if (!token || typeof token !== 'string') {
+    const { token, platform, role, portalToken, voipToken, deviceName, appVersion, portalAccessToken } = req.body;
+    if (!token || typeof token !== 'string' || !token.trim()) {
       res.status(400).json({ detail: 'Device token is required.' });
       return;
     }
 
     const deviceRole = role === 'client' ? 'client' : 'consultant';
-    const userId = req.user ? req.user._id : null;
-    const cleanPortalToken = typeof portalToken === 'string' ? portalToken.trim() : undefined;
+    let userId: any = null;
+    let verifiedPortalToken: string | null = null;
+
+    if (deviceRole === 'consultant') {
+      if (!req.user || !req.user._id) {
+        res.status(401).json({ detail: 'Consultant authentication is required to register a device token.' });
+        return;
+      }
+      userId = req.user._id;
+    } else {
+      const cleanPortalToken = typeof portalToken === 'string' ? portalToken.trim() : '';
+      if (!cleanPortalToken) {
+        res.status(400).json({ detail: 'Portal token is required for client device registration.' });
+        return;
+      }
+      const project = await Project.findOne({ portalToken: cleanPortalToken, isArchived: false })
+        .select('_id portalToken portalPasswordHash');
+      if (!project) {
+        res.status(404).json({ detail: 'Project portal not found.' });
+        return;
+      }
+      if (project.portalPasswordHash) {
+        const rawSigned =
+          (req.headers['x-portal-access-token'] as string) ||
+          (req.cookies && req.cookies[ENV.PORTAL_ACCESS_COOKIE_NAME]) ||
+          (typeof portalAccessToken === 'string' ? portalAccessToken : '');
+        const verified = rawSigned
+          ? unsignPortalAccessToken(rawSigned, ENV.PORTAL_ACCESS_MAX_AGE)
+          : null;
+        if (!verified || verified !== cleanPortalToken) {
+          res.status(403).json({ detail: 'Portal password verification is required before registering a client device.' });
+          return;
+        }
+      }
+      verifiedPortalToken = cleanPortalToken;
+    }
+
     const platformStr = String(platform || '').toLowerCase();
     const validPlatform = (platformStr === 'ios' || platformStr === 'android' || platformStr === 'web') ? platformStr : 'android';
 
@@ -505,7 +573,7 @@ export async function registerDeviceToken(req: AuthenticatedRequest, res: Respon
         platform: validPlatform,
         role: deviceRole,
         userId: deviceRole === 'consultant' ? userId : null,
-        portalToken: deviceRole === 'client' ? cleanPortalToken : null,
+        portalToken: deviceRole === 'client' ? verifiedPortalToken : null,
         voipToken: voipToken ? String(voipToken).trim() : null,
         deviceName: deviceName ? String(deviceName).trim() : '',
         appVersion: appVersion ? String(appVersion).trim() : '1.0.0',
@@ -521,16 +589,48 @@ export async function registerDeviceToken(req: AuthenticatedRequest, res: Respon
   }
 }
 
-export async function unregisterDeviceToken(req: Request, res: Response, next: NextFunction) {
+export async function unregisterDeviceToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
-    const { token } = req.body;
-    if (!token) {
+    const { token, portalToken, portalAccessToken } = req.body || {};
+    if (!token || typeof token !== 'string' || !token.trim()) {
       res.status(400).json({ detail: 'Device token is required.' });
       return;
     }
 
-    await DeviceToken.deleteOne({ token: String(token).trim() });
-    res.json({ success: true, message: 'Device token unregistered successfully.' });
+    const cleanToken = token.trim();
+    if (req.user && req.user._id) {
+      await DeviceToken.deleteOne({ token: cleanToken, userId: req.user._id });
+      res.json({ success: true, message: 'Device token unregistered successfully.' });
+      return;
+    }
+
+    const cleanPortalToken = typeof portalToken === 'string' ? portalToken.trim() : '';
+    if (cleanPortalToken) {
+      const project = await Project.findOne({ portalToken: cleanPortalToken, isArchived: false })
+        .select('_id portalToken portalPasswordHash');
+      if (!project) {
+        res.status(404).json({ detail: 'Project portal not found.' });
+        return;
+      }
+      if (project.portalPasswordHash) {
+        const rawSigned =
+          (req.headers['x-portal-access-token'] as string) ||
+          (req.cookies && req.cookies[ENV.PORTAL_ACCESS_COOKIE_NAME]) ||
+          (typeof portalAccessToken === 'string' ? portalAccessToken : '');
+        const verified = rawSigned
+          ? unsignPortalAccessToken(rawSigned, ENV.PORTAL_ACCESS_MAX_AGE)
+          : null;
+        if (!verified || verified !== cleanPortalToken) {
+          res.status(403).json({ detail: 'Valid portal access token required.' });
+          return;
+        }
+      }
+      await DeviceToken.deleteOne({ token: cleanToken, portalToken: cleanPortalToken });
+      res.json({ success: true, message: 'Device token unregistered successfully.' });
+      return;
+    }
+
+    res.status(401).json({ detail: 'Authentication is required to unregister a device token.' });
   } catch (err) {
     next(err);
   }

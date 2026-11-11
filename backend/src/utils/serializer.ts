@@ -1,5 +1,6 @@
 import type { IDeliverable, IMoodboard, IConcept, IPaymentMilestone, IProject } from '../models/index.js';
 import { canClientDownloadDeliverable, type ProjectWithMilestones } from '../services/project.service.js';
+import { decryptSecret, maskSecret } from './crypto.js';
 
 /**
  * Transforms MongoDB / Prisma documents into Django REST Framework-compatible
@@ -17,10 +18,10 @@ export function serializeConsultant(consultant: any, baseUrl: string = '') {
   }
 
   const integrations = consultant.integrations || {};
-  const geminiKey = integrations.geminiApiKey || '';
+  const geminiKey = decryptSecret(integrations.geminiApiKey || '');
   const razorpayKeyId = integrations.razorpayKeyId || '';
-  const razorpaySecret = integrations.razorpayKeySecret || '';
-  const razorpayWebhook = integrations.razorpayWebhookSecret || '';
+  const razorpaySecret = decryptSecret(integrations.razorpayKeySecret || '');
+  const razorpayWebhook = decryptSecret(integrations.razorpayWebhookSecret || '');
 
   return {
     id: consultant.id,
@@ -33,10 +34,10 @@ export function serializeConsultant(consultant: any, baseUrl: string = '') {
     subscription: consultant.subscription || { plan: 'starter', status: 'active', maxProjects: 10 },
     integrations: {
       gemini_api_key_configured: Boolean(geminiKey),
-      gemini_api_key_masked: geminiKey ? `${geminiKey.slice(0, 4)}••••••••${geminiKey.slice(-4)}` : '',
+      gemini_api_key_masked: geminiKey ? `${geminiKey.slice(0, 4)}${maskSecret(geminiKey)}` : '',
       razorpay_key_id: razorpayKeyId,
       razorpay_key_secret_configured: Boolean(razorpaySecret),
-      razorpay_key_secret_masked: razorpaySecret ? `••••••••${razorpaySecret.slice(-4)}` : '',
+      razorpay_key_secret_masked: maskSecret(razorpaySecret),
       razorpay_webhook_secret_configured: Boolean(razorpayWebhook),
     },
   };

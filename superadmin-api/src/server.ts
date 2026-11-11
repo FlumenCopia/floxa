@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import { connectDatabase } from './config/database.js';
 import authRoutes from './routes/auth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import { createCsrfMiddleware } from './utils/security.js';
 
 dotenv.config();
 
@@ -13,32 +14,40 @@ const PORT = process.env.PORT || 5001;
 const isProduction = process.env.NODE_ENV === 'production';
 const rawOrigins = (process.env.CORS_ORIGIN || process.env.ADMIN_APP_URL || '')
   .split(',')
-  .map((o) => o.trim())
+  .map((o) => o.trim().replace(/\/+$/, ''))
   .filter(Boolean);
 
+if (isProduction && rawOrigins.length === 0) {
+  throw new Error('FATAL: CORS_ORIGIN or ADMIN_APP_URL must be configured in production for SuperAdmin API.');
+}
+
 const allowedOrigins = isProduction
-  ? (rawOrigins.length > 0 ? rawOrigins : ['http://localhost:3001', 'http://localhost:3002'])
+  ? rawOrigins
   : Array.from(new Set([...rawOrigins, 'http://localhost:3001', 'http://127.0.0.1:3001', 'http://localhost:3002', 'http://127.0.0.1:3002']));
 
 // Middleware
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (such as curl, server-to-server, or local scripts)
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) {
+        return callback(null, true);
+      }
+      const cleanOrigin = origin.trim().replace(/\/+$/, '');
+      if (allowedOrigins.includes(cleanOrigin)) {
         return callback(null, true);
       }
       return callback(null, false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-CSRFToken'],
   })
 );
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(createCsrfMiddleware(allowedOrigins));
 
 // Health Check
 app.get('/health', (req, res) => {

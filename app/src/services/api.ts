@@ -83,12 +83,16 @@ api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const token = await storage.getItem(storage.KEYS.ACCESS_TOKEN);
     const portalToken = await storage.getItem(storage.KEYS.PORTAL_TOKEN);
+    const portalAccessToken = await storage.getItem(storage.KEYS.PORTAL_ACCESS_TOKEN);
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     if (portalToken) {
       config.headers['x-client-portal-token'] = portalToken;
+    }
+    if (portalAccessToken && !config.headers['x-portal-access-token']) {
+      config.headers['x-portal-access-token'] = portalAccessToken;
     }
 
     // Inject CSRF tokens for mutating methods
@@ -156,8 +160,12 @@ api.interceptors.response.use(
         );
 
         const newAccess = refreshRes.data?.access;
+        const newRefresh = refreshRes.data?.refresh;
         if (newAccess) {
           await storage.setItem(storage.KEYS.ACCESS_TOKEN, newAccess);
+          if (newRefresh) {
+            await storage.setItem(storage.KEYS.REFRESH_TOKEN, newRefresh);
+          }
           originalRequest.headers.Authorization = `Bearer ${newAccess}`;
           return api(originalRequest);
         }

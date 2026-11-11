@@ -4,10 +4,15 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs';
+import mongoose from 'mongoose';
 import { ENV } from './config/env.js';
 import { csrfProtection } from './middleware/csrf.middleware.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import routes from './routes/index.js';
+import { resolveAuthenticatedConsultant } from './services/auth.service.js';
+import { unsignPortalAccessToken } from './utils/crypto.js';
+import { ChatMessage } from './models/chatMessage.model.js';
+import { Project } from './models/project.model.js';
 
 export const app = express();
 
@@ -64,18 +69,20 @@ app.use(
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 app.use(cookieParser());
 
-// 3. Static Media Files (Strictly restricted: only public directories allowed, symlinks and private paths blocked)
-const ALLOWED_PUBLIC_MEDIA_DIRS = ['consultant_avatars', 'public', 'chat_attachments'];
+// 3. Static Media Files (Strictly restricted: only public directories allowed without auth; chat_attachments gated)
+const ALLOWED_PUBLIC_MEDIA_DIRS = ['consultant_avatars', 'public'];
 
-app.use('/media', (req, res) => {
+app.use('/media', async (req, res) => {
   try {
     const decodedPath = decodeURIComponent(req.path);
     const normalized = path.normalize(decodedPath).replace(/^(\.\.[\/\\])+/, '');
     const segments = normalized.split(/[\\/]/).filter(Boolean);
     const topFolder = segments[0];
 
-    // Default to private: if topFolder is not explicitly allowed, block direct static access
-    if (!topFolder || !ALLOWED_PUBLIC_MEDIA_DIRS.includes(topFolder)) {
+    const isChatAttachment = topFolder === 'chat_attachments';
+
+    // Default to private: only explicitly public dirs or authenticated chat_attachments allowed
+    if (!topFolder || (!ALLOWED_PUBLIC_MEDIA_DIRS.includes(topFolder) && !isChatAttachment)) {
       res.status(403).json({ detail: 'Direct access to private media files is restricted.' });
       return;
     }
@@ -98,9 +105,89 @@ app.use('/media', (req, res) => {
       return;
     }
 
-    // Verify real file is inside an allowed public folder
     const realSegments = relativeToRoot.split(/[\\/]/).filter(Boolean);
     const realTopFolder = realSegments[0];
+
+    if (realTopFolder === 'chat_attachments') {
+      const canonicalMediaUrl = `/media/${realSegments.join('/')}`;
+      const chatMsg = await ChatMessage.findOne({
+        mediaUrl: { $in: [canonicalMediaUrl, canonicalMediaUrl.slice(1), realSegments.join('/')] },
+      }).lean();
+
+      const folderProjectId =
+        realSegments.length >= 3 && mongoose.Types.ObjectId.isValid(realSegments[1])
+          ? realSegments[1]
+          : null;
+
+      const targetProjectId = chatMsg?.projectId || folderProjectId;
+      if (!targetProjectId) {
+        res.status(403).json({ detail: 'Chat attachment access denied.' });
+        return;
+      }
+
+      const project = await Project.findById(targetProjectId)
+        .select('consultantId portalToken portalPasswordHash isArchived')
+        .lean();
+
+      if (!project || project.isArchived) {
+        res.status(403).json({ detail: 'Chat attachment access denied.' });
+        return;
+      }
+
+      const authHeader = req.headers.authorization;
+      const bearerToken =
+        authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+          ? authHeader.slice(7).trim()
+          : '';
+      const cookieJwt = req.cookies?.[ENV.AUTH_ACCESS_COOKIE_NAME] || '';
+      const consultantToken = bearerToken || (!bearerToken ? cookieJwt : '');
+
+      let authorized = false;
+
+      if (consultantToken) {
+        const { user } = await resolveAuthenticatedConsultant(consultantToken);
+        if (user && String(project.consultantId) === String(user._id)) {
+          authorized = true;
+        }
+      }
+
+      if (!authorized) {
+        const signedAccess =
+          (req.headers['x-portal-access-token'] as string) ||
+          req.cookies?.[ENV.PORTAL_ACCESS_COOKIE_NAME] ||
+          '';
+        const verifiedPortal = signedAccess
+          ? unsignPortalAccessToken(signedAccess, ENV.PORTAL_ACCESS_MAX_AGE)
+          : null;
+
+        if (verifiedPortal && verifiedPortal === project.portalToken) {
+          authorized = true;
+        } else if (!project.portalPasswordHash) {
+          const headerPortal = (req.headers['x-client-portal-token'] as string) || '';
+          if (headerPortal && headerPortal.trim() === project.portalToken) {
+            authorized = true;
+          }
+        }
+      }
+
+      if (!authorized) {
+        res.status(403).json({ detail: 'Authentication required to access chat attachment.' });
+        return;
+      }
+
+      const stat = fs.statSync(candidateReal);
+      if (!stat.isFile()) {
+        res.status(404).json({ detail: 'File not found.' });
+        return;
+      }
+
+      res.setHeader('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.sendFile(candidateReal);
+      return;
+    }
+
+    // Verify real file is inside an allowed public folder
     if (!realTopFolder || !ALLOWED_PUBLIC_MEDIA_DIRS.includes(realTopFolder)) {
       res.status(403).json({ detail: 'Direct access to private media files is restricted.' });
       return;

@@ -12,7 +12,10 @@ import * as paymentController from '../controllers/payment.controller.js';
 import * as chatController from '../controllers/chat.controller.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024, files: 2 },
+});
 
 // Dual-auth project routes (accessible via verified client portal token OR consultant credentials)
 router.get('/:id/client-profile/', requireProjectAccess, clientController.getClientProfile);

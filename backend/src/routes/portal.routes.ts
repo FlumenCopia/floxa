@@ -2,18 +2,30 @@ import { Router } from 'express';
 import multer from 'multer';
 import { clientPortalAccess, clientOnlyAction } from '../middleware/portal.middleware.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.middleware.js';
+import { createRateLimiter } from '../middleware/rateLimit.middleware.js';
 import * as portalController from '../controllers/portal.controller.js';
 import * as generatedAgreementController from '../controllers/generatedAgreement.controller.js';
 import * as chatController from '../controllers/chat.controller.js';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+});
+
+const verifyPortalPasswordLimiter = createRateLimiter({
+  keyPrefix: 'portal_pw_verify',
+  windowMs: 15 * 60 * 1000,
+  max: 12,
+  message: 'Too many portal password verification attempts. Please wait before trying again.',
+  keyGenerator: (req) => String(req.params.portal_token || ''),
+});
 
 // Consultant project switcher dropdown
 router.get('/client-list/', requireAuth, portalController.getClientList);
 
 // Public / Password verify routes
-router.post('/:portal_token/verify-password/', portalController.verifyPortalPassword);
+router.post('/:portal_token/verify-password/', verifyPortalPasswordLimiter, portalController.verifyPortalPassword);
 router.post('/:portal_token/logout/', portalController.logoutPortal);
 
 // Protected client portal routes (also check optionalAuth for consultant support mode)
@@ -24,17 +36,17 @@ router.get('/:portal_token/brand-dna/', portalController.getPortalBrandDNA);
 router.get('/:portal_token/brand-dna/pdf/', portalController.downloadPortalBrandDnaPdf);
 router.get('/:portal_token/discovery/', portalController.getPortalDiscovery);
 router.post('/:portal_token/discovery/', portalController.savePortalDiscovery);
-router.post('/:portal_token/discovery/submit/', portalController.submitPortalDiscovery);
+router.post('/:portal_token/discovery/submit/', clientOnlyAction, portalController.submitPortalDiscovery);
 
 router.get('/:portal_token/moodboards/', portalController.getPortalMoodboards);
 router.get('/:portal_token/moodboards/:asset_id/image/', portalController.downloadPortalMoodboardImage);
-router.post('/:portal_token/moodboards/:moodboard_id/select/', portalController.selectPortalMoodboard);
-router.post('/:portal_token/moodboards/:moodboard_id/feedback/', portalController.submitMoodboardFeedback);
+router.post('/:portal_token/moodboards/:moodboard_id/select/', clientOnlyAction, portalController.selectPortalMoodboard);
+router.post('/:portal_token/moodboards/:moodboard_id/feedback/', clientOnlyAction, portalController.submitMoodboardFeedback);
 
 router.get('/:portal_token/concepts/', portalController.getPortalConcepts);
 router.get('/:portal_token/concepts/:asset_id/image/', portalController.downloadPortalConceptImage);
 router.get('/:portal_token/concepts/:asset_id/file/', portalController.downloadPortalConceptFile);
-router.post('/:portal_token/concepts/:concept_id/feedback/', portalController.submitConceptFeedback);
+router.post('/:portal_token/concepts/:concept_id/feedback/', clientOnlyAction, portalController.submitConceptFeedback);
 
 router.get('/:portal_token/deliverables/', portalController.getPortalDeliverables);
 router.get('/:portal_token/deliverables/:asset_id/file/', portalController.downloadPortalDeliverableFile);

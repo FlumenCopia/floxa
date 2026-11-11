@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:5002/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_ADMIN_API_URL || 'http://localhost:5001/api';
 
 function getAuthHeader(): Record<string, string> {
   if (typeof window === 'undefined') return {};
@@ -6,10 +6,39 @@ function getAuthHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function getCsrfToken(): string {
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/(?:^|;\s*)floxa_superadmin_csrf=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+async function ensureCsrfToken(): Promise<string> {
+  const existing = getCsrfToken();
+  if (existing) return existing;
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/csrf`, { credentials: 'include' });
+    const data = await res.json().catch(() => ({}));
+    return data?.csrfToken || getCsrfToken();
+  } catch {
+    return '';
+  }
+}
+
 async function request(endpoint: string, options: RequestInit = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const isMutation = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+  const csrfHeaders: Record<string, string> = {};
+  if (isMutation) {
+    const csrfToken = await ensureCsrfToken();
+    if (csrfToken) {
+      csrfHeaders['X-CSRF-Token'] = csrfToken;
+    }
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     ...getAuthHeader(),
+    ...csrfHeaders,
     ...(options.headers || {}),
   };
 
@@ -175,9 +204,9 @@ export const adminApi = {
 
   // CSV Downloads (Phase 3)
   async downloadConsultantsCsv() {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('floxa_admin_token') || '' : '';
     const res = await fetch(`${API_BASE_URL}/admin/export/consultants.csv`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { ...getAuthHeader() },
+      credentials: 'include',
     });
     if (!res.ok) throw new Error('Failed to download consultants CSV');
     const blob = await res.blob();
@@ -192,9 +221,9 @@ export const adminApi = {
   },
 
   async downloadProjectsCsv() {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('floxa_admin_token') || '' : '';
     const res = await fetch(`${API_BASE_URL}/admin/export/projects.csv`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { ...getAuthHeader() },
+      credentials: 'include',
     });
     if (!res.ok) throw new Error('Failed to download projects CSV');
     const blob = await res.blob();

@@ -3,6 +3,13 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { SuperAdmin } from '../models/superadmin.model.js';
 import type { AdminAuthRequest } from '../middleware/auth.middleware.js';
+import { generateCsrfToken, setCsrfCookie } from '../utils/security.js';
+
+export async function getAdminCsrf(req: Request, res: Response) {
+  const token = generateCsrfToken();
+  setCsrfCookie(res, token);
+  res.json({ success: true, csrfToken: token });
+}
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -48,9 +55,14 @@ export async function adminLogin(req: Request, res: Response) {
     }
 
     const token = jwt.sign(
-      { adminId: admin.id, email: admin.email, role: 'superadmin' },
+      {
+        adminId: admin.id,
+        email: admin.email,
+        role: 'superadmin',
+        tokenVersion: admin.tokenVersion ?? 0,
+      },
       jwtSecret,
-      { expiresIn: '7d' }
+      { algorithm: 'HS256', expiresIn: '7d' }
     );
 
     res.cookie('floxa_superadmin_token', token, {
@@ -58,11 +70,16 @@ export async function adminLogin(req: Request, res: Response) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
     });
+
+    const csrfToken = generateCsrfToken();
+    setCsrfCookie(res, csrfToken);
 
     res.json({
       success: true,
       token,
+      csrfToken,
       admin: {
         id: admin.id,
         name: admin.name,

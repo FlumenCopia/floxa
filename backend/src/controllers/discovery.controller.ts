@@ -13,6 +13,7 @@ import {
   serializeBrandDNA,
 } from '../utils/serializer.js';
 import { validateDiscoveryTextQuality } from '../utils/validation.js';
+import { decryptSecret } from '../utils/crypto.js';
 
 export { getClientProfile, saveClientProfile, validateClientPhone } from './client.controller.js';
 
@@ -473,7 +474,7 @@ export async function generateBrandDNA(req: any, res: Response, next: NextFuncti
       }
     }
 
-    const consultantApiKey = (project.consultant as any)?.integrations?.geminiApiKey;
+    const consultantApiKey = decryptSecret((project.consultant as any)?.integrations?.geminiApiKey);
     const dnaData = await generateAiBrandDNA(project, project.discovery, consultantApiKey);
 
     const brandDNA = await BrandDNA.findOneAndUpdate(

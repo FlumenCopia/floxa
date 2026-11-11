@@ -923,13 +923,20 @@ export const ClientPortalScreen: React.FC<ClientPortalScreenProps> = ({
                     <View style={styles.deliverableInfo}>
                       <Text style={styles.deliverableName}>{item.title || item.name || 'Brand Package'}</Text>
                       <Text style={styles.deliverableStatus}>
-                        {item.file_format || item.format || 'ZIP'} • {item.status || 'Ready for download'}
+                        {item.file_format || item.format || 'ZIP'} • {item.can_download ? 'Ready for download' : (item.download_lock_reason || 'Locked until required milestone payment')}
                       </Text>
                     </View>
-                    <View style={styles.badgeApproved}>
-                      <Check size={11} color={THEME.neon} strokeWidth={3} />
-                      <Text style={styles.badgeApprovedText}>READY</Text>
-                    </View>
+                    {item.can_download ? (
+                      <View style={styles.badgeApproved}>
+                        <Check size={11} color={THEME.neon} strokeWidth={3} />
+                        <Text style={styles.badgeApprovedText}>READY</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.badgeLocked}>
+                        <Clock size={11} color={THEME.textMuted} strokeWidth={2.4} />
+                        <Text style={styles.badgeLockedText}>LOCKED</Text>
+                      </View>
+                    )}
                   </View>
                 ))
               )}
@@ -945,28 +952,9 @@ export const ClientPortalScreen: React.FC<ClientPortalScreenProps> = ({
               <Text style={styles.tabSectionDesc}>Secured via Razorpay Payment Gateway integration.</Text>
 
               {payments.length === 0 ? (
-                <View style={styles.card}>
-                  <View style={styles.paymentRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.paymentType}>Advance Retainer (50%)</Text>
-                      <Text style={styles.paymentAmount}>Rs 45,000</Text>
-                    </View>
-                    <View style={styles.badgePaid}>
-                      <Check size={11} color="#000704" strokeWidth={3} />
-                      <Text style={styles.badgePaidText}>PAID</Text>
-                    </View>
-                  </View>
-
-                  <View style={[styles.paymentRow, { marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.paymentType}>Final Delivery (50%)</Text>
-                      <Text style={styles.paymentAmount}>Rs 45,000</Text>
-                    </View>
-                    <View style={styles.badgeLocked}>
-                      <Clock size={11} color={THEME.textMuted} strokeWidth={2.4} />
-                      <Text style={styles.badgeLockedText}>ON DELIVERY</Text>
-                    </View>
-                  </View>
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyTitle}>No Milestones Created Yet</Text>
+                  <Text style={styles.emptySub}>Payment milestones will appear here once configured by your consultant.</Text>
                 </View>
               ) : (
                 payments.map((p, idx) => {

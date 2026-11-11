@@ -1,6 +1,7 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { ENV } from '../config/env.js';
+import { decryptSecret } from '../utils/crypto.js';
 
 let razorpayClient: Razorpay | null = null;
 let mockRazorpayClient: any = null;
@@ -36,11 +37,13 @@ export interface RazorpayCredentials {
 
 export function resolveRazorpayCredentials(consultant?: any): RazorpayCredentials {
   const cKeys = consultant?.integrations;
-  if (cKeys?.razorpayKeyId && cKeys?.razorpayKeySecret) {
+  const decryptedSecret = decryptSecret(cKeys?.razorpayKeySecret || '');
+  const decryptedWebhookSecret = decryptSecret(cKeys?.razorpayWebhookSecret || '');
+  if (cKeys?.razorpayKeyId && decryptedSecret) {
     return {
       keyId: cKeys.razorpayKeyId.trim(),
-      keySecret: cKeys.razorpayKeySecret.trim(),
-      webhookSecret: cKeys.razorpayWebhookSecret ? cKeys.razorpayWebhookSecret.trim() : '',
+      keySecret: decryptedSecret.trim(),
+      webhookSecret: decryptedWebhookSecret ? decryptedWebhookSecret.trim() : '',
       isConsultantCustom: true,
     };
   }

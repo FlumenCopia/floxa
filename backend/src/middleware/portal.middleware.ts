@@ -1,14 +1,27 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { Project, Consultant, type IConsultant, type IProject } from '../models/index.js';
+import mongoose from 'mongoose';
+import { Project, type IConsultant } from '../models/index.js';
 import { ENV } from '../config/env.js';
 import { unsignPortalAccessToken } from '../utils/crypto.js';
+import { resolveAuthenticatedConsultant } from '../services/auth.service.js';
 
 export interface PortalRequest extends Request {
   project?: any;
   user?: IConsultant;
   isSupportMode?: boolean;
   isPortalClient?: boolean;
+}
+
+function isSupportModeRequested(req: Request): boolean {
+  const supportHeader =
+    (req.headers['x-support-mode'] as string) ||
+    (req.headers['x-consultant-support'] as string) ||
+    (req.query.support as string) ||
+    (req.query.support_mode as string) ||
+    (req.query.mode as string) ||
+    (req.query.consultant as string) ||
+    '';
+  return ['true', '1', 'yes', 'consultant'].includes(supportHeader.trim().toLowerCase());
 }
 
 export async function clientPortalAccess(req: PortalRequest, res: Response, next: NextFunction) {
@@ -46,32 +59,25 @@ export async function clientPortalAccess(req: PortalRequest, res: Response, next
 
     req.project = project;
 
-    // 1. Check if authenticated consultant owns this project and is in Support Mode
-    const user = req.user;
-    if (user) {
-      const supportHeader =
-        (req.headers['x-support-mode'] as string) ||
-        (req.headers['x-consultant-support'] as string) ||
-        (req.query.support as string) ||
-        (req.query.mode as string) ||
-        (req.query.consultant as string) ||
-        '';
-
-      const norm = supportHeader.trim().toLowerCase();
-      if (['true', '1', 'yes', 'consultant'].includes(norm)) {
-        const ownerId = (project.consultantId as any)?._id?.toString() || project.consultantId?.toString();
-        if (ownerId !== user.id.toString()) {
-          res.status(403).json({ detail: 'Permission denied: you are not the assigned consultant for this project.' });
-          return;
-        }
-        req.isSupportMode = true;
-        return next();
+    // 1. If Support Mode is requested, enforce valid active, non-suspended, tokenVersion-matched owning consultant
+    if (isSupportModeRequested(req)) {
+      const user = req.user;
+      if (!user) {
+        res.status(401).json({ detail: 'Consultant authentication credentials required for support mode.' });
+        return;
       }
+      const ownerId = (project.consultantId as any)?._id?.toString() || project.consultantId?.toString();
+      if (ownerId !== user.id.toString()) {
+        res.status(403).json({ detail: 'Permission denied: you are not the assigned consultant for this project.' });
+        return;
+      }
+      req.isSupportMode = true;
+      return next();
     }
 
     // 2. If project has NO password set, access is public
     if (!project.portalPasswordHash) {
-      if (!user) {
+      if (!req.user) {
         req.isPortalClient = true;
       }
       return next();
@@ -102,6 +108,11 @@ export async function requireProjectAccess(req: PortalRequest, res: Response, ne
   const projectId = (req.params.id || req.params.projectId || '').trim();
   const portalToken = ((req.headers['x-client-portal-token'] as string) || '').trim();
 
+  if (projectId && !mongoose.isValidObjectId(projectId)) {
+    res.status(404).json({ detail: 'Project not found.' });
+    return;
+  }
+
   if (portalToken) {
     try {
       const project = await Project.findOne({
@@ -126,40 +137,36 @@ export async function requireProjectAccess(req: PortalRequest, res: Response, ne
 
       req.project = project;
 
-      // 1. Check if authenticated consultant owns this project and is in Support Mode
-      let token: string | null = null;
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        token = authHeader.substring(7).trim();
-      } else if (req.cookies && req.cookies[ENV.AUTH_ACCESS_COOKIE_NAME]) {
-        token = req.cookies[ENV.AUTH_ACCESS_COOKIE_NAME];
-      }
-
-      if (token) {
-        try {
-          const payload = jwt.verify(token, ENV.JWT_ACCESS_SECRET) as { userId: string };
-          if (payload?.userId) {
-            const user = await Consultant.findById(payload.userId);
-            const ownerId = (project.consultantId as any)?._id?.toString() || project.consultantId?.toString();
-            if (user && ownerId === user.id.toString()) {
-              const supportHeader =
-                (req.headers['x-support-mode'] as string) ||
-                (req.headers['x-consultant-support'] as string) ||
-                (req.query.support as string) ||
-                (req.query.mode as string) ||
-                (req.query.consultant as string) ||
-                '';
-              const norm = supportHeader.trim().toLowerCase();
-              if (['true', '1', 'yes', 'consultant'].includes(norm)) {
-                req.user = user;
-                req.isSupportMode = true;
-                return next();
-              }
-            }
-          }
-        } catch {
-          // Token invalid, proceed to password check
+      // 1. Support Mode: enforce valid active, non-suspended, tokenVersion-matched owning consultant
+      if (isSupportModeRequested(req)) {
+        let supportToken: string | null = null;
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          supportToken = authHeader.substring(7).trim();
+        } else if (req.cookies && req.cookies[ENV.AUTH_ACCESS_COOKIE_NAME]) {
+          supportToken = req.cookies[ENV.AUTH_ACCESS_COOKIE_NAME];
         }
+
+        if (!supportToken) {
+          res.status(401).json({ detail: 'Consultant authentication credentials required for support mode.' });
+          return;
+        }
+
+        const { user, errorStatus, errorBody } = await resolveAuthenticatedConsultant(supportToken);
+        if (!user) {
+          res.status(errorStatus || 401).json(errorBody || { detail: 'Authentication credentials were not provided.' });
+          return;
+        }
+
+        const ownerId = (project.consultantId as any)?._id?.toString() || project.consultantId?.toString();
+        if (ownerId !== user.id.toString()) {
+          res.status(403).json({ detail: 'Permission denied: you are not the assigned consultant for this project.' });
+          return;
+        }
+
+        req.user = user;
+        req.isSupportMode = true;
+        return next();
       }
 
       // 2. If project has NO password set, access is public
@@ -206,16 +213,9 @@ export async function requireProjectAccess(req: PortalRequest, res: Response, ne
   }
 
   try {
-    const payload = jwt.verify(token, ENV.JWT_ACCESS_SECRET) as { userId: string };
-    if (!payload || !payload.userId) {
-      res.status(401).json({ detail: 'Given token not valid for any token type' });
-      return;
-    }
-
-    const user = await Consultant.findById(payload.userId);
-
-    if (!user || !user.isActive) {
-      res.status(401).json({ detail: 'User not found or inactive.' });
+    const { user, errorStatus, errorBody } = await resolveAuthenticatedConsultant(token);
+    if (!user) {
+      res.status(errorStatus || 401).json(errorBody || { detail: 'User not found or inactive.' });
       return;
     }
 

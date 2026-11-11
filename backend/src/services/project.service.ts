@@ -225,7 +225,9 @@ export async function recalculatePaymentMilestones(projectId: string, session?: 
   const hasSharedDeliverable = deliverables.some((d: any) => d.status === 'shared');
 
   const midUnlocked = Boolean(advance && advance.status === 'paid' && hasApprovedConcept);
-  const finalUnlocked = Boolean(mid && mid.status === 'paid' && hasSharedDeliverable);
+  const finalUnlocked = Boolean(
+    advance && advance.status === 'paid' && mid && mid.status === 'paid' && hasSharedDeliverable
+  );
 
   if (mid && ['locked', 'ready'].includes(mid.status)) {
     const nextMidStatus = midUnlocked ? 'ready' : 'locked';

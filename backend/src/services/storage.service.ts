@@ -38,6 +38,62 @@ export const UPLOAD_RULES = {
   },
 };
 
+function matchesMagicBytes(ext: string, buf: Buffer): boolean {
+  if (!buf || buf.length === 0) return false;
+  if (ext === '.jpg' || ext === '.jpeg') {
+    return buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+  }
+  if (ext === '.png') {
+    return buf.length >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+  }
+  if (ext === '.webp') {
+    return (
+      buf.length >= 12 &&
+      buf.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buf.subarray(8, 12).toString('ascii') === 'WEBP'
+    );
+  }
+  if (ext === '.gif') {
+    const hdr = buf.subarray(0, 6).toString('ascii');
+    return hdr === 'GIF87a' || hdr === 'GIF89a';
+  }
+  if (ext === '.pdf') {
+    return buf.subarray(0, 16).toString('latin1').includes('%PDF-');
+  }
+  if (ext === '.zip' || ext === '.docx' || ext === '.pptx') {
+    return buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b && (buf[2] === 0x03 || buf[2] === 0x05 || buf[2] === 0x07);
+  }
+  if (ext === '.doc' || ext === '.ppt') {
+    return buf.length >= 4 && ((buf[0] === 0xd0 && buf[1] === 0xcf && buf[2] === 0x11 && buf[3] === 0xe0) || (buf[0] === 0x50 && buf[1] === 0x4b));
+  }
+  if (ext === '.webm') {
+    return buf.length >= 4 && buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3;
+  }
+  if (ext === '.ogg') {
+    return buf.subarray(0, 4).toString('ascii') === 'OggS';
+  }
+  if (ext === '.mp3') {
+    return (
+      buf.subarray(0, 3).toString('ascii') === 'ID3' ||
+      (buf.length >= 2 && buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0)
+    );
+  }
+  if (ext === '.wav') {
+    return (
+      buf.length >= 12 &&
+      buf.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buf.subarray(8, 12).toString('ascii') === 'WAVE'
+    );
+  }
+  if (ext === '.m4a' || ext === '.mp4') {
+    return buf.length >= 8 && buf.subarray(4, 8).toString('ascii') === 'ftyp';
+  }
+  if (ext === '.txt') {
+    return !buf.subarray(0, 512).includes(0x00);
+  }
+  return true;
+}
+
 export function validateUploadedFile(
   file: Express.Multer.File,
   ruleName: keyof typeof UPLOAD_RULES
@@ -45,7 +101,13 @@ export function validateUploadedFile(
   const rule = UPLOAD_RULES[ruleName];
   if (!rule) return;
 
-  if (file.size > rule.maxSize) {
+  if (!file || !file.buffer || file.buffer.length === 0) {
+    const err: any = new Error('Uploaded file is empty.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (file.size > rule.maxSize || file.buffer.length > rule.maxSize) {
     const err: any = new Error(`File too large. Maximum size is ${rule.maxSize / (1024 * 1024)}MB.`);
     err.statusCode = 413;
     throw err;
@@ -54,6 +116,12 @@ export function validateUploadedFile(
   const ext = path.extname(file.originalname).toLowerCase();
   if (!rule.allowedExts.includes(ext)) {
     const err: any = new Error(`Unsupported file type: ${ext}`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!matchesMagicBytes(ext, file.buffer)) {
+    const err: any = new Error(`File contents do not match declared extension ${ext}.`);
     err.statusCode = 400;
     throw err;
   }
@@ -146,9 +214,10 @@ export async function optimizeImageBuffer(
     }
 
     return { buffer: optimizedBuffer, filename };
-  } catch (err) {
-    // If sharp fails to parse image, return original
-    return { buffer, filename };
+  } catch {
+    const err: any = new Error('Invalid or corrupted image file.');
+    err.statusCode = 400;
+    throw err;
   }
 }
 

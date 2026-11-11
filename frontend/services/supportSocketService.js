@@ -62,7 +62,7 @@ class SupportSocketService {
         console.warn("[SupportSocket] Consultant WS closed with code:", event.code);
         this.isConsultantConnected = false;
         this.emit("connection_status", { isConnected: false, code: event.code });
-        if (event.code !== 4003) {
+        if (event.code !== 4001 && event.code !== 4003) {
           clearTimeout(this.consultantReconnectTimer);
           this.consultantReconnectTimer = setTimeout(() => {
             this.connectConsultantNotifications({ consultantToken });
@@ -122,7 +122,7 @@ class SupportSocketService {
         console.warn("[SupportSocket] Project WS closed with code:", event.code);
         this.isConnected = false;
         this.emit("connection_status", { isConnected: false, code: event.code });
-        if (event.code !== 4003 && event.code !== 4004 && this.portalToken) {
+        if (event.code !== 4001 && event.code !== 4003 && event.code !== 4004 && this.portalToken) {
           clearTimeout(this.reconnectTimer);
           this.reconnectTimer = setTimeout(() => {
             this.connect({ portalToken: this.portalToken, consultantToken: this.consultantToken });

@@ -179,7 +179,8 @@ export async function uploadProjectAttachment(req: any, res: Response, next: Nex
     validateUploadedFile(file, 'chat_attachment');
 
     const mime = file.mimetype || getMimeType(file.originalname);
-    const mediaUrl = await saveFile('chat_attachments', file.originalname, file.buffer, mime);
+    const folder = req.project?._id ? `chat_attachments/${req.project._id.toString()}` : 'chat_attachments';
+    const mediaUrl = await saveFile(folder, file.originalname, file.buffer, mime);
 
     let messageType: 'voice' | 'image' | 'file' = 'file';
     if (mime.startsWith('audio/') || file.originalname.match(/\.(webm|ogg|mp3|wav|m4a)$/i)) {
@@ -214,7 +215,8 @@ export async function uploadPortalAttachment(req: any, res: Response, next: Next
     validateUploadedFile(file, 'chat_attachment');
 
     const mime = file.mimetype || getMimeType(file.originalname);
-    const mediaUrl = await saveFile('chat_attachments', file.originalname, file.buffer, mime);
+    const folder = req.project?._id ? `chat_attachments/${req.project._id.toString()}` : 'chat_attachments';
+    const mediaUrl = await saveFile(folder, file.originalname, file.buffer, mime);
 
     let messageType: 'voice' | 'image' | 'file' = 'file';
     if (mime.startsWith('audio/') || file.originalname.match(/\.(webm|ogg|mp3|wav|m4a)$/i)) {

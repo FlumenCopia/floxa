@@ -16,6 +16,7 @@ import { sendClientPortalInvite } from '../services/email.service.js';
 import { generateProjectAssistantReply } from '../services/gemini.service.js';
 import { serializeProject, serializeProjectActivity } from '../utils/serializer.js';
 import { hashPassword } from '../utils/crypto.js';
+import { resolveSafeFrontendOrigin } from '../config/env.js';
 import { getActiveHelpSession, broadcastProjectRead } from '../websocket/socketServer.js';
 
 export async function getProjects(req: any, res: Response, next: NextFunction) {
@@ -291,10 +292,9 @@ export async function createProject(req: any, res: Response, next: NextFunction)
         if (!inviteTarget.client) {
           inviteTarget.client = client;
         }
-        const origin = req.get('origin') || req.headers?.origin || req.headers?.referer;
-        const baseUrlOverride = origin && typeof origin === 'string' && !origin.includes('localhost')
-          ? origin.replace(/\/client.*|\/api.*|\/$/, '')
-          : undefined;
+        const baseUrlOverride = resolveSafeFrontendOrigin(
+          (req.get('origin') || req.headers?.origin || req.headers?.referer) as string | undefined
+        );
         await sendClientPortalInvite(inviteTarget, portalPassword, baseUrlOverride);
         inviteEmailSent = true;
         inviteEmailStatus = 'sent';
@@ -412,10 +412,9 @@ export async function retryInvite(req: any, res: Response, next: NextFunction) {
       return;
     }
 
-    const origin = req.get('origin') || req.headers?.origin || req.headers?.referer;
-    const baseUrlOverride = origin && typeof origin === 'string' && !origin.includes('localhost')
-      ? origin.replace(/\/client.*|\/api.*|\/$/, '')
-      : undefined;
+    const baseUrlOverride = resolveSafeFrontendOrigin(
+      (req.get('origin') || req.headers?.origin || req.headers?.referer) as string | undefined
+    );
     await sendClientPortalInvite(project, undefined, baseUrlOverride);
     res.json({ success: true, message: 'Invite email resent.' });
   } catch (err) {

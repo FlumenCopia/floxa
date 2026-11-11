@@ -134,3 +134,65 @@ export async function verifyPassword(plainText: string, passwordHash: string): P
 
   return false;
 }
+
+const ENC_PREFIX = 'enc:v1:';
+
+function getSecretsEncryptionKey(): Buffer {
+  if (ENV.SECRETS_ENCRYPTION_KEY) {
+    return crypto.createHash('sha256').update(ENV.SECRETS_ENCRYPTION_KEY).digest();
+  }
+  return crypto.createHash('sha256').update(`floxa-secrets-v1:${ENV.SECRET_KEY}`).digest();
+}
+
+export function encryptSecret(plainText?: string | null): string {
+  const raw = typeof plainText === 'string' ? plainText.trim() : '';
+  if (!raw) return '';
+  if (raw.startsWith(ENC_PREFIX)) return raw;
+
+  const key = getSecretsEncryptionKey();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(raw, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  return `${ENC_PREFIX}${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+export function decryptSecret(stored?: string | null): string {
+  const raw = typeof stored === 'string' ? stored.trim() : '';
+  if (!raw) return '';
+  if (!raw.startsWith(ENC_PREFIX)) return raw;
+
+  const payload = raw.slice(ENC_PREFIX.length);
+  const parts = payload.split(':');
+  if (parts.length !== 3) return '';
+
+  try {
+    const [ivHex, tagHex, dataHex] = parts;
+    const key = getSecretsEncryptionKey();
+    const iv = Buffer.from(ivHex, 'hex');
+    const tag = Buffer.from(tagHex, 'hex');
+    const data = Buffer.from(dataHex, 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
+  } catch {
+    return '';
+  }
+}
+
+export function maskSecret(stored?: string | null): string {
+  const plain = decryptSecret(stored);
+  if (!plain) return '';
+  const suffix = plain.length > 4 ? plain.slice(-4) : '';
+  return `••••••••${suffix}`;
+}
+
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

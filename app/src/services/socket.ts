@@ -20,14 +20,18 @@ class FloxaSocketService {
     Promise.all([
       storage.getItem(storage.KEYS.ACCESS_TOKEN),
       storage.getItem(storage.KEYS.PORTAL_TOKEN),
+      storage.getItem(storage.KEYS.PORTAL_ACCESS_TOKEN),
       storage.getItem(storage.KEYS.USER_ROLE),
-    ]).then(([token, portalToken, role]) => {
+    ]).then(([token, portalToken, portalAccessToken, role]) => {
       // Convert HTTP(S) API URL to WS(S) URL
       const wsBase = API_BASE_URL.replace(/^http/i, 'ws').replace(/\/api\/?$/, '');
       let wsUrl = '';
 
       if (role === 'client' && portalToken) {
         wsUrl = `${wsBase}/ws/support/${encodeURIComponent(portalToken)}/`;
+        if (portalAccessToken) {
+          wsUrl += `?portal_access_token=${encodeURIComponent(portalAccessToken)}`;
+        }
       } else if (token) {
         wsUrl = `${wsBase}/ws/support/consultant/?token=${encodeURIComponent(token)}`;
       } else {

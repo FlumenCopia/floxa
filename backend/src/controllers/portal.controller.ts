@@ -43,6 +43,7 @@ import {
   generateWatermarkedImage,
   resolveSafeMediaPath,
   streamLocalFile,
+  validateUploadedFile,
 } from '../services/storage.service.js';
 import {
   serializeProject,
@@ -98,6 +99,18 @@ export async function getPortalProject(req: any, res: Response, next: NextFuncti
 
     if (project.id && project.progress !== progress) {
       await Project.findByIdAndUpdate(project.id, { progress });
+    }
+
+    // Bind browser portal session cookie for passwordless portals so gated media (chat attachments) works without leaking tokens in URLs
+    if (!req.isSupportMode && !project.portalPasswordHash && project.portalToken) {
+      const signedToken = signPortalAccessToken(project.portalToken);
+      res.cookie(ENV.PORTAL_ACCESS_COOKIE_NAME, signedToken, {
+        maxAge: ENV.PORTAL_ACCESS_MAX_AGE * 1000,
+        httpOnly: true,
+        secure: ENV.AUTH_COOKIE_SECURE,
+        sameSite: ENV.AUTH_COOKIE_SAMESITE,
+        path: '/',
+      });
     }
 
     res.json(serializeProject({ ...project.toObject(), progress }, workflowStatus));
@@ -318,7 +331,7 @@ export async function savePortalDiscovery(req: any, res: Response, next: NextFun
 export async function submitPortalDiscovery(req: any, res: Response, next: NextFunction) {
   try {
     req.params.id = req.project.id;
-    req.isPortalClient = true;
+    req.isPortalClient = !req.isSupportMode;
     await handleSaveDiscovery(req, res, true);
   } catch (err) {
     next(err);
@@ -974,9 +987,26 @@ export async function signPortalAgreement(req: any, res: Response, next: NextFun
     }
 
     const signedAt = new Date();
-    let signatureImageBuffer: Buffer | undefined = req.file ? req.file.buffer : undefined;
-    let signatureOriginalName: string | undefined = req.file ? req.file.originalname : undefined;
-    let signatureMimeType: string | undefined = req.file ? req.file.mimetype : undefined;
+    let signatureImageBuffer: Buffer | undefined;
+    let signatureOriginalName: string | undefined;
+    let signatureMimeType: string | undefined;
+
+    if (req.file) {
+      validateUploadedFile(req.file, 'moodboard_image');
+      try {
+        const meta = await sharp(req.file.buffer).metadata();
+        if (!meta.format || !['jpeg', 'png', 'webp'].includes(meta.format)) {
+          res.status(400).json({ detail: 'Invalid signature image format.' });
+          return;
+        }
+        signatureImageBuffer = req.file.buffer;
+        signatureOriginalName = req.file.originalname;
+        signatureMimeType = req.file.mimetype;
+      } catch {
+        res.status(400).json({ detail: 'Invalid or corrupted signature image file.' });
+        return;
+      }
+    }
 
     // Backward-compatible JSON base64 signature image support
     if (!signatureImageBuffer && typeof req.body?.signature_image === 'string' && req.body.signature_image.startsWith('data:image/')) {
@@ -1161,8 +1191,18 @@ export async function createPortalPaymentOrder(req: any, res: Response, next: Ne
       return;
     }
 
+    const currency = ENV.RAZORPAY_CURRENCY || 'INR';
+    const expectedOrderAmount = amountToSmallestUnit(milestone.amount);
+
     const reusableTransaction = transactions
-      .filter((tx: any) => tx.status === 'created' && tx.razorpayOrderId && tx.razorpayOrderId.trim() !== '')
+      .filter(
+        (tx: any) =>
+          tx.status === 'created' &&
+          tx.razorpayOrderId &&
+          tx.razorpayOrderId.trim() !== '' &&
+          amountToSmallestUnit(tx.amount) === expectedOrderAmount &&
+          String(tx.currency || '').toUpperCase() === currency.toUpperCase()
+      )
       .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
 
     if (reusableTransaction) {
@@ -1170,8 +1210,16 @@ export async function createPortalPaymentOrder(req: any, res: Response, next: Ne
       return;
     }
 
-    const currency = ENV.RAZORPAY_CURRENCY || 'INR';
-    const orderAmount = amountToSmallestUnit(milestone.amount);
+    // Expire stale 'created' transactions whose amount/currency no longer matches the milestone
+    await PaymentTransaction.updateMany(
+      {
+        milestoneId: milestone.id,
+        status: 'created',
+      },
+      { $set: { status: 'failed' } }
+    );
+
+    const orderAmount = expectedOrderAmount;
     const receipt = `floxa-${milestone.id}-${crypto.randomBytes(6).toString('hex')}`;
     const notes = {
       project_id: String(project.id),
@@ -1297,7 +1345,7 @@ export async function verifyPortalPayment(req: any, res: Response, next: NextFun
 
     let providerPayment: any;
     try {
-      providerPayment = await fetchRazorpayPayment(razorpayPaymentId);
+      providerPayment = await fetchRazorpayPayment(razorpayPaymentId, rzpCreds);
     } catch {
       res.status(503).json({ detail: 'Unable to confirm payment with Razorpay.' });
       return;

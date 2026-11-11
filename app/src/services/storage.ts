@@ -6,6 +6,7 @@ const KEYS = {
   REFRESH_TOKEN: 'floxa_refresh_token',
   USER_ROLE: 'floxa_user_role',
   PORTAL_TOKEN: 'floxa_portal_token',
+  PORTAL_ACCESS_TOKEN: 'floxa_portal_access_token',
   USER_PROFILE: 'floxa_user_profile',
   API_BASE_URL: 'floxa_api_base_url',
   CSRF_TOKEN: 'floxa_csrf_token',

@@ -517,14 +517,8 @@ export default function Floxaheader({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("floxa_jwt") ||
-        localStorage.getItem("floxa_token") ||
-        "active"
-        : "";
-    if (token || consultant?.id) {
-      supportSocket.connectConsultantNotifications({ consultantToken: token, consultantId: consultant?.id });
+    if (consultant?.id) {
+      supportSocket.connectConsultantNotifications({ consultantToken: "active", consultantId: consultant.id });
     }
 
     const unsubReject = webRTCService.on("call_rejected", ({ reason }) => {

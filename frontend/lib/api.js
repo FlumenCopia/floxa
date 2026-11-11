@@ -169,11 +169,13 @@ async function refreshAccessToken() {
 
   pendingRefreshPromise = (async () => {
     try {
+      const csrfToken = await ensureCsrfCookie();
       const response = await fetch(buildApiUrl("/auth/token/refresh/"), {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
         },
       });
 
