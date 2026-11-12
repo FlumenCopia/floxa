@@ -54,6 +54,7 @@ router.get('/:portal_token/deliverables/:asset_id/file/', portalController.downl
 router.get('/:portal_token/agreement/', portalController.getPortalAgreement);
 router.get('/:portal_token/agreement/pdf/', portalController.downloadPortalAgreementPdf);
 router.get('/:portal_token/agreement/file/', portalController.downloadPortalAgreementPdf);
+router.get('/:portal_token/agreement/signature/', portalController.downloadPortalSignatureImage);
 router.post('/:portal_token/agreement/sign/', clientOnlyAction, upload.single('signature_image'), portalController.signPortalAgreement);
 
 router.get('/:portal_token/generated-agreement/', generatedAgreementController.getPortalGeneratedAgreement);

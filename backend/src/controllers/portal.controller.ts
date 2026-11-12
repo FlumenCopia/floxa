@@ -592,6 +592,10 @@ export async function getPortalAgreement(req: any, res: Response, next: NextFunc
       }
     }
 
+    const signatureImageUrl = agreement.signatureImage
+      ? `/api/client-portal/${portalToken}/agreement/signature/`
+      : null;
+
     res.json({
       id: agreement.id,
       project: agreement.projectId,
@@ -606,13 +610,33 @@ export async function getPortalAgreement(req: any, res: Response, next: NextFunc
       signer_name: agreement.signerName,
       signed_at: agreement.signedAt,
       signature_method: agreement.signatureMethod,
-      signature_image: agreement.signatureImage || null,
+      signature_image: signatureImageUrl,
       signature_metadata: signatureMetadata,
       signature_requested_at: agreement.signatureRequestedAt,
       current_version: Array.isArray(agreement.appendices) && agreement.appendices.length > 0
         ? (agreement.signedAt ? 2 + agreement.appendices.length - 1 : 1 + agreement.appendices.length)
         : 1,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function downloadPortalSignatureImage(req: any, res: Response, next: NextFunction) {
+  try {
+    const agreement = await ProjectAgreement.findOne({ projectId: req.project.id });
+    if (!agreement || !agreement.signatureImage) {
+      res.status(404).json({ detail: 'Signature image not found.' });
+      return;
+    }
+
+    const safePath = resolveSafeMediaPath(agreement.signatureImage);
+    if (!safePath || !fs.existsSync(safePath)) {
+      res.status(404).json({ detail: 'Signature image not found.' });
+      return;
+    }
+
+    streamLocalFile(safePath, res, { isAttachment: false });
   } catch (err) {
     next(err);
   }
@@ -1078,6 +1102,10 @@ export async function signPortalAgreement(req: any, res: Response, next: NextFun
     const fileUrl = `/api/client-portal/${portalToken}/agreement/pdf/`;
     const downloadUrl = `/api/client-portal/${portalToken}/agreement/pdf/?download=1`;
 
+    const signatureImageUrl = updated!.signatureImage
+      ? `/api/client-portal/${portalToken}/agreement/signature/`
+      : null;
+
     res.json({
       id: updated!.id,
       project: updated!.projectId,
@@ -1089,7 +1117,7 @@ export async function signPortalAgreement(req: any, res: Response, next: NextFun
       signer_name: updated!.signerName,
       signed_at: updated!.signedAt,
       signature_method: updated!.signatureMethod,
-      signature_image: updated!.signatureImage || null,
+      signature_image: signatureImageUrl,
       signature_metadata: {
         hash: sha256Hash,
         ip: req.ip,
