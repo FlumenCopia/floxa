@@ -704,9 +704,6 @@ export default function AdminConsultantsPage() {
                               backgroundColor: "rgba(240, 180, 41, 0.18)",
                               color: "#f0b429",
                               border: "1px solid rgba(240, 180, 41, 0.4)",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
                             }}>
                               <AlertTriangle size={11} />
                               <span>Reactivation Requested</span>
