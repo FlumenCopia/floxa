@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -116,7 +117,7 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
   const [currentStep, setCurrentStep] = useState(0);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [spotlightRect, setSpotlightRect] = useState(null);
-  const [tooltipStyle, setTooltipStyle] = useState({ top: 100, left: 260, arrowTop: 24 });
+  const [tooltipStyle, setTooltipStyle] = useState({ top: 100, left: 260, arrowTop: 24, centered: false });
   const tooltipRef = useRef(null);
 
   const consultantId = consultant?.id || consultant?._id || "default";
@@ -128,17 +129,42 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
     const step = TOUR_STEPS[stepIndex];
     if (!step) return;
 
+    const margin = 16;
+    const mobileTabbar = document.querySelector(".mobile-tabbar");
+    const mobileBarHeight = mobileTabbar ? mobileTabbar.getBoundingClientRect().height : 0;
+    const isCompactScreen = window.innerWidth <= 1000 || mobileBarHeight > 0;
+    const bottomReserve = isCompactScreen ? Math.max(84, Math.ceil(mobileBarHeight + margin)) : margin;
+    const measuredWidth = tooltipRef.current?.offsetWidth || 420;
+    const measuredHeight = tooltipRef.current?.offsetHeight || 340;
+    const tooltipWidth = Math.min(measuredWidth, window.innerWidth - margin * 2);
+    const tooltipHeight = Math.min(measuredHeight, window.innerHeight - margin - bottomReserve);
+
     let targetEl = document.querySelector(step.targetSelector);
     if (!targetEl && step.fallbackSelector) {
       targetEl = document.querySelector(step.fallbackSelector);
     }
 
-    if (!targetEl) {
-      // Fallback: Center in screen if element not found
+    const rect = targetEl ? targetEl.getBoundingClientRect() : null;
+    const isTargetVisible =
+      rect &&
+      rect.width > 0 &&
+      rect.height > 0 &&
+      rect.right > 12 &&
+      rect.left >= 0 &&
+      rect.left < window.innerWidth;
+
+    if (!isTargetVisible) {
+      // Compact/mobile screen (sidebar collapsed off-screen) or element missing:
+      // Center cleanly in the safe area above the mobile bottom navigation bar.
       setSpotlightRect(null);
+      const safeAvailableH = window.innerHeight - margin - bottomReserve;
+      const centeredTop = Math.max(margin, Math.round(margin + (safeAvailableH - tooltipHeight) / 2));
+      const centeredLeft = Math.max(margin, Math.round((window.innerWidth - tooltipWidth) / 2));
       setTooltipStyle({
-        top: Math.max(80, window.innerHeight / 2 - 140),
-        left: Math.max(16, window.innerWidth / 2 - 210),
+        top: centeredTop,
+        left: centeredLeft,
+        arrowTop: 24,
+        centered: true,
       });
       return;
     }
@@ -146,9 +172,7 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
     // Scroll smoothly into view if offscreen (e.g., lower sidebar items)
     targetEl.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
 
-    const rect = targetEl.getBoundingClientRect();
     const padding = 5;
-
     const spot = {
       top: Math.max(0, rect.top - padding),
       left: Math.max(0, rect.left - padding),
@@ -157,25 +181,20 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
     };
     setSpotlightRect(spot);
 
-    // Sidebar items are on the left: place tooltip on the RIGHT side of the sidebar
-    const margin = 16;
-    const measuredWidth = tooltipRef.current?.offsetWidth || 420;
-    const measuredHeight = tooltipRef.current?.offsetHeight || 340;
-    const tooltipWidth = Math.min(measuredWidth, window.innerWidth - margin * 2);
-    const tooltipHeight = Math.min(measuredHeight, window.innerHeight - margin * 2);
-
     // Default: position directly to the right of the sidebar item
     let left = rect.right + margin;
     let top = rect.top - 8;
+    let centered = false;
 
-    // Mobile / small viewport fallback: if right side overflows, center or place below
+    // Small viewport fallback: if right side overflows, center cleanly above bottom nav
     if (left + tooltipWidth > window.innerWidth - margin) {
-      left = Math.max(margin, window.innerWidth / 2 - tooltipWidth / 2);
+      left = Math.max(margin, Math.round((window.innerWidth - tooltipWidth) / 2));
       top = Math.max(margin, rect.bottom + margin);
+      centered = true;
     }
 
-    // Clamp top & left strictly within viewport boundaries using real tooltip dimensions
-    const maxTop = Math.max(margin, window.innerHeight - tooltipHeight - margin);
+    // Clamp top & left strictly within safe viewport boundaries (above mobile bottom nav)
+    const maxTop = Math.max(margin, window.innerHeight - tooltipHeight - bottomReserve);
     const clampedTop = Math.min(Math.max(margin, top), maxTop);
     const clampedLeft = Math.min(Math.max(margin, left), Math.max(margin, window.innerWidth - tooltipWidth - margin));
     const arrowTop = Math.min(
@@ -183,7 +202,7 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
       Math.max(18, tooltipHeight - 30)
     );
 
-    setTooltipStyle({ top: clampedTop, left: clampedLeft, arrowTop });
+    setTooltipStyle({ top: clampedTop, left: clampedLeft, arrowTop, centered });
   }, []);
 
   const startTour = useCallback(() => {
@@ -260,10 +279,11 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
     return () => window.removeEventListener("floxa:start_tour", handleReplay);
   }, [startTour]);
 
-  // Recalculate position on step change, resize, or scroll
+  // Recalculate position after step DOM update, on resize, or on scroll
   useEffect(() => {
     if (!isActive) return;
 
+    const rafId = window.requestAnimationFrame(() => calculatePosition(currentStep));
     const timer = setTimeout(() => {
       calculatePosition(currentStep);
     }, 60);
@@ -273,6 +293,7 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
     window.addEventListener("scroll", handleUpdate, true);
 
     return () => {
+      window.cancelAnimationFrame(rafId);
       clearTimeout(timer);
       window.removeEventListener("resize", handleUpdate);
       window.removeEventListener("scroll", handleUpdate, true);
@@ -302,10 +323,7 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
   const StepIcon = activeStepData.icon || Compass;
   const consultantName = consultant?.name ? consultant.name.split(" ")[0] : "";
 
-  return (
-    <>
-      {/* 1. Linear Sidebar Spotlight Tour Overlay */}
-      {isActive ? (
+  const tourOverlay = isActive ? (
         <div className="floxa-tour-overlay" aria-live="polite">
           {spotlightRect ? (
             <div
@@ -321,7 +339,7 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
 
           <div
             ref={tooltipRef}
-            className="floxa-tour-tooltip"
+            className={`floxa-tour-tooltip ${tooltipStyle.centered ? "no-arrow" : ""}`}
             style={{
               top: `${tooltipStyle.top}px`,
               left: `${tooltipStyle.left}px`,
@@ -399,10 +417,9 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
             </div>
           </div>
         </div>
-      ) : null}
+      ) : null;
 
-      {/* 2. Standard Welcome & Exploration Celebration Modal */}
-      {showWelcomeModal ? (
+  const welcomeModal = showWelcomeModal ? (
         <div className="floxa-welcome-backdrop" role="dialog" aria-modal="true">
           <div className="floxa-welcome-card">
             
@@ -449,7 +466,18 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
             </div>
           </div>
         </div>
-      ) : null}
+      ) : null;
+
+  const content = (
+    <>
+      {tourOverlay}
+      {welcomeModal}
     </>
   );
+
+  if (typeof document !== "undefined") {
+    return createPortal(content, document.body);
+  }
+
+  return content;
 }

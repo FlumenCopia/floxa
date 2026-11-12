@@ -52,6 +52,17 @@
   pointer-events: none;
 }
 
+.floxa-tour-tooltip.no-arrow::before {
+  display: none;
+}
+
+@media (max-width: 1000px) {
+  .floxa-tour-tooltip {
+    max-height: calc(100dvh - 104px);
+    padding: 16px 16px;
+  }
+}
+
 @keyframes floxaTourFadeIn {
   from {
     opacity: 0;
