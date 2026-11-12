@@ -331,7 +331,7 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
                 onClick={handleSkipTour}
                 title="Skip onboarding tour"
               >
-                Skip Tour <X size={14} />
+                Skip Tour
               </button>
             </div>
 
