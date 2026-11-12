@@ -569,9 +569,9 @@ export function serializeProjectAgreement(agreement: any, req?: any, isClientPor
     originalSignedPdfUrl = agreement.originalSignedPdfFile ? `/api/client-portal/${portalToken}/agreement/pdf/?type=original_signed` : '';
     signedPdfUrl = agreement.signedPdfFile ? `/api/client-portal/${portalToken}/agreement/pdf/?type=signed` : '';
   } else if (pid) {
-    basicPdfUrl = agreement.basicPdfFile ? `/api/projects/${pid}/generated-agreement/pdf/?type=basic` : '';
-    originalSignedPdfUrl = agreement.originalSignedPdfFile ? `/api/projects/${pid}/generated-agreement/pdf/?type=original_signed` : '';
-    signedPdfUrl = agreement.signedPdfFile ? `/api/projects/${pid}/generated-agreement/pdf/?type=signed` : '';
+    basicPdfUrl = agreement.basicPdfFile ? `/api/projects/${pid}/agreement/file/?type=basic` : '';
+    originalSignedPdfUrl = agreement.originalSignedPdfFile ? `/api/projects/${pid}/agreement/file/?type=original_signed` : '';
+    signedPdfUrl = agreement.signedPdfFile ? `/api/projects/${pid}/agreement/file/?type=signed` : '';
   }
 
   const appendices = Array.isArray(agreement.appendices) ? agreement.appendices : [];
