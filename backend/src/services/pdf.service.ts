@@ -909,77 +909,168 @@ export async function generateBrandDeliverablesPdf(project: any): Promise<Buffer
 
 export async function generateBrandDnaBriefPdf(project: any, brandDNA: any): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 40, autoFirstPage: true, compress: false, size: 'A4' });
+    const doc = new PDFDocument({
+      margins: { top: 36, bottom: 36, left: 42, right: 42 },
+      autoFirstPage: true,
+      compress: false,
+      size: 'A4',
+    });
     const buffers: Buffer[] = [];
 
     doc.on('data', (chunk) => buffers.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(buffers)));
     doc.on('error', (err) => reject(err));
 
+    const MX = 42;
+    const CW = 511.28; // 595.28 - 84
+    const C = {
+      emerald: '#006B3C',
+      white: '#FFFFFF',
+      ink: '#111111',
+      charcoal: '#454545',
+      muted: '#6E7370',
+      surface: '#F4F6F5',
+      border: '#D8DFDB',
+      borderLight: '#E6ECE8',
+    };
+
     const companyName = project.clientProfile?.companyName || project.companyName || project.title || 'Brand';
     const sector = project.clientProfile?.industry || project.sector || 'Creative Industry';
     const clientName = project.client?.name || project.clientProfile?.clientName || 'Client';
     const cluster = brandDNA.brandPersonalityCluster || 'Bold Challenger';
 
-    const renderHeader = (pageTitle: string, pageNumber: number) => {
+    const isDuplicateSector = sector.toLowerCase().trim() === companyName.toLowerCase().trim();
+    const subText = isDuplicateSector || !sector
+      ? `${companyName.toUpperCase()}  •  ARCHETYPE: ${cluster.toUpperCase()}`
+      : `${companyName.toUpperCase()}  •  ${sector.toUpperCase()}  •  ARCHETYPE: ${cluster.toUpperCase()}`;
 
-      doc.x = 40;
-      // Dark emerald banner
-      doc.rect(40, 30, 515, 46).fill('#081610');
-      doc.fillColor('#4dffa0').fontSize(14).font('Helvetica-Bold').text('FLOXA BRAND DNA & CREATIVE BRIEF', 55, 41);
+    const renderHeader = (pageNumber: number) => {
+      // Pure white minimal studio header with clean FLOXA wordmark & emerald rule
+      doc.rect(0, 0, 595.28, 841.89).fill(C.white);
 
-      // Clean de-duplicated subtitle
-      const isDuplicateSector = sector.toLowerCase().trim() === companyName.toLowerCase().trim();
-      const subText = isDuplicateSector || !sector
-        ? `${companyName.toUpperCase()} • ARCHETYPE: ${cluster.toUpperCase()} | PAGE ${pageNumber} OF 2`
-        : `${companyName.toUpperCase()} • ${sector.toUpperCase()} • ARCHETYPE: ${cluster.toUpperCase()} | PAGE ${pageNumber} OF 2`;
+      // Left: FLOXA wordmark + Document Title
+      doc.fillColor(C.emerald).font('Helvetica-Bold').fontSize(9).text('FLOXA', MX, 32, { characterSpacing: 3.5, lineBreak: false });
+      doc.fillColor(C.ink).font('Helvetica-Bold').fontSize(15).text('FLOXA BRAND DNA & CREATIVE BRIEF', MX, 45, { width: 390, lineBreak: false });
+      doc.fillColor(C.charcoal).font('Helvetica').fontSize(7.8).text(subText, MX, 64, { width: 410, lineBreak: false });
 
-      doc.fillColor('#94a3b8').fontSize(8.5).font('Helvetica').text(subText, 55, 59);
+      // Right: Minimal page indicator
+      doc.fillColor(C.emerald).font('Helvetica-Bold').fontSize(8).text(`PAGE ${pageNumber} OF 2`, MX, 48, {
+        width: CW,
+        align: 'right',
+        lineBreak: false,
+      });
+
+      // Crisp emerald accent rule
+      doc.strokeColor(C.emerald).lineWidth(1.5).moveTo(MX, 79).lineTo(MX + CW, 79).stroke();
       doc.y = 90;
-      doc.x = 40;
+      doc.x = MX;
     };
 
-    const renderSectionTitle = (title: string) => {
-      doc.x = 40;
-      doc.moveDown(0.5);
-      doc.font('Helvetica-Bold').fontSize(10).fillColor('#0f172a').text(title.toUpperCase(), 40, doc.y, { width: 515 });
-      const lineY = doc.y + 2;
-      doc.strokeColor('#cbd5e1').lineWidth(0.75).moveTo(40, lineY).lineTo(555, lineY).stroke();
-      doc.y = lineY + 6;
-      doc.x = 40;
+    const renderSectionTitle = (num: string, title: string) => {
+      doc.x = MX;
+      doc.y += 8;
+      const y = doc.y;
+      doc.font('Helvetica-Bold').fontSize(9.5).fillColor(C.emerald).text(num, MX, y, { lineBreak: false });
+      doc.font('Helvetica-Bold').fontSize(9.5).fillColor(C.ink).text(title.toUpperCase(), MX + 20, y, {
+        width: CW - 20,
+        characterSpacing: 0.4,
+      });
+      const lineY = doc.y + 3;
+      doc.strokeColor(C.emerald).lineWidth(0.75).moveTo(MX, lineY).lineTo(MX + CW, lineY).stroke();
+      doc.y = lineY + 8;
+      doc.x = MX;
     };
 
-    const renderField = (label: string, value: string) => {
-      doc.x = 40;
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#1e293b').text(`${label}: `, 40, doc.y, { continued: true });
-      doc.font('Helvetica').fontSize(8.5).fillColor('#475569').text(value || 'Not specified.', { width: 515, lineGap: 1 });
-      doc.y += 3;
-      doc.x = 40;
+    const renderStructuredRows = (rows: Array<{ label: string; value: string }>) => {
+      const labelW = 148;
+      const valW = CW - labelW - 18;
+      rows.forEach((row, idx) => {
+        const valText = row.value || 'Not specified.';
+        doc.font('Helvetica-Bold').fontSize(8.2);
+        const lh = doc.heightOfString(row.label, { width: labelW });
+        doc.font('Helvetica').fontSize(8.3);
+        const vh = doc.heightOfString(valText, { width: valW, lineGap: 1.8 });
+        const rowH = Math.max(lh, vh) + 10;
+
+        const y = doc.y;
+        if (idx % 2 === 0) {
+          doc.rect(MX, y, CW, rowH).fill(C.surface);
+        }
+        doc.font('Helvetica-Bold').fontSize(8.2).fillColor(C.ink).text(row.label, MX + 8, y + 5, { width: labelW });
+        doc.font('Helvetica').fontSize(8.3).fillColor(C.charcoal).text(valText, MX + labelW + 14, y + 5, {
+          width: valW,
+          lineGap: 1.8,
+        });
+        doc.strokeColor(C.borderLight).lineWidth(0.5).moveTo(MX, y + rowH).lineTo(MX + CW, y + rowH).stroke();
+        doc.y = y + rowH;
+      });
+      doc.x = MX;
+    };
+
+    const renderFooter = (pageNumber: number) => {
+      const prevBottom = doc.page.margins.bottom;
+      doc.page.margins.bottom = 0;
+
+      doc.strokeColor(C.border).lineWidth(0.6).moveTo(MX, 788).lineTo(MX + CW, 788).stroke();
+      doc.fillColor(C.emerald).font('Helvetica-Bold').fontSize(7.2).text('FLOXA STUDIO', MX, 796, { lineBreak: false });
+      doc.fillColor(C.muted).font('Helvetica').fontSize(7.2).text(
+        'CONFIDENTIAL CREATIVE BRIEF  •  GENERATED BY FLOXA STUDIO  •  FOR PRODUCTION & DESIGN USE ONLY',
+        MX + 70,
+        796,
+        { width: CW - 120, align: 'center', lineBreak: false }
+      );
+      doc.fillColor(C.charcoal).font('Helvetica-Bold').fontSize(7.2).text(`${pageNumber} / 2`, MX, 796, {
+        width: CW,
+        align: 'right',
+        lineBreak: false,
+      });
+
+      doc.page.margins.bottom = prevBottom;
     };
 
     // ==========================================
     // PAGE 1: STRATEGY & VISUAL FOUNDATION
     // ==========================================
-    renderHeader('STRATEGY & VISUAL FOUNDATION', 1);
+    renderHeader(1);
 
-    // Project metadata pill
-    doc.rect(40, doc.y, 515, 24).fill('#f1f5f9');
-    doc.strokeColor('#e2e8f0').lineWidth(0.5).rect(40, doc.y, 515, 24).stroke();
-    doc.fillColor('#334155').fontSize(8).font('Helvetica-Bold')
-      .text(`PROJECT: ${project.title || companyName}   |   CLIENT: ${clientName}   |   DATE: ${new Date().toLocaleDateString('en-US')}`, 50, doc.y + 7, { width: 495 });
-    doc.y += 28;
-    doc.x = 40;
+    // Structured 3-Column Information Bar
+    const metaY = doc.y;
+    const metaH = 34;
+    doc.rect(MX, metaY, CW, metaH).fill(C.surface);
+    doc.strokeColor(C.border).lineWidth(0.6).rect(MX, metaY, CW, metaH).stroke();
+
+    const colW = CW / 3;
+    const metaItems = [
+      { k: 'PROJECT', v: String(project.title || companyName) },
+      { k: 'CLIENT', v: String(clientName) },
+      { k: 'DATE', v: new Date().toLocaleDateString('en-US') },
+    ];
+    metaItems.forEach((m, idx) => {
+      const x = MX + idx * colW;
+      if (idx > 0) {
+        doc.strokeColor(C.border).lineWidth(0.5).moveTo(x, metaY + 6).lineTo(x, metaY + metaH - 6).stroke();
+      }
+      doc.fillColor(C.emerald).font('Helvetica-Bold').fontSize(6.8).text(m.k, x + 10, metaY + 6, { width: colW - 20, lineBreak: false });
+      doc.fillColor(C.ink).font('Helvetica-Bold').fontSize(8.5).text(m.v, x + 10, metaY + 16, {
+        width: colW - 20,
+        lineBreak: false,
+        ellipsis: true,
+      });
+    });
+    doc.y = metaY + metaH + 4;
 
     // Section 1: STRATEGIC IDENTITY
-    renderSectionTitle('1. Strategic Identity & Market Stance');
-    renderField('Business Essence', brandDNA.businessSummary);
-    renderField('Target Customer Psychology', brandDNA.targetAudienceSummary);
-    renderField('Core UVP / Positioning Anchor', brandDNA.positioningSummary);
-    renderField('Emotional Resonance & Tone', brandDNA.brandFeelingSummary);
-    renderField('Competitive Differentiation', brandDNA.competitorSummary);
+    renderSectionTitle('01', 'Strategic Identity & Market Stance');
+    renderStructuredRows([
+      { label: 'Business Essence', value: brandDNA.businessSummary },
+      { label: 'Target Customer Psychology', value: brandDNA.targetAudienceSummary },
+      { label: 'Core UVP / Positioning Anchor', value: brandDNA.positioningSummary },
+      { label: 'Emotional Resonance & Tone', value: brandDNA.brandFeelingSummary },
+      { label: 'Competitive Differentiation', value: brandDNA.competitorSummary },
+    ]);
 
     // Section 2: COLOR SYSTEM DIRECTIVES
-    renderSectionTitle('2. Recommended Color Palette (60-30-10 Rule)');
+    renderSectionTitle('02', 'Recommended Color Palette (60-30-10 Rule)');
     const palette = Array.isArray(brandDNA.colorPalette) && brandDNA.colorPalette.length > 0
       ? brandDNA.colorPalette
       : [
@@ -989,65 +1080,74 @@ export async function generateBrandDnaBriefPdf(project: any, brandDNA: any): Pro
         { role: 'Canvas Contrast', name: 'Ghost White', hex: '#f8fafc', usage: 'High-visibility typography' },
       ];
 
-    const startY = doc.y + 4;
-    const swatchWidth = 122;
-    const swatchGap = 9;
-    const cardHeight = 48;
+    const startY = doc.y + 2;
+    const swatchGap = 10;
+    const swatchWidth = (CW - swatchGap * 3) / 4;
+    const cardHeight = 76;
     palette.slice(0, 4).forEach((color: any, idx: number) => {
-      const cardX = 40 + idx * (swatchWidth + swatchGap);
-      const hexColor = (color.hex && /^#[0-9A-Fa-f]{6}$/.test(color.hex)) ? color.hex : '#22c55e';
+      const cardX = MX + idx * (swatchWidth + swatchGap);
+      const hexColor = (color.hex && /^#[0-9A-Fa-f]{6}$/.test(color.hex)) ? color.hex : '#006B3C';
 
-      // Card Background & border
-      doc.rect(cardX, startY, swatchWidth, cardHeight).fill('#f8fafc');
-      doc.strokeColor('#e2e8f0').lineWidth(0.5).rect(cardX, startY, swatchWidth, cardHeight).stroke();
+      doc.rect(cardX, startY, swatchWidth, cardHeight).fill(C.white);
+      doc.strokeColor(C.border).lineWidth(0.6).rect(cardX, startY, swatchWidth, cardHeight).stroke();
 
-      // Swatch color block
-      doc.rect(cardX + 7, startY + 7, 20, 20).fill(hexColor);
-      doc.strokeColor('#94a3b8').lineWidth(0.5).rect(cardX + 7, startY + 7, 20, 20).stroke();
+      // Full-bleed top color swatch
+      doc.rect(cardX + 0.5, startY + 0.5, swatchWidth - 1, 28).fill(hexColor);
+      doc.strokeColor(C.border).lineWidth(0.5).moveTo(cardX, startY + 29).lineTo(cardX + swatchWidth, startY + 29).stroke();
 
-      // Color name & hex
-      doc.fillColor('#0f172a').fontSize(8).font('Helvetica-Bold').text(color.name || 'Color', cardX + 32, startY + 7, { width: swatchWidth - 36, lineBreak: false, ellipsis: true });
-      doc.fillColor('#64748b').fontSize(7.5).font('Helvetica').text(color.hex || '', cardX + 32, startY + 17, { width: swatchWidth - 36 });
-      // Role
-      doc.fillColor('#047857').fontSize(7).font('Helvetica-Bold').text(color.role || '', cardX + 7, startY + 33, { width: swatchWidth - 14, lineBreak: false, ellipsis: true });
+      doc.fillColor(C.ink).fontSize(8.2).font('Helvetica-Bold').text(color.name || 'Color', cardX + 8, startY + 35, {
+        width: swatchWidth - 16,
+        lineBreak: false,
+        ellipsis: true,
+      });
+      doc.fillColor(C.charcoal).fontSize(7.5).font('Helvetica').text((color.hex || '').toUpperCase(), cardX + 8, startY + 47, {
+        width: swatchWidth - 16,
+        lineBreak: false,
+      });
+      doc.fillColor(C.emerald).fontSize(7.2).font('Helvetica-Bold').text(color.role || '', cardX + 8, startY + 60, {
+        width: swatchWidth - 16,
+        lineBreak: false,
+        ellipsis: true,
+      });
     });
-    // Critical: advance y and explicitly reset x to margin 40!
-    doc.y = startY + cardHeight + 8;
-    doc.x = 40;
+    doc.y = startY + cardHeight + 4;
+    doc.x = MX;
 
     // Section 3: TYPOGRAPHY DIRECTIVES
-    renderSectionTitle('3. Typography & Hierarchy Directives');
+    renderSectionTitle('03', 'Typography & Hierarchy Directives');
     const typo = brandDNA.typographyDirectives || {};
-    renderField('Headline Typography', typo.headlineStyle || 'Bold modern geometric grotesque in impactful casing');
-    renderField('Body & Subtitle Typography', typo.bodyStyle || 'Clean neutral sans-serif in regular/medium weight');
-    renderField('Pairing Rationale', typo.pairingRationale || 'Balances commanding visual authority with effortless readability across all formats.');
+    renderStructuredRows([
+      { label: 'Headline Typography', value: typo.headlineStyle || 'Bold modern geometric grotesque in impactful casing' },
+      { label: 'Body & Subtitle Typography', value: typo.bodyStyle || 'Clean neutral sans-serif in regular/medium weight' },
+      { label: 'Pairing Rationale', value: typo.pairingRationale || 'Balances commanding visual authority with effortless readability across all formats.' },
+    ]);
 
     // Section 4: OVERALL VISUAL DIRECTION
-    renderSectionTitle('4. Overall Aesthetic Foundation');
-    doc.x = 40;
+    renderSectionTitle('04', 'Overall Aesthetic Foundation');
     const aestheticText = brandDNA.visualDirectionSummary || 'Editorial & Typographic, Playful & Vibrant, Dark & Luxurious visual style foundation.';
-    doc.font('Helvetica').fontSize(8.5).fillColor('#334155').text(aestheticText, 40, doc.y, { width: 515, lineGap: 1.5 });
-    doc.x = 40;
+    doc.font('Helvetica').fontSize(8.5);
+    const aesH = doc.heightOfString(aestheticText, { width: CW - 24, lineGap: 2 });
+    const aesBoxH = Math.max(36, aesH + 16);
+    const aesY = doc.y;
+    doc.rect(MX, aesY, CW, aesBoxH).fill(C.surface);
+    doc.rect(MX, aesY, 3, aesBoxH).fill(C.emerald);
+    doc.font('Helvetica').fontSize(8.5).fillColor(C.charcoal).text(aestheticText, MX + 14, aesY + 8, {
+      width: CW - 24,
+      lineGap: 2,
+    });
+    doc.y = aesY + aesBoxH + 8;
+    doc.x = MX;
 
-    const renderFooter = () => {
-      doc.fillColor('#94a3b8').fontSize(7.5).font('Helvetica').text(
-        'CONFIDENTIAL CREATIVE BRIEF • GENERATED BY FLOXA STUDIO • FOR PRODUCTION & DESIGN USE ONLY',
-        40,
-        786,
-        { align: 'center', width: 515, lineBreak: false }
-      );
-    };
-
-    renderFooter();
+    renderFooter(1);
 
     // ==========================================
     // PAGE 2: POSTER CONCEPTS & CREATIVE DIRECTIVES
     // ==========================================
     doc.addPage();
-    renderHeader('POSTER CONCEPTS & EXECUTION DIRECTIVES', 2);
+    renderHeader(2);
 
     // Section 5: POSTER CONCEPTS (3 Distinct Angles)
-    renderSectionTitle('5. Poster Campaign Themes (3 Creative Angles for Designers)');
+    renderSectionTitle('05', 'Poster Campaign Themes (3 Creative Angles for Designers)');
     const concepts = Array.isArray(brandDNA.posterConcepts) && brandDNA.posterConcepts.length > 0
       ? brandDNA.posterConcepts
       : [
@@ -1071,40 +1171,41 @@ export async function generateBrandDnaBriefPdf(project: any, brandDNA: any): Pro
         },
       ];
 
+    const leftColW = 326;
+    const rightColW = CW - leftColW;
+
     concepts.slice(0, 3).forEach((c: any, i: number) => {
       const boxY = doc.y;
       const desc = c.description || '';
       const hook = c.visualHook || '';
 
-      // Measure text heights dynamically so content never clips or overlaps
-      doc.font('Helvetica').fontSize(7.5);
-      const descH = doc.heightOfString(desc, { width: 330 });
-      doc.font('Helvetica').fontSize(7);
-      const hookH = doc.heightOfString(hook, { width: 143 });
-      const boxHeight = Math.max(32 + descH, 20 + hookH, 48);
+      doc.font('Helvetica').fontSize(8);
+      const descH = doc.heightOfString(desc, { width: leftColW - 22, lineGap: 1.5 });
+      doc.font('Helvetica').fontSize(7.8);
+      const hookH = doc.heightOfString(hook, { width: rightColW - 20, lineGap: 1.5 });
+      const boxHeight = Math.max(36 + descH, 26 + hookH, 54);
 
-      // Card background and border
-      doc.rect(40, boxY, 515, boxHeight).fill('#f8fafc');
-      doc.strokeColor('#e2e8f0').lineWidth(0.5).rect(40, boxY, 515, boxHeight).stroke();
+      doc.rect(MX, boxY, CW, boxHeight).fill(C.white);
+      doc.rect(MX + leftColW, boxY, rightColW, boxHeight).fill(C.surface);
+      doc.strokeColor(C.border).lineWidth(0.6).rect(MX, boxY, CW, boxHeight).stroke();
+      doc.strokeColor(C.border).lineWidth(0.6).moveTo(MX + leftColW, boxY).lineTo(MX + leftColW, boxY + boxHeight).stroke();
+      doc.rect(MX, boxY, 2.5, boxHeight).fill(C.emerald);
 
       // Left column: Angle, Concept Name, Description
-      doc.fillColor('#047857').fontSize(7.5).font('Helvetica-Bold').text((c.angle || `Concept ${i + 1}`).toUpperCase(), 50, boxY + 6, { width: 330 });
-      doc.fillColor('#0f172a').fontSize(9).font('Helvetica-Bold').text(`"${c.conceptName || 'Theme'}"`, 50, boxY + 16, { width: 330 });
-      doc.fillColor('#334155').fontSize(7.5).font('Helvetica').text(desc, 50, boxY + 28, { width: 330, lineGap: 1 });
+      doc.fillColor(C.emerald).fontSize(7.2).font('Helvetica-Bold').text((c.angle || `Concept ${i + 1}`).toUpperCase(), MX + 12, boxY + 8, { width: leftColW - 22 });
+      doc.fillColor(C.ink).fontSize(9.5).font('Helvetica-Bold').text(`"${c.conceptName || 'Theme'}"`, MX + 12, boxY + 18, { width: leftColW - 22 });
+      doc.fillColor(C.charcoal).fontSize(8).font('Helvetica').text(desc, MX + 12, boxY + 31, { width: leftColW - 22, lineGap: 1.5 });
 
-      // Right column: Visual hook callout box
-      const hookBoxH = boxHeight - 8;
-      doc.rect(390, boxY + 4, 155, hookBoxH).fill('#ecfdf5');
-      doc.strokeColor('#a7f3d0').lineWidth(0.5).rect(390, boxY + 4, 155, hookBoxH).stroke();
-      doc.fillColor('#065f46').fontSize(7).font('Helvetica-Bold').text('VISUAL HOOK:', 396, boxY + 7, { width: 143 });
-      doc.fillColor('#047857').fontSize(7).font('Helvetica').text(hook, 396, boxY + 17, { width: 143, lineGap: 1 });
+      // Right column: Visual hook separated by subtle vertical border
+      doc.fillColor(C.emerald).fontSize(7).font('Helvetica-Bold').text('VISUAL HOOK', MX + leftColW + 10, boxY + 8, { width: rightColW - 20 });
+      doc.fillColor(C.charcoal).fontSize(7.8).font('Helvetica').text(hook, MX + leftColW + 10, boxY + 20, { width: rightColW - 20, lineGap: 1.5 });
 
-      doc.y = boxY + boxHeight + 6;
-      doc.x = 40;
+      doc.y = boxY + boxHeight + 7;
+      doc.x = MX;
     });
 
     // Section 6: COPYWRITING & HEADLINE HOOKS
-    renderSectionTitle('6. Poster Headlines & Copywriting Hooks');
+    renderSectionTitle('06', 'Poster Headlines & Copywriting Hooks');
     const copyHooks = Array.isArray(brandDNA.copywritingHooks) && brandDNA.copywritingHooks.length > 0
       ? brandDNA.copywritingHooks
       : [
@@ -1114,23 +1215,47 @@ export async function generateBrandDnaBriefPdf(project: any, brandDNA: any): Pro
       ];
 
     copyHooks.slice(0, 3).forEach((h: any, i: number) => {
-      doc.x = 40;
-      doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0f172a').text(`${i + 1}. "${h.headline}"`, 40, doc.y, { width: 515 });
-      const sublineText = `Subline: "${h.subline}"   |   CTA: [${h.cta}]`;
-      doc.font('Helvetica').fontSize(8).fillColor('#475569').text(sublineText, 52, doc.y + 1, { width: 503, lineGap: 1 });
-      doc.y += 3;
-      doc.x = 40;
+      const y = doc.y;
+      const ctaW = 148;
+      const textW = CW - ctaW - 28;
+      const headlineStr = `"${h.headline}"`;
+      const sublineStr = `Subline: "${h.subline}"`;
+
+      doc.font('Helvetica-Bold').fontSize(8.5);
+      const hh = doc.heightOfString(headlineStr, { width: textW });
+      doc.font('Helvetica').fontSize(7.8);
+      const sh = doc.heightOfString(sublineStr, { width: textW, lineGap: 1.2 });
+      const rowH = Math.max(hh + sh + 12, 32);
+
+      if (i % 2 === 0) {
+        doc.rect(MX, y, CW, rowH).fill(C.surface);
+      }
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.emerald).text(`0${i + 1}`, MX + 8, y + 6, { lineBreak: false });
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.ink).text(headlineStr, MX + 26, y + 6, { width: textW });
+      doc.font('Helvetica').fontSize(7.8).fillColor(C.charcoal).text(sublineStr, MX + 26, y + 6 + hh + 2, { width: textW, lineGap: 1.2 });
+
+      // Aligned CTA column
+      const ctaX = MX + CW - ctaW;
+      doc.strokeColor(C.border).lineWidth(0.5).moveTo(ctaX, y + 5).lineTo(ctaX, y + rowH - 5).stroke();
+      doc.font('Helvetica-Bold').fontSize(6.6).fillColor(C.muted).text('CTA', ctaX + 10, y + 6, { width: ctaW - 14, lineBreak: false });
+      doc.font('Helvetica-Bold').fontSize(7.8).fillColor(C.emerald).text(h.cta || '', ctaX + 10, y + 15, { width: ctaW - 14 });
+
+      doc.strokeColor(C.borderLight).lineWidth(0.5).moveTo(MX, y + rowH).lineTo(MX + CW, y + rowH).stroke();
+      doc.y = y + rowH;
+      doc.x = MX;
     });
 
     // Section 7: ART DIRECTION & COMPOSITION
-    renderSectionTitle('7. Composition, Lighting & Focal Weight');
+    renderSectionTitle('07', 'Composition, Lighting & Focal Weight');
     const art = brandDNA.artDirection || {};
-    renderField('Layout & Grid', art.composition || 'Asymmetrical Swiss grid with 60-70% focal weight and generous negative space.');
-    renderField('Lighting & Texture', art.lightingAndTexture || 'Deep dark-mode shadows with neon chromatic edge lighting and subtle film grain.');
-    renderField('Primary Focal Point', art.focalPoint || 'The central visual metaphor and dominant headline lockup.');
+    renderStructuredRows([
+      { label: 'Layout & Grid', value: art.composition || 'Asymmetrical Swiss grid with 60-70% focal weight and generous negative space.' },
+      { label: 'Lighting & Texture', value: art.lightingAndTexture || 'Deep dark-mode shadows with neon chromatic edge lighting and subtle film grain.' },
+      { label: 'Primary Focal Point', value: art.focalPoint || 'The central visual metaphor and dominant headline lockup.' },
+    ]);
 
     // Section 8: CREATIVE GUARDRAILS (DOS & DON'TS)
-    renderSectionTitle('8. Creative Guardrails (Design Dos & Don\'ts)');
+    renderSectionTitle('08', 'Creative Guardrails (Design Dos & Don\'ts)');
     const rules = brandDNA.designRules || {};
     const dos = rules.dos || [
       `Anchor every poster with ${companyName}'s core positioning.`,
@@ -1143,50 +1268,50 @@ export async function generateBrandDnaBriefPdf(project: any, brandDNA: any): Pro
       'Do NOT dilute the color system with unauthorized pastel or gradient hues.',
     ];
 
-    const ruleStartY = doc.y + 3;
-    const leftWidth = 250;
-    const rightWidth = 255;
-    const leftX = 40;
-    const rightX = 300;
+    const ruleStartY = doc.y + 2;
+    const panelGap = 12;
+    const panelWidth = (CW - panelGap) / 2;
+    const leftX = MX;
+    const rightX = MX + panelWidth + panelGap;
 
-    // Dynamically calculate the height of each item so they NEVER overlap
-    doc.font('Helvetica').fontSize(7.5);
-    const dosHeights = dos.slice(0, 3).map((d: string) => doc.heightOfString(d, { width: leftWidth - 28 }));
-    const dontsHeights = donts.slice(0, 3).map((d: string) => doc.heightOfString(d, { width: rightWidth - 28 }));
+    doc.font('Helvetica').fontSize(7.8);
+    const dosHeights = dos.slice(0, 3).map((d: string) => doc.heightOfString(d, { width: panelWidth - 28, lineGap: 1.4 }));
+    const dontsHeights = donts.slice(0, 3).map((d: string) => doc.heightOfString(d, { width: panelWidth - 28, lineGap: 1.4 }));
 
-    const totalDosHeight = dosHeights.reduce((sum: number, h: number) => sum + h + 6, 24);
-    const totalDontsHeight = dontsHeights.reduce((sum: number, h: number) => sum + h + 6, 24);
-    const guardrailBoxHeight = Math.max(totalDosHeight, totalDontsHeight, 64);
+    const totalDosHeight = dosHeights.reduce((sum: number, h: number) => sum + h + 6, 26);
+    const totalDontsHeight = dontsHeights.reduce((sum: number, h: number) => sum + h + 6, 26);
+    const guardrailBoxHeight = Math.max(totalDosHeight, totalDontsHeight, 72);
 
-    // Left card: DOs
-    doc.rect(leftX, ruleStartY, leftWidth, guardrailBoxHeight).fill('#f0fdf4');
-    doc.strokeColor('#bbf7d0').lineWidth(0.5).rect(leftX, ruleStartY, leftWidth, guardrailBoxHeight).stroke();
-    doc.fillColor('#15803d').fontSize(8).font('Helvetica-Bold').text('STRICT VISUAL DOS (MUST FOLLOW):', leftX + 10, ruleStartY + 8, { width: leftWidth - 20 });
+    // Left Panel: STRICT VISUAL DOS (Emerald top rule, neutral light grey surface)
+    doc.rect(leftX, ruleStartY, panelWidth, guardrailBoxHeight).fill(C.surface);
+    doc.strokeColor(C.border).lineWidth(0.6).rect(leftX, ruleStartY, panelWidth, guardrailBoxHeight).stroke();
+    doc.rect(leftX, ruleStartY, panelWidth, 2).fill(C.emerald);
+    doc.fillColor(C.emerald).fontSize(7.6).font('Helvetica-Bold').text('STRICT VISUAL DOS (MUST FOLLOW)', leftX + 12, ruleStartY + 9, { width: panelWidth - 24 });
 
-    let currentDoY = ruleStartY + 22;
+    let currentDoY = ruleStartY + 24;
     dos.slice(0, 3).forEach((d: string, idx: number) => {
-      doc.fillColor('#15803d').fontSize(7.5).font('Helvetica-Bold').text('•', leftX + 10, currentDoY);
-      doc.fillColor('#166534').fontSize(7.5).font('Helvetica').text(d, leftX + 18, currentDoY, { width: leftWidth - 28, lineGap: 1 });
+      doc.rect(leftX + 12, currentDoY + 3, 4, 4).fill(C.emerald);
+      doc.fillColor(C.ink).fontSize(7.8).font('Helvetica').text(d, leftX + 22, currentDoY, { width: panelWidth - 34, lineGap: 1.4 });
       currentDoY += dosHeights[idx] + 6;
     });
 
-    // Right card: DON'Ts
-    doc.rect(rightX, ruleStartY, rightWidth, guardrailBoxHeight).fill('#fef2f2');
-    doc.strokeColor('#fecaca').lineWidth(0.5).rect(rightX, ruleStartY, rightWidth, guardrailBoxHeight).stroke();
-    doc.fillColor('#b91c1c').fontSize(8).font('Helvetica-Bold').text('STRICT VISUAL DON\'TS (AVOID):', rightX + 10, ruleStartY + 8, { width: rightWidth - 20 });
+    // Right Panel: STRICT VISUAL DON'TS (Charcoal top rule, neutral white surface)
+    doc.rect(rightX, ruleStartY, panelWidth, guardrailBoxHeight).fill(C.white);
+    doc.strokeColor(C.border).lineWidth(0.6).rect(rightX, ruleStartY, panelWidth, guardrailBoxHeight).stroke();
+    doc.rect(rightX, ruleStartY, panelWidth, 2).fill(C.charcoal);
+    doc.fillColor(C.ink).fontSize(7.6).font('Helvetica-Bold').text('STRICT VISUAL DON\'TS (AVOID)', rightX + 12, ruleStartY + 9, { width: panelWidth - 24 });
 
-    let currentDontY = ruleStartY + 22;
+    let currentDontY = ruleStartY + 24;
     donts.slice(0, 3).forEach((d: string, idx: number) => {
-      doc.fillColor('#b91c1c').fontSize(7.5).font('Helvetica-Bold').text('•', rightX + 10, currentDontY);
-      doc.fillColor('#991b1b').fontSize(7.5).font('Helvetica').text(d, rightX + 18, currentDontY, { width: rightWidth - 28, lineGap: 1 });
+      doc.strokeColor(C.charcoal).lineWidth(1.2).moveTo(rightX + 12, currentDontY + 5).lineTo(rightX + 16, currentDontY + 5).stroke();
+      doc.fillColor(C.charcoal).fontSize(7.8).font('Helvetica').text(d, rightX + 22, currentDontY, { width: panelWidth - 34, lineGap: 1.4 });
       currentDontY += dontsHeights[idx] + 6;
     });
 
-    doc.y = ruleStartY + guardrailBoxHeight + 10;
-    doc.x = 40;
+    doc.y = ruleStartY + guardrailBoxHeight + 8;
+    doc.x = MX;
 
-    // Footer on Page 2
-    renderFooter();
+    renderFooter(2);
 
     doc.end();
   });
