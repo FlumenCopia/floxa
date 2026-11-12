@@ -875,6 +875,11 @@ export async function downloadPortalDeliverableFile(req: any, res: Response, nex
       }
     }
 
+    if (!fs.existsSync(safePath)) {
+      res.status(404).json({ detail: 'Deliverable file not found on server.' });
+      return;
+    }
+
     await logProjectActivity({
       projectId: req.project.id,
       consultantId: req.project.consultantId?.toString() || req.project.consultantId,

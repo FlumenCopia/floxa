@@ -2233,14 +2233,23 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                         ) : null}
                       </div>
                       {item.can_download !== false && item.file_url ? (
-                        <a
-                          href={item.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          disabled={working === `deliverable-${item.id}`}
+                          onClick={async () => {
+                            try {
+                              setWorking(`deliverable-${item.id}`);
+                              await downloadProtectedAsset(item.file_url, item.title || `deliverable-${item.id}.pdf`);
+                            } catch (err) {
+                              showError(err?.detail || err?.message || "Unable to download deliverable file.");
+                            } finally {
+                              setWorking("");
+                            }
+                          }}
                           className="client-panel-action"
                         >
-                          Download Final File
-                        </a>
+                          {working === `deliverable-${item.id}` ? "Downloading..." : "Download Final File"}
+                        </button>
                       ) : (
                         <button
                           type="button"
