@@ -753,6 +753,365 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               max-height: 95vh;
             }
           }
+
+          /* FLOXA Login Studio Theme for SuperAdmin */
+          #login-screen {
+            position: relative;
+            isolation: isolate;
+            min-height: 100dvh;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(24px, 4vw, 40px);
+            background: #000704;
+          }
+
+          #login-screen::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            z-index: -2;
+            background: url("/client-design/banner1.png") center / cover no-repeat;
+            background-attachment: fixed;
+            opacity: 0.95;
+            filter: brightness(1.1) contrast(1.12) saturate(1.2);
+            pointer-events: none;
+          }
+
+          #login-screen::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background:
+              radial-gradient(circle at 50% 35%, rgba(77, 255, 160, 0.12), transparent 55%),
+              radial-gradient(circle at 50% 50%, rgba(0, 15, 8, 0.12), rgba(0, 7, 4, 0.55)),
+              linear-gradient(180deg, rgba(0, 10, 6, 0.08) 0%, rgba(0, 7, 4, 0.48) 100%);
+            pointer-events: none;
+          }
+
+          .login-card {
+            position: relative;
+            width: min(1060px, 92vw);
+            min-height: 560px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(64px, 7vw, 96px) clamp(44px, 6vw, 84px);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-left: none;
+            border-right: none;
+            border-radius: 44px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%), rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(28px) saturate(130%) brightness(0.96);
+            -webkit-backdrop-filter: blur(28px) saturate(130%) brightness(0.96);
+            box-shadow:
+              0 40px 100px rgba(0, 0, 0, 0.7),
+              inset 0 1px 1px rgba(255, 255, 255, 0.18),
+              inset 0 -1px 1px rgba(0, 0, 0, 0.5);
+          }
+
+          .login-card.is-login-mode {
+            width: min(1200px, 95vw);
+            min-height: 580px;
+            padding: clamp(52px, 5.5vw, 76px) clamp(48px, 6vw, 88px);
+          }
+
+          .login-stage-track {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+            width: 100%;
+            align-items: center;
+            justify-items: center;
+          }
+
+          .login-stage-view {
+            grid-area: 1 / 1 / 2 / 2;
+            width: 100%;
+          }
+
+          .login-access-wrap {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: clamp(32px, 5vw, 64px);
+            align-items: center;
+          }
+
+          .login-access-wrap.slide-in-view .login-access-intro {
+            animation: login-left-slide-in 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+          }
+
+          .login-access-wrap.slide-in-view .login-pill-form {
+            animation: login-right-slide-in 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+          }
+
+          @keyframes login-right-slide-in {
+            from { opacity: 0; transform: translateX(42px); }
+            to { opacity: 1; transform: translateX(0); }
+          }
+
+          @keyframes login-left-slide-in {
+            from { opacity: 0; transform: translateX(-32px); }
+            to { opacity: 1; transform: translateX(0); }
+          }
+
+          .login-access-intro {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+          }
+
+          .login-brand-logo {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+          }
+
+          .login-brand-logo-img {
+            max-width: min(420px, 82vw);
+            height: clamp(68px, 8.5vw, 94px);
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 14px 36px rgba(0, 0, 0, 0.65));
+          }
+
+          .login-brand-subtitle {
+            margin: 14px 0 32px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: clamp(18px, 2.4vw, 26px);
+            font-weight: 300;
+            letter-spacing: 0.04em;
+            text-align: inherit;
+          }
+
+          .login-admin-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            min-height: 48px;
+            padding: 12px 28px;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            border-radius: 999px;
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(28, 56, 46, 0.88), rgba(12, 28, 22, 0.94));
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+          }
+
+          .login-admin-badge-icon {
+            display: grid;
+            width: 24px;
+            height: 24px;
+            place-items: center;
+            border-radius: 50%;
+            border: 1px solid rgba(77, 255, 160, 0.35);
+            background: rgba(77, 255, 160, 0.1);
+            color: #4dffa0;
+          }
+
+          .login-pill-form {
+            display: flex;
+            flex-direction: column;
+            gap: 13px;
+            width: 100%;
+          }
+
+          .login-pill-input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 999px;
+            height: 52px;
+            padding: 0 18px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+          }
+
+          .login-pill-input-wrap:focus-within {
+            box-shadow: 0 6px 24px rgba(77, 255, 160, 0.28), 0 0 0 2px rgba(77, 255, 160, 0.4);
+            transform: translateY(-1px);
+          }
+
+          .login-pill-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            margin-right: 10px;
+            flex-shrink: 0;
+          }
+
+          .login-pill-input {
+            width: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: #111827;
+            font-size: 15px;
+            font-weight: 500;
+          }
+
+          .login-pill-input::placeholder {
+            color: #9ca3af;
+            font-weight: 400;
+          }
+
+          .login-pill-eye-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            margin-left: 6px;
+            flex-shrink: 0;
+          }
+
+          .login-pill-eye-btn:hover {
+            color: #111827;
+          }
+
+          .login-pill-submit-btn {
+            width: 100%;
+            height: 52px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            background: linear-gradient(135deg, rgba(28, 56, 46, 0.95), rgba(14, 32, 25, 0.95));
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+            transition: all 0.22s ease;
+          }
+
+          .login-pill-submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.4);
+            filter: brightness(1.15);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+          }
+
+          .login-pill-submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+
+          .login-btn-arrow {
+            display: grid;
+            width: 24px;
+            height: 24px;
+            place-items: center;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.08);
+          }
+
+          .login-error-banner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(239, 68, 68, 0.14);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #fca5a5;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-size: 13px;
+          }
+
+          .login-terms-note {
+            text-align: center;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.48);
+            line-height: 1.45;
+            margin-top: 2px;
+          }
+
+          @media (max-width: 900px) {
+            #login-screen {
+              padding: 20px 14px;
+            }
+            .login-card.is-login-mode {
+              width: 100%;
+              max-width: 580px;
+              min-height: auto;
+              padding: 40px 24px 32px;
+              border-radius: 36px;
+            }
+            .login-access-wrap {
+              grid-template-columns: 1fr;
+              gap: 22px;
+              text-align: center;
+            }
+            .login-access-intro {
+              align-items: center;
+              text-align: center;
+            }
+            .login-brand-logo {
+              justify-content: center;
+            }
+            .login-brand-subtitle {
+              text-align: center;
+              margin-bottom: 18px;
+            }
+            .login-pill-form {
+              max-width: 100%;
+            }
+          }
+
+          @media (max-width: 600px) {
+            #login-screen {
+              padding: 14px 10px;
+              min-height: 100dvh;
+            }
+            .login-card.is-login-mode {
+              width: 100% !important;
+              max-width: 100% !important;
+              min-height: auto !important;
+              padding: 30px 16px 24px !important;
+              border-radius: 28px !important;
+            }
+            .login-access-intro .login-brand-logo-img {
+              height: clamp(42px, 11vw, 56px);
+              max-width: 74vw;
+            }
+            .login-brand-subtitle {
+              font-size: 14px;
+              margin: 8px 0 18px;
+              line-height: 1.4;
+            }
+            .login-pill-form {
+              gap: 11px;
+            }
+            .login-pill-input-wrap {
+              height: 46px;
+              padding: 0 16px 0 14px;
+            }
+            .login-pill-submit-btn {
+              height: 46px;
+            }
+          }
         `}</style>
       </head>
       <body>
