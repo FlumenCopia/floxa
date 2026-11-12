@@ -116,7 +116,8 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
   const [currentStep, setCurrentStep] = useState(0);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [spotlightRect, setSpotlightRect] = useState(null);
-  const [tooltipStyle, setTooltipStyle] = useState({ top: 100, left: 260 });
+  const [tooltipStyle, setTooltipStyle] = useState({ top: 100, left: 260, arrowTop: 24 });
+  const tooltipRef = useRef(null);
 
   const consultantId = consultant?.id || consultant?._id || "default";
   const storageKey = `floxa_consultant_tour_completed_${consultantId}`;
@@ -157,9 +158,11 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
     setSpotlightRect(spot);
 
     // Sidebar items are on the left: place tooltip on the RIGHT side of the sidebar
-    const tooltipWidth = 420;
-    const tooltipHeight = 250;
     const margin = 16;
+    const measuredWidth = tooltipRef.current?.offsetWidth || 420;
+    const measuredHeight = tooltipRef.current?.offsetHeight || 340;
+    const tooltipWidth = Math.min(measuredWidth, window.innerWidth - margin * 2);
+    const tooltipHeight = Math.min(measuredHeight, window.innerHeight - margin * 2);
 
     // Default: position directly to the right of the sidebar item
     let left = rect.right + margin;
@@ -171,12 +174,16 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
       top = Math.max(margin, rect.bottom + margin);
     }
 
-    // Clamp top within viewport boundaries
-    const maxTop = window.innerHeight - tooltipHeight - margin;
-    const clampedTop = Math.min(Math.max(margin, top), Math.max(margin, maxTop));
-    const clampedLeft = Math.min(Math.max(margin, left), window.innerWidth - tooltipWidth - margin);
+    // Clamp top & left strictly within viewport boundaries using real tooltip dimensions
+    const maxTop = Math.max(margin, window.innerHeight - tooltipHeight - margin);
+    const clampedTop = Math.min(Math.max(margin, top), maxTop);
+    const clampedLeft = Math.min(Math.max(margin, left), Math.max(margin, window.innerWidth - tooltipWidth - margin));
+    const arrowTop = Math.min(
+      Math.max(18, Math.round(rect.top + rect.height / 2 - clampedTop - 6)),
+      Math.max(18, tooltipHeight - 30)
+    );
 
-    setTooltipStyle({ top: clampedTop, left: clampedLeft });
+    setTooltipStyle({ top: clampedTop, left: clampedLeft, arrowTop });
   }, []);
 
   const startTour = useCallback(() => {
@@ -313,10 +320,12 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
           ) : null}
 
           <div
+            ref={tooltipRef}
             className="floxa-tour-tooltip"
             style={{
               top: `${tooltipStyle.top}px`,
               left: `${tooltipStyle.left}px`,
+              "--tour-arrow-top": `${tooltipStyle.arrowTop ?? 24}px`,
             }}
             role="dialog"
             aria-modal="true"
