@@ -311,7 +311,7 @@ export default function AiSuite() {
           toolId: tool.id,
           toolName: tool.name,
           message:
-            "⚠️ Google Gemini API Key Required\n\nPlease navigate to Settings > Integrations & API Keys to configure your Gemini API Key. Once saved, you can run AI generations immediately.",
+            "Google Gemini API Key Required\n\nPlease navigate to Settings > Integrations & API Keys to configure your Gemini API Key. Once saved, you can run AI generations immediately.",
           time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         });
         scrollToResults();
@@ -498,7 +498,7 @@ export default function AiSuite() {
                         }}
                       >
                         <Lock size={13} />
-                        Upgrade ✨
+                        Upgrade
                       </button>
                     ) : (
                       <button

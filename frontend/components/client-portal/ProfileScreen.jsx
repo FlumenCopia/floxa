@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { clientPortalService } from "../../services/clientPortalService";
 
 const industries = [
@@ -351,7 +352,7 @@ export function ProfileScreen({
           onClick={() => setOffcanvasOpen(false)}
           aria-label="Close stages drawer"
         >
-          ✕
+          <X size={18} />
         </button>
 
         <div className="client-luminous-disc-orb" style={{ "--orb-deg": `${pct * 3.6}deg` }}>

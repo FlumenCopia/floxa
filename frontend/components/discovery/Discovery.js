@@ -13,7 +13,7 @@ import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset } from "@/lib/api";
 import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
 import { showError, showSuccess } from "@/lib/toast";
-import { FileText, X, ArrowRight, Trash2, Lock, Share2, Pencil, AlertCircle, Download, Palette, Type, MessageSquare, CheckCircle2, XCircle, ChevronDown, Check, Search, FolderKanban, Plus, Calendar, CalendarCheck, AlertTriangle } from "lucide-react";
+import { FileText, X, ArrowRight, Trash2, Lock, Share2, Pencil, AlertCircle, Download, Palette, Type, MessageSquare, CheckCircle2, XCircle, ChevronDown, Check, Search, FolderKanban, Plus, Calendar, CalendarCheck, CalendarDays, AlertTriangle, Zap } from "lucide-react";
 import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
 import {
   askProjectAssistant,
@@ -479,7 +479,7 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
       return {
         cls: "flag-3",
         icon: <AlertTriangle size={13} />,
-        label: "🛑 Flag 3: Final Notice",
+        label: "Flag 3: Final Notice",
         title: "Over 72h past committed deadline. Automatic suspension in 24h.",
       };
     }
@@ -487,7 +487,7 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
       return {
         cls: "flag-2",
         icon: <AlertTriangle size={13} />,
-        label: "🚨 Flag 2: Urgent",
+        label: "Flag 2: Urgent",
         title: "24h-48h past committed deadline.",
       };
     }
@@ -495,7 +495,7 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
       return {
         cls: "flag-1",
         icon: <AlertCircle size={13} />,
-        label: "⚠️ Flag 1: Overdue",
+        label: "Flag 1: Overdue",
         title: "Committed deadline passed. Finalize Brand DNA.",
       };
     }
@@ -503,7 +503,7 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
       return {
         cls: "done",
         icon: <CalendarCheck size={13} />,
-        label: "✓ Project Delivered",
+        label: "Project Delivered",
         title: "Final deliverables accepted by client",
       };
     }
@@ -520,7 +520,7 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
     return {
       cls: "set-btn",
       icon: <Calendar size={13} />,
-      label: "📅 Set Deliverables Date",
+      label: "Set Deliverables Date",
       title: "Review discovery answers and set committed deliverable date",
     };
   };
@@ -626,7 +626,8 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
     <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
       {hasBrandDna ? (
         <span className="consultant-deadline-pill done" title="Brand DNA strategy has been finalized">
-          ✓ Brand DNA Ready
+          <Check size={13} />
+          <span>Brand DNA Ready</span>
         </span>
       ) : null}
 
@@ -814,7 +815,10 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
                     className={`deadline-preset-btn ${selectedDays === 3 ? "selected" : ""}`}
                     onClick={() => handleSelectPreset(3)}
                   >
-                    <span style={{ fontSize: "14px" }}>⚡ 3 Days</span>
+                    <span style={{ fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                      <Zap size={14} />
+                      <span>3 Days</span>
+                    </span>
                     <span style={{ fontSize: "10px", opacity: 0.8 }}>Sprint</span>
                   </button>
                   <button
@@ -822,7 +826,10 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
                     className={`deadline-preset-btn ${selectedDays === 5 ? "selected" : ""}`}
                     onClick={() => handleSelectPreset(5)}
                   >
-                    <span style={{ fontSize: "14px" }}>📅 5 Days</span>
+                    <span style={{ fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                      <Calendar size={14} />
+                      <span>5 Days</span>
+                    </span>
                     <span style={{ fontSize: "10px", opacity: 0.8 }}>Standard</span>
                   </button>
                   <button
@@ -830,7 +837,10 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
                     className={`deadline-preset-btn ${selectedDays === 7 ? "selected" : ""}`}
                     onClick={() => handleSelectPreset(7)}
                   >
-                    <span style={{ fontSize: "14px" }}>🗓️ 7 Days</span>
+                    <span style={{ fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                      <CalendarDays size={14} />
+                      <span>7 Days</span>
+                    </span>
                     <span style={{ fontSize: "10px", opacity: 0.8 }}>Comprehensive</span>
                   </button>
                 </div>
@@ -955,8 +965,9 @@ function ConsultantDeadlineBadge({ project, onProjectUpdated }) {
                     color: "#e2e8f0",
                   }}
                 >
-                  <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#fca5a5", fontSize: "13.5px" }}>
-                    ⚠️ Critical SLA &amp; Account Suspension Notice:
+                  <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#fca5a5", fontSize: "13.5px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <AlertTriangle size={15} />
+                    <span>Critical SLA &amp; Account Suspension Notice:</span>
                   </p>
                   <ul style={{ margin: 0, paddingLeft: "18px", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <li>
@@ -4162,8 +4173,9 @@ function DeliverablesPanel({ project, projectId, onProjectRefresh }) {
                   </p>
 
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px", fontSize: "0.78rem", color: "#6ee7b7", maxWidth: "100%", overflow: "hidden" }}>
-                    <span style={{ maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-block" }} title={item.file_name}>
-                      📁 {item.file_name || "File attached"}
+                    <span style={{ maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: "5px" }} title={item.file_name}>
+                      <FileText size={13} style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{item.file_name || "File attached"}</span>
                     </span>
                     <span style={{ flexShrink: 0 }}>• {formatFileSize(item.file_size)}</span>
                     <span style={{ flexShrink: 0 }}>• {formatActivityDate(item.created_at)}</span>
@@ -4256,16 +4268,18 @@ function DeliverablesPanel({ project, projectId, onProjectRefresh }) {
               <button
                 type="button"
                 onClick={cancelEditDeliverable}
+                aria-label="Close modal"
                 style={{
                   background: "transparent",
                   border: "none",
                   color: "#94a3b8",
-                  fontSize: "1.2rem",
                   cursor: "pointer",
                   padding: "4px 8px",
+                  display: "inline-flex",
+                  alignItems: "center",
                 }}
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 

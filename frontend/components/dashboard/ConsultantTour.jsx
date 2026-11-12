@@ -410,7 +410,7 @@ export default function ConsultantTour({ consultant = null, onOpenWizard = () =>
             
 
             <h2 className="floxa-welcome-title">
-              Hai{consultantName ? `, ${consultantName}` : ""}, Welcome to FLOXA! 🎉
+              Hai{consultantName ? `, ${consultantName}` : ""}, Welcome to FLOXA!
             </h2>
             <div className="floxa-welcome-subtitle">Explore FLOXA Now</div>
 

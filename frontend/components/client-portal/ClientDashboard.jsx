@@ -6,7 +6,7 @@ import { supportSocket } from "../../services/supportSocketService";
 import ProtectedAssetImage from "../common/ProtectedAssetImage";
 import { downloadProtectedAsset, fetchProtectedAssetBlob } from "@/lib/api";
 import { showError, showSuccess } from "@/lib/toast";
-import { Bell, Clock, FileText, Compass, AlertTriangle, Calendar, CalendarCheck } from "lucide-react";
+import { Bell, Clock, FileText, Compass, AlertTriangle, Calendar, CalendarCheck, Check, X } from "lucide-react";
 import "./ClientPortalIntroModal.css";
 
 const phaseLabels = [
@@ -1925,7 +1925,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", gap: "8px" }}>
                         <h3 style={{ margin: 0 }}>{item.name || item.title}</h3>
                         {isThisSelected ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "999px", background: "rgba(16, 185, 129, 0.18)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#34d399", fontSize: "11px", fontWeight: 700 }}>✓ Selected</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 9px", borderRadius: "999px", background: "rgba(16, 185, 129, 0.18)", border: "1px solid rgba(16, 185, 129, 0.4)", color: "#34d399", fontSize: "11px", fontWeight: 700 }}><Check size={12} /> <span>Selected</span></span>
                         ) : null}
                       </div>
                       {item.description ? <p>{item.description}</p> : null}
@@ -2655,8 +2655,8 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       </div>
 
                       <div className="client-payment-actions">
-                        <span className={`client-payment-badge ${item.status || "locked"}`}>
-                          {isPaid ? "✓ Paid" : isRequested ? "Due Now" : getPaymentStatusLabel(item.status)}
+                        <span className={`client-payment-badge ${item.status || "locked"}`} style={isPaid ? { display: "inline-flex", alignItems: "center", gap: "4px" } : undefined}>
+                          {isPaid ? <><Check size={12} /><span>Paid</span></> : isRequested ? "Due Now" : getPaymentStatusLabel(item.status)}
                         </span>
                         {isRequested ? (
                           <button
@@ -2697,7 +2697,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
             onClick={() => setOffcanvasOpen(false)}
             aria-label="Close stages drawer"
           >
-            ✕
+            <X size={18} />
           </button>
 
           <div className="client-luminous-disc-orb" style={{ "--orb-deg": `${pct * 3.6}deg` }}>
@@ -2798,7 +2798,7 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                 disabled={Boolean(working)}
                 aria-label="Close confirmation"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 

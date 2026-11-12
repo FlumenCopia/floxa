@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { loginConsultant, requestReactivation } from "@/lib/authApi";
 import { showError, showSuccess } from "@/lib/toast";
-import { ArrowRight, ArrowLeft, Mail, Lock, Phone, PhoneCall, Bell, Send } from "lucide-react";
+import { ArrowRight, ArrowLeft, Mail, Lock, Phone, PhoneCall, Bell, Send, AlertTriangle, Check, CheckCircle2 } from "lucide-react";
 
 export default function Login() {
   const router = useRouter();
@@ -266,7 +266,7 @@ export default function Login() {
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
-                        <span style={{ fontSize: "14px" }}>⚠️</span>
+                        <AlertTriangle size={14} color="#fca5a5" style={{ flexShrink: 0 }} />
                         <span style={{ fontSize: "12px", color: "#fca5a5", fontWeight: 700 }}>
                           Account Suspended — Request Direct Admin Help
                         </span>
@@ -385,7 +385,12 @@ export default function Login() {
                                 cursor: "pointer",
                               }}
                             >
-                              {copiedPhone ? "✓ Copied" : "Copy"}
+                              {copiedPhone ? (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                  <Check size={11} />
+                                  Copied
+                                </span>
+                              ) : "Copy"}
                             </button>
                           </div>
                         </div>
@@ -405,8 +410,9 @@ export default function Login() {
                             Dispatch Reactivation Alert to SuperAdmin Panel
                           </div>
                           {notifySuccess ? (
-                            <div style={{ background: "rgba(77, 255, 160, 0.12)", border: "1px solid rgba(77, 255, 160, 0.4)", borderRadius: "6px", padding: "8px 10px", color: "#4dffa0", fontSize: "11px", fontWeight: 600 }}>
-                              ✓ Notification sent to SuperAdmin! They will review your deliverable and reactivate your account.
+                            <div style={{ display: "flex", alignItems: "flex-start", gap: "6px", background: "rgba(77, 255, 160, 0.12)", border: "1px solid rgba(77, 255, 160, 0.4)", borderRadius: "6px", padding: "8px 10px", color: "#4dffa0", fontSize: "11px", fontWeight: 600 }}>
+                              <CheckCircle2 size={13} style={{ flexShrink: 0, marginTop: "1px" }} />
+                              <span>Notification sent to SuperAdmin! They will review your deliverable and reactivate your account.</span>
                             </div>
                           ) : (
                             <>

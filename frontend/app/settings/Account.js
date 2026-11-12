@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentConsultant, updateCurrentConsultant } from "@/lib/authApi";
 import { showError, showSuccess } from "@/lib/toast";
-import { Camera, Upload, Trash2 } from "lucide-react";
+import { Camera, Upload, Trash2, X, RotateCcw, Check } from "lucide-react";
 
 function getAccountErrorMessage(error, fallback = "Profile could not be updated.") {
   if (error?.detail) {
@@ -473,16 +473,18 @@ export default function Account() {
               <button
                 type="button"
                 onClick={stopCamera}
+                aria-label="Close camera modal"
                 style={{
                   background: "transparent",
                   border: "none",
                   color: "#94a3b8",
-                  fontSize: "1.2rem",
                   cursor: "pointer",
                   padding: "4px 8px",
+                  display: "inline-flex",
+                  alignItems: "center",
                 }}
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 
@@ -560,9 +562,13 @@ export default function Account() {
                         borderRadius: "8px",
                         fontSize: "0.9rem",
                         cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
                       }}
                     >
-                      🔄 Retake
+                      <RotateCcw size={15} />
+                      <span>Retake</span>
                     </button>
                     <button
                       type="button"
@@ -578,9 +584,13 @@ export default function Account() {
                         borderRadius: "8px",
                         fontSize: "0.9rem",
                         cursor: uploadingAvatar ? "not-allowed" : "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
                       }}
                     >
-                      {uploadingAvatar ? "Saving..." : "✓ Use This Photo"}
+                      {!uploadingAvatar ? <Check size={15} /> : null}
+                      <span>{uploadingAvatar ? "Saving..." : "Use This Photo"}</span>
                     </button>
                   </>
                 ) : (
@@ -602,7 +612,8 @@ export default function Account() {
                       gap: "8px",
                     }}
                   >
-                    📸 Snap Photo
+                    <Camera size={16} />
+                    <span>Snap Photo</span>
                   </button>
                 )}
               </div>

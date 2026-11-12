@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Lock, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, Eye, EyeOff, ShieldCheck, Check } from "lucide-react";
+import { Lock, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle, Eye, EyeOff, Check } from "lucide-react";
 import { confirmPasswordReset } from "@/lib/authApi";
 
 function ResetPasswordContent() {
@@ -56,193 +56,201 @@ function ResetPasswordContent() {
     }
   };
 
-  if (!token && !isSuccess) {
-    return (
-      <div className="auth-recovery-screen">
-        <div className="auth-recovery-card">
-          <img src="/image/FLOXA_log.png" alt="FLOXA" className="auth-recovery-logo" />
-
-          <div className="auth-error-banner" style={{ margin: "16px 0 24px", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-            <AlertCircle size={32} color="#f87171" style={{ marginBottom: "8px" }} />
-            <div style={{ fontWeight: 600, color: "#fca5a5", fontSize: "14px", marginBottom: "4px" }}>
-              Invalid or Missing Reset Link
-            </div>
-            <p style={{ margin: 0, fontSize: "12.5px", color: "#e2e8f0", lineHeight: 1.5 }}>
-              No valid reset token was detected in your URL. Please click the link directly from your email or request a new one.
-            </p>
-          </div>
-
-          <Link
-            href="/forgot-password"
-            className="auth-submit-btn"
-            style={{ textDecoration: "none" }}
-          >
-            <span>Request New Reset Link</span>
-            <span className="auth-submit-arrow" aria-hidden="true">
-              <ArrowRight size={14} strokeWidth={2.5} />
-            </span>
-          </Link>
-
-          <Link href="/login?mode=login" className="auth-back-link">
-            <ArrowLeft size={14} strokeWidth={2.5} />
-            <span>Back to Login</span>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="auth-recovery-screen">
-      <div className="auth-recovery-card">
-        <img src="/image/FLOXA_log.png" alt="FLOXA" className="auth-recovery-logo" />
-
-        <div className="auth-recovery-pill-badge">
-          <ShieldCheck size={13} strokeWidth={2.5} />
-          <span>Account Security</span>
-        </div>
-
-        <h1 className="auth-recovery-title">
-          {isSuccess ? "Password Updated" : "Set New Password"}
-        </h1>
-        <p className="auth-recovery-subtitle">
-          {isSuccess
-            ? "Your account password has been successfully updated. You can now access your FLOXA workspace."
-            : "Please choose a strong password of at least 8 characters to secure your consultant account."}
-        </p>
-
-        {isSuccess ? (
-          <div className="auth-success-box">
-            <div className="auth-success-icon-wrap">
-              <CheckCircle2 size={38} color="#4dffa0" strokeWidth={2.2} />
-            </div>
-
-            <Link
-              href="/login?mode=login"
-              className="auth-submit-btn"
-              style={{ textDecoration: "none" }}
-            >
-              <span>Sign In with New Password</span>
-              <span className="auth-submit-arrow" aria-hidden="true">
-                <ArrowRight size={14} strokeWidth={2.5} />
-              </span>
-            </Link>
-          </div>
-        ) : (
-          <form className="auth-recovery-form" onSubmit={handleSubmit}>
-            {/* Input 1: New Password */}
-            <div className="auth-input-group">
-              <label className="auth-input-label" htmlFor="new-password">
-                <span>New Password</span>
-                <span style={{ fontSize: "11px", color: isMinLength ? "#4dffa0" : "#749688" }}>
-                  {newPassword.length > 0 ? `${newPassword.length}/8+ chars` : "Min. 8 characters"}
-                </span>
-              </label>
-              <div className="auth-glass-input-wrap">
-                <span className="auth-glass-input-icon" aria-hidden="true">
-                  <Lock size={17} strokeWidth={2.2} />
-                </span>
-                <input
-                  id="new-password"
-                  type={showNewPassword ? "text" : "password"}
-                  name="newPassword"
-                  className="auth-glass-input"
-                  placeholder="Enter your new password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  className="auth-password-toggle-btn"
-                  onClick={() => setShowNewPassword((prev) => !prev)}
-                  title={showNewPassword ? "Hide password" : "Show password"}
-                  aria-label={showNewPassword ? "Hide password" : "Show password"}
-                >
-                  {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+    <div id="login-screen">
+      <div className="login-card is-login-mode">
+        <div className="login-stage-track">
+          <div className="login-stage-view login-access-wrap slide-in-view">
+            {/* Left Column matching Login Studio Theme */}
+            <div className="login-access-intro">
+              <div className="login-brand-logo">
+                <img src="/image/FLOXA_log.png" alt="FLOXA" className="login-brand-logo-img" />
               </div>
-            </div>
+              <p className="login-brand-subtitle">
+                Discover Your Brand Clarity.
+              </p>
 
-            {/* Input 2: Confirm Password */}
-            <div className="auth-input-group">
-              <label className="auth-input-label" htmlFor="confirm-password">
-                <span>Confirm New Password</span>
-                {confirmPassword.length > 0 && (
-                  <span style={{ fontSize: "11px", color: isMatching ? "#4dffa0" : "#f87171" }}>
-                    {isMatching ? "Passwords match" : "Does not match"}
-                  </span>
-                )}
-              </label>
-              <div className="auth-glass-input-wrap">
-                <span className="auth-glass-input-icon" aria-hidden="true">
-                  <Lock size={17} strokeWidth={2.2} />
-                </span>
-                <input
-                  id="confirm-password"
-                  type={showConfirmPassword ? "text" : "password"}
-                  name="confirmPassword"
-                  className="auth-glass-input"
-                  placeholder="Re-enter your new password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  className="auth-password-toggle-btn"
-                  onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  title={showConfirmPassword ? "Hide password" : "Show password"}
-                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                >
-                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Live Requirements Hint */}
-            <div className="auth-requirements-box">
-              <div className={`auth-req-item ${isMinLength ? "is-met" : ""}`}>
-                <Check size={13} strokeWidth={2.8} />
-                <span>At least 8 characters long</span>
-              </div>
-              <div className={`auth-req-item ${isMatching ? "is-met" : ""}`}>
-                <Check size={13} strokeWidth={2.8} />
-                <span>Passwords match</span>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {errorMessage && (
-              <div className="auth-error-banner" role="alert">
-                <AlertCircle size={16} color="#f87171" style={{ flexShrink: 0, marginTop: "2px" }} />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className="auth-submit-btn"
-              disabled={isLoading || !isMinLength || !isMatching}
-            >
-              <span>{isLoading ? "Updating Password..." : "Update Password"}</span>
-              <span className="auth-submit-arrow" aria-hidden="true">
-                <ArrowRight size={14} strokeWidth={2.5} />
-              </span>
-            </button>
-
-            <div style={{ textAlign: "center" }}>
-              <Link href="/login?mode=login" className="auth-back-link">
-                <ArrowLeft size={14} strokeWidth={2.5} />
+              <Link
+                href="/login?mode=login"
+                className="login-begin-btn"
+                style={{ textDecoration: "none" }}
+              >
                 <span>Back to Login</span>
+                <span className="login-btn-arrow" aria-hidden="true">
+                  <ArrowLeft size={14} strokeWidth={2.5} />
+                </span>
               </Link>
             </div>
-          </form>
-        )}
+
+            {/* Right Column */}
+            {!token && !isSuccess ? (
+              <div className="login-pill-form" style={{ gap: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#f87171" }}>
+                  <AlertCircle size={22} strokeWidth={2.2} />
+                  <h1 style={{ margin: 0, fontSize: "20px", fontWeight: 500, color: "#ffffff" }}>
+                    Invalid Reset Link
+                  </h1>
+                </div>
+
+                <p style={{ margin: 0, fontSize: "13px", color: "rgba(255, 255, 255, 0.72)", lineHeight: 1.55 }}>
+                  No valid reset token was detected in your URL. Please open the link directly from your email or request a new reset link.
+                </p>
+
+                <Link
+                  href="/forgot-password"
+                  className="login-pill-submit-btn"
+                  style={{ textDecoration: "none", marginTop: "4px" }}
+                >
+                  <span>Request New Reset Link</span>
+                  <span className="login-btn-arrow" aria-hidden="true">
+                    <ArrowRight size={14} strokeWidth={2.5} />
+                  </span>
+                </Link>
+              </div>
+            ) : isSuccess ? (
+              <div className="login-pill-form" style={{ gap: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#4dffa0" }}>
+                  <CheckCircle2 size={22} strokeWidth={2.2} />
+                  <h1 style={{ margin: 0, fontSize: "20px", fontWeight: 500, color: "#ffffff" }}>
+                    Password Updated
+                  </h1>
+                </div>
+
+                <p style={{ margin: 0, fontSize: "13px", color: "rgba(255, 255, 255, 0.72)", lineHeight: 1.55 }}>
+                  Your account password has been updated. You can now sign in to your FLOXA workspace with your new credentials.
+                </p>
+
+                <Link
+                  href="/login?mode=login"
+                  className="login-pill-submit-btn"
+                  style={{ textDecoration: "none", marginTop: "4px" }}
+                >
+                  <span>Sign In with New Password</span>
+                  <span className="login-btn-arrow" aria-hidden="true">
+                    <ArrowRight size={14} strokeWidth={2.5} />
+                  </span>
+                </Link>
+              </div>
+            ) : (
+              <form className="login-pill-form" onSubmit={handleSubmit}>
+                <div style={{ marginBottom: "4px" }}>
+                  <h1 style={{ margin: "0 0 6px", fontSize: "22px", fontWeight: 500, color: "#ffffff", letterSpacing: "0.01em" }}>
+                    Set New Password
+                  </h1>
+                  <p style={{ margin: 0, fontSize: "13px", color: "rgba(255, 255, 255, 0.65)", lineHeight: 1.5 }}>
+                    Choose a strong password of at least 8 characters.
+                  </p>
+                </div>
+
+                {/* New Password Pill */}
+                <div className="login-pill-input-wrap">
+                  <span className="login-pill-icon" aria-hidden="true">
+                    <Lock size={18} strokeWidth={2} stroke="#6b7280" />
+                  </span>
+                  <input
+                    id="new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    name="newPassword"
+                    className="login-pill-input"
+                    placeholder="New Password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                    title={showNewPassword ? "Hide password" : "Show password"}
+                    aria-label={showNewPassword ? "Hide password" : "Show password"}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "#6b7280",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "4px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                {/* Confirm Password Pill */}
+                <div className="login-pill-input-wrap">
+                  <span className="login-pill-icon" aria-hidden="true">
+                    <Lock size={18} strokeWidth={2} stroke="#6b7280" />
+                  </span>
+                  <input
+                    id="confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    className="login-pill-input"
+                    placeholder="Confirm New Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    title={showConfirmPassword ? "Hide password" : "Show password"}
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "#6b7280",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      padding: "4px",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+
+                <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", paddingLeft: "8px", fontSize: "11.5px" }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: isMinLength ? "#4dffa0" : "rgba(255, 255, 255, 0.52)" }}>
+                    <Check size={12} strokeWidth={2.6} />
+                    <span>Min. 8 characters</span>
+                  </span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: isMatching ? "#4dffa0" : "rgba(255, 255, 255, 0.52)" }}>
+                    <Check size={12} strokeWidth={2.6} />
+                    <span>Passwords match</span>
+                  </span>
+                </div>
+
+                {errorMessage && (
+                  <p
+                    className="login-error-msg"
+                    role="alert"
+                    style={{ display: "flex", alignItems: "center", gap: "6px", paddingLeft: "6px" }}
+                  >
+                    <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                    <span>{errorMessage}</span>
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  className="login-pill-submit-btn"
+                  disabled={isLoading || !isMinLength || !isMatching}
+                >
+                  <span>{isLoading ? "Updating Password..." : "Update Password"}</span>
+                  <span className="login-btn-arrow" aria-hidden="true">
+                    <ArrowRight size={14} strokeWidth={2.5} />
+                  </span>
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

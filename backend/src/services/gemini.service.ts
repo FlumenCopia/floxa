@@ -290,14 +290,14 @@ export async function generateProjectAssistantReply(
   const effectiveKey = (decryptSecret(customApiKey) || decryptSecret(project?.consultant?.integrations?.geminiApiKey)).trim();
 
   if (!effectiveKey) {
-    return '⚠️ Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key to activate the AI Assistant.';
+    return 'Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key to activate the AI Assistant.';
   }
 
   let client: GoogleGenAI;
   try {
     client = getAiClient(effectiveKey);
   } catch (err: any) {
-    return `⚠️ Google Gemini API Key error: ${err?.message || 'Invalid key'}. Please check your key in Settings > Integrations & API Keys.`;
+    return `Google Gemini API Key error: ${err?.message || 'Invalid key'}. Please check your key in Settings > Integrations & API Keys.`;
   }
 
   const projectContext = await buildProjectContext(projectId);
@@ -364,7 +364,7 @@ AGENCY WORKFLOW & STAGE-AWARE RULES:
   }
 
   console.warn('[FLOXA AI Assistant] All Gemini models exhausted.');
-  return `⚠️ Unable to get a response from Google Gemini AI (${lastError?.message || 'Request failed'}). Please verify your Gemini API Key in Settings > Integrations & API Keys.`;
+  return `Unable to get a response from Google Gemini AI (${lastError?.message || 'Request failed'}). Please verify your Gemini API Key in Settings > Integrations & API Keys.`;
 }
 
 export async function generateAiBrandDNA(project: any, discovery: any, customApiKey?: string): Promise<any> {
@@ -618,7 +618,7 @@ export function isDummyOrGibberish(text: string): boolean {
 function getDiscoveryValidationAdvisory(companyName: string, flaggedText: string, toolName: string): string {
   const displayFlag = flaggedText && flaggedText.trim() ? `"${flaggedText.trim()}"` : '(Empty / Not filled yet)';
   return [
-    `⚠️ INSUFFICIENT DISCOVERY INPUT — AUTHENTIC STRATEGY LOCKED`,
+    `INSUFFICIENT DISCOVERY INPUT — AUTHENTIC STRATEGY LOCKED`,
     `Project: ${companyName.toUpperCase()}`,
     `Tool: ${toolName}`,
     '',
@@ -725,7 +725,7 @@ export async function generateAiMoodboardDirections(projectId: string, customApi
     client = getAiClient(customApiKey);
   } catch (err: any) {
     return {
-      text: '⚠️ Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before generating Moodboard Directions.',
+      text: 'Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before generating Moodboard Directions.',
       isInsufficient: true,
     };
   }
@@ -780,7 +780,7 @@ Return only clean formatted plain text with bullet points, no conversational pre
   }
 
   return {
-    text: '⚠️ Google Gemini generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.',
+    text: 'Google Gemini generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.',
     isInsufficient: true,
   };
 }
@@ -853,7 +853,7 @@ export async function generateAiBrandDNAOverview(projectId: string, customApiKey
     client = getAiClient(customApiKey);
   } catch (err: any) {
     return {
-      text: '⚠️ Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before running Enhance Brand DNA.',
+      text: 'Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before running Enhance Brand DNA.',
       isInsufficient: true,
     };
   }
@@ -904,7 +904,7 @@ Return only clean formatted plain text with bullet points, no conversational pre
   }
 
   return {
-    text: '⚠️ Google Gemini generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.',
+    text: 'Google Gemini generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.',
     isInsufficient: true,
   };
 }
@@ -982,7 +982,7 @@ export async function generateAiProposal(projectId: string, customApiKey?: strin
     client = getAiClient(customApiKey);
   } catch (err: any) {
     return {
-      text: '⚠️ Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before generating Client Proposals.',
+      text: 'Google Gemini API Key is not configured. Please open Settings > "Integrations & API Keys" and paste your Google Gemini API Key before generating Client Proposals.',
       isInsufficient: true,
     };
   }
@@ -1032,7 +1032,7 @@ Return only clean formatted plain text with bullet points, no conversational pre
   }
 
   return {
-    text: '⚠️ Google Gemini generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.',
+    text: 'Google Gemini generation failed across available models. Please verify your Gemini API Key in Settings > Integrations & API Keys.',
     isInsufficient: true,
   };
 }

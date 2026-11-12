@@ -18,6 +18,8 @@ import {
   Copy,
   CheckCircle2,
   Bell,
+  Mail,
+  AlertTriangle,
 } from "lucide-react";
 import { adminApi } from "../../services/api";
 import Consultant360Drawer from "../../components/Consultant360Drawer";
@@ -372,7 +374,8 @@ export default function AdminConsultantsPage() {
                   alignItems: "center",
                   gap: "4px",
                 }}>
-                  ✉ Credentials Emailed
+                  <Mail size={12} />
+                  <span>Credentials Emailed</span>
                 </span>
               ) : null}
             </div>
@@ -701,8 +704,12 @@ export default function AdminConsultantsPage() {
                               backgroundColor: "rgba(240, 180, 41, 0.18)",
                               color: "#f0b429",
                               border: "1px solid rgba(240, 180, 41, 0.4)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
                             }}>
-                              ⚠️ Reactivation Requested
+                              <AlertTriangle size={11} />
+                              <span>Reactivation Requested</span>
                             </span>
                           </div>
                         )}

@@ -716,7 +716,7 @@ export default function Floxaheader({
       const newNotification = {
         id: Date.now(),
         action: "client_help_requested",
-        description: `💬 ${clientName}${projectTitle} needs help on ${stepLabel}${questionText}`,
+        description: `${clientName}${projectTitle} needs help on ${stepLabel}${questionText}`,
         is_read: false,
         created_at: new Date().toISOString(),
         portal_token: data.portal_token,
@@ -729,7 +729,7 @@ export default function Floxaheader({
       };
 
       setHeaderNotifications((current) => [newNotification, ...current]);
-      showDebouncedToast(`💬 ${clientName} needs help on ${stepLabel}${questionText}`);
+      showDebouncedToast(`${clientName} needs help on ${stepLabel}${questionText}`);
     });
 
     const unsubscribeLiveNotif = supportSocket.on("notification", (activity) => {

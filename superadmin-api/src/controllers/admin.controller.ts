@@ -474,7 +474,7 @@ export async function updateConsultantStatus(req: AdminAuthRequest, res: Respons
             consultantId: consultant._id,
             actorType: 'system',
             action: 'account_reactivated',
-            description: '✅ SuperAdmin approved your reactivation request. Your account has been reactivated. Please set a fresh delivery deadline.',
+            description: 'SuperAdmin approved your reactivation request. Your account has been reactivated. Please set a fresh delivery deadline.',
             isRead: false,
             visibleToClient: false,
             createdAt: new Date(),

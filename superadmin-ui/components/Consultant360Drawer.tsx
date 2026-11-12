@@ -438,7 +438,7 @@ export default function Consultant360Drawer({
                 }}>
                   <div style={{ fontWeight: 700, color: "#f0b429", display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
                     <Bell size={14} />
-                    <span>⚠️ Urgent Reactivation Request Dispatched by Consultant</span>
+                    <span>Urgent Reactivation Request Dispatched by Consultant</span>
                   </div>
                   <div style={{
                     backgroundColor: "rgba(0, 0, 0, 0.3)",
@@ -869,8 +869,12 @@ export default function Consultant360Drawer({
                             padding: "1px 6px",
                             borderRadius: "10px",
                             fontWeight: 600,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
                           }}>
-                            ✉ Notification Emailed
+                            <Mail size={10} />
+                            <span>Notification Emailed</span>
                           </span>
                         ) : null}
                       </div>

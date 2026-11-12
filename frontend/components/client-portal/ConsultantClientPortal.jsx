@@ -1177,7 +1177,10 @@ export default function ConsultantClientPortal() {
                 gap: "8px",
               }}
             >
-              <span>💬 A client is currently requesting live assistance!</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <MessageSquare size={14} />
+                <span>A client is currently requesting live assistance!</span>
+              </span>
               <button
                 type="button"
                 style={{
@@ -1338,7 +1341,7 @@ export default function ConsultantClientPortal() {
                 </option>
                 {projects.map((p) => {
                   const optVal = String(p.id || p.portal_token);
-                  const optLabel = `${p.company_name || p.title} (${p.client?.name || p.client_name || p.client_email || "Client"})${p.has_help_request ? " 💬 [Help Requested]" : ""}`;
+                  const optLabel = `${p.company_name || p.title} (${p.client?.name || p.client_name || p.client_email || "Client"})${p.has_help_request ? " [Help Requested]" : ""}`;
                   return (
                     <option key={optVal} value={optVal}>
                       {optLabel}

@@ -1006,13 +1006,17 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
               const isSelected = selectedConversation?.projectId === conv.projectId;
               const lastMsg = conv.lastMessage;
               let snippetText = "No messages yet";
+              let snippetIcon = null;
               if (lastMsg) {
                 if (lastMsg.messageType === "voice") {
-                  snippetText = "🎤 Voice message";
+                  snippetIcon = <Mic size={13} style={{ flexShrink: 0 }} />;
+                  snippetText = "Voice message";
                 } else if (lastMsg.messageType === "image") {
-                  snippetText = "📷 Photo";
+                  snippetIcon = <ImageIcon size={13} style={{ flexShrink: 0 }} />;
+                  snippetText = "Photo";
                 } else if (lastMsg.messageType === "file") {
-                  snippetText = `📄 ${lastMsg.fileName || "Document"}`;
+                  snippetIcon = <FileText size={13} style={{ flexShrink: 0 }} />;
+                  snippetText = lastMsg.fileName || "Document";
                 } else if (lastMsg.text) {
                   snippetText = lastMsg.text;
                 }
@@ -1062,6 +1066,7 @@ export default function WhatsAppChatView({ initialProjectId = null }) {
                             <Check size={13} />
                           </span>
                         )}
+                        {snippetIcon}
                         <span>{snippetText}</span>
                       </div>
 

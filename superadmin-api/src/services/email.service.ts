@@ -123,7 +123,7 @@ The FLOXA Team`;
       <!-- Security Notice -->
       <div style="border-top: 1px solid rgba(77, 255, 160, 0.12); padding-top: 16px;">
         <p style="margin: 0 0 8px 0; font-size: 12px; line-height: 1.5; color: #89aca0;">
-          🔒 <strong>Security Recommendation:</strong> For your security, please sign in and change your temporary password immediately in <strong>Settings &rarr; Security</strong>.
+          <strong>Security Recommendation:</strong> For your security, please sign in and change your temporary password immediately in <strong>Settings &rarr; Security</strong>.
         </p>
         <p style="margin: 0; font-size: 11px; color: #5a7b6e;">
           If you did not expect this invitation, please contact your organization administrator.

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, ArrowLeft, ArrowRight, CheckCircle2, KeyRound, AlertCircle } from "lucide-react";
+import { Mail, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle } from "lucide-react";
 import { requestPasswordReset } from "@/lib/authApi";
 
 export default function ForgotPasswordPage() {
@@ -34,96 +34,135 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="auth-recovery-screen">
-      <div className="auth-recovery-card">
-        <img src="/image/FLOXA_log.png" alt="FLOXA" className="auth-recovery-logo" />
-
-        <div className="auth-recovery-pill-badge">
-          <KeyRound size={13} strokeWidth={2.5} />
-          <span>Password Recovery</span>
-        </div>
-
-        <h1 className="auth-recovery-title">
-          {isSubmitted ? "Reset Link Dispatched" : "Reset Password"}
-        </h1>
-        <p className="auth-recovery-subtitle">
-          {isSubmitted
-            ? `If an account exists for ${email}, a secure password reset link has been dispatched to your inbox.`
-            : "Enter your account email address and we'll send you an encrypted link to reset your password."}
-        </p>
-
-        {isSubmitted ? (
-          <div className="auth-success-box">
-            <div className="auth-success-icon-wrap">
-              <CheckCircle2 size={38} color="#4dffa0" strokeWidth={2.2} />
-            </div>
-
-            <p style={{ fontSize: "13px", color: "#9bb5aa", lineHeight: 1.6, margin: "0 0 24px", maxWidth: "360px" }}>
-              Please check your inbox (and spam/junk folder) within the next few minutes. The reset link expires in 30 minutes.
-            </p>
-
-            <Link
-              href="/login?mode=login"
-              className="auth-submit-btn"
-              style={{ textDecoration: "none" }}
-            >
-              <span>Return to Login</span>
-              <span className="auth-submit-arrow" aria-hidden="true">
-                <ArrowRight size={14} strokeWidth={2.5} />
-              </span>
-            </Link>
-          </div>
-        ) : (
-          <form className="auth-recovery-form" onSubmit={handleSubmit}>
-            <div className="auth-input-group">
-              <label className="auth-input-label" htmlFor="recovery-email">
-                <span>Account Email</span>
-              </label>
-              <div className="auth-glass-input-wrap">
-                <span className="auth-glass-input-icon" aria-hidden="true">
-                  <Mail size={17} strokeWidth={2.2} />
-                </span>
-                <input
-                  id="recovery-email"
-                  type="email"
-                  name="email"
-                  className="auth-glass-input"
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  autoFocus
-                />
+    <div id="login-screen">
+      <div className="login-card is-login-mode">
+        <div className="login-stage-track">
+          <div className="login-stage-view login-access-wrap slide-in-view">
+            {/* Left Column matching Login Studio Theme */}
+            <div className="login-access-intro">
+              <div className="login-brand-logo">
+                <img src="/image/FLOXA_log.png" alt="FLOXA" className="login-brand-logo-img" />
               </div>
-            </div>
+              <p className="login-brand-subtitle">
+                Discover Your Brand Clarity.
+              </p>
 
-            {errorMessage && (
-              <div className="auth-error-banner" role="alert">
-                <AlertCircle size={16} color="#f87171" style={{ flexShrink: 0, marginTop: "2px" }} />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="auth-submit-btn"
-              disabled={isLoading || !email.trim()}
-            >
-              <span>{isLoading ? "Dispatching Link..." : "Send Reset Link"}</span>
-              <span className="auth-submit-arrow" aria-hidden="true">
-                <ArrowRight size={14} strokeWidth={2.5} />
-              </span>
-            </button>
-
-            <div style={{ textAlign: "center" }}>
-              <Link href="/login?mode=login" className="auth-back-link">
-                <ArrowLeft size={14} strokeWidth={2.5} />
+              <Link
+                href="/login?mode=login"
+                className="login-begin-btn"
+                style={{ textDecoration: "none" }}
+              >
                 <span>Back to Login</span>
+                <span className="login-btn-arrow" aria-hidden="true">
+                  <ArrowLeft size={14} strokeWidth={2.5} />
+                </span>
               </Link>
             </div>
-          </form>
-        )}
+
+            {/* Right Column (Pill Form matching Login Studio Theme) */}
+            {isSubmitted ? (
+              <div className="login-pill-form" style={{ gap: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "#4dffa0" }}>
+                  <CheckCircle2 size={22} strokeWidth={2.2} />
+                  <h1 style={{ margin: 0, fontSize: "20px", fontWeight: 500, color: "#ffffff", letterSpacing: "0.01em" }}>
+                    Reset Link Dispatched
+                  </h1>
+                </div>
+
+                <p style={{ margin: 0, fontSize: "13px", color: "rgba(255, 255, 255, 0.72)", lineHeight: 1.55 }}>
+                  If an account exists for <strong style={{ color: "#ffffff", fontWeight: 500 }}>{email}</strong>, a secure password reset link has been sent to your inbox. Please check your inbox or spam folder within 30 minutes.
+                </p>
+
+                <Link
+                  href="/login?mode=login"
+                  className="login-pill-submit-btn"
+                  style={{ textDecoration: "none", marginTop: "4px" }}
+                >
+                  <span>Return to Login</span>
+                  <span className="login-btn-arrow" aria-hidden="true">
+                    <ArrowRight size={14} strokeWidth={2.5} />
+                  </span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSubmitted(false);
+                    setErrorMessage("");
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: "#89aca0",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    textAlign: "center",
+                  }}
+                >
+                  Try another email address
+                </button>
+              </div>
+            ) : (
+              <form className="login-pill-form" onSubmit={handleSubmit}>
+                <div style={{ marginBottom: "4px" }}>
+                  <h1 style={{ margin: "0 0 6px", fontSize: "22px", fontWeight: 500, color: "#ffffff", letterSpacing: "0.01em" }}>
+                    Forgot Password
+                  </h1>
+                  <p style={{ margin: 0, fontSize: "13px", color: "rgba(255, 255, 255, 0.65)", lineHeight: 1.5 }}>
+                    Enter your account email and we&apos;ll send an encrypted reset link.
+                  </p>
+                </div>
+
+                {/* Email White Pill Input */}
+                <div className="login-pill-input-wrap">
+                  <span className="login-pill-icon" aria-hidden="true">
+                    <Mail size={18} strokeWidth={2} stroke="#6b7280" />
+                  </span>
+                  <input
+                    id="recovery-email"
+                    type="email"
+                    name="email"
+                    className="login-pill-input"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    autoFocus
+                  />
+                </div>
+
+                {errorMessage && (
+                  <p
+                    className="login-error-msg"
+                    role="alert"
+                    style={{ display: "flex", alignItems: "center", gap: "6px", paddingLeft: "6px" }}
+                  >
+                    <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                    <span>{errorMessage}</span>
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  className="login-pill-submit-btn"
+                  disabled={isLoading || !email.trim()}
+                >
+                  <span>{isLoading ? "Dispatching Link..." : "Send Reset Link"}</span>
+                  <span className="login-btn-arrow" aria-hidden="true">
+                    <ArrowRight size={14} strokeWidth={2.5} />
+                  </span>
+                </button>
+
+                <div className="login-terms-note">
+                  Reset links remain valid for 30 minutes
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

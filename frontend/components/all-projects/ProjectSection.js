@@ -1,5 +1,12 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getProjects, getConsultantActivities, markProjectActivitiesRead } from "@/lib/projectApi";
+import { supportSocket } from "@/services/supportSocketService";
+import { useRouter, useSearchParams } from "next/navigation";
+import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
+import { ChevronDown, Plus, AlertTriangle, AlertCircle, Clock, Check } from "lucide-react";
+
 function renderProjectDeadlineBadge(row) {
   const hasBrandDna = Boolean(row.has_brand_dna || row.hasBrandDna);
   const deadline = row.deliveryDeadline || row.delivery_deadline ? new Date(row.deliveryDeadline || row.delivery_deadline) : null;
@@ -7,25 +14,42 @@ function renderProjectDeadlineBadge(row) {
 
   let deadlineTag = null;
   if (status === "flag_3") {
-    deadlineTag = <span className="deadline-table-tag flag-3" title="48h+ past committed deadline. Critical SLA breach.">🛑 Flag 3</span>;
+    deadlineTag = (
+      <span className="deadline-table-tag flag-3" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }} title="48h+ past committed deadline. Critical SLA breach.">
+        <AlertTriangle size={11} />
+        <span>Flag 3</span>
+      </span>
+    );
   } else if (status === "flag_2") {
-    deadlineTag = <span className="deadline-table-tag flag-2" title="24h-48h past committed deadline. Urgent SLA warning.">🚨 Flag 2</span>;
+    deadlineTag = (
+      <span className="deadline-table-tag flag-2" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }} title="24h-48h past committed deadline. Urgent SLA warning.">
+        <AlertTriangle size={11} />
+        <span>Flag 2</span>
+      </span>
+    );
   } else if (status === "flag_1") {
-    deadlineTag = <span className="deadline-table-tag flag-1" title="0-24h past committed deadline. Finalize delivery today.">⚠️ Flag 1</span>;
+    deadlineTag = (
+      <span className="deadline-table-tag flag-1" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }} title="0-24h past committed deadline. Finalize delivery today.">
+        <AlertCircle size={11} />
+        <span>Flag 1</span>
+      </span>
+    );
   } else if (deadline && status === "on_track") {
     const days = Number(row.deadlineDaysRemaining || row.deadline_days_remaining || 1);
     const dayText = days > 1 ? `${days}d` : "today";
     deadlineTag = (
-      <span className="deadline-table-tag on-track" title={`Committed delivery deadline: ${deadline.toLocaleDateString()}`}>
-        🟢 Due in {dayText}
+      <span className="deadline-table-tag on-track" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }} title={`Committed delivery deadline: ${deadline.toLocaleDateString()}`}>
+        <Clock size={11} />
+        <span>Due in {dayText}</span>
       </span>
     );
   } else {
     const hasSubmitted = Boolean(row.clientSubmittedAt || row.client_submitted_at);
     if (hasSubmitted || status === "pending_deadline" || hasBrandDna) {
       deadlineTag = (
-        <span className="deadline-table-tag pending" title="Client submitted discovery. Consultant must set delivery deadline.">
-          ⏳ Set Deadline
+        <span className="deadline-table-tag pending" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }} title="Client submitted discovery. Consultant must set delivery deadline.">
+          <Clock size={11} />
+          <span>Set Deadline</span>
         </span>
       );
     } else {
@@ -40,19 +64,15 @@ function renderProjectDeadlineBadge(row) {
   return (
     <div style={{ marginTop: "4px", display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
       {hasBrandDna ? (
-        <span className="deadline-table-tag done" title="Brand DNA completed">✓ Brand DNA</span>
+        <span className="deadline-table-tag done" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }} title="Brand DNA completed">
+          <Check size={11} />
+          <span>Brand DNA</span>
+        </span>
       ) : null}
       {deadlineTag}
     </div>
   );
 }
-
-import { useCallback, useEffect, useRef, useState } from "react";
-import { getProjects, getConsultantActivities, markProjectActivitiesRead } from "@/lib/projectApi";
-import { supportSocket } from "@/services/supportSocketService";
-import { useRouter, useSearchParams } from "next/navigation";
-import ProjectCreateWizard from "../dashboard/ProjectCreateWizard";
-import { ChevronDown, Plus } from "lucide-react";
 
 export const statusOptions = [
   "All statuses",
@@ -345,7 +365,7 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
           unreadCount: ((prev[pId]?.unreadCount) || 0) + 1,
           latestActivity: {
             action: "client_help_requested",
-            description: `💬 ${data.client_name || "Client"} needs help: "${data.question || ""}"`,
+            description: `${data.client_name || "Client"} needs help: "${data.question || ""}"`,
             created_at: new Date().toISOString(),
           },
         },
@@ -679,7 +699,7 @@ export default function ProjectSection({ isWizardOpen = false, setIsWizardOpen =
 
                 {!isLoadingInitial && !isLoadingMore && projects.length > 0 && !hasMore ? (
                   <span style={{ color: "#618272", fontSize: "0.8rem" }}>
-                    ✓ Showing all {projects.length} {projects.length === 1 ? "project" : "projects"}
+                    Showing all {projects.length} {projects.length === 1 ? "project" : "projects"}
                   </span>
                 ) : null}
 

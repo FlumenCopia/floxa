@@ -419,7 +419,7 @@ export async function checkAndEscalateDeadlines(currentTime?: number): Promise<v
             consultantId,
             actorType: 'system',
             action: actionName,
-            description: `🔒 Account Suspended (96h Overdue): Consultant account automatically suspended for failing to deliver ${targetDeliverable} for '${title}' (96 hours overdue, following 3 warnings). Please contact SuperAdmin.`,
+            description: `Account Suspended (96h Overdue): Consultant account automatically suspended for failing to deliver ${targetDeliverable} for '${title}' (96 hours overdue, following 3 warnings). Please contact SuperAdmin.`,
             visibleToClient: false,
           });
         }
@@ -427,7 +427,7 @@ export async function checkAndEscalateDeadlines(currentTime?: number): Promise<v
         // Warning 3 (72h to 95h overdue)
         const targetFlag = 3;
         const actionName = 'deadline_warning_3';
-        const description = `🛑 Warning 3 - Final Notice (72h Overdue): Project '${title}' is 3 days past committed deadline. This is your final grace day. Your consultant account will be AUTOMATICALLY SUSPENDED in 24 hours if ${targetDeliverable} is not delivered.`;
+        const description = `Warning 3 - Final Notice (72h Overdue): Project '${title}' is 3 days past committed deadline. This is your final grace day. Your consultant account will be AUTOMATICALLY SUSPENDED in 24 hours if ${targetDeliverable} is not delivered.`;
 
         const claimed = await Project.findOneAndUpdate(
           { _id: proj._id, deadlineFlagsCount: { $lt: targetFlag } },
@@ -448,7 +448,7 @@ export async function checkAndEscalateDeadlines(currentTime?: number): Promise<v
         // Warning 2 (48h to 71h overdue)
         const targetFlag = 2;
         const actionName = 'deadline_warning_2';
-        const description = `🚨 Warning 2 (48h Overdue): Project '${title}' is 2 days past committed deadline. Failure to deliver within the remaining grace period will result in automatic account suspension.`;
+        const description = `Warning 2 (48h Overdue): Project '${title}' is 2 days past committed deadline. Failure to deliver within the remaining grace period will result in automatic account suspension.`;
 
         const claimed = await Project.findOneAndUpdate(
           { _id: proj._id, deadlineFlagsCount: { $lt: targetFlag } },
@@ -469,7 +469,7 @@ export async function checkAndEscalateDeadlines(currentTime?: number): Promise<v
         // Warning 1 (24h to 47h overdue)
         const targetFlag = 1;
         const actionName = 'deadline_warning_1';
-        const description = `⚠️ Warning 1 (24h Overdue): Project '${title}' passed its committed delivery deadline yesterday. Please deliver ${targetDeliverable} promptly to avoid warning escalation and automatic account suspension.`;
+        const description = `Warning 1 (24h Overdue): Project '${title}' passed its committed delivery deadline yesterday. Please deliver ${targetDeliverable} promptly to avoid warning escalation and automatic account suspension.`;
 
         const claimed = await Project.findOneAndUpdate(
           { _id: proj._id, deadlineFlagsCount: { $lt: targetFlag } },
