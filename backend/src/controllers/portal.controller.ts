@@ -1493,12 +1493,18 @@ export async function portalSignOff(req: any, res: Response, next: NextFunction)
 
 export async function getPortalActivities(req: any, res: Response, next: NextFunction) {
   try {
+    const rawLimit = Number(req.query?.limit);
+    const rawOffset = Number(req.query?.offset);
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 50;
+    const offset = Number.isFinite(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+
     const activities = await ProjectActivity.find({
       projectId: req.project.id,
       visibleToClient: true,
     })
       .sort({ createdAt: -1 })
-      .limit(50);
+      .skip(offset)
+      .limit(limit);
 
     res.json(activities.map(serializeClientPortalActivity));
   } catch (err) {

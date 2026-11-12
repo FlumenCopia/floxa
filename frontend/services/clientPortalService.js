@@ -696,13 +696,17 @@ export const clientPortalService = {
     }
   },
 
-  async getClientActivities(portalToken = activeToken) {
+  async getClientActivities(portalToken = activeToken, options = {}) {
     if (!portalToken || portalToken === "test-token") {
       return { success: true, data: [] };
     }
 
     try {
-      const activities = await apiRequest(`/client-portal/${portalToken}/activities/`);
+      const params = new URLSearchParams();
+      if (options?.limit) params.set("limit", String(options.limit));
+      if (options?.offset !== undefined && options?.offset !== null) params.set("offset", String(options.offset));
+      const query = params.toString() ? `?${params.toString()}` : "";
+      const activities = await apiRequest(`/client-portal/${portalToken}/activities/${query}`);
       return { success: true, data: Array.isArray(activities) ? activities : [] };
     } catch (error) {
       if (error?.detail) {

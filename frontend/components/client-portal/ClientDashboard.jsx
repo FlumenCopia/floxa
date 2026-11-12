@@ -355,6 +355,9 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
   const [notifications, setNotifications] = useState([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [loadingMoreNotifications, setLoadingMoreNotifications] = useState(false);
+  const [notificationLimit, setNotificationLimit] = useState(5);
+  const [hasMoreServerNotifications, setHasMoreServerNotifications] = useState(false);
   const [notificationsError, setNotificationsError] = useState("");
   const notificationsRef = useRef(null);
   const [activePreview, setActivePreview] = useState(null);
@@ -449,26 +452,55 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     setNotificationsError("");
 
     try {
-      const response = await clientPortalService.getClientActivities();
-      setNotifications(response.success ? response.data : []);
+      const response = await clientPortalService.getClientActivities(undefined, { limit: 50, offset: 0 });
+      const rows = response.success ? response.data : [];
+      setNotifications(rows);
+      setHasMoreServerNotifications(rows.length >= 50);
       setNotificationsError(response.success ? "" : response.error || "Unable to load notifications.");
     } finally {
       setNotificationsLoading(false);
     }
   }, []);
 
+  const loadMoreNotifications = useCallback(async () => {
+    const nextLimit = notificationLimit + 10;
+    setNotificationLimit(nextLimit);
+
+    if (nextLimit > notifications.length && hasMoreServerNotifications && !loadingMoreNotifications) {
+      setLoadingMoreNotifications(true);
+      try {
+        const response = await clientPortalService.getClientActivities(undefined, {
+          limit: 50,
+          offset: notifications.length,
+        });
+        if (response.success && Array.isArray(response.data)) {
+          setNotifications((current) => {
+            const seen = new Set(current.map((item) => item.id));
+            const uniqueNew = response.data.filter((item) => !seen.has(item.id));
+            return [...current, ...uniqueNew];
+          });
+          setHasMoreServerNotifications(response.data.length >= 50);
+        }
+      } finally {
+        setLoadingMoreNotifications(false);
+      }
+    }
+  }, [notificationLimit, notifications.length, hasMoreServerNotifications, loadingMoreNotifications]);
+
   useEffect(() => {
     let isActive = true;
 
     async function loadInitialClientActivities() {
       try {
-        const response = await clientPortalService.getClientActivities();
+        const response = await clientPortalService.getClientActivities(undefined, { limit: 50, offset: 0 });
 
         if (!isActive) {
           return;
         }
 
-        setNotifications(response.success ? response.data : []);
+        const rows = response.success ? response.data : [];
+        setNotifications(rows);
+        setHasMoreServerNotifications(rows.length >= 50);
         setNotificationsError(response.success ? "" : response.error || "Unable to load notifications.");
       } finally {
         if (isActive) {
@@ -1261,14 +1293,15 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
-  const visibleNotifications = notifications
-    .filter(
-      (item) =>
-        !internalDraftNotificationActions.has(item.action) &&
-        item.visible_to_client !== false &&
-        item.visibleToClient !== false
-    )
-    .slice(0, 5);
+  const filteredNotifications = notifications.filter(
+    (item) =>
+      !internalDraftNotificationActions.has(item.action) &&
+      item.visible_to_client !== false &&
+      item.visibleToClient !== false
+  );
+  const visibleNotifications = filteredNotifications.slice(0, notificationLimit);
+  const hasMoreNotifications =
+    filteredNotifications.length > notificationLimit || hasMoreServerNotifications;
   const unreadCount = notifications.filter(
     (item) =>
       item.client_is_read === false &&
@@ -1302,10 +1335,60 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
     }
   }
 
+  function resolveNotificationTargetPanel(notification) {
+    const action = String(notification?.action || "").toLowerCase();
+    const desc = String(notification?.description || "").toLowerCase();
+
+    if (conceptNotificationActions.has(notification?.action) || action.startsWith("concept_")) {
+      return "concepts";
+    }
+    if (action.startsWith("moodboard_")) {
+      return "moodboards";
+    }
+    if (action.startsWith("agreement_")) {
+      return "agreement";
+    }
+    if (
+      action.startsWith("deliverable_") ||
+      action === "delivery_deadline_set" ||
+      action === "project_signed_off"
+    ) {
+      return "delivery";
+    }
+    if (action.startsWith("payment_")) {
+      return "payments";
+    }
+    if (action.startsWith("discovery_") || action.startsWith("brand_dna_")) {
+      return "discovery";
+    }
+    if (action.startsWith("client_profile_")) {
+      return "profile";
+    }
+
+    if (desc.includes("deliverable") || desc.includes("delivery") || desc.includes("signed off")) return "delivery";
+    if (desc.includes("agreement") || desc.includes("signature")) return "agreement";
+    if (desc.includes("payment") || desc.includes("milestone")) return "payments";
+    if (desc.includes("concept")) return "concepts";
+    if (desc.includes("moodboard")) return "moodboards";
+    if (desc.includes("brand dna") || desc.includes("discovery")) return "discovery";
+
+    return null;
+  }
+
   function openNotification(notification) {
-    if (conceptNotificationActions.has(notification.action)) {
-      setNotificationsOpen(false);
-      openPanel("concepts");
+    setNotificationsOpen(false);
+
+    if (notification?.client_is_read === false) {
+      markClientNotificationsRead();
+    }
+
+    const target = resolveNotificationTargetPanel(notification);
+    if (target === "profile") {
+      onNext?.("profile");
+      return;
+    }
+    if (target) {
+      openPanel(target);
     }
   }
 
@@ -1460,6 +1543,16 @@ export function ClientDashboard({ project, onNext, onSignOut, onProjectRefresh }
                       </span>
                     </button>
                   ))}
+                  {!notificationsLoading && !notificationsError && hasMoreNotifications ? (
+                    <button
+                      type="button"
+                      className="client-notification-load-more"
+                      onClick={loadMoreNotifications}
+                      disabled={loadingMoreNotifications}
+                    >
+                      {loadingMoreNotifications ? "Loading older notifications..." : "Load older notifications"}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ) : null}
