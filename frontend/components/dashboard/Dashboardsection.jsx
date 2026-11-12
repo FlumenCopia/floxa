@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getConsultantActivities, getProjects } from "@/lib/projectApi";
+import { getAnalytics, getConsultantActivities, getProjects } from "@/lib/projectApi";
 import { getStatusClass, getStatusLabel } from "../all-projects/ProjectSection";
 import { useRouter } from "next/navigation";
 import ProjectCreateWizard from "./ProjectCreateWizard";
@@ -37,6 +37,8 @@ export default function Dashboardsection() {
   const [consultant, setConsultant] = useState(null);
   const [projects, setProjects] = useState([]);
   const [totalProjectsCount, setTotalProjectsCount] = useState(0);
+  const [analytics, setAnalytics] = useState(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(true);
   const [activities, setActivities] = useState([]);
   const [isLoadingActivities, setIsLoadingActivities] = useState(true);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
@@ -84,6 +86,22 @@ export default function Dashboardsection() {
     loadActivities();
   }, []);
 
+  useEffect(() => {
+    async function loadAnalytics() {
+      try {
+        const data = await getAnalytics();
+        setAnalytics(data || null);
+      } catch (error) {
+        console.error("Failed to load dashboard analytics:", error);
+        setAnalytics(null);
+      } finally {
+        setIsLoadingAnalytics(false);
+      }
+    }
+
+    loadAnalytics();
+  }, []);
+
   const averageCompletion = useMemo(() => {
     if (projects.length === 0) {
       return 0;
@@ -93,27 +111,53 @@ export default function Dashboardsection() {
     return Math.round(totalProgress / projects.length);
   }, [projects]);
 
+  const aiAdoption = useMemo(() => {
+    if (projects.length === 0) {
+      return { rate: 0, count: 0 };
+    }
+    const aiCount = projects.filter((p) => p.hasBrandDna).length;
+    return {
+      rate: Math.round((aiCount / projects.length) * 100),
+      count: aiCount,
+    };
+  }, [projects]);
+
+  const revenueLast6Months = Array.isArray(analytics?.revenue_last_6_months)
+    ? analytics.revenue_last_6_months
+    : [];
+  const revenueThisMonth = revenueLast6Months.length > 0
+    ? Number(revenueLast6Months[revenueLast6Months.length - 1]?.amount || 0)
+    : Number(analytics?.total_paid_revenue || 0);
+  const totalPaidRevenue = Number(analytics?.total_paid_revenue || 0);
+  const pendingRevenue = Number(analytics?.payment_pending_amount || 0);
+
   const stats = [
     {
       label: "Active Projects",
-      value: String(totalProjectsCount),
+      value: String(analytics?.active_projects ?? totalProjectsCount),
       change: `${totalProjectsCount} total projects`,
       icon: "project",
       deltaClass: "up",
     },
     {
       label: "Revenue This Month",
-      value: "Unavailable",
-      change: "Revenue data unavailable",
+      value: isLoadingAnalytics ? "..." : `₹${revenueThisMonth.toLocaleString("en-IN")}`,
+      change: isLoadingAnalytics
+        ? "Loading revenue..."
+        : pendingRevenue > 0
+          ? `Total paid ₹${totalPaidRevenue.toLocaleString("en-IN")} • Pending ₹${pendingRevenue.toLocaleString("en-IN")}`
+          : `Total paid: ₹${totalPaidRevenue.toLocaleString("en-IN")}`,
       icon: "revenue",
-      deltaClass: "",
+      deltaClass: totalPaidRevenue > 0 ? "up" : "",
     },
     {
       label: "AI Adoption Rate",
-      value: "Unavailable",
-      change: "AI usage data unavailable",
+      value: isLoadingProjects ? "..." : `${aiAdoption.rate}%`,
+      change: isLoadingProjects
+        ? "Calculating..."
+        : `${aiAdoption.count} of ${projects.length} projects with Brand DNA`,
       icon: "ai",
-      deltaClass: "",
+      deltaClass: aiAdoption.rate > 0 ? "up" : "",
     },
     {
       label: "Avg Completion",
