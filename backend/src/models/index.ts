@@ -56,5 +56,16 @@ export {
   type DevicePlatform,
   type DeviceUserRole,
 } from './deviceToken.model.js';
+export {
+  SubscriptionPlan,
+  type ISubscriptionPlan,
+  type IPlanPricing,
+  type IPlanLimits,
+  type IPlanFeatures,
+} from './subscriptionPlan.model.js';
+export {
+  SubscriptionTransaction,
+  type ISubscriptionTransaction,
+} from './subscriptionTransaction.model.js';
 
 

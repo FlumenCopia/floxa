@@ -515,17 +515,11 @@ export async function updateConsultantStatus(req: AdminAuthRequest, res: Respons
 export async function updateConsultantPlan(req: AdminAuthRequest, res: Response) {
   try {
     const { id } = req.params;
-    const { maxProjects } = req.body;
-    const planStr = typeof req.body.plan === 'string' ? req.body.plan.trim() : '';
+    const { maxProjects, maxClients, billingCycle } = req.body;
+    const planStr = typeof req.body.plan === 'string' ? req.body.plan.trim().toLowerCase() : '';
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       res.status(400).json({ detail: 'Invalid consultant ID format.' });
-      return;
-    }
-
-    const validPlans = ['free', 'starter', 'pro', 'enterprise'];
-    if (planStr && !validPlans.includes(planStr)) {
-      res.status(400).json({ detail: `Invalid plan. Must be one of: ${validPlans.join(', ')}` });
       return;
     }
 
@@ -535,28 +529,60 @@ export async function updateConsultantPlan(req: AdminAuthRequest, res: Response)
       return;
     }
 
+    let matchedPlan = null;
+    if (planStr) {
+      const { SubscriptionPlan } = await import('../models/subscriptionPlan.model.js');
+      matchedPlan = await SubscriptionPlan.findOne({ slug: planStr }).lean();
+      if (!matchedPlan) {
+        const validPlans = ['free', 'starter', 'pro', 'enterprise'];
+        if (!validPlans.includes(planStr)) {
+          res.status(400).json({ detail: `Invalid plan. Must match an existing subscription plan.` });
+          return;
+        }
+      }
+    }
+
     if (!consultant.subscription) {
       consultant.subscription = {
         plan: 'free',
         status: consultant.isActive ? 'active' : 'suspended',
         maxProjects: 5,
+        maxClients: 10,
+        billingCycle: 'monthly',
       };
     }
 
     if (planStr) {
       consultant.subscription.plan = planStr;
-      if (maxProjects === undefined) {
-        if (planStr === 'free') consultant.subscription.maxProjects = 3;
-        else if (planStr === 'starter') consultant.subscription.maxProjects = 10;
-        else if (planStr === 'pro') consultant.subscription.maxProjects = 30;
-        else if (planStr === 'enterprise') consultant.subscription.maxProjects = 999;
+      if (matchedPlan) {
+        consultant.subscription.planId = matchedPlan._id;
+        if (maxProjects === undefined) {
+          consultant.subscription.maxProjects = matchedPlan.limits?.maxProjects ?? 5;
+        }
+        if (maxClients === undefined) {
+          consultant.subscription.maxClients = matchedPlan.limits?.maxClients ?? 10;
+        }
+      } else {
+        if (maxProjects === undefined) {
+          if (planStr === 'free') consultant.subscription.maxProjects = 2;
+          else if (planStr === 'starter') consultant.subscription.maxProjects = 5;
+          else if (planStr === 'pro') consultant.subscription.maxProjects = 20;
+          else if (planStr === 'enterprise') consultant.subscription.maxProjects = -1;
+        }
       }
     }
 
-    if (typeof maxProjects === 'number' && maxProjects >= 0) {
-      consultant.subscription.maxProjects = Math.min(10000, Math.max(0, maxProjects));
+    if (typeof maxProjects === 'number') {
+      consultant.subscription.maxProjects = maxProjects;
+    }
+    if (typeof maxClients === 'number') {
+      consultant.subscription.maxClients = maxClients;
+    }
+    if (billingCycle && ['monthly', 'semi_annual', 'yearly', 'custom'].includes(billingCycle)) {
+      consultant.subscription.billingCycle = billingCycle;
     }
 
+    consultant.markModified('subscription');
     await consultant.save();
 
     res.json({

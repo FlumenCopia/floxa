@@ -139,10 +139,47 @@ export const adminApi = {
     });
   },
 
-  async updateConsultantPlan(id: string, plan: string, maxProjects?: number) {
+  async updateConsultantPlan(id: string, plan: string, maxProjects?: number, maxClients?: number, billingCycle?: string) {
     return request(`/admin/consultants/${id}/plan`, {
       method: 'PATCH',
-      body: JSON.stringify({ plan, maxProjects }),
+      body: JSON.stringify({ plan, maxProjects, maxClients, billingCycle }),
+    });
+  },
+
+  async adjustConsultantTimeline(id: string, data: { daysToAdd?: number; reason?: string; explicitExpiryDate?: string }) {
+    return request(`/admin/consultants/${id}/subscription/timeline`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async overrideConsultantQuota(id: string, data: { maxProjects?: number | null; maxClients?: number | null; maxAiRunsPerMonth?: number | null }) {
+    return request(`/admin/consultants/${id}/subscription/quota-override`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Dynamic Subscription Plans
+  async getPlans() {
+    return request('/admin/plans');
+  },
+
+  async getPlan(id: string) {
+    return request(`/admin/plans/${id}`);
+  },
+
+  async createPlan(data: any) {
+    return request('/admin/plans', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updatePlan(id: string, data: any) {
+    return request(`/admin/plans/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
   },
 

@@ -7,6 +7,35 @@ export interface IConsultantIntegrations {
   razorpayWebhookSecret?: string;
 }
 
+export interface ITimelineAdjustment {
+  adjustedAt: Date;
+  adjustedBy: string;
+  previousPeriodEnd: Date;
+  newPeriodEnd: Date;
+  daysAdded: number;
+  reason: string;
+}
+
+export interface IConsultantSubscription {
+  planId?: any;
+  plan?: string;
+  status?: string;
+  billingCycle?: 'monthly' | 'semi_annual' | 'yearly' | 'custom';
+  currentPeriodStart?: Date;
+  currentPeriodEnd?: Date;
+  gracePeriodEnd?: Date;
+  autoRenew?: boolean;
+  maxProjects?: number;
+  maxClients?: number;
+  customLimitOverrides?: {
+    maxProjects?: number | null;
+    maxClients?: number | null;
+    maxAiRunsPerMonth?: number | null;
+  };
+  timelineAdjustments?: ITimelineAdjustment[];
+  lastPaymentId?: string;
+}
+
 export interface IConsultant {
   _id?: any;
   id: string;
@@ -31,11 +60,7 @@ export interface IConsultant {
     plan?: string;
     toolRuns?: Record<string, number>;
   };
-  subscription?: {
-    plan?: string;
-    status?: string;
-    maxProjects?: number;
-  };
+  subscription?: IConsultantSubscription;
   integrations?: IConsultantIntegrations;
   passwordResetToken?: string | null;
   passwordResetExpires?: Date | null;
@@ -122,17 +147,70 @@ const consultantSchema = new Schema<IConsultant>(
       status: { type: String, enum: ['pending', 'resolved', 'none'], default: 'none' },
     },
     subscription: {
+      planId: {
+        type: Schema.Types.ObjectId,
+        ref: 'SubscriptionPlan',
+        default: null,
+      },
       plan: {
         type: String,
         default: 'free',
       },
       status: {
         type: String,
+        enum: ['active', 'grace_period', 'expired', 'suspended'],
         default: 'active',
+      },
+      billingCycle: {
+        type: String,
+        enum: ['monthly', 'semi_annual', 'yearly', 'custom'],
+        default: 'monthly',
+      },
+      currentPeriodStart: {
+        type: Date,
+        default: Date.now,
+      },
+      currentPeriodEnd: {
+        type: Date,
+        default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days default
+      },
+      gracePeriodEnd: {
+        type: Date,
+        default: () => new Date(Date.now() + 35 * 24 * 60 * 60 * 1000), // +5 days grace period
+      },
+      autoRenew: {
+        type: Boolean,
+        default: true,
       },
       maxProjects: {
         type: Number,
         default: 5,
+      },
+      maxClients: {
+        type: Number,
+        default: 10,
+      },
+      customLimitOverrides: {
+        maxProjects: { type: Number, default: null },
+        maxClients: { type: Number, default: null },
+        maxAiRunsPerMonth: { type: Number, default: null },
+      },
+      timelineAdjustments: {
+        type: [
+          {
+            adjustedAt: { type: Date, default: Date.now },
+            adjustedBy: { type: String, default: 'superadmin' },
+            previousPeriodEnd: { type: Date },
+            newPeriodEnd: { type: Date },
+            daysAdded: { type: Number, default: 0 },
+            reason: { type: String, default: '' },
+          },
+        ],
+        default: [],
+      },
+      lastPaymentId: {
+        type: String,
+        default: null,
       },
     },
     aiUsage: {

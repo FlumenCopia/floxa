@@ -16,6 +16,7 @@ import {
   User,
   Radio,
   Download,
+  CreditCard,
 } from "lucide-react";
 import { adminApi } from "../services/api";
 import PwaProvider from "../components/PwaProvider";
@@ -93,6 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const navPlatform = [
     { label: "DASHBOARD", href: "/", icon: LayoutDashboard },
     { label: "CONSULTANTS & AGENCIES", href: "/consultants", icon: Users },
+    { label: "SUBSCRIPTION PLANS", href: "/plans", icon: CreditCard },
     { label: "PLATFORM PROJECTS", href: "/projects", icon: FolderKanban },
   ];
 
@@ -103,6 +105,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const getPageTitle = () => {
     if (pathname === "/") return "DASHBOARD OVERVIEW";
     if (pathname === "/consultants") return "CONSULTANTS & AGENCIES";
+    if (pathname === "/plans") return "SUBSCRIPTION PLANS & PRICING";
     if (pathname === "/projects") return "PLATFORM PROJECTS";
     if (pathname === "/settings") return "PLATFORM SETTINGS";
     return "SUPERADMIN CONSOLE";

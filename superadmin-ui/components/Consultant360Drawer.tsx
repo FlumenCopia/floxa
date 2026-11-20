@@ -19,6 +19,10 @@ import {
   Bell,
   CheckCircle2,
   Key,
+  CreditCard,
+  Clock,
+  PlusCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { adminApi } from "../services/api";
 
@@ -38,7 +42,20 @@ export default function Consultant360Drawer({
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<"projects" | "clients" | "ai" | "settings">("projects");
+  const [activeTab, setActiveTab] = useState<"projects" | "clients" | "subscription" | "ai" | "settings">("projects");
+
+  // Subscription & Timeline State
+  const [plansList, setPlansList] = useState<any[]>([]);
+  const [selectedPlanSlug, setSelectedPlanSlug] = useState("");
+  const [selectedCycle, setSelectedCycle] = useState("monthly");
+  const [updatingPlan, setUpdatingPlan] = useState(false);
+  const [daysToAdd, setDaysToAdd] = useState(30);
+  const [timelineReason, setTimelineReason] = useState("");
+  const [customExpiryDate, setCustomExpiryDate] = useState("");
+  const [adjustingTimeline, setAdjustingTimeline] = useState(false);
+  const [overrideProjects, setOverrideProjects] = useState<string>("");
+  const [overrideClients, setOverrideClients] = useState<string>("");
+  const [updatingOverrides, setUpdatingOverrides] = useState(false);
 
 
   // Status Toggle State
@@ -64,11 +81,25 @@ export default function Consultant360Drawer({
     setLoading(true);
     setError("");
     try {
-      const res = await adminApi.getConsultantDetails(consultantId);
+      const [res, plansRes] = await Promise.all([
+        adminApi.getConsultantDetails(consultantId),
+        adminApi.getPlans().catch(() => ({ plans: [] })),
+      ]);
+
       if (res?.success && res.data) {
         setData(res.data);
+        const sub = res.data.consultant?.subscription;
+        setSelectedPlanSlug(sub?.plan || "free");
+        setSelectedCycle(sub?.billingCycle || "monthly");
+        const overrides = sub?.customLimitOverrides || {};
+        setOverrideProjects(overrides.maxProjects !== undefined && overrides.maxProjects !== null ? String(overrides.maxProjects) : "");
+        setOverrideClients(overrides.maxClients !== undefined && overrides.maxClients !== null ? String(overrides.maxClients) : "");
       } else {
         setError("Failed to load consultant details.");
+      }
+
+      if (plansRes?.plans) {
+        setPlansList(plansRes.plans);
       }
     } catch (err: any) {
       setError(err?.message || "Failed to load consultant profile.");
@@ -192,6 +223,63 @@ export default function Consultant360Drawer({
     navigator.clipboard.writeText(text);
     setCopiedResetPass(true);
     setTimeout(() => setCopiedResetPass(false), 3000);
+  };
+
+  const handleSavePlan = async () => {
+    if (!consultant) return;
+    setUpdatingPlan(true);
+    setFeedback(null);
+    try {
+      await adminApi.updateConsultantPlan(consultant.id, selectedPlanSlug, undefined, undefined, selectedCycle);
+      setFeedback({ type: "success", text: `Subscription plan updated to ${selectedPlanSlug} (${selectedCycle}).` });
+      await fetchDetails();
+      onUpdated();
+    } catch (err: any) {
+      setFeedback({ type: "error", text: err?.message || "Failed to update subscription plan." });
+    } finally {
+      setUpdatingPlan(false);
+    }
+  };
+
+  const handleAdjustTimeline = async () => {
+    if (!consultant) return;
+    setAdjustingTimeline(true);
+    setFeedback(null);
+    try {
+      await adminApi.adjustConsultantTimeline(consultant.id, {
+        daysToAdd: Number(daysToAdd),
+        reason: timelineReason.trim() || undefined,
+        explicitExpiryDate: customExpiryDate || undefined,
+      });
+      setFeedback({ type: "success", text: "Subscription timeline adjusted successfully." });
+      setTimelineReason("");
+      setCustomExpiryDate("");
+      await fetchDetails();
+      onUpdated();
+    } catch (err: any) {
+      setFeedback({ type: "error", text: err?.message || "Failed to adjust timeline." });
+    } finally {
+      setAdjustingTimeline(false);
+    }
+  };
+
+  const handleSaveOverrides = async () => {
+    if (!consultant) return;
+    setUpdatingOverrides(true);
+    setFeedback(null);
+    try {
+      await adminApi.overrideConsultantQuota(consultant.id, {
+        maxProjects: overrideProjects !== "" ? Number(overrideProjects) : null,
+        maxClients: overrideClients !== "" ? Number(overrideClients) : null,
+      });
+      setFeedback({ type: "success", text: "Custom quota overrides saved successfully." });
+      await fetchDetails();
+      onUpdated();
+    } catch (err: any) {
+      setFeedback({ type: "error", text: err?.message || "Failed to save quota overrides." });
+    } finally {
+      setUpdatingOverrides(false);
+    }
   };
 
   return (
@@ -506,6 +594,7 @@ export default function Consultant360Drawer({
               {[
                 { id: "projects", label: `Projects (${projects.length})`, icon: FolderKanban },
                 { id: "clients", label: `Clients (${clients.length})`, icon: Users },
+                { id: "subscription", label: "Subscription & Quotas", icon: CreditCard },
                 { id: "ai", label: "AI Usage", icon: Cpu },
                 { id: "settings", label: "Security & Credentials", icon: Key },
               ].map((tab) => {
@@ -679,7 +768,348 @@ export default function Consultant360Drawer({
               </div>
             )}
 
-            {/* TAB 3: AI USAGE */}
+            {/* TAB: SUBSCRIPTION & QUOTAS */}
+            {activeTab === "subscription" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* 1. Status & Quota Gauges */}
+                <div style={{
+                  backgroundColor: "rgba(6, 22, 15, 0.7)",
+                  border: "1px solid rgba(77, 255, 160, 0.15)",
+                  borderRadius: "8px",
+                  padding: "16px",
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                    <div>
+                      <div style={{ fontSize: "11px", color: "#607f72", textTransform: "uppercase", letterSpacing: "0.06em" }}>Active Subscription</div>
+                      <div style={{ fontSize: "16px", fontWeight: 700, color: "#fff", textTransform: "capitalize", marginTop: "2px" }}>
+                        {consultant.subscription?.plan || "Free"} Plan • {consultant.subscription?.billingCycle || "Monthly"}
+                      </div>
+                    </div>
+                    <span style={{
+                      padding: "3px 10px",
+                      borderRadius: "12px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      backgroundColor: consultant.subscription?.status === "active" ? "rgba(77, 255, 160, 0.15)" : "rgba(255, 107, 107, 0.15)",
+                      color: consultant.subscription?.status === "active" ? "#4dffa0" : "#ff6b6b",
+                      border: `1px solid ${consultant.subscription?.status === "active" ? "rgba(77, 255, 160, 0.3)" : "rgba(255, 107, 107, 0.3)"}`,
+                      textTransform: "capitalize",
+                    }}>
+                      {consultant.subscription?.status || "Active"}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px", fontSize: "12px" }}>
+                    <div style={{ backgroundColor: "rgba(255, 255, 255, 0.02)", padding: "10px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                      <div style={{ color: "#607f72", fontSize: "10px", marginBottom: "2px" }}>Period End / Renewal Date</div>
+                      <div style={{ color: "#e8f5ef", fontWeight: 600 }}>
+                        {consultant.subscription?.currentPeriodEnd ? new Date(consultant.subscription.currentPeriodEnd).toLocaleDateString() : "Rolling Monthly"}
+                      </div>
+                    </div>
+                    <div style={{ backgroundColor: "rgba(255, 255, 255, 0.02)", padding: "10px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                      <div style={{ color: "#607f72", fontSize: "10px", marginBottom: "2px" }}>Grace Period Buffer</div>
+                      <div style={{ color: "#f0b429", fontWeight: 600 }}>
+                        {consultant.subscription?.gracePeriodEnd ? new Date(consultant.subscription.gracePeriodEnd).toLocaleDateString() : "+5 days after expiry"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quota Progress Bars */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+                        <span style={{ color: "#89aca0" }}>Project Capacity</span>
+                        <span style={{ color: "#e8f5ef", fontWeight: 600 }}>
+                          {projects.length} / {consultant.subscription?.maxProjects === -1 ? "Unlimited" : (consultant.subscription?.maxProjects ?? 5)} used
+                        </span>
+                      </div>
+                      <div style={{ width: "100%", height: "6px", backgroundColor: "rgba(255, 255, 255, 0.06)", borderRadius: "3px", overflow: "hidden" }}>
+                        <div style={{
+                          width: consultant.subscription?.maxProjects === -1 ? "10%" : `${Math.min(100, (projects.length / (consultant.subscription?.maxProjects || 5)) * 100)}%`,
+                          height: "100%",
+                          backgroundColor: "#4dffa0",
+                          borderRadius: "3px",
+                        }} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", marginBottom: "4px" }}>
+                        <span style={{ color: "#89aca0" }}>Client Onboarding Capacity</span>
+                        <span style={{ color: "#e8f5ef", fontWeight: 600 }}>
+                          {clients.length} / {consultant.subscription?.maxClients === -1 ? "Unlimited" : (consultant.subscription?.maxClients ?? 10)} used
+                        </span>
+                      </div>
+                      <div style={{ width: "100%", height: "6px", backgroundColor: "rgba(255, 255, 255, 0.06)", borderRadius: "3px", overflow: "hidden" }}>
+                        <div style={{
+                          width: consultant.subscription?.maxClients === -1 ? "10%" : `${Math.min(100, (clients.length / (consultant.subscription?.maxClients || 10)) * 100)}%`,
+                          height: "100%",
+                          backgroundColor: "#60a5fa",
+                          borderRadius: "3px",
+                        }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Change Plan Tier */}
+                <div style={{
+                  backgroundColor: "rgba(6, 22, 15, 0.7)",
+                  border: "1px solid rgba(77, 255, 160, 0.15)",
+                  borderRadius: "8px",
+                  padding: "16px",
+                }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#fff", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <CreditCard size={14} color="#4dffa0" />
+                    <span>Change Subscription Plan</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "10px", alignItems: "flex-end" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px" }}>Select Tier</label>
+                      <select
+                        value={selectedPlanSlug}
+                        onChange={(e) => setSelectedPlanSlug(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          borderRadius: "6px",
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                          color: "#fff",
+                          fontSize: "12px",
+                        }}
+                      >
+                        {plansList.length > 0 ? (
+                          plansList.map((p) => (
+                            <option key={p.slug} value={p.slug} style={{ backgroundColor: "#08130e" }}>
+                              {p.name} ({p.slug})
+                            </option>
+                          ))
+                        ) : (
+                          <>
+                            <option value="free" style={{ backgroundColor: "#08130e" }}>Free Starter</option>
+                            <option value="starter" style={{ backgroundColor: "#08130e" }}>Studio Starter</option>
+                            <option value="pro" style={{ backgroundColor: "#08130e" }}>Agency Pro</option>
+                            <option value="enterprise" style={{ backgroundColor: "#08130e" }}>Enterprise Scale</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px" }}>Billing Cycle</label>
+                      <select
+                        value={selectedCycle}
+                        onChange={(e) => setSelectedCycle(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          borderRadius: "6px",
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                          color: "#fff",
+                          fontSize: "12px",
+                        }}
+                      >
+                        <option value="monthly" style={{ backgroundColor: "#08130e" }}>Monthly</option>
+                        <option value="semi_annual" style={{ backgroundColor: "#08130e" }}>6 Months (Semi-Annual)</option>
+                        <option value="yearly" style={{ backgroundColor: "#08130e" }}>Yearly (Annual)</option>
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={handleSavePlan}
+                      disabled={updatingPlan}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "6px",
+                        backgroundColor: "#4dffa0",
+                        border: "none",
+                        color: "#020806",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {updatingPlan ? "Saving..." : "Apply Plan"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Timeline Adjustment & Expiry Controls */}
+                <div style={{
+                  backgroundColor: "rgba(6, 22, 15, 0.7)",
+                  border: "1px solid rgba(77, 255, 160, 0.15)",
+                  borderRadius: "8px",
+                  padding: "16px",
+                }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#fff", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Clock size={14} color="#f0b429" />
+                    <span>Timeline Adjustment & Expiry Extension</span>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+                    {[7, 15, 30, 90, 365].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => {
+                          setDaysToAdd(d);
+                          setCustomExpiryDate("");
+                        }}
+                        style={{
+                          padding: "5px 10px",
+                          borderRadius: "4px",
+                          border: daysToAdd === d && !customExpiryDate ? "1px solid #4dffa0" : "1px solid rgba(255, 255, 255, 0.1)",
+                          backgroundColor: daysToAdd === d && !customExpiryDate ? "rgba(77, 255, 160, 0.15)" : "transparent",
+                          color: daysToAdd === d && !customExpiryDate ? "#4dffa0" : "#89aca0",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        +{d} Days
+                      </button>
+                    ))}
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px" }}>
+                        Or Set Explicit Expiry Date
+                      </label>
+                      <input
+                        type="date"
+                        value={customExpiryDate}
+                        onChange={(e) => setCustomExpiryDate(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "7px 10px",
+                          borderRadius: "6px",
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                          color: "#fff",
+                          fontSize: "12px",
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px" }}>
+                        Reason for Extension
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. VIP client promo, offline check"
+                        value={timelineReason}
+                        onChange={(e) => setTimelineReason(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "7px 10px",
+                          borderRadius: "6px",
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                          color: "#fff",
+                          fontSize: "12px",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleAdjustTimeline}
+                    disabled={adjustingTimeline}
+                    style={{
+                      padding: "8px 16px",
+                      borderRadius: "6px",
+                      backgroundColor: "#f0b429",
+                      border: "none",
+                      color: "#001a0e",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {adjustingTimeline ? "Adjusting..." : "Apply Timeline Adjustment"}
+                  </button>
+                </div>
+
+                {/* 4. Custom Quota Overrides */}
+                <div style={{
+                  backgroundColor: "rgba(6, 22, 15, 0.7)",
+                  border: "1px solid rgba(77, 255, 160, 0.15)",
+                  borderRadius: "8px",
+                  padding: "16px",
+                }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#fff", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <ShieldCheck size={14} color="#60a5fa" />
+                    <span>Custom Quota Overrides (One-Off Boost)</span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "10px", alignItems: "flex-end" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px" }}>
+                        Override Max Projects (Empty = Plan Default)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Default"
+                        value={overrideProjects}
+                        onChange={(e) => setOverrideProjects(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "7px 10px",
+                          borderRadius: "6px",
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                          color: "#fff",
+                          fontSize: "12px",
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "#89aca0", marginBottom: "4px" }}>
+                        Override Max Clients (Empty = Plan Default)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="Default"
+                        value={overrideClients}
+                        onChange={(e) => setOverrideClients(e.target.value)}
+                        style={{
+                          width: "100%",
+                          padding: "7px 10px",
+                          borderRadius: "6px",
+                          backgroundColor: "rgba(255, 255, 255, 0.05)",
+                          border: "1px solid rgba(255, 255, 255, 0.15)",
+                          color: "#fff",
+                          fontSize: "12px",
+                        }}
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleSaveOverrides}
+                      disabled={updatingOverrides}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "6px",
+                        backgroundColor: "#60a5fa",
+                        border: "none",
+                        color: "#001a0e",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {updatingOverrides ? "Saving..." : "Save Overrides"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === "ai" && (
               <div>
                 <div style={{

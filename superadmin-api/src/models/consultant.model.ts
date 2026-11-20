@@ -20,9 +20,30 @@ export interface IConsultantAdminView {
     status?: 'pending' | 'resolved' | 'none';
   };
   subscription?: {
+    planId?: any;
     plan?: string;
     status?: string;
+    billingCycle?: 'monthly' | 'semi_annual' | 'yearly' | 'custom';
+    currentPeriodStart?: Date;
+    currentPeriodEnd?: Date;
+    gracePeriodEnd?: Date;
+    autoRenew?: boolean;
     maxProjects?: number;
+    maxClients?: number;
+    customLimitOverrides?: {
+      maxProjects?: number;
+      maxClients?: number;
+      maxAiRunsPerMonth?: number;
+    };
+    timelineAdjustments?: Array<{
+      adjustedAt: Date;
+      adjustedBy: string;
+      previousPeriodEnd: Date;
+      newPeriodEnd: Date;
+      daysAdded: number;
+      reason: string;
+    }>;
+    lastPaymentId?: string;
   };
   passwordResetToken?: string | null;
   passwordResetExpires?: Date | null;
@@ -54,9 +75,35 @@ const consultantSchema = new Schema(
       status: { type: String, enum: ['pending', 'resolved', 'none'], default: 'none' },
     },
     subscription: {
+      planId: { type: Schema.Types.ObjectId, ref: 'SubscriptionPlan', default: null },
       plan: { type: String, default: 'free' },
-      status: { type: String, default: 'active' },
+      status: { type: String, enum: ['active', 'grace_period', 'expired', 'suspended'], default: 'active' },
+      billingCycle: { type: String, enum: ['monthly', 'semi_annual', 'yearly', 'custom'], default: 'monthly' },
+      currentPeriodStart: { type: Date, default: Date.now },
+      currentPeriodEnd: { type: Date, default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) },
+      gracePeriodEnd: { type: Date, default: () => new Date(Date.now() + 35 * 24 * 60 * 60 * 1000) },
+      autoRenew: { type: Boolean, default: true },
       maxProjects: { type: Number, default: 5 },
+      maxClients: { type: Number, default: 10 },
+      customLimitOverrides: {
+        maxProjects: { type: Number, default: null },
+        maxClients: { type: Number, default: null },
+        maxAiRunsPerMonth: { type: Number, default: null },
+      },
+      timelineAdjustments: {
+        type: [
+          {
+            adjustedAt: { type: Date, default: Date.now },
+            adjustedBy: { type: String, default: 'superadmin' },
+            previousPeriodEnd: { type: Date },
+            newPeriodEnd: { type: Date },
+            daysAdded: { type: Number, default: 0 },
+            reason: { type: String, default: '' },
+          },
+        ],
+        default: [],
+      },
+      lastPaymentId: { type: String, default: null },
     },
     aiUsage: {
       plan: { type: String, default: 'free' },
