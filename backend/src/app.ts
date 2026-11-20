@@ -10,7 +10,7 @@ import { csrfProtection } from './middleware/csrf.middleware.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import routes from './routes/index.js';
 import { resolveAuthenticatedConsultant } from './services/auth.service.js';
-import { unsignPortalAccessToken } from './utils/crypto.js';
+import { verifyPortalAccessTokenForProject } from './utils/crypto.js';
 import { ChatMessage } from './models/chatMessage.model.js';
 import { Project } from './models/project.model.js';
 
@@ -126,7 +126,7 @@ app.use('/media', async (req, res) => {
       }
 
       const project = await Project.findById(targetProjectId)
-        .select('consultantId portalToken portalPasswordHash isArchived')
+        .select('consultantId portalToken portalPasswordHash portalSessionVersion isArchived')
         .lean();
 
       if (!project || project.isArchived) {
@@ -156,11 +156,16 @@ app.use('/media', async (req, res) => {
           (req.headers['x-portal-access-token'] as string) ||
           req.cookies?.[ENV.PORTAL_ACCESS_COOKIE_NAME] ||
           '';
-        const verifiedPortal = signedAccess
-          ? unsignPortalAccessToken(signedAccess, ENV.PORTAL_ACCESS_MAX_AGE)
-          : null;
+        const verifiedPortal =
+          signedAccess &&
+          verifyPortalAccessTokenForProject(
+            signedAccess,
+            project.portalToken,
+            project.portalSessionVersion || 0,
+            ENV.PORTAL_ACCESS_MAX_AGE
+          );
 
-        if (verifiedPortal && verifiedPortal === project.portalToken) {
+        if (verifiedPortal) {
           authorized = true;
         } else if (!project.portalPasswordHash) {
           const headerPortal = (req.headers['x-client-portal-token'] as string) || '';

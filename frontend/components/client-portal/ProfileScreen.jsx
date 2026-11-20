@@ -138,35 +138,80 @@ export function ProfileScreen({
 
   const update = useCallback((key, val) => {
     setFields((current) => ({ ...current, [key]: val }));
+    setError("");
   }, []);
 
   const handleNext = async () => {
-    if (!fields.name.trim() || !fields.company.trim() || !fields.email.trim()) {
-      setError("Please enter your name, company, and email address.");
+    if (!fields.name.trim()) {
+      setError("Please enter your name.");
+      return;
+    }
+
+    if (!fields.company.trim()) {
+      setError("Please enter your company name.");
+      return;
+    }
+
+    if (!fields.industry.trim()) {
+      setError("Please select your industry.");
+      return;
+    }
+
+    if (!fields.yearStart.trim()) {
+      setError("Please enter the year your company started.");
+      return;
+    }
+
+    const yearNum = Number(fields.yearStart);
+    const currentYear = new Date().getFullYear();
+    if (isNaN(yearNum) || yearNum < 1800 || yearNum > currentYear) {
+      setError(`Please enter a valid year started (between 1800 and ${currentYear}).`);
+      return;
+    }
+
+    if (!fields.location.trim()) {
+      setError("Please enter your location.");
       return;
     }
 
     const phoneTrimmed = fields.phone.trim();
-    if (phoneTrimmed) {
-      if (phoneTrimmed.length > 50) {
-        setError("Phone number is too long (maximum 50 characters).");
-        return;
-      }
-      const hasPlus = phoneTrimmed.startsWith("+");
-      const rest = hasPlus ? phoneTrimmed.slice(1) : phoneTrimmed;
-      if (rest.includes("+")) {
-        setError("Invalid phone number format.");
-        return;
-      }
-      if (!/^[\d\s\-().]+$/.test(rest)) {
-        setError("Phone number can only contain digits, spaces, hyphens, dots, parentheses, and an optional leading +.");
-        return;
-      }
-      const digits = phoneTrimmed.replace(/\D/g, "");
-      if (digits.length < 7 || digits.length > 15) {
-        setError("Phone number must contain between 7 and 15 digits.");
-        return;
-      }
+    if (!phoneTrimmed) {
+      setError("Please enter your phone number.");
+      return;
+    }
+
+    if (phoneTrimmed.length > 50) {
+      setError("Phone number is too long (maximum 50 characters).");
+      return;
+    }
+    const hasPlus = phoneTrimmed.startsWith("+");
+    const rest = hasPlus ? phoneTrimmed.slice(1) : phoneTrimmed;
+    if (rest.includes("+")) {
+      setError("Invalid phone number format.");
+      return;
+    }
+    if (!/^[\d\s\-().]+$/.test(rest)) {
+      setError("Phone number can only contain digits, spaces, hyphens, dots, parentheses, and an optional leading +.");
+      return;
+    }
+    const digits = phoneTrimmed.replace(/\D/g, "");
+    if (digits.length < 7 || digits.length > 15) {
+      setError("Phone number must contain between 7 and 15 digits.");
+      return;
+    }
+
+    if (!fields.email.trim()) {
+      setError("Please enter your email address.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.trim())) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (!fields.website.trim()) {
+      setError("Please enter your website.");
+      return;
     }
 
     const profilePayload = {
@@ -199,7 +244,7 @@ export function ProfileScreen({
         console.warn("Background project refresh after profile save:", refreshErr);
       }
 
-      onNext(profileReturnScreen || "fonts");
+      onNext(profileReturnScreen || "discovery");
     } catch (err) {
       console.error("Client profile save failed:", err);
       setError(formatProfileSaveError(err));
@@ -272,6 +317,7 @@ export function ProfileScreen({
               placeholder={field.placeholder}
               value={fields[field.key]}
               onChange={(event) => update(field.key, event.target.value)}
+              required
             />
             <span aria-hidden="true">/</span>
           </label>
@@ -282,6 +328,7 @@ export function ProfileScreen({
             <select
               value={fields.industry}
               onChange={(event) => update("industry", event.target.value)}
+              required
             >
               <option value="" disabled>
                 Enter Your Industry
@@ -303,6 +350,7 @@ export function ProfileScreen({
               min="1950"
               max="2026"
               onChange={(event) => update("yearStart", event.target.value)}
+              required
             />
             <span aria-hidden="true">/</span>
           </label>
@@ -320,6 +368,7 @@ export function ProfileScreen({
               placeholder={field.placeholder}
               value={fields[field.key]}
               onChange={(event) => update(field.key, event.target.value)}
+              required
             />
             <span aria-hidden="true">/</span>
           </label>
@@ -327,12 +376,14 @@ export function ProfileScreen({
 
         {error ? <div className="client-form-error">{error}</div> : null}
 
-        <div className="client-form-actions">
-          <button type="button" onClick={() => onNext("login")}>
-            Back
-          </button>
-          <button type="button" onClick={handleNext} disabled={saving}>
-            {saving ? "Saving..." : (profileReturnScreen ? "Save Profile" : "Continue to Font Selection →")}
+        <div className="client-form-actions" style={{ justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            className="client-gradient-button"
+            onClick={handleNext}
+            disabled={saving}
+          >
+            {saving ? "Saving..." : (profileReturnScreen ? "Save Profile" : "Continue to Discovery →")}
           </button>
         </div>
       </div>

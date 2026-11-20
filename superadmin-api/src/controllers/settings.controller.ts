@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import mongoose, { type ClientSession } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { SuperAdmin } from '../models/superadmin.model.js';
@@ -404,9 +405,22 @@ export async function testGeminiConnection(req: AdminAuthRequest, res: Response)
   }
 }
 
-// 9. Purge Demo Agencies
+// 9. Purge Demo Agencies (Strict Replica Set Requirement - FAIL-02 Cascade Protection)
 export async function purgeDemoData(req: AdminAuthRequest, res: Response) {
   try {
+    // 1. Verify the active Mongoose connection topology at runtime.
+    // Strict requirement: transactions require ReplicaSetWithPrimary or Sharded.
+    const topologyType = (mongoose.connection as any)?.client?.topology?.description?.type;
+    const isReplicaSet = topologyType === 'ReplicaSetWithPrimary' || topologyType === 'Sharded';
+
+    if (!isReplicaSet) {
+      res.status(503).json({
+        detail: 'MongoDB Replica Set transaction support is required to safely execute demo data purge.',
+        topology: topologyType || 'unknown',
+      });
+      return;
+    }
+
     // Explicit known demo agency account emails (strictly excluding admin@floxa.com or platform accounts)
     const KNOWN_DEMO_EMAILS = [
       'sarah@novadesign.agency',
@@ -420,48 +434,167 @@ export async function purgeDemoData(req: AdminAuthRequest, res: Response) {
       (process.env.SUPERADMIN_EMAIL || '').toLowerCase().trim(),
     ].filter(Boolean);
 
-    // Explicitly target only verified demo accounts:
-    // 1. isDemo: true, OR
-    // 2. Exact match in KNOWN_DEMO_EMAILS
-    // NEVER match protected platform/admin accounts, any @floxa.com email, or staff accounts
-    const demoConsultants = await Consultant.find({
-      $and: [
-        {
-          $or: [
-            { isDemo: true },
-            { email: { $in: KNOWN_DEMO_EMAILS } },
-          ],
-        },
-        { email: { $nin: protectedEmails } },
-        { email: { $not: /@floxa\.com$/i } },
-        { isStaff: { $ne: true } },
-      ],
-    }).select('_id email');
+    const session: ClientSession = await mongoose.startSession();
+    try {
+      let resultPayload: any = null;
 
-    if (demoConsultants.length === 0) {
-      res.json({
-        success: true,
-        message: 'No demo agencies found to purge. All existing accounts are protected real accounts.',
-        deletedConsultantsCount: 0,
-        deletedProjectsCount: 0,
+      await session.withTransaction(async () => {
+        // Step 1: Explicitly target only verified demo accounts:
+        // 1. isDemo: true, OR
+        // 2. Exact match in KNOWN_DEMO_EMAILS
+        // NEVER match protected platform/admin accounts, any @floxa.com email, or staff accounts
+        const demoConsultants = await Consultant.find(
+          {
+            $and: [
+              {
+                $or: [
+                  { isDemo: true },
+                  { email: { $in: KNOWN_DEMO_EMAILS } },
+                ],
+              },
+              { email: { $nin: protectedEmails } },
+              { email: { $not: /@floxa\.com$/i } },
+              { isStaff: { $ne: true } },
+            ],
+          },
+          null,
+          { session }
+        ).select('_id email');
+
+        if (demoConsultants.length === 0) {
+          resultPayload = {
+            success: true,
+            message: 'No demo agencies found to purge. All existing accounts are protected real accounts.',
+            deletedConsultantsCount: 0,
+            deletedProjectsCount: 0,
+            deletedDependentRecordsCount: 0,
+          };
+          return;
+        }
+
+        const demoIds = demoConsultants.map((c: any) => c._id);
+
+        // Step 2: Query demo projects belonging to these demo consultants BEFORE deleting anything
+        const demoProjects = await Project.find(
+          { consultantId: { $in: demoIds } },
+          null,
+          { session }
+        ).select('_id clientId portalToken');
+
+        const demoProjectIds = demoProjects.map((p: any) => p._id);
+        const demoPortalTokens = demoProjects.map((p: any) => p.portalToken).filter(Boolean);
+        const demoClientIds = Array.from(new Set(demoProjects.map((p: any) => p.clientId).filter(Boolean)));
+
+        // Step 3: Determine exclusively owned clients (not referenced by ANY other non-demo project)
+        const exclusiveClientIds: any[] = [];
+        if (demoClientIds.length > 0) {
+          for (const cId of demoClientIds) {
+            const sharedCount = await Project.countDocuments({
+              _id: { $nin: demoProjectIds },
+              clientId: cId,
+            }).session(session);
+            if (sharedCount === 0) {
+              exclusiveClientIds.push(cId);
+            }
+          }
+        }
+
+        let deletedDependentCount = 0;
+        const db = mongoose.connection.db;
+        if (!db) {
+          throw new Error('Database connection is not initialized.');
+        }
+
+        // Step 4: Cascade delete dependent records using strictly scoped filters
+        if (demoProjectIds.length > 0) {
+          // A. Collections scoped strictly by { projectId: { $in: demoProjectIds } }
+          const projectChildCollections = [
+            'payment_transactions',
+            'payment_milestones',
+            'client_profiles',
+            'project_discoveries',
+            'brand_dnas',
+            'moodboards',
+            'concepts',
+            'deliverables',
+            'generated_agreement_snapshots',
+            'project_agreements',
+            'chat_messages',
+          ];
+
+          for (const colName of projectChildCollections) {
+            const resDel = await db.collection(colName).deleteMany(
+              { projectId: { $in: demoProjectIds } },
+              { session }
+            );
+            deletedDependentCount += (resDel.deletedCount || 0);
+          }
+        }
+
+        // B. Project activities: scoped to demo projects OR demo consultants
+        const actDel = await db.collection('project_activities').deleteMany(
+          {
+            $or: [
+              { projectId: { $in: demoProjectIds } },
+              { consultantId: { $in: demoIds } },
+            ],
+          },
+          { session }
+        );
+        deletedDependentCount += (actDel.deletedCount || 0);
+
+        // C. Device tokens: scoped to demo consultant userId OR demo project portalToken
+        const deviceTokenFilters: any[] = [];
+        if (demoIds.length > 0) {
+          deviceTokenFilters.push({ role: 'consultant', userId: { $in: demoIds } });
+        }
+        if (demoPortalTokens.length > 0) {
+          deviceTokenFilters.push({ role: 'client', portalToken: { $in: demoPortalTokens } });
+        }
+        if (deviceTokenFilters.length > 0) {
+          const dtDel = await db.collection('devicetokens').deleteMany(
+            { $or: deviceTokenFilters },
+            { session }
+          );
+          deletedDependentCount += (dtDel.deletedCount || 0);
+        }
+
+        // D. Exclusively owned clients
+        if (exclusiveClientIds.length > 0) {
+          const clDel = await db.collection('clients').deleteMany(
+            { _id: { $in: exclusiveClientIds } },
+            { session }
+          );
+          deletedDependentCount += (clDel.deletedCount || 0);
+        }
+
+        // Step 5: Delete demo projects
+        const deletedProjects = await Project.deleteMany(
+          { _id: { $in: demoProjectIds } },
+          { session }
+        );
+
+        // Step 6: Delete demo consultants
+        const deletedConsultants = await Consultant.deleteMany(
+          { _id: { $in: demoIds } },
+          { session }
+        );
+
+        resultPayload = {
+          success: true,
+          message: 'Demo agencies safely purged. Platform admin and real consultant accounts were preserved.',
+          deletedConsultantsCount: deletedConsultants.deletedCount,
+          deletedProjectsCount: deletedProjects.deletedCount,
+          deletedDependentRecordsCount: deletedDependentCount,
+        };
       });
-      return;
+
+      res.json(resultPayload);
+    } catch (txErr: any) {
+      res.status(500).json({ detail: 'Failed to purge demo data.', error: txErr.message });
+    } finally {
+      await session.endSession();
     }
-
-    const demoIds = demoConsultants.map((c: any) => c._id);
-
-    // Delete demo projects associated with purged demo consultants
-    const deletedProjects = await Project.deleteMany({ consultantId: { $in: demoIds } });
-
-    // Delete demo consultants
-    const deletedConsultants = await Consultant.deleteMany({ _id: { $in: demoIds } });
-
-    res.json({
-      success: true,
-      message: 'Demo agencies safely purged. Platform admin and real consultant accounts were preserved.',
-      deletedConsultantsCount: deletedConsultants.deletedCount,
-      deletedProjectsCount: deletedProjects.deletedCount,
-    });
   } catch (err: any) {
     res.status(500).json({ detail: 'Failed to purge demo data.', error: err.message });
   }

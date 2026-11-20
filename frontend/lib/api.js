@@ -229,7 +229,12 @@ export async function apiRequest(endpoint, options = {}) {
   const isAuthRoute =
     endpoint.includes("/auth/login/") ||
     endpoint.includes("/auth/logout/") ||
-    endpoint.includes("/auth/token/refresh/");
+    endpoint.includes("/auth/token/refresh/") ||
+    endpoint.includes("/verify-password/") ||
+    endpoint.includes("/set-password/") ||
+    endpoint.includes("/forgot-password/") ||
+    endpoint.includes("/reset-password/") ||
+    endpoint.includes("/validate-token/");
 
   if (response.status === 403 && isUnsafeMethod(options.method || "GET") && !options._csrfRetried) {
     const newCsrfToken = await ensureCsrfCookie(true);

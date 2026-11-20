@@ -24,6 +24,11 @@ export interface IProject {
   revisionLimit: string;
   portalToken: string;
   portalPasswordHash?: string;
+  portalSessionVersion?: number;
+  portalSetupTokenHash?: string | null;
+  portalSetupTokenExpires?: Date | null;
+  portalResetTokenHash?: string | null;
+  portalResetTokenExpires?: Date | null;
   progress: number;
   clientSignedOff: boolean;
   signedOffAt: Date | null;
@@ -84,6 +89,11 @@ const projectSchema = new Schema<IProject>(
     revisionLimit: { type: String, default: '3 revisions' },
     portalToken: { type: String, required: true, unique: true, index: true },
     portalPasswordHash: { type: String, default: '' },
+    portalSessionVersion: { type: Number, default: 0 },
+    portalSetupTokenHash: { type: String, default: null, select: false },
+    portalSetupTokenExpires: { type: Date, default: null, select: false },
+    portalResetTokenHash: { type: String, default: null, select: false },
+    portalResetTokenExpires: { type: Date, default: null, select: false },
     progress: { type: Number, default: 0 },
     clientSignedOff: { type: Boolean, default: false },
     signedOffAt: { type: Date, default: null },

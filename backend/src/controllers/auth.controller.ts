@@ -9,7 +9,7 @@ import {
   hashPassword,
   verifyPassword,
   encryptSecret,
-  unsignPortalAccessToken,
+  verifyPortalAccessTokenForProject,
 } from '../utils/crypto.js';
 import {
   generateTokens,
@@ -542,7 +542,7 @@ export async function registerDeviceToken(req: AuthenticatedRequest, res: Respon
         return;
       }
       const project = await Project.findOne({ portalToken: cleanPortalToken, isArchived: false })
-        .select('_id portalToken portalPasswordHash');
+        .select('_id portalToken portalPasswordHash portalSessionVersion');
       if (!project) {
         res.status(404).json({ detail: 'Project portal not found.' });
         return;
@@ -552,10 +552,15 @@ export async function registerDeviceToken(req: AuthenticatedRequest, res: Respon
           (req.headers['x-portal-access-token'] as string) ||
           (req.cookies && req.cookies[ENV.PORTAL_ACCESS_COOKIE_NAME]) ||
           (typeof portalAccessToken === 'string' ? portalAccessToken : '');
-        const verified = rawSigned
-          ? unsignPortalAccessToken(rawSigned, ENV.PORTAL_ACCESS_MAX_AGE)
-          : null;
-        if (!verified || verified !== cleanPortalToken) {
+        const verified =
+          rawSigned &&
+          verifyPortalAccessTokenForProject(
+            rawSigned,
+            cleanPortalToken,
+            project.portalSessionVersion || 0,
+            ENV.PORTAL_ACCESS_MAX_AGE
+          );
+        if (!verified) {
           res.status(403).json({ detail: 'Portal password verification is required before registering a client device.' });
           return;
         }
@@ -607,7 +612,7 @@ export async function unregisterDeviceToken(req: AuthenticatedRequest, res: Resp
     const cleanPortalToken = typeof portalToken === 'string' ? portalToken.trim() : '';
     if (cleanPortalToken) {
       const project = await Project.findOne({ portalToken: cleanPortalToken, isArchived: false })
-        .select('_id portalToken portalPasswordHash');
+        .select('_id portalToken portalPasswordHash portalSessionVersion');
       if (!project) {
         res.status(404).json({ detail: 'Project portal not found.' });
         return;
@@ -617,10 +622,15 @@ export async function unregisterDeviceToken(req: AuthenticatedRequest, res: Resp
           (req.headers['x-portal-access-token'] as string) ||
           (req.cookies && req.cookies[ENV.PORTAL_ACCESS_COOKIE_NAME]) ||
           (typeof portalAccessToken === 'string' ? portalAccessToken : '');
-        const verified = rawSigned
-          ? unsignPortalAccessToken(rawSigned, ENV.PORTAL_ACCESS_MAX_AGE)
-          : null;
-        if (!verified || verified !== cleanPortalToken) {
+        const verified =
+          rawSigned &&
+          verifyPortalAccessTokenForProject(
+            rawSigned,
+            cleanPortalToken,
+            project.portalSessionVersion || 0,
+            ENV.PORTAL_ACCESS_MAX_AGE
+          );
+        if (!verified) {
           res.status(403).json({ detail: 'Valid portal access token required.' });
           return;
         }

@@ -127,14 +127,17 @@ async function resolvePortalProject(linkToken) {
 
     if (response.status === 403) {
       let detail = "";
+      let clientEmail = "";
       try {
         const body = await response.json();
         detail = body?.detail || "";
+        clientEmail = body?.client_email || "";
       } catch {}
       const isPasswordRequired = detail.toLowerCase().includes("password");
       return {
         notFound: false,
         requirePassword: isPasswordRequired,
+        clientEmail,
         forbidden: !isPasswordRequired,
         error: detail || "Permission denied",
         data: null,
@@ -198,6 +201,8 @@ function mapPortalProjectToClientProject(portalProject) {
     deadlineNote: portalProject.deadline_note || portalProject.deadlineNote || "",
     deadline_note: portalProject.deadline_note || portalProject.deadlineNote || "",
     hasBrandDna: Boolean(portalProject.has_brand_dna),
+    has_password: Boolean(portalProject.has_password),
+    hasPassword: Boolean(portalProject.has_password),
     moodboards: [],
     concepts: [],
     brandDNA: {
@@ -344,7 +349,7 @@ export const clientPortalService = {
     }
 
     if (res.requirePassword) {
-      return { requirePassword: true };
+      return { requirePassword: true, clientEmail: res.clientEmail || "" };
     }
 
     if (res.forbidden) {
@@ -450,6 +455,128 @@ export const clientPortalService = {
       }
 
       return { success: false, error: "Invalid email address or portal password." };
+    }
+  },
+
+  async setPortalPassword(arg1, arg2, arg3) {
+    let portalToken = activeToken;
+    let password = "";
+    let setupToken = "";
+
+    if (arg1 && typeof arg1 === "object") {
+      portalToken = arg1.portalToken || arg1.token || activeToken;
+      password = typeof arg1.password === "string" ? arg1.password : "";
+      setupToken = typeof arg1.setupToken === "string" ? arg1.setupToken.trim() : (typeof arg1.setup_token === "string" ? arg1.setup_token.trim() : "");
+    } else {
+      portalToken = typeof arg1 === "string" ? arg1 : activeToken;
+      password = typeof arg2 === "string" ? arg2 : "";
+      setupToken = typeof arg3 === "string" ? arg3.trim() : "";
+    }
+
+    if (!portalToken || portalToken === "test-token") {
+      return { success: true };
+    }
+
+    try {
+      const data = await apiRequest(`/client-portal/${portalToken}/set-password/`, {
+        method: "POST",
+        body: JSON.stringify({ password, setup_token: setupToken }),
+      });
+      return { success: true, data };
+    } catch (error) {
+      return {
+        success: false,
+        status: error?.status,
+        error: error?.detail || error?.message || "Failed to set portal password.",
+      };
+    }
+  },
+
+  async resetPortalPassword(arg1, arg2, arg3) {
+    let portalToken = activeToken;
+    let password = "";
+    let resetToken = "";
+
+    if (arg1 && typeof arg1 === "object") {
+      portalToken = arg1.portalToken || arg1.token || activeToken;
+      password = typeof arg1.password === "string" ? arg1.password : "";
+      resetToken = typeof arg1.resetToken === "string" ? arg1.resetToken.trim() : (typeof arg1.reset_token === "string" ? arg1.reset_token.trim() : "");
+    } else {
+      portalToken = typeof arg1 === "string" ? arg1 : activeToken;
+      password = typeof arg2 === "string" ? arg2 : "";
+      resetToken = typeof arg3 === "string" ? arg3.trim() : "";
+    }
+
+    if (!portalToken || portalToken === "test-token") {
+      return { success: true };
+    }
+
+    try {
+      const data = await apiRequest(`/client-portal/${portalToken}/reset-password/`, {
+        method: "POST",
+        body: JSON.stringify({ password, reset_token: resetToken }),
+      });
+      return { success: true, data };
+    } catch (error) {
+      return {
+        success: false,
+        status: error?.status,
+        error: error?.detail || error?.message || "Failed to reset portal password.",
+      };
+    }
+  },
+
+  async validatePortalToken({ portalToken = activeToken, setupToken = "", resetToken = "" } = {}) {
+    if (!portalToken || portalToken === "test-token") {
+      return { valid: true };
+    }
+
+    const params = new URLSearchParams();
+    if (resetToken) params.set("reset_token", resetToken);
+    else if (setupToken) params.set("setup_token", setupToken);
+    else return { valid: false, reason: "missing", detail: "Missing authorization token." };
+
+    try {
+      const data = await apiRequest(`/client-portal/${portalToken}/validate-token/?${params.toString()}`, {
+        method: "GET",
+      });
+      return data || { valid: false };
+    } catch (error) {
+      return {
+        valid: false,
+        reason: "invalid",
+        detail: error?.detail || error?.message || "This link is invalid or has expired.",
+      };
+    }
+  },
+
+  async forgotPortalPassword(arg1, arg2) {
+    let portalToken = activeToken;
+    let email = "";
+
+    if (arg1 && typeof arg1 === "object") {
+      portalToken = arg1.portalToken || arg1.token || activeToken;
+      email = typeof arg1.email === "string" ? arg1.email.trim() : "";
+    } else {
+      portalToken = typeof arg1 === "string" ? arg1 : activeToken;
+      email = typeof arg2 === "string" ? arg2.trim() : "";
+    }
+
+    if (!portalToken || portalToken === "test-token") {
+      return { success: true };
+    }
+
+    try {
+      const data = await apiRequest(`/client-portal/${portalToken}/forgot-password/`, {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+      return { success: true, message: data?.message || "Password reset instructions sent." };
+    } catch (error) {
+      return {
+        success: false,
+        error: error?.detail || error?.message || "Failed to request password reset.",
+      };
     }
   },
 

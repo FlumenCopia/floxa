@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { MessageSquare, Eye } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { MessageSquare, Eye, Check, Search, RotateCcw } from "lucide-react";
 import { clientPortalService } from "../../services/clientPortalService";
 import { supportSocket } from "../../services/supportSocketService";
 import { showSuccess } from "@/lib/toast";
+import { GOOGLE_FONTS_CATALOG } from "./FontSelectionScreen";
 
 const personalityClusters = [
   { min: -3, max: -1.5, name: "Soft Minimalist" },
@@ -79,6 +80,24 @@ const visualStylesList = [
   { name: "Playful & Vibrant", desc: "Bright colors, rounded shapes, energy" },
   { name: "Editorial & Typographic", desc: "Serif-led, sophisticated, literary feel" },
 ];
+
+export const SAMPLE_SENTENCES = [
+  "We craft memorable brand identities that resonate deeply and stand the test of time.",
+  "Good design is obvious. Great design is transparent.",
+  "Distinctive character, refined craft, and purposeful modern aesthetics.",
+  "Empowering forward-thinking companies to shape tomorrow's visual landscape.",
+  "Where bold vision meets flawless execution with precision, elegance, and clarity.",
+  "Simplicity is about subtracting the obvious and adding the meaningful.",
+  "The quick brown fox jumps over the lazy dog.",
+  "Sphinx of black quartz, judge my vow.",
+];
+
+export function getFontFallback(category) {
+  if (category === "Serif") return "serif";
+  if (category === "Monospace") return "monospace";
+  if (category === "Handwriting") return "cursive";
+  return "sans-serif";
+}
 
 export const defaultCompetitors = [
   { name: "", rating: "neutral", reason: "" },
@@ -185,13 +204,19 @@ export function validateDiscoveryInputQuality(text, fieldLabel) {
   return null;
 }
 
-export function buildDiscoveryPayload({ basics = {}, sliders, emotions, persona, comps, styles, step }) {
+export function buildDiscoveryPayload({ basics = {}, sliders, emotions, persona, comps, styles, selectedFont, step }) {
   const allSliders = [...slidersOne, ...slidersTwo];
 
   const whatDo = basics.whatDo || basics.whatDoYouDo || basics.what_business_does || basics.businessDescription || "";
   const targetCustomer = basics.targetCustomer || basics.target_customer || "";
   const whyChooseUs = basics.whyChooseUs || basics.whyChooseYou || basics.why_choose_us || "";
   const brandFeeling = basics.brandFeeling || basics.brand_feeling || basics.whyTrustYou || "";
+
+  const effectiveFont = selectedFont || (typeof window !== "undefined"
+    ? (clientPortalService.getClientFontPreferences()?.selectedFont ||
+      clientPortalService.getClientFontPreferences()?.headlineFont ||
+      clientPortalService.getClientFontPreferences()?.bodyFont || "")
+    : "");
 
   return {
     step,
@@ -256,16 +281,8 @@ export function buildDiscoveryPayload({ basics = {}, sliders, emotions, persona,
     )
       .slice(0, 3)
       .map((style) => ({ style })),
-    selected_font: typeof window !== "undefined"
-      ? (clientPortalService.getClientFontPreferences()?.selectedFont ||
-        clientPortalService.getClientFontPreferences()?.headlineFont ||
-        clientPortalService.getClientFontPreferences()?.bodyFont || "")
-      : "",
-    selectedFont: typeof window !== "undefined"
-      ? (clientPortalService.getClientFontPreferences()?.selectedFont ||
-        clientPortalService.getClientFontPreferences()?.headlineFont ||
-        clientPortalService.getClientFontPreferences()?.bodyFont || "")
-      : "",
+    selected_font: effectiveFont,
+    selectedFont: effectiveFont,
   };
 }
 
@@ -299,15 +316,15 @@ export function DiscoveryFlow({
         window.sessionStorage.getItem(`floxa-client-step-${targetPortalToken}`) ||
         window.localStorage.getItem(`floxa-client-step-${targetPortalToken}`);
       const parsed = parseInt(stored, 10);
-      if (parsed >= 1 && parsed <= 6) {
+      if (parsed >= 1 && parsed <= 7) {
         return parsed;
       }
     }
     const draft = readStoredDraft(draftKey);
-    if (typeof draft?.step === "number" && draft.step >= 1 && draft.step <= 6) {
+    if (typeof draft?.step === "number" && draft.step >= 1 && draft.step <= 7) {
       return draft.step;
     }
-    if (typeof initialStep === "number" && initialStep >= 1 && initialStep <= 6) {
+    if (typeof initialStep === "number" && initialStep >= 1 && initialStep <= 7) {
       return initialStep;
     }
     return 1;
@@ -344,32 +361,62 @@ export function DiscoveryFlow({
     brandFeeling: readStoredDraft(draftKey).basics?.brandFeeling ?? "",
   }));
 
-  const fontPrefs = clientPortalService.getClientFontPreferences(project?.id, token);
-  const selectedBrandFont = fontPrefs?.selectedFont || fontPrefs?.headlineFont || fontPrefs?.bodyFont || "Playfair Display";
-  const headlineFont = fontPrefs?.headlineFont || selectedBrandFont;
-  const bodyFont = fontPrefs?.bodyFont || selectedBrandFont;
+  const [selectedFont, setSelectedFont] = useState(() => {
+    const draft = readStoredDraft(draftKey);
+    if (draft?.selectedFont) return draft.selectedFont;
+    if (draft?.selected_font) return draft.selected_font;
+    const fontPrefs = clientPortalService.getClientFontPreferences(project?.id, token);
+    return fontPrefs?.selectedFont || fontPrefs?.headlineFont || fontPrefs?.bodyFont || "Plus Jakarta Sans";
+  });
+  const [fontCategory, setFontCategory] = useState("All");
+  const [fontSearch, setFontSearch] = useState("");
+  const [sentenceIndex, setSentenceIndex] = useState(0);
 
+  const headlineFont = selectedFont;
+  const bodyFont = selectedFont;
+
+  // Batch-load all catalog fonts for instantaneous specimen preview
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const fontsToLoad = Array.from(new Set([selectedBrandFont, headlineFont, bodyFont].filter(Boolean)));
-    fontsToLoad.forEach((fName) => {
-      if (!fName) return;
-      const id = `gfont-discovery-${fName.replace(/\s+/g, "-").toLowerCase()}`;
-      if (!document.getElementById(id)) {
-        const link = document.createElement("link");
-        link.id = id;
-        link.rel = "stylesheet";
-        link.href = `https://fonts.googleapis.com/css2?family=${fName.replace(/\s+/g, "+")}:wght@400;500;600;700;800&display=swap`;
-        document.head.appendChild(link);
+    const fontNames = GOOGLE_FONTS_CATALOG.map((f) => f.name);
+    const chunkSize = 12;
+
+    for (let i = 0; i < fontNames.length; i += chunkSize) {
+      const slice = fontNames.slice(i, i + chunkSize);
+      const families = slice
+        .map((name) => `family=${name.replace(/ /g, "+")}`)
+        .join("&");
+      const url = `https://fonts.googleapis.com/css2?${families}&display=swap`;
+
+      const linkId = `gfonts-discovery-batch-${i / chunkSize}`;
+      if (!document.getElementById(linkId)) {
+        const linkEl = document.createElement("link");
+        linkEl.id = linkId;
+        linkEl.rel = "stylesheet";
+        linkEl.href = url;
+        document.head.appendChild(linkEl);
       }
-      try {
-        if (document.fonts && document.fonts.load) {
-          document.fonts.load(`1em "${fName}"`);
-          document.fonts.load(`bold 1em "${fName}"`);
-        }
-      } catch { }
-    });
-  }, [selectedBrandFont, headlineFont, bodyFont]);
+    }
+  }, []);
+
+  // Ensure active selected font is explicitly loaded with full weights
+  useEffect(() => {
+    if (typeof document === "undefined" || !selectedFont) return;
+    const id = `gfont-selected-${selectedFont.replace(/\s+/g, "-").toLowerCase()}`;
+    if (!document.getElementById(id)) {
+      const link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = `https://fonts.googleapis.com/css2?family=${selectedFont.replace(/\s+/g, "+")}:wght@400;500;600;700;800&display=swap`;
+      document.head.appendChild(link);
+    }
+    try {
+      if (document.fonts && document.fonts.load) {
+        document.fonts.load(`1em "${selectedFont}"`);
+        document.fonts.load(`bold 1em "${selectedFont}"`);
+      }
+    } catch {}
+  }, [selectedFont]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [activeHelpSession, setActiveHelpSession] = useState(null);
@@ -383,7 +430,7 @@ export function DiscoveryFlow({
   );
   const isReadOnly = Boolean(isConsultantMode && !isCurrentStepHelpActive);
 
-  const pcts = [17, 33, 50, 67, 83, 100];
+  const pcts = [14, 28, 43, 57, 71, 85, 100];
   const pct = pcts[step - 1] ?? 100;
 
   useEffect(() => {
@@ -397,7 +444,7 @@ export function DiscoveryFlow({
   }, [targetPortalToken, step, onStepChange]);
 
   useEffect(() => {
-    if (typeof initialStep === "number" && initialStep >= 1 && initialStep <= 6 && initialStep !== step) {
+    if (typeof initialStep === "number" && initialStep >= 1 && initialStep <= 7 && initialStep !== step) {
       setStep(initialStep);
     }
   }, [initialStep]);
@@ -447,11 +494,15 @@ export function DiscoveryFlow({
         if (Array.isArray(data.value)) {
           setComps(normalizeCompetitors(data.value));
         }
+      } else if (data.field_key === "selected_font" || data.field_key === "selectedFont") {
+        if (typeof data.value === "string" && data.value) {
+          setSelectedFont(data.value);
+        }
       }
     });
 
     const unsubscribeStepNav = supportSocket.on("step_navigate", (data) => {
-      if (typeof data.step === "number" && data.step >= 1 && data.step <= 6) {
+      if (typeof data.step === "number" && data.step >= 1 && data.step <= 7) {
         setStep(data.step);
       }
     });
@@ -522,6 +573,10 @@ export function DiscoveryFlow({
             ).slice(0, 3)
           );
         }
+
+        if (d.selected_font || d.selectedFont) {
+          setSelectedFont(d.selected_font || d.selectedFont);
+        }
       }
     });
   }, [targetPortalToken]);
@@ -529,7 +584,7 @@ export function DiscoveryFlow({
   useEffect(() => {
     if (isReadOnly) return;
 
-    const draft = { basics, sliders, emotions, persona, styles, comps, step };
+    const draft = { basics, sliders, emotions, persona, styles, comps, selectedFont, step };
     window.localStorage.setItem(draftKey, JSON.stringify(draft));
     if (targetPortalToken) {
       window.localStorage.setItem(`floxa-discovery-${targetPortalToken}`, JSON.stringify(draft));
@@ -543,6 +598,7 @@ export function DiscoveryFlow({
         persona,
         comps,
         styles,
+        selectedFont,
         step,
       });
 
@@ -552,7 +608,7 @@ export function DiscoveryFlow({
     }, 500);
 
     return () => window.clearTimeout(timeout);
-  }, [draftKey, targetPortalToken, step, basics, sliders, emotions, persona, styles, comps, isReadOnly]);
+  }, [draftKey, targetPortalToken, step, basics, sliders, emotions, persona, styles, comps, selectedFont, isReadOnly]);
 
   const updateSlider = useCallback((key, val) => {
     if (isReadOnly) return;
@@ -698,7 +754,42 @@ export function DiscoveryFlow({
     4: "Step 4: Brand Emotions",
     5: "Step 5: Customer Archetype & Competitors",
     6: "Step 6: Visual Styles",
+    7: "Step 7: Brand Typography",
   };
+
+  const handleFontSelect = (fontName) => {
+    if (isReadOnly) return;
+    setSelectedFont(fontName);
+    setSentenceIndex((prev) => (prev + 1) % SAMPLE_SENTENCES.length);
+    clientPortalService.saveClientFontPreferences(project?.id || targetPortalToken, {
+      selectedFont: fontName,
+      headlineFont: fontName,
+      bodyFont: fontName,
+      selectedAt: new Date().toISOString(),
+    });
+    supportSocket.syncField({
+      pageId: "frame_7",
+      fieldKey: "selected_font",
+      value: fontName,
+    });
+    supportSocket.syncField({
+      pageId: "frame_7",
+      fieldKey: "selectedFont",
+      value: fontName,
+    });
+  };
+
+  const filteredFonts = useMemo(() => {
+    return GOOGLE_FONTS_CATALOG.filter((font) => {
+      const matchesCategory =
+        fontCategory === "All" || font.category === fontCategory;
+      const matchesSearch =
+        !fontSearch.trim() ||
+        font.name.toLowerCase().includes(fontSearch.toLowerCase()) ||
+        font.category.toLowerCase().includes(fontSearch.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [fontCategory, fontSearch]);
 
   const submitHelpRequest = async () => {
     if (isSubmittingHelp) return;
@@ -716,6 +807,7 @@ export function DiscoveryFlow({
         persona,
         comps,
         styles,
+        selectedFont,
         step,
       });
       const saveToken = targetPortalToken || project?.portal_token || project?.id;
@@ -748,6 +840,8 @@ export function DiscoveryFlow({
       supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "competitors", value: comps });
       supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "styles", value: styles });
       supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedVisual", value: styles });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selected_font", value: selectedFont });
+      supportSocket.syncField({ pageId: `frame_${step}`, fieldKey: "selectedFont", value: selectedFont });
 
       // 3. Send help request via WebSocket for real-time live sync
       const wsSent = supportSocket.requestHelp({
@@ -810,6 +904,7 @@ export function DiscoveryFlow({
       persona,
       comps,
       styles,
+      selectedFont,
       step: stepToSave,
     });
 
@@ -818,8 +913,8 @@ export function DiscoveryFlow({
   };
 
   const handleFinish = async () => {
-    if (step === 6 && !styles.length) {
-      setMessage("Choose at least one visual style.");
+    if (step === 7 && !selectedFont) {
+      setMessage("Please select a brand typography font before proceeding.");
       return;
     }
 
@@ -848,9 +943,10 @@ export function DiscoveryFlow({
         persona,
         comps,
         styles,
-        step,
+        selectedFont,
+        step: 7,
       });
-      const draft = { basics, sliders, emotions, persona, styles, comps, step };
+      const draft = { basics, sliders, emotions, persona, styles, comps, selectedFont, step: 7 };
       window.localStorage.setItem(draftKey, JSON.stringify(draft));
       const saveToken = targetPortalToken || project?.portal_token || project?.id;
       if (saveToken) {
@@ -884,6 +980,11 @@ export function DiscoveryFlow({
       }
     }
 
+    if (step === 6 && !styles.length) {
+      setMessage("Please choose at least one visual style before continuing.");
+      return;
+    }
+
     const valid =
       (step !== 4 || emotions.length > 0) &&
       (step !== 5 ||
@@ -894,6 +995,11 @@ export function DiscoveryFlow({
 
     if (!valid) {
       setMessage("Please complete the required fields before continuing.");
+      return;
+    }
+
+    if (step >= 7) {
+      handleFinish();
       return;
     }
 
@@ -935,6 +1041,9 @@ export function DiscoveryFlow({
         } else if (step === 6) {
           supportSocket.syncField({ pageId: "frame_6", fieldKey: "styles", value: styles });
           supportSocket.syncField({ pageId: "frame_6", fieldKey: "selectedVisual", value: styles });
+        } else if (step === 7) {
+          supportSocket.syncField({ pageId: "frame_7", fieldKey: "selected_font", value: selectedFont });
+          supportSocket.syncField({ pageId: "frame_7", fieldKey: "selectedFont", value: selectedFont });
         }
 
         const frameSnapshot = {
@@ -945,6 +1054,7 @@ export function DiscoveryFlow({
           persona,
           comps: [...comps],
           styles: [...styles],
+          selectedFont,
         };
 
         setStep(next);
@@ -1015,7 +1125,8 @@ export function DiscoveryFlow({
           <div className="client-small-logo">
             <img src="/image/FLOXA_log.png" alt="FLOXA" className="client-small-logo-img" />
           </div>
-          <button
+          {/* Brand font badge temporarily commented out */}
+          {/* <button
             type="button"
             className="client-discovery-font-badge"
             onClick={() => onNext("fonts")}
@@ -1024,7 +1135,7 @@ export function DiscoveryFlow({
             <span>Brand Font:</span>
             <strong>{bodyFont || headlineFont}</strong>
             <span className="badge-edit-label">Change</span>
-          </button>
+          </button> */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {!isConsultantMode ? (
               isCurrentStepHelpActive ? (
@@ -1068,8 +1179,8 @@ export function DiscoveryFlow({
         </div>
 
         <div className="client-discovery-dots">
-          <span>Step {step} of 6</span>
-          {[1, 2, 3, 4, 5, 6].map((item) => (
+          <span>Step {step} of 7</span>
+          {[1, 2, 3, 4, 5, 6, 7].map((item) => (
             <button
               key={item}
               type="button"
@@ -1296,6 +1407,103 @@ export function DiscoveryFlow({
           </>
         ) : null}
 
+        {step === 7 ? (
+          <>
+            <h2>
+              Choose your brand
+              <br />
+              typography
+            </h2>
+            <p>Select the typeface that best captures your brand&apos;s voice and personality.</p>
+
+            {/* Font filter toolbar */}
+            <div className="client-font-toolbar">
+              <div className="client-font-cat-pills">
+                {["All", "Sans-Serif", "Serif", "Display", "Monospace", "Handwriting"].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    disabled={isReadOnly}
+                    onClick={() => setFontCategory(cat)}
+                    className={`client-font-cat-pill ${fontCategory === cat ? "active" : ""}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <div className="client-font-search-wrap">
+                <Search size={14} className="client-font-search-icon" />
+                <input
+                  type="text"
+                  className="client-font-search-input"
+                  placeholder="Search fonts..."
+                  value={fontSearch}
+                  disabled={isReadOnly}
+                  onChange={(e) => setFontSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Font cards grid */}
+            <div className="client-font-grid">
+              {filteredFonts.map((f) => {
+                const isSelected = selectedFont === f.name;
+                return (
+                  <button
+                    key={f.name}
+                    type="button"
+                    disabled={isReadOnly}
+                    onClick={() => handleFontSelect(f.name)}
+                    className={`client-font-card ${isSelected ? "selected" : ""}`}
+                  >
+                    <div className="client-font-card-top">
+                      <span className="client-font-cat-badge">{f.category}</span>
+                      {isSelected ? <span className="client-font-check"><Check size={12} /></span> : null}
+                    </div>
+                    <div
+                      className="client-font-name-preview"
+                      style={{ fontFamily: `"${f.name}", ${getFontFallback(f.category)}` }}
+                    >
+                      {f.name}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Live Specimen Preview Box */}
+            <div className="client-font-specimen-box">
+              <div className="client-specimen-header">
+                <div className="client-specimen-title">
+                  <span>Selected Typeface:</span>
+                  <strong style={{ fontFamily: `"${selectedFont}", sans-serif` }}>{selectedFont}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="client-specimen-shuffle-btn"
+                  onClick={() => setSentenceIndex((prev) => (prev + 1) % SAMPLE_SENTENCES.length)}
+                  title="Preview another sentence"
+                >
+                  <RotateCcw size={12} />
+                  <span>Shuffle Sentence</span>
+                </button>
+              </div>
+              <div
+                className="client-specimen-sentence"
+                style={{ fontFamily: `"${selectedFont}", serif, sans-serif` }}
+              >
+                &ldquo;{SAMPLE_SENTENCES[sentenceIndex]}&rdquo;
+              </div>
+              <div
+                className="client-specimen-subtext"
+                style={{ fontFamily: `"${selectedFont}", serif, sans-serif` }}
+              >
+                Aa Bb Cc Dd Ee Ff Gg Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz • 0123456789
+              </div>
+            </div>
+          </>
+        ) : null}
+
         {message ? <div className="client-form-error">{message}</div> : null}
 
         <div className="client-discovery-actions">
@@ -1304,12 +1512,12 @@ export function DiscoveryFlow({
               Back
             </button>
           ) : (
-            <button type="button" onClick={() => onNext("fonts")}>
+            <button type="button" onClick={() => onNext("profile")}>
               Back
             </button>
           )}
 
-          {step < 6 ? (
+          {step < 7 ? (
             <button type="button" onClick={nextStep} disabled={saving}>
               Next
             </button>
@@ -1404,6 +1612,10 @@ export function DiscoveryFlow({
           {
             label: "Visual direction",
             value: styles.length ? styles.slice(0, 2).join(", ") : "Not selected",
+          },
+          {
+            label: "Brand typography",
+            value: selectedFont || "Not selected",
           },
         ].map((item) => (
           <div className="client-preview-line" key={item.label}>

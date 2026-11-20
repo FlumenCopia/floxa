@@ -35,12 +35,16 @@ function getDjangoHmacKey(salt: string, secretKey: string): Buffer {
 
 /**
  * Generates a signed token matching Django's TimestampSigner format:
- *   value:timestamp_b62:signature
+ *   v0 (legacy compatible): portalToken:timestamp_b62:signature
+ *   vN (N > 0):             portalToken:vN:timestamp_b62:signature
+ * The HMAC-SHA256 signature cryptographically binds both portalToken and sessionVersion.
  */
-export function signPortalAccessToken(portalToken: string): string {
+export function signPortalAccessToken(portalToken: string, sessionVersion: number = 0): string {
   const timestamp = Math.floor(Date.now() / 1000);
   const timeB62 = intToBase62(timestamp);
-  const base = `${portalToken}:${timeB62}`;
+  const safeVersion = Number.isInteger(sessionVersion) && sessionVersion > 0 ? sessionVersion : 0;
+  const payload = safeVersion > 0 ? `${portalToken}:v${safeVersion}` : portalToken;
+  const base = `${payload}:${timeB62}`;
 
   const key = getDjangoHmacKey(ENV.PORTAL_ACCESS_SALT, ENV.SECRET_KEY);
   const hmac = crypto.createHmac('sha256', key);
@@ -51,23 +55,29 @@ export function signPortalAccessToken(portalToken: string): string {
   return `${base}:${sig}`;
 }
 
+export interface ParsedPortalAccessToken {
+  portalToken: string;
+  version: number;
+}
+
 /**
- * Verifies a signed portal access token, checking HMAC signature and expiration.
+ * Verifies HMAC signature & expiration of a signed portal access token and returns
+ * its bound portalToken and session version (legacy unversioned tokens resolve to version 0).
  */
-export function unsignPortalAccessToken(
+export function parsePortalAccessToken(
   signedToken: string,
   maxAgeSeconds: number = ENV.PORTAL_ACCESS_MAX_AGE
-): string | null {
+): ParsedPortalAccessToken | null {
   if (!signedToken || typeof signedToken !== 'string') return null;
 
   const parts = signedToken.split(':');
   if (parts.length < 3) return null;
 
-  const portalToken = parts.slice(0, parts.length - 2).join(':');
+  const rawPayload = parts.slice(0, parts.length - 2).join(':');
   const timeB62 = parts[parts.length - 2];
   const signature = parts[parts.length - 1];
 
-  const base = `${portalToken}:${timeB62}`;
+  const base = `${rawPayload}:${timeB62}`;
   const key = getDjangoHmacKey(ENV.PORTAL_ACCESS_SALT, ENV.SECRET_KEY);
   const hmac = crypto.createHmac('sha256', key);
   hmac.update(base);
@@ -92,7 +102,51 @@ export function unsignPortalAccessToken(
     return null;
   }
 
-  return portalToken;
+  const versionMatch = rawPayload.match(/^(.*):v(\d+)$/);
+  if (versionMatch) {
+    const version = parseInt(versionMatch[2], 10);
+    if (!Number.isInteger(version) || version < 0) return null;
+    return { portalToken: versionMatch[1], version };
+  }
+
+  return { portalToken: rawPayload, version: 0 };
+}
+
+/**
+ * Verifies a signed portal access token, checking HMAC signature, expiration,
+ * and (when provided) exact session version match.
+ */
+export function unsignPortalAccessToken(
+  signedToken: string,
+  maxAgeSeconds: number = ENV.PORTAL_ACCESS_MAX_AGE,
+  expectedVersion?: number
+): string | null {
+  const parsed = parsePortalAccessToken(signedToken, maxAgeSeconds);
+  if (!parsed) return null;
+
+  if (expectedVersion !== undefined) {
+    const targetVersion = Number.isInteger(expectedVersion) && expectedVersion > 0 ? expectedVersion : 0;
+    if (parsed.version !== targetVersion) return null;
+  }
+
+  return parsed.portalToken;
+}
+
+/**
+ * Shared verifier used across all HTTP, media, device-token, and WebSocket checks.
+ * Enforces HMAC validity, expiration, exact portalToken match, and exact session version match.
+ */
+export function verifyPortalAccessTokenForProject(
+  signedToken: string,
+  expectedPortalToken: string,
+  expectedVersion: number = 0,
+  maxAgeSeconds: number = ENV.PORTAL_ACCESS_MAX_AGE
+): boolean {
+  if (!signedToken || !expectedPortalToken) return false;
+  const parsed = parsePortalAccessToken(signedToken, maxAgeSeconds);
+  if (!parsed) return false;
+  const targetVersion = Number.isInteger(expectedVersion) && expectedVersion > 0 ? expectedVersion : 0;
+  return parsed.portalToken === expectedPortalToken && parsed.version === targetVersion;
 }
 
 /**

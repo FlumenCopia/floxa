@@ -13,8 +13,9 @@ import { ProjectAgreement } from '../models/agreement.model.js';
 import { PaymentMilestone } from '../models/paymentMilestone.model.js';
 import { PaymentTransaction } from '../models/paymentTransaction.model.js';
 import { ProjectActivity } from '../models/activity.model.js';
-import { ENV } from '../config/env.js';
-import { verifyPassword, signPortalAccessToken } from '../utils/crypto.js';
+import { ENV, resolveSafeFrontendOrigin } from '../config/env.js';
+import { verifyPassword, signPortalAccessToken, hashPassword } from '../utils/crypto.js';
+import { sendClientPortalPasswordResetEmail } from '../services/email.service.js';
 import {
   calculateProjectProgress,
   calculateProjectWorkflowStatus,
@@ -59,6 +60,7 @@ import {
   getLatestActiveHelp,
   broadcastHelpRequested,
   broadcastHelpResolved,
+  disconnectPortalClientSockets,
 } from '../websocket/socketServer.js';
 import { handleSaveDiscovery } from './discovery.controller.js';
 
@@ -103,7 +105,7 @@ export async function getPortalProject(req: any, res: Response, next: NextFuncti
 
     // Bind browser portal session cookie for passwordless portals so gated media (chat attachments) works without leaking tokens in URLs
     if (!req.isSupportMode && !project.portalPasswordHash && project.portalToken) {
-      const signedToken = signPortalAccessToken(project.portalToken);
+      const signedToken = signPortalAccessToken(project.portalToken, project.portalSessionVersion || 0);
       res.cookie(ENV.PORTAL_ACCESS_COOKIE_NAME, signedToken, {
         maxAge: ENV.PORTAL_ACCESS_MAX_AGE * 1000,
         httpOnly: true,
@@ -174,7 +176,7 @@ export async function verifyPortalPassword(req: any, res: Response, next: NextFu
       }
     }
 
-    const signedToken = signPortalAccessToken(portal_token);
+    const signedToken = signPortalAccessToken(portal_token, project.portalSessionVersion || 0);
     res.cookie(ENV.PORTAL_ACCESS_COOKIE_NAME, signedToken, {
       maxAge: ENV.PORTAL_ACCESS_MAX_AGE * 1000,
       httpOnly: true,
@@ -195,6 +197,364 @@ export async function logoutPortal(req: any, res: Response) {
     sameSite: ENV.AUTH_COOKIE_SAMESITE,
   });
   res.json({ success: true });
+}
+
+function hashActionToken(rawToken: string): string {
+  return crypto.createHash('sha256').update(rawToken.trim()).digest('hex');
+}
+
+function validateNewPortalPassword(rawPassword: unknown): { error?: string; cleanPassword: string } {
+  const cleanPassword = typeof rawPassword === 'string' ? rawPassword.trim() : '';
+  if (cleanPassword.length < 8) {
+    return { error: 'Password must contain at least 8 characters.', cleanPassword };
+  }
+  if (!/[A-Za-z]/.test(cleanPassword)) {
+    return { error: 'Password must contain at least one letter.', cleanPassword };
+  }
+  if (!/[0-9]/.test(cleanPassword)) {
+    return { error: 'Password must contain at least one number.', cleanPassword };
+  }
+  return { cleanPassword };
+}
+
+function issuePortalSessionCookie(res: Response, portalToken: string, sessionVersion: number = 0): string {
+  const signedToken = signPortalAccessToken(portalToken, sessionVersion);
+  res.cookie(ENV.PORTAL_ACCESS_COOKIE_NAME, signedToken, {
+    maxAge: ENV.PORTAL_ACCESS_MAX_AGE * 1000,
+    httpOnly: true,
+    secure: ENV.AUTH_COOKIE_SECURE,
+    sameSite: ENV.AUTH_COOKIE_SAMESITE,
+    path: '/',
+  });
+  return signedToken;
+}
+
+/**
+ * Read-only validation check for setup_token / reset_token so the frontend can immediately
+ * surface invalid/expired/consumed link states before the client submits a new password.
+ */
+export async function validatePortalActionToken(req: any, res: Response, next: NextFunction) {
+  try {
+    const { portal_token } = req.params;
+    const rawSetupToken = typeof req.query?.setup_token === 'string' ? req.query.setup_token.trim() : '';
+    const rawResetToken = typeof req.query?.reset_token === 'string' ? req.query.reset_token.trim() : '';
+
+    const project = await Project.findOne({ portalToken: portal_token, isArchived: false })
+      .select('portalPasswordHash +portalSetupTokenHash +portalSetupTokenExpires +portalResetTokenHash +portalResetTokenExpires');
+
+    if (!project) {
+      res.status(404).json({ valid: false, reason: 'not_found', detail: 'Project not found.' });
+      return;
+    }
+
+    if (rawResetToken) {
+      const hashed = hashActionToken(rawResetToken);
+      if (!project.portalResetTokenHash || project.portalResetTokenHash !== hashed) {
+        res.json({
+          valid: false,
+          mode: 'reset',
+          reason: 'invalid',
+          detail: 'This password reset link is invalid or has already been used.',
+        });
+        return;
+      }
+      if (!project.portalResetTokenExpires || project.portalResetTokenExpires <= new Date()) {
+        res.json({
+          valid: false,
+          mode: 'reset',
+          reason: 'expired',
+          detail: 'This password reset link has expired. Please request a new reset link.',
+        });
+        return;
+      }
+      res.json({ valid: true, mode: 'reset' });
+      return;
+    }
+
+    if (rawSetupToken) {
+      if (project.portalPasswordHash) {
+        res.json({
+          valid: false,
+          mode: 'setup',
+          reason: 'already_set',
+          detail: 'A password has already been set for this portal. Please log in.',
+        });
+        return;
+      }
+      const hashed = hashActionToken(rawSetupToken);
+      if (!project.portalSetupTokenHash || project.portalSetupTokenHash !== hashed) {
+        res.json({
+          valid: false,
+          mode: 'setup',
+          reason: 'invalid',
+          detail: 'Invalid or unauthorized password setup link.',
+        });
+        return;
+      }
+      if (!project.portalSetupTokenExpires || project.portalSetupTokenExpires <= new Date()) {
+        res.json({
+          valid: false,
+          mode: 'setup',
+          reason: 'expired',
+          detail: 'This password setup link has expired. Please ask your consultant to resend the invitation.',
+        });
+        return;
+      }
+      res.json({ valid: true, mode: 'setup' });
+      return;
+    }
+
+    res.status(400).json({ valid: false, reason: 'missing', detail: 'No setup or reset token provided.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Flow A: Authorized First-Time Password Setup ONLY.
+ * - Requires a valid, unexpired, single-use setup_token generated during project creation / invite resend.
+ * - Uses an atomic conditional MongoDB update so existing passwords can NEVER be overwritten
+ *   and concurrent requests cannot race.
+ */
+export async function setPortalPassword(req: any, res: Response, next: NextFunction) {
+  try {
+    const { portal_token } = req.params;
+    const { password, setup_token } = req.body || {};
+
+    const { error: pwError, cleanPassword } = validateNewPortalPassword(password);
+    if (pwError) {
+      res.status(400).json({ detail: pwError });
+      return;
+    }
+
+    const rawSetupToken = typeof setup_token === 'string' ? setup_token.trim() : '';
+    if (!rawSetupToken) {
+      res.status(403).json({
+        detail: 'Password setup requires a valid invitation setup token. Please open the link from your invitation email.',
+      });
+      return;
+    }
+
+    const hashedSetupToken = hashActionToken(rawSetupToken);
+    const passwordHash = await hashPassword(cleanPassword);
+
+    // Atomic conditional update: succeeds ONLY if password is unset AND setup token matches AND is unexpired.
+    const updated = await Project.findOneAndUpdate(
+      {
+        portalToken: portal_token,
+        isArchived: false,
+        $or: [
+          { portalPasswordHash: '' },
+          { portalPasswordHash: null },
+          { portalPasswordHash: { $exists: false } },
+        ],
+        portalSetupTokenHash: hashedSetupToken,
+        portalSetupTokenExpires: { $gt: new Date() },
+      },
+      {
+        $set: {
+          portalPasswordHash: passwordHash,
+          portalSetupTokenHash: null,
+          portalSetupTokenExpires: null,
+        },
+        $inc: {
+          portalSessionVersion: 1,
+        },
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      const existing = await Project.findOne({ portalToken: portal_token, isArchived: false })
+        .select('portalPasswordHash +portalSetupTokenHash +portalSetupTokenExpires');
+
+      if (!existing) {
+        res.status(404).json({ detail: 'Project not found.' });
+        return;
+      }
+
+      if (existing.portalPasswordHash) {
+        res.status(409).json({
+          detail: 'A portal password has already been set for this project. Please log in or use Forgot Password to reset it.',
+        });
+        return;
+      }
+
+      if (
+        existing.portalSetupTokenHash === hashedSetupToken &&
+        existing.portalSetupTokenExpires &&
+        existing.portalSetupTokenExpires <= new Date()
+      ) {
+        res.status(403).json({
+          detail: 'This password setup link has expired. Please ask your consultant to resend the invitation.',
+        });
+        return;
+      }
+
+      res.status(403).json({ detail: 'Invalid or unauthorized password setup token.' });
+      return;
+    }
+
+    disconnectPortalClientSockets(updated.id, 4001, 'Password set');
+    const signedToken = issuePortalSessionCookie(res, portal_token, updated.portalSessionVersion || 1);
+    res.json({ success: true, token: signedToken, message: 'Password set successfully.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Flow B (Step 1): Request a cryptographically secure, single-use, 30-minute password reset link via email.
+ * Stores ONLY the SHA-256 hash of the reset token in MongoDB.
+ */
+export async function forgotPortalPassword(req: any, res: Response, next: NextFunction) {
+  try {
+    const { portal_token } = req.params;
+    const { email } = req.body || {};
+
+    const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!cleanEmail) {
+      res.status(400).json({ detail: 'Please enter your registered client email address.' });
+      return;
+    }
+
+    const project = await Project.findOne({ portalToken: portal_token, isArchived: false })
+      .populate('clientId')
+      .populate('client');
+
+    if (!project) {
+      res.status(404).json({ detail: 'Project not found.' });
+      return;
+    }
+
+    let expectedClientEmail = '';
+    const populatedClient = project.clientId as any;
+    if (populatedClient && typeof populatedClient === 'object' && populatedClient.email) {
+      expectedClientEmail = String(populatedClient.email).trim().toLowerCase();
+    } else if (project.clientId) {
+      const clientDoc = await Client.findById(project.clientId);
+      if (clientDoc?.email) {
+        expectedClientEmail = String(clientDoc.email).trim().toLowerCase();
+      }
+    }
+
+    if (!expectedClientEmail) {
+      const profileDoc = await ClientProfile.findOne({ projectId: project._id });
+      if (profileDoc?.email) {
+        expectedClientEmail = String(profileDoc.email).trim().toLowerCase();
+      }
+    }
+
+    if (!expectedClientEmail || cleanEmail !== expectedClientEmail) {
+      res.status(400).json({ detail: 'The email address provided does not match our records for this project.' });
+      return;
+    }
+
+    // Generate cryptographically secure 256-bit single-use reset token (30-minute expiry)
+    const rawResetToken = crypto.randomBytes(32).toString('hex');
+    const hashedResetToken = hashActionToken(rawResetToken);
+    const resetExpires = new Date(Date.now() + 30 * 60 * 1000);
+
+    await Project.updateOne(
+      { _id: project._id },
+      {
+        $set: {
+          portalResetTokenHash: hashedResetToken,
+          portalResetTokenExpires: resetExpires,
+        },
+      }
+    );
+
+    const baseUrlOverride = resolveSafeFrontendOrigin(
+      (req.get('origin') || req.headers?.origin || req.headers?.referer) as string | undefined
+    );
+
+    await sendClientPortalPasswordResetEmail(project, expectedClientEmail, rawResetToken, baseUrlOverride);
+
+    res.json({ success: true, message: 'Password reset instructions have been sent to your email.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Flow B (Step 2): Complete Password Reset using the single-use emailed reset_token.
+ * - Atomically verifies token hash + expiry and consumes/invalidates the token in one DB operation.
+ * - Never relies on `?reset=1` or `portal_token` alone.
+ */
+export async function resetPortalPassword(req: any, res: Response, next: NextFunction) {
+  try {
+    const { portal_token } = req.params;
+    const { password, reset_token } = req.body || {};
+
+    const { error: pwError, cleanPassword } = validateNewPortalPassword(password);
+    if (pwError) {
+      res.status(400).json({ detail: pwError });
+      return;
+    }
+
+    const rawResetToken = typeof reset_token === 'string' ? reset_token.trim() : '';
+    if (!rawResetToken) {
+      res.status(400).json({ detail: 'A valid password reset token is required.' });
+      return;
+    }
+
+    const hashedResetToken = hashActionToken(rawResetToken);
+    const passwordHash = await hashPassword(cleanPassword);
+
+    // Atomic single-use update: validates hash + expiry and immediately invalidates the reset token.
+    const updated = await Project.findOneAndUpdate(
+      {
+        portalToken: portal_token,
+        isArchived: false,
+        portalResetTokenHash: hashedResetToken,
+        portalResetTokenExpires: { $gt: new Date() },
+      },
+      {
+        $set: {
+          portalPasswordHash: passwordHash,
+          portalResetTokenHash: null,
+          portalResetTokenExpires: null,
+          portalSetupTokenHash: null,
+          portalSetupTokenExpires: null,
+        },
+        $inc: {
+          portalSessionVersion: 1,
+        },
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      const existing = await Project.findOne({ portalToken: portal_token, isArchived: false })
+        .select('+portalResetTokenHash +portalResetTokenExpires');
+
+      if (!existing) {
+        res.status(404).json({ detail: 'Project not found.' });
+        return;
+      }
+
+      if (
+        existing.portalResetTokenHash === hashedResetToken &&
+        existing.portalResetTokenExpires &&
+        existing.portalResetTokenExpires <= new Date()
+      ) {
+        res.status(400).json({
+          detail: 'This password reset link has expired. Please request a new reset link.',
+        });
+        return;
+      }
+
+      res.status(400).json({ detail: 'Password reset link is invalid or has already been used.' });
+      return;
+    }
+
+    disconnectPortalClientSockets(updated.id, 4001, 'Password reset');
+    const signedToken = issuePortalSessionCookie(res, portal_token, updated.portalSessionVersion || 1);
+    res.json({ success: true, token: signedToken, message: 'Password reset successfully.' });
+  } catch (err) {
+    next(err);
+  }
 }
 
 export async function getPortalBrandDNA(req: any, res: Response, next: NextFunction) {
@@ -276,6 +636,8 @@ export async function savePortalDiscovery(req: any, res: Response, next: NextFun
       emotions,
       competitors,
       visual_styles,
+      selected_font,
+      selectedFont,
     } = req.body;
 
     const data: any = {};
@@ -284,6 +646,8 @@ export async function savePortalDiscovery(req: any, res: Response, next: NextFun
     if (why_choose_us !== undefined) data.whyChooseUs = why_choose_us;
     if (brand_feeling !== undefined) data.brandFeeling = brand_feeling;
     if (audience_archetype !== undefined) data.audienceArchetype = audience_archetype;
+    if (selected_font !== undefined) data.selectedFont = String(selected_font).trim();
+    if (selectedFont !== undefined) data.selectedFont = String(selectedFont).trim();
 
     if (sliders && Array.isArray(sliders)) {
       data.sliders = sliders.map((s: any) => ({

@@ -115,7 +115,7 @@ export function DiscoveryReview({
       (draft?.styles ?? []).map((s) => (typeof s === "string" ? s : s?.style)).filter(Boolean)
     )
   );
-  const step = Math.max(6, draft?.step ?? 6);
+  const step = Math.max(7, draft?.step ?? 7);
   const sliderItems = allSliderDefinitions.map((slider) => ({
     label: `${slider.left} / ${slider.right}`,
     value: formatReviewSliderValue(slider, sliders[slider.key]),
@@ -146,7 +146,7 @@ export function DiscoveryReview({
     { label: "Brand feeling", value: basics.brandFeeling },
   ];
   const fontPrefs = clientPortalService.getClientFontPreferences(project?.id);
-  const chosenFont = fontPrefs?.selectedFont || fontPrefs?.bodyFont || fontPrefs?.headlineFont || "Plus Jakarta Sans";
+  const chosenFont = draft?.selectedFont || draft?.selected_font || fontPrefs?.selectedFont || fontPrefs?.bodyFont || fontPrefs?.headlineFont || "Plus Jakarta Sans";
   const typographyItems = [
     { label: "Selected Brand Font", value: chosenFont },
   ];
@@ -174,7 +174,8 @@ export function DiscoveryReview({
         persona,
         comps,
         styles,
-        step,
+        selectedFont: chosenFont,
+        step: 7,
       });
       const data = await clientPortalService.submitDiscovery(project.id, payload);
 
@@ -223,11 +224,11 @@ export function DiscoveryReview({
               )}
             />
             <ReviewSection
-              title="Google Fonts Selection"
+              title="Brand Typography"
               items={typographyItems}
               action={(
-                <button type="button" onClick={() => onNext("fonts")}>
-                  Edit Fonts
+                <button type="button" onClick={() => onNext("discovery", { step: 7 })}>
+                  Edit Font
                 </button>
               )}
             />

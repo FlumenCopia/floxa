@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { Project, type IConsultant } from '../models/index.js';
 import { ENV } from '../config/env.js';
-import { unsignPortalAccessToken } from '../utils/crypto.js';
+import { verifyPortalAccessTokenForProject } from '../utils/crypto.js';
 import { resolveAuthenticatedConsultant } from '../services/auth.service.js';
 
 export interface PortalRequest extends Request {
@@ -90,15 +90,27 @@ export async function clientPortalAccess(req: PortalRequest, res: Response, next
       ''
     ).trim();
 
-    if (signedValue) {
-      const unsigned = unsignPortalAccessToken(signedValue, ENV.PORTAL_ACCESS_MAX_AGE);
-      if (unsigned === portalToken) {
-        req.isPortalClient = true;
-        return next();
-      }
+    if (
+      signedValue &&
+      verifyPortalAccessTokenForProject(
+        signedValue,
+        portalToken,
+        project.portalSessionVersion || 0,
+        ENV.PORTAL_ACCESS_MAX_AGE
+      )
+    ) {
+      req.isPortalClient = true;
+      return next();
     }
 
-    res.status(403).json({ detail: 'Portal password verification required.' });
+    const clientEmail =
+      (project.client as any)?.email ||
+      (project.clientProfile as any)?.email ||
+      '';
+    res.status(403).json({
+      detail: 'Portal password verification required.',
+      client_email: clientEmail,
+    });
   } catch (error) {
     res.status(500).json({ detail: 'Internal server error validating portal access.' });
   }
@@ -182,12 +194,17 @@ export async function requireProjectAccess(req: PortalRequest, res: Response, ne
         ''
       ).trim();
 
-      if (signedValue) {
-        const unsigned = unsignPortalAccessToken(signedValue, ENV.PORTAL_ACCESS_MAX_AGE);
-        if (unsigned === portalToken) {
-          req.isPortalClient = true;
-          return next();
-        }
+      if (
+        signedValue &&
+        verifyPortalAccessTokenForProject(
+          signedValue,
+          portalToken,
+          project.portalSessionVersion || 0,
+          ENV.PORTAL_ACCESS_MAX_AGE
+        )
+      ) {
+        req.isPortalClient = true;
+        return next();
       }
 
       res.status(403).json({ detail: 'Portal password verification required.' });

@@ -101,8 +101,12 @@ export async function isProjectAwaitingClientAction(project: any): Promise<Clien
   }
 
   // 7. Deliverables completed & shared, awaiting final client download and signoff
-  const sharedDeliverables = await Deliverable.find({ projectId, status: 'shared' });
-  if (sharedDeliverables.length > 0) {
+  // The SLA clock only pauses when all deliverables created for the project are shared (no unshared drafts remain).
+  const [sharedDeliverablesCount, draftDeliverablesCount] = await Promise.all([
+    Deliverable.countDocuments({ projectId, status: 'shared' }),
+    Deliverable.countDocuments({ projectId, status: 'draft' }),
+  ]);
+  if (sharedDeliverablesCount > 0 && draftDeliverablesCount === 0) {
     return {
       awaitingClient: true,
       reason: 'deliverables_completed_awaiting_signoff',
@@ -247,19 +251,13 @@ export async function setProjectDeliveryDeadline(
 }
 
 /**
- * When Brand DNA is completed/generated, clears any overdue flags that were active
- * while preparing Brand DNA. SLA monitoring continues for remaining project stages.
+ * Milestone hook when Brand DNA is completed/generated.
+ * The committed delivery deadline applies to the entire project lifecycle,
+ * so previously issued SLA warning flags are preserved and not reset.
  */
-export async function onBrandDnaCompleted(projectId: string): Promise<void> {
-  try {
-    await Project.findByIdAndUpdate(projectId, {
-      $set: {
-        deadlineFlagsCount: 0,
-      },
-    });
-  } catch (err) {
-    console.error('Failed to update project deadline flags on Brand DNA completion:', err);
-  }
+export async function onBrandDnaCompleted(_projectId: string): Promise<void> {
+  // Brand DNA is a milestone completion. SLA flags are not reset so that
+  // the project continues along its committed delivery deadline without re-issuing warnings.
 }
 
 /**

@@ -18,6 +18,7 @@ const {
   isProjectAwaitingClientAction,
   calculateProjectActiveSla,
   setProjectDeliveryDeadline,
+  onBrandDnaCompleted,
 } = require('../dist/services/deadlineMonitoring.service.js');
 
 test('FLOXA SLA Lifecycle & Client-Wait Protection Test Suite (BUG-HIGH-02)', async (t) => {
@@ -540,5 +541,280 @@ test('FLOXA SLA Lifecycle & Client-Wait Protection Test Suite (BUG-HIGH-02)', as
     assert.strictEqual(activeSla.isPaused, true, 'SLA should reflect active pause');
     // totalClientWaitMs = 48h + 5h = 53h
     assert.strictEqual(activeSla.totalClientWaitMs, 53 * ONE_HOUR_MS);
+  });
+
+  // Scenario 18: FAIL-03 Issue 1: One shared + one draft deliverable: SLA clock must NOT pause
+  await t.test('18. One shared + one draft deliverable: SLA clock must NOT pause', async () => {
+    const { project } = await createFixture({
+      deliveryDeadline: new Date(T0),
+      deadlineFlagsCount: 0,
+    });
+
+    // 1 shared deliverable, 1 draft deliverable
+    await models.Deliverable.create({
+      projectId: project._id,
+      title: 'Brand Strategy Guide.pdf',
+      file: '/uploads/deliverable_1.pdf',
+      status: 'shared',
+    });
+    await models.Deliverable.create({
+      projectId: project._id,
+      title: 'Vector Logo Package.zip',
+      file: '/uploads/deliverable_2.zip',
+      status: 'draft',
+    });
+
+    const wait = await isProjectAwaitingClientAction(project);
+    assert.strictEqual(wait.awaitingClient, false, 'SLA must not pause while draft deliverables remain');
+
+    // At 25h overdue, SLA daemon must actively escalate to Flag 1
+    await checkAndEscalateDeadlines(T0 + 25 * ONE_HOUR_MS);
+    const p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 1, 'Should escalate to Flag 1 because drafts remain unshared');
+    assert.strictEqual(p.slaPausedAt, null, 'SLA clock must not be paused');
+  });
+
+  // Scenario 19: FAIL-03 Issue 1: Two shared + zero draft deliverables: SLA clock MUST pause for client sign-off
+  await t.test('19. Two shared + zero draft deliverables: SLA clock MUST pause for client sign-off', async () => {
+    const { project } = await createFixture({
+      deliveryDeadline: new Date(T0),
+      deadlineFlagsCount: 1,
+    });
+
+    // Both deliverables are shared, 0 drafts remain
+    await models.Deliverable.create({
+      projectId: project._id,
+      title: 'Brand Strategy Guide.pdf',
+      file: '/uploads/deliverable_1.pdf',
+      status: 'shared',
+    });
+    await models.Deliverable.create({
+      projectId: project._id,
+      title: 'Vector Logo Package.zip',
+      file: '/uploads/deliverable_2.zip',
+      status: 'shared',
+    });
+
+    const wait = await isProjectAwaitingClientAction(project);
+    assert.strictEqual(wait.awaitingClient, true, 'SLA must pause when all deliverables are shared');
+    assert.strictEqual(wait.reason, 'deliverables_completed_awaiting_signoff');
+
+    // Run scheduler: SLA clock should pause
+    const pauseTime = T0 + 30 * ONE_HOUR_MS;
+    await checkAndEscalateDeadlines(pauseTime);
+
+    let p = await models.Project.findById(project._id);
+    assert.ok(p.slaPausedAt, 'slaPausedAt must be recorded');
+    assert.strictEqual(p.deadlineFlagsCount, 1, 'Flags must NOT escalate while paused');
+
+    // Advance 100 hours while awaiting sign-off
+    await checkAndEscalateDeadlines(pauseTime + 100 * ONE_HOUR_MS);
+    p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 1, 'Flags must NOT escalate despite 100h elapsing');
+  });
+
+  // Scenario 20: FAIL-03 Issue 1: Adding a new draft deliverable after sharing resumes the SLA clock
+  await t.test('20. Adding a new draft deliverable after sharing resumes the SLA clock', async () => {
+    const pauseStart = T0 + 30 * ONE_HOUR_MS;
+    const { project } = await createFixture({
+      deliveryDeadline: new Date(T0),
+      deadlineFlagsCount: 1,
+      slaPausedAt: new Date(pauseStart),
+      totalClientWaitMs: 0,
+    });
+
+    // Initial deliverable was shared
+    await models.Deliverable.create({
+      projectId: project._id,
+      title: 'Brand Strategy Guide.pdf',
+      file: '/uploads/deliverable_1.pdf',
+      status: 'shared',
+    });
+
+    // Consultant adds a new draft deliverable 20 hours into the pause
+    const resumeTime = pauseStart + 20 * ONE_HOUR_MS; // T0 + 50h
+    await models.Deliverable.create({
+      projectId: project._id,
+      title: 'Additional Social Assets.zip',
+      file: '/uploads/deliverable_extra.zip',
+      status: 'draft',
+    });
+
+    const wait = await isProjectAwaitingClientAction(project);
+    assert.strictEqual(wait.awaitingClient, false, 'SLA must resume when a new draft is added');
+
+    // Run scheduler at resumeTime: pause ends, wait duration (20h) banked into totalClientWaitMs
+    await checkAndEscalateDeadlines(resumeTime);
+    let p = await models.Project.findById(project._id);
+    assert.strictEqual(p.slaPausedAt, null, 'slaPausedAt must be cleared on resume');
+    assert.strictEqual(p.totalClientWaitMs, 20 * ONE_HOUR_MS, 'Should bank 20 hours of wait duration');
+    assert.strictEqual(p.deadlineFlagsCount, 1, 'Should maintain Flag 1 at 30h active overdue');
+
+    // Advance to 50h active overdue: T0 + 20h banked wait + 50h consultant delay = T0 + 70h wall clock
+    await checkAndEscalateDeadlines(T0 + 70 * ONE_HOUR_MS);
+    p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 2, 'Should escalate to Flag 2 after active time passes 48h');
+  });
+
+  // Scenario 21: FAIL-03 Issue 2: Warning 1 is not reissued because of Brand DNA completion
+  await t.test('21. Warning 1 is not reissued because of Brand DNA completion', async () => {
+    const { project } = await createFixture({
+      deliveryDeadline: new Date(T0),
+      deadlineFlagsCount: 0,
+    });
+
+    // 25h overdue -> Triggers Flag 1
+    await checkAndEscalateDeadlines(T0 + 25 * ONE_HOUR_MS);
+    let p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 1, 'Should trigger Flag 1 at 25h overdue');
+
+    const initialWarnings = await models.ProjectActivity.find({
+      projectId: project._id,
+      action: 'deadline_warning_1',
+    });
+    assert.strictEqual(initialWarnings.length, 1, 'Exactly one Warning 1 logged before Brand DNA');
+
+    // Consultant completes Brand DNA at 26h overdue
+    await models.BrandDNA.create({
+      projectId: project._id,
+      brandCore: { purpose: 'Test' },
+      status: 'ready',
+    });
+    await onBrandDnaCompleted(project._id.toString());
+
+    // Counter must NOT be reset to 0
+    p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 1, 'Warning 1 counter must remain unchanged after Brand DNA completion');
+
+    // Subsequent scheduler execution (e.g. at 30h overdue) must NOT re-issue Warning 1
+    await checkAndEscalateDeadlines(T0 + 30 * ONE_HOUR_MS);
+    p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 1, 'Flag count should remain 1 at 30h overdue');
+
+    const postWarnings = await models.ProjectActivity.find({
+      projectId: project._id,
+      action: 'deadline_warning_1',
+    });
+    assert.strictEqual(postWarnings.length, 1, 'Warning 1 must NOT be reissued after Brand DNA completion');
+  });
+
+  // Scenario 22: FAIL-03 Issue 2: Warning 2 and Warning 3 progression is preserved
+  await t.test('22. Warning 2 and Warning 3 progression is preserved', async () => {
+    const { consultant, project } = await createFixture({
+      deliveryDeadline: new Date(T0),
+      deadlineFlagsCount: 1, // Already received Warning 1
+    });
+
+    // Brand DNA completed while at Warning 1
+    await models.BrandDNA.create({
+      projectId: project._id,
+      brandCore: { purpose: 'Test' },
+      status: 'ready',
+    });
+    await onBrandDnaCompleted(project._id.toString());
+
+    let p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 1, 'Flag count remains 1');
+
+    // Advance to 49h overdue -> Must progress to Flag 2
+    await checkAndEscalateDeadlines(T0 + 49 * ONE_HOUR_MS);
+    p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 2, 'Should cleanly escalate to Flag 2 at 49h overdue');
+
+    const warning2 = await models.ProjectActivity.findOne({
+      projectId: project._id,
+      action: 'deadline_warning_2',
+    });
+    assert.ok(warning2, 'Warning 2 must be logged');
+
+    // Advance to 73h overdue -> Must progress to Flag 3
+    await checkAndEscalateDeadlines(T0 + 73 * ONE_HOUR_MS);
+    p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 3, 'Should cleanly escalate to Flag 3 at 73h overdue');
+
+    const warning3 = await models.ProjectActivity.findOne({
+      projectId: project._id,
+      action: 'deadline_warning_3',
+    });
+    assert.ok(warning3, 'Warning 3 must be logged');
+    assert.ok(
+      warning3.description.includes('project deliverables'),
+      'Warning description should reference project deliverables'
+    );
+
+    // Advance to 97h overdue -> Must trigger suspension (Flag 4)
+    await checkAndEscalateDeadlines(T0 + 97 * ONE_HOUR_MS);
+    p = await models.Project.findById(project._id);
+    const c = await models.Consultant.findById(consultant._id);
+    assert.strictEqual(p.deadlineFlagsCount, 4, 'Should escalate to Flag 4 at 97h overdue');
+    assert.strictEqual(p.deadlineBreached, true);
+    assert.strictEqual(c.isSuspended, true, 'Consultant must be suspended at 96h+ overdue');
+  });
+
+  // Scenario 23: FAIL-03 Issue 2: Brand DNA completion before the first warning does not prevent normal warning escalation
+  await t.test('23. Brand DNA completion before the first warning does not prevent normal warning escalation', async () => {
+    const { project } = await createFixture({
+      deliveryDeadline: new Date(T0),
+      deadlineFlagsCount: 0,
+    });
+
+    // Consultant completes Brand DNA at 10h overdue (before 24h Warning 1 threshold)
+    await models.BrandDNA.create({
+      projectId: project._id,
+      brandCore: { purpose: 'Early Brand DNA' },
+      status: 'ready',
+    });
+    await onBrandDnaCompleted(project._id.toString());
+
+    let p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 0, 'Flags remain 0 at 10h overdue');
+
+    // Scheduler runs at 10h overdue: zero warnings should exist
+    await checkAndEscalateDeadlines(T0 + 10 * ONE_HOUR_MS);
+    p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 0, 'Flags remain 0 before 24h threshold');
+
+    // Advance to 25h overdue: Normal warning escalation must occur
+    await checkAndEscalateDeadlines(T0 + 25 * ONE_HOUR_MS);
+    p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 1, 'Must normally escalate to Flag 1 at 25h overdue');
+
+    const warning1 = await models.ProjectActivity.findOne({
+      projectId: project._id,
+      action: 'deadline_warning_1',
+    });
+    assert.ok(warning1, 'Warning 1 must be logged');
+  });
+
+  // Scenario 24: FAIL-03 Issue 2: Completing Brand DNA before the deadline does not introduce unexpected behaviour
+  await t.test('24. Completing Brand DNA before the deadline does not introduce unexpected behaviour', async () => {
+    const futureDeadline = new Date(Date.now() + 7 * 24 * ONE_HOUR_MS);
+    const { project } = await createFixture({
+      deliveryDeadline: futureDeadline,
+      deadlineFlagsCount: 0,
+    });
+
+    // Brand DNA completed well ahead of committed delivery deadline
+    await models.BrandDNA.create({
+      projectId: project._id,
+      brandCore: { purpose: 'On-track project' },
+      status: 'ready',
+    });
+    await onBrandDnaCompleted(project._id.toString());
+
+    let p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 0, 'Flags remain 0');
+
+    // Scheduler runs now: project is on track
+    await checkAndEscalateDeadlines(Date.now());
+    p = await models.Project.findById(project._id);
+    assert.strictEqual(p.deadlineFlagsCount, 0, 'On-track project must have 0 flags');
+    assert.strictEqual(p.slaPausedAt, null, 'Must not be paused');
+
+    const activities = await models.ProjectActivity.find({
+      projectId: project._id,
+      action: { $in: ['deadline_warning_1', 'deadline_warning_2', 'deadline_warning_3', 'account_suspended_deadline_breach'] },
+    });
+    assert.strictEqual(activities.length, 0, 'Zero warning activities should be logged for on-track project');
   });
 });

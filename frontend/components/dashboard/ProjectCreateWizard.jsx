@@ -19,7 +19,6 @@ const initialFormData = {
   company: "",
   sector: "",
   value: "",
-  portal_password: "",
   advance: "",
   mid: "",
   final: "",
@@ -89,8 +88,7 @@ function validateClientInfo(formData) {
     !nextFormData.email ||
     !nextFormData.company ||
     !nextFormData.sector ||
-    !nextFormData.value ||
-    !nextFormData.portal_password
+    !nextFormData.value
   ) {
     return "Please complete all project fields.";
   }
@@ -101,10 +99,6 @@ function validateClientInfo(formData) {
 
   if (!/^\d+(\.\d{1,2})?$/.test(nextFormData.value) || Number(nextFormData.value) <= 0) {
     return "Project value must be a positive amount.";
-  }
-
-  if (nextFormData.portal_password.length < 8) {
-    return "Portal password must be at least 8 characters.";
   }
 
   return "";
@@ -132,7 +126,6 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
   const [createdPortalLink, setCreatedPortalLink] = useState("");
   const [projectCreateSuccess, setProjectCreateSuccess] = useState("");
   const [formData, setFormData] = useState(initialFormData);
-  const [showPassword, setShowPassword] = useState(false);
 
   const [createdProjectId, setCreatedProjectId] = useState(null);
   const [isEmailFailed, setIsEmailFailed] = useState(false);
@@ -143,6 +136,39 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
     return Number(formData.advance || 0) + Number(formData.mid || 0) + Number(formData.final || 0);
   }, [formData.advance, formData.final, formData.mid]);
   const isPaymentValid = hasPaymentValues && paymentTotal === 100;
+
+  const parsedProjectValue = useMemo(() => {
+    const val = Number(String(formData.value || "").trim());
+    return Number.isFinite(val) && val > 0 ? Math.round(val * 100) / 100 : 0;
+  }, [formData.value]);
+
+  const milestoneAmounts = useMemo(() => {
+    const round2 = (n) => Math.round(n * 100) / 100;
+    const advPct = Number(formData.advance || 0);
+    const midPct = Number(formData.mid || 0);
+    const finPct = Number(formData.final || 0);
+
+    if (parsedProjectValue <= 0) {
+      return { advance: 0, mid: 0, final: 0, total: 0 };
+    }
+
+    const advance = round2((parsedProjectValue * advPct) / 100);
+    const mid = round2((parsedProjectValue * midPct) / 100);
+    const final =
+      advPct + midPct + finPct === 100
+        ? round2(parsedProjectValue - advance - mid)
+        : round2((parsedProjectValue * finPct) / 100);
+
+    return {
+      advance,
+      mid,
+      final,
+      total: round2(advance + mid + final),
+    };
+  }, [parsedProjectValue, formData.advance, formData.mid, formData.final]);
+
+  const formatRs = (amount) =>
+    `Rs ${Number(amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
   const handlePaymentChange = (field) => (event) => {
     const rawVal = event.target.value;
@@ -237,7 +263,6 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
     setCreatedProjectId(null);
     setIsEmailFailed(false);
     setIsRetryingEmail(false);
-    setShowPassword(false);
     onClose?.();
   };
 
@@ -292,7 +317,7 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
         company: nextFormData.company,
         sector: nextFormData.sector,
         value: nextFormData.value,
-        portal_password: nextFormData.portal_password,
+        portal_password: "",
         advance: nextFormData.advance,
         mid: nextFormData.mid,
         final: nextFormData.final,
@@ -307,7 +332,10 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
         throw new Error("Project was created, but no client portal token was returned.");
       }
 
-      const portalLink = `${window.location.origin}/client/${portalToken}`;
+      const setupToken = createdProject.setup_token || "";
+      const portalLink = setupToken
+        ? `${window.location.origin}/client/${portalToken}?setup_token=${encodeURIComponent(setupToken)}`
+        : `${window.location.origin}/client/${portalToken}`;
 
       await copyClientPortalLink(portalLink);
 
@@ -410,38 +438,6 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
                 <label className="form-label">Project value (Rs)</label>
                 <input className="form-input" type="text" value={formData.value} onChange={handleFieldChange("value")} />
               </div>
-              <div className="form-group">
-                <label className="form-label">
-                  Portal password <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                  <input
-                    className="form-input"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter portal password (min. 8 characters)"
-                    value={formData.portal_password}
-                    onChange={handleFieldChange("portal_password")}
-                    style={{ paddingRight: "60px" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    style={{
-                      position: "absolute",
-                      right: "10px",
-                      background: "transparent",
-                      border: "none",
-                      color: "#8cb0a1",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                      fontWeight: "500",
-                    }}
-                  >
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
-                </div>
-              </div>
-
             </div>
 
             {projectCreateError ? <div className="project-wizard-note">{projectCreateError}</div> : null}
@@ -456,10 +452,30 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
 
         {wizardStep === 2 ? (
           <>
-            <div className="project-wizard-note">Payment splits - must sum to 100%</div>
+            <div
+              className="project-wizard-note"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}
+            >
+              <span>Payment splits - must sum to 100%</span>
+              {parsedProjectValue > 0 ? (
+                <span style={{ color: "#f3f8f2", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+                  Total: {formatRs(parsedProjectValue)}
+                </span>
+              ) : null}
+            </div>
             <div className="project-payment-grid">
               <div className="form-group">
-                <label className="form-label">Advance (%)</label>
+                <label
+                  className="form-label"
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}
+                >
+                  <span>Advance (%)</span>
+                  {parsedProjectValue > 0 ? (
+                    <span style={{ color: "#f3f8f2", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+                      {formatRs(milestoneAmounts.advance)}
+                    </span>
+                  ) : null}
+                </label>
                 <input
                   className="form-input"
                   max="100"
@@ -471,7 +487,17 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Mid (%)</label>
+                <label
+                  className="form-label"
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}
+                >
+                  <span>Mid (%)</span>
+                  {parsedProjectValue > 0 ? (
+                    <span style={{ color: "#f3f8f2", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+                      {formatRs(milestoneAmounts.mid)}
+                    </span>
+                  ) : null}
+                </label>
                 <input
                   className="form-input"
                   max="100"
@@ -483,7 +509,17 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Final (%)</label>
+                <label
+                  className="form-label"
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "8px" }}
+                >
+                  <span>Final (%)</span>
+                  {parsedProjectValue > 0 ? (
+                    <span style={{ color: "#f3f8f2", fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>
+                      {formatRs(milestoneAmounts.final)}
+                    </span>
+                  ) : null}
+                </label>
                 <input
                   className="form-input"
                   max="100"
@@ -548,15 +584,13 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
               </div>
               <div className="project-review-row">
                 <span>Value</span>
-                <strong>Rs{formData.value}</strong>
+                <strong>{formatRs(parsedProjectValue || formData.value)}</strong>
               </div>
               <div className="project-review-row">
                 <span>Payment Split</span>
-                <strong>{formData.advance}% Advance / {formData.mid}% Mid / {formData.final}% Final</strong>
-              </div>
-              <div className="project-review-row">
-                <span>Portal Password</span>
-                <strong>{showPassword ? formData.portal_password : "••••••••"}</strong>
+                <strong>
+                  {formData.advance}% Advance ({formatRs(milestoneAmounts.advance)}) / {formData.mid}% Mid ({formatRs(milestoneAmounts.mid)}) / {formData.final}% Final ({formatRs(milestoneAmounts.final)})
+                </strong>
               </div>
             </div>
 

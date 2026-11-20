@@ -162,20 +162,15 @@ export async function createProject(req: any, res: Response, next: NextFunction)
     const sector = (body.sector || 'General').trim();
     const projectTitle = (body.title || companyName || clientName || 'New Project').trim();
     const rawValue = body.project_value !== undefined ? body.project_value : body.value;
-    const projectValue = parseFloat(rawValue || '0');
+    const rawValueStr = rawValue !== undefined && rawValue !== null ? String(rawValue).trim() : '';
 
-    const advancePercentage = parseInt(
-      body.advance_percentage !== undefined ? body.advance_percentage : body.advance ?? '50',
-      10
-    );
-    const midPercentage = parseInt(
-      body.mid_percentage !== undefined ? body.mid_percentage : body.mid ?? '25',
-      10
-    );
-    const finalPercentage = parseInt(
-      body.final_percentage !== undefined ? body.final_percentage : body.final ?? '25',
-      10
-    );
+    const rawAdvance = body.advance_percentage !== undefined ? body.advance_percentage : body.advance ?? 50;
+    const rawMid = body.mid_percentage !== undefined ? body.mid_percentage : body.mid ?? 25;
+    const rawFinal = body.final_percentage !== undefined ? body.final_percentage : body.final ?? 25;
+
+    const advancePercentage = Number(rawAdvance);
+    const midPercentage = Number(rawMid);
+    const finalPercentage = Number(rawFinal);
     const revisionLimit = String(body.revision_limit || body.revisions || '3 revisions').trim();
     const portalPassword = (body.portal_password || '').trim();
     const sendInvite = body.send_invite !== undefined ? Boolean(body.send_invite) : true;
@@ -190,6 +185,32 @@ export async function createProject(req: any, res: Response, next: NextFunction)
     const cleanClientEmail = clientEmail.trim().toLowerCase();
     if (!EMAIL_REGEX.test(cleanClientEmail)) {
       res.status(400).json({ detail: 'Please enter a valid client email address.' });
+      return;
+    }
+
+    if (!rawValueStr || !/^\d+(\.\d{1,2})?$/.test(rawValueStr)) {
+      res.status(400).json({ detail: 'Project value must be a valid positive amount (up to 2 decimal places).' });
+      return;
+    }
+
+    const projectValue = Math.round(Number(rawValueStr) * 100) / 100;
+    if (!Number.isFinite(projectValue) || projectValue <= 0) {
+      res.status(400).json({ detail: 'Project value must be greater than 0.' });
+      return;
+    }
+
+    if (
+      !Number.isInteger(advancePercentage) ||
+      !Number.isInteger(midPercentage) ||
+      !Number.isInteger(finalPercentage) ||
+      advancePercentage < 0 ||
+      advancePercentage > 100 ||
+      midPercentage < 0 ||
+      midPercentage > 100 ||
+      finalPercentage < 0 ||
+      finalPercentage > 100
+    ) {
+      res.status(400).json({ detail: 'Each payment split percentage must be a whole number between 0 and 100.' });
       return;
     }
 
@@ -217,6 +238,16 @@ export async function createProject(req: any, res: Response, next: NextFunction)
 
     const portalToken = crypto.randomUUID();
 
+    // Generate cryptographically secure one-time first-time setup token when no password is set
+    let rawSetupToken = '';
+    let portalSetupTokenHash: string | null = null;
+    let portalSetupTokenExpires: Date | null = null;
+    if (!portalPasswordHash) {
+      rawSetupToken = crypto.randomBytes(32).toString('hex');
+      portalSetupTokenHash = crypto.createHash('sha256').update(rawSetupToken).digest('hex');
+      portalSetupTokenExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    }
+
     const project = await Project.create({
       consultantId: req.user.id,
       clientId: client.id,
@@ -230,6 +261,8 @@ export async function createProject(req: any, res: Response, next: NextFunction)
       revisionLimit: revisionLimit,
       portalToken,
       portalPasswordHash,
+      portalSetupTokenHash,
+      portalSetupTokenExpires,
       progress: 5,
     });
 
@@ -242,10 +275,11 @@ export async function createProject(req: any, res: Response, next: NextFunction)
       industry: sector,
     });
 
-    // Initialize payment milestones
-    const advanceAmount = (projectValue * advancePercentage) / 100;
-    const midAmount = (projectValue * midPercentage) / 100;
-    const finalAmount = (projectValue * finalPercentage) / 100;
+    // Initialize payment milestones (server-calculated, exact sum to projectValue)
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const advanceAmount = round2((projectValue * advancePercentage) / 100);
+    const midAmount = round2((projectValue * midPercentage) / 100);
+    const finalAmount = round2(projectValue - advanceAmount - midAmount);
 
     await PaymentMilestone.insertMany([
       {
@@ -295,7 +329,7 @@ export async function createProject(req: any, res: Response, next: NextFunction)
         const baseUrlOverride = resolveSafeFrontendOrigin(
           (req.get('origin') || req.headers?.origin || req.headers?.referer) as string | undefined
         );
-        await sendClientPortalInvite(inviteTarget, portalPassword, baseUrlOverride);
+        await sendClientPortalInvite(inviteTarget, portalPassword, baseUrlOverride, rawSetupToken || undefined);
         inviteEmailSent = true;
         inviteEmailStatus = 'sent';
       } catch (err: any) {
@@ -307,6 +341,7 @@ export async function createProject(req: any, res: Response, next: NextFunction)
     const serialized = serializeProject(populatedProject || project, 'created');
     const responseData = {
       project: serialized,
+      setup_token: rawSetupToken || undefined,
       invite_email_sent: inviteEmailSent,
       invite_email_status: inviteEmailStatus,
       invite_email_detail: inviteEmailSent
@@ -412,10 +447,18 @@ export async function retryInvite(req: any, res: Response, next: NextFunction) {
       return;
     }
 
+    let rawSetupToken: string | undefined = undefined;
+    if (!project.portalPasswordHash) {
+      rawSetupToken = crypto.randomBytes(32).toString('hex');
+      project.portalSetupTokenHash = crypto.createHash('sha256').update(rawSetupToken).digest('hex');
+      project.portalSetupTokenExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await project.save();
+    }
+
     const baseUrlOverride = resolveSafeFrontendOrigin(
       (req.get('origin') || req.headers?.origin || req.headers?.referer) as string | undefined
     );
-    await sendClientPortalInvite(project, undefined, baseUrlOverride);
+    await sendClientPortalInvite(project, undefined, baseUrlOverride, rawSetupToken);
     res.json({ success: true, message: 'Invite email resent.' });
   } catch (err) {
     next(err);

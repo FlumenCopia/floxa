@@ -21,11 +21,23 @@ const verifyPortalPasswordLimiter = createRateLimiter({
   keyGenerator: (req) => String(req.params.portal_token || ''),
 });
 
+const portalPasswordActionLimiter = createRateLimiter({
+  keyPrefix: 'portal_pw_action',
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: 'Too many password requests. Please wait before trying again.',
+  keyGenerator: (req) => String(req.params.portal_token || ''),
+});
+
 // Consultant project switcher dropdown
 router.get('/client-list/', requireAuth, portalController.getClientList);
 
-// Public / Password verify routes
+// Public / Password verify, authorized setup & token-validated reset routes
 router.post('/:portal_token/verify-password/', verifyPortalPasswordLimiter, portalController.verifyPortalPassword);
+router.get('/:portal_token/validate-token/', portalPasswordActionLimiter, portalController.validatePortalActionToken);
+router.post('/:portal_token/set-password/', portalPasswordActionLimiter, portalController.setPortalPassword);
+router.post('/:portal_token/forgot-password/', portalPasswordActionLimiter, portalController.forgotPortalPassword);
+router.post('/:portal_token/reset-password/', portalPasswordActionLimiter, portalController.resetPortalPassword);
 router.post('/:portal_token/logout/', portalController.logoutPortal);
 
 // Protected client portal routes (also check optionalAuth for consultant support mode)

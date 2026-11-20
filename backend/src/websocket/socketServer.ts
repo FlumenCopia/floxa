@@ -11,7 +11,7 @@ import { ENV } from '../config/env.js';
 import { resolveAuthenticatedConsultant } from '../services/auth.service.js';
 import { logProjectActivity, onActivityCreated } from '../services/project.service.js';
 import { serializeProjectActivity, serializeClientPortalActivity } from '../utils/serializer.js';
-import { unsignPortalAccessToken } from '../utils/crypto.js';
+import { verifyPortalAccessTokenForProject } from '../utils/crypto.js';
 import { resolveSafeMediaPath, getMimeType } from '../services/storage.service.js';
 import { notifyConsultant, notifyClient } from '../services/pushNotification.service.js';
 
@@ -385,6 +385,28 @@ export function disconnectConsultantSockets(consultantId: string, code = 4001, r
         } catch {}
       }
     });
+  });
+}
+
+/**
+ * Immediately terminates all active client-role WebSocket connections for a project
+ * (e.g. on portal password reset or initial password setup). Consultant sockets remain intact.
+ */
+export function disconnectPortalClientSockets(
+  projectId: string,
+  code = 4001,
+  reason = 'Password reset'
+) {
+  const id = String(projectId);
+  const conns = projectSockets.get(id);
+  if (!conns) return;
+
+  conns.forEach((c) => {
+    if (c.role === 'client') {
+      try {
+        c.ws.close(code, reason);
+      } catch {}
+    }
   });
 }
 
@@ -849,11 +871,16 @@ export function setupWebSocketServer(server: Server) {
         (query.portal_access_token as string) ||
         (query.access_token as string);
 
-      const verified = signedAccess
-        ? unsignPortalAccessToken(String(signedAccess), ENV.PORTAL_ACCESS_MAX_AGE)
-        : null;
+      const isAuthorized = signedAccess
+        ? verifyPortalAccessTokenForProject(
+            String(signedAccess),
+            portalToken,
+            project.portalSessionVersion || 0,
+            ENV.PORTAL_ACCESS_MAX_AGE
+          )
+        : false;
 
-      if (!verified || verified !== portalToken) {
+      if (!isAuthorized) {
         ws.send(JSON.stringify({ type: 'ERROR', message: 'Portal password verification required' }));
         ws.close(4003);
         return;

@@ -22,9 +22,7 @@ function getResumeScreen(status) {
   const normalizedStatus = String(status || "").toLowerCase();
 
   if (normalizedStatus === "profile_complete") {
-
-
-    return "fonts";
+    return "discovery";
   }
 
   if (normalizedStatus === "discovery_complete") {
@@ -38,7 +36,7 @@ function getResumeScreen(status) {
   return "profile";
 }
 
-const VALID_SCREENS = ["splash", "login", "profile", "fonts", "discovery", "review", "dashboard"];
+const VALID_SCREENS = ["splash", "login", "profile", "discovery", "review", "dashboard"];
 
 function getScreenStorageKey(token) {
   return `floxa-client-screen-${token || "test-token"}`;
@@ -114,17 +112,16 @@ function isClientProfileComplete(savedProfile) {
     return true;
   }
 
-  return Boolean(
-    savedProfile.clientYearStart ||
-    savedProfile.year_started ||
-    savedProfile.yearStarted ||
-    (typeof savedProfile.clientLocation === "string" && savedProfile.clientLocation.trim()) ||
-    (typeof savedProfile.location === "string" && savedProfile.location.trim()) ||
-    (typeof savedProfile.clientPhone === "string" && savedProfile.clientPhone.trim()) ||
-    (typeof savedProfile.phone === "string" && savedProfile.phone.trim()) ||
-    (typeof savedProfile.clientWebsite === "string" && savedProfile.clientWebsite.trim()) ||
-    (typeof savedProfile.website === "string" && savedProfile.website.trim())
-  );
+  const hasName = Boolean(savedProfile.clientName || savedProfile.client_name || savedProfile.name);
+  const hasCompany = Boolean(savedProfile.companyName || savedProfile.company_name || savedProfile.company);
+  const hasIndustry = Boolean(savedProfile.industry);
+  const hasYear = Boolean(savedProfile.clientYearStart || savedProfile.year_started || savedProfile.yearStarted || savedProfile.yearStart);
+  const hasLocation = Boolean((savedProfile.clientLocation || savedProfile.location || "").trim());
+  const hasPhone = Boolean((savedProfile.clientPhone || savedProfile.phone || "").trim());
+  const hasEmail = Boolean((savedProfile.clientEmail || savedProfile.email || "").trim());
+  const hasWebsite = Boolean((savedProfile.clientWebsite || savedProfile.website || "").trim());
+
+  return Boolean(hasName && hasCompany && hasIndustry && hasYear && hasLocation && hasPhone && hasEmail && hasWebsite);
 }
 
 function hasDiscoveryAnswers(savedDiscovery) {
@@ -187,8 +184,8 @@ function getBackendResumeScreen(savedProfile, savedDiscovery, project) {
     return "discovery";
   }
 
-  // 5. Profile is complete, but discovery questionnaire has not been answered yet: route to font selection!
-  return "fonts";
+  // 5. Profile is complete, but discovery questionnaire has not been answered yet: route to discovery!
+  return "discovery";
 }
 
 function writeDiscoveryDraft(projectId, discovery) {
@@ -234,6 +231,8 @@ export function ClientPortal({ token, isConsultant = false }) {
     searchParams?.get("consultant") === "true" ||
     (typeof window !== "undefined" && window.location.pathname.startsWith("/client-portal"));
   const consultantToken = searchParams?.get("consultant_token") || "";
+  const setupToken = searchParams?.get("setup_token") || "";
+  const resetToken = searchParams?.get("reset_token") || "";
 
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -244,6 +243,7 @@ export function ClientPortal({ token, isConsultant = false }) {
   const [clientData, setClientData] = useState({});
   const [profileReturnScreen, setProfileReturnScreen] = useState("");
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
+  const [prefilledEmail, setPrefilledEmail] = useState("");
 
   const applyProject = useCallback((portalProject) => {
     setProject(portalProject);
@@ -269,7 +269,7 @@ export function ClientPortal({ token, isConsultant = false }) {
       writeStoredStep(token, options.step);
     }
     setProfileReturnScreen(
-      nextScreen === "profile" && ["dashboard", "review", "fonts"].includes(screen) ? screen : ""
+      nextScreen === "profile" && ["dashboard", "review"].includes(screen) ? screen : ""
     );
     writeStoredScreen(token, nextScreen);
     setScreen(nextScreen);
@@ -347,6 +347,29 @@ export function ClientPortal({ token, isConsultant = false }) {
     return response;
   };
 
+  const handlePasswordSetComplete = async () => {
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      let urlChanged = false;
+      for (const param of ["reset", "reset_token", "setup_token"]) {
+        if (url.searchParams.has(param)) {
+          url.searchParams.delete(param);
+          urlChanged = true;
+        }
+      }
+      if (urlChanged) {
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+
+    const projectResponse = await clientPortalService.getProject(token);
+    const verifiedProject = projectResponse?.success && projectResponse.data ? projectResponse.data : project;
+    const targetScreen = verifiedProject ? await loadSavedPortalProgress(verifiedProject) : "profile";
+    const destination = targetScreen || "profile";
+    setResumeTargetScreen(destination);
+    goToScreen(destination);
+  };
+
   useEffect(() => {
     clientPortalService
       .createSession(token)
@@ -370,6 +393,9 @@ export function ClientPortal({ token, isConsultant = false }) {
         }
 
         if (sessionResult?.requirePassword) {
+          if (sessionResult.clientEmail) {
+            setPrefilledEmail(sessionResult.clientEmail);
+          }
           setResumeTargetScreen("");
           setScreen("login");
           return;
@@ -409,6 +435,16 @@ export function ClientPortal({ token, isConsultant = false }) {
 
               const verifiedProject = accessResponse.data || portalProject;
               applyProject(verifiedProject);
+
+              const hasResetToken = Boolean(resetToken);
+              const isPasswordMissing = !verifiedProject.has_password && !verifiedProject.hasPassword;
+
+              if (!isConsultantMode && (hasResetToken || isPasswordMissing)) {
+                setResumeTargetScreen("");
+                setScreen("splash");
+                return;
+              }
+
               const nextScreen = await loadSavedPortalProgress(verifiedProject);
               setResumeTargetScreen(nextScreen);
               const stored = readStoredScreen(token);
@@ -512,9 +548,13 @@ export function ClientPortal({ token, isConsultant = false }) {
     requiresPassword: isRealPortalToken(token),
     isConsultantMode,
     consultantToken,
+    setupToken,
+    resetToken,
     onNext: goToScreen,
     initialStep: editStep,
+    prefilledEmail,
     onVerifyPassword: handlePortalAccess,
+    onPasswordSetComplete: handlePasswordSetComplete,
     onProjectRefresh: refreshProject,
   };
 
@@ -526,11 +566,18 @@ export function ClientPortal({ token, isConsultant = false }) {
       {currentScreen === "splash" || currentScreen === "login" ? (
         <WelcomeStage
           {...screenProps}
-          initialMode={currentScreen === "login" ? "login" : "splash"}
+          initialMode={
+            !isConsultantMode && Boolean(resetToken)
+              ? "reset-password"
+              : currentScreen === "login"
+              ? "login"
+              : "splash"
+          }
         />
       ) : null}
       {currentScreen === "profile" ? <ProfileScreen {...screenProps} /> : null}
-      {currentScreen === "fonts" ? <FontSelectionScreen {...screenProps} /> : null}
+      {/* FontSelectionScreen temporarily commented out */}
+      {/* {currentScreen === "fonts" ? <FontSelectionScreen {...screenProps} /> : null} */}
       {currentScreen === "discovery" ? (
         <DiscoveryFlow
           key={`discovery-flow-${token || project?.portal_token || "portal"}`}
