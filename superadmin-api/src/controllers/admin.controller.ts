@@ -231,26 +231,40 @@ export async function getConsultants(req: AdminAuthRequest, res: Response) {
       Consultant.countDocuments(filter),
     ]);
 
-    // Aggregate project counts for each consultant
-    const consultantIds = consultants.map((c) => c._id);
+    // Aggregate project and client counts per consultant
+    const consultantIds = consultants.map((c: any) => c._id);
     const projectCountsRaw = await Project.aggregate([
-      { $match: { consultantId: { $in: consultantIds } } },
+      { $match: { consultantId: { $in: consultantIds }, isArchived: { $ne: true } } },
       { $group: { _id: '$consultantId', count: { $sum: 1 } } },
     ]);
 
     const countMap = new Map<string, number>();
     projectCountsRaw.forEach((p) => {
-      countMap.set(p._id.toString(), p.count);
+      if (p._id) countMap.set(p._id.toString(), p.count);
+    });
+
+    const clientCountsRaw = await Project.aggregate([
+      { $match: { isArchived: { $ne: true }, clientId: { $ne: null } } },
+      { $group: { _id: { consultantId: '$consultantId', clientId: '$clientId' } } },
+      { $group: { _id: '$_id.consultantId', count: { $sum: 1 } } },
+    ]);
+
+    const clientCountMap = new Map<string, number>();
+    clientCountsRaw.forEach((cl) => {
+      if (cl._id) clientCountMap.set(cl._id.toString(), cl.count);
     });
 
     const enriched = consultants.map((c: any) => ({
       ...c,
       id: c._id.toString(),
       projectsCount: countMap.get(c._id.toString()) || 0,
+      clientsCount: clientCountMap.get(c._id.toString()) || 0,
       subscription: c.subscription || {
         plan: 'free',
         status: c.isActive ? 'active' : 'suspended',
-        maxProjects: 5,
+        maxProjects: 2,
+        maxClients: 2,
+        billingCycle: 'monthly',
       },
     }));
 
@@ -812,13 +826,28 @@ export async function getSystemStatus(req: AdminAuthRequest, res: Response) {
 
 export async function createConsultant(req: AdminAuthRequest, res: Response) {
   try {
-    const { name, email, password, company, phone, plan, maxProjects } = req.body || {};
+    const {
+      name,
+      email,
+      password,
+      company,
+      phone,
+      isActive,
+      plan,
+      billingCycle,
+      durationMonths,
+      currentPeriodEnd,
+      isLifetime,
+      customMaxProjects,
+      customMaxClients,
+    } = req.body || {};
 
     const cleanEmail = String(email || '').trim().toLowerCase();
     const cleanName = String(name || '').trim();
     const cleanPassword = String(password || '').trim();
     const cleanCompany = String(company || '').trim();
     const cleanPhone = String(phone || '').trim();
+    const isAccountActive = isActive !== false;
 
     const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -849,20 +878,45 @@ export async function createConsultant(req: AdminAuthRequest, res: Response) {
       return;
     }
 
-    const validPlans = ['free', 'starter', 'pro', 'enterprise'];
-    const chosenPlan = validPlans.includes(plan) ? plan : 'free';
+    // Resolve subscription plan
+    const { SubscriptionPlan } = await import('../models/subscriptionPlan.model.js');
+    const planSlug = String(plan || 'free').toLowerCase();
+    let matchedPlan = await SubscriptionPlan.findOne({ slug: planSlug }).lean();
+    if (!matchedPlan) {
+      matchedPlan = await SubscriptionPlan.findOne({ isDefault: true }).lean();
+    }
+    if (!matchedPlan) {
+      matchedPlan = await SubscriptionPlan.findOne({ slug: 'free' }).lean();
+    }
 
-    let defaultMaxProjects = 5;
-    if (chosenPlan === 'free') defaultMaxProjects = 3;
-    else if (chosenPlan === 'starter') defaultMaxProjects = 10;
-    else if (chosenPlan === 'pro') defaultMaxProjects = 30;
-    else if (chosenPlan === 'enterprise') defaultMaxProjects = 999;
+    const effectivePlanSlug = matchedPlan?.slug || planSlug;
+    const planMaxProjects = matchedPlan?.limits?.maxProjects ?? 2;
+    const planMaxClients = matchedPlan?.limits?.maxClients ?? 2;
 
-    const chosenMaxProjects =
-      typeof maxProjects === 'number' && maxProjects >= 0
-        ? Math.min(10000, maxProjects)
-        : defaultMaxProjects;
+    const chosenBillingCycle = ['monthly', 'semi_annual', 'yearly', 'custom'].includes(billingCycle)
+      ? billingCycle
+      : 'monthly';
 
+    // Calculate expiry / periodEnd
+    const now = new Date();
+    let periodEnd: Date | null = null;
+    if (isLifetime) {
+      periodEnd = null; // No expiry / lifetime
+    } else if (currentPeriodEnd) {
+      periodEnd = new Date(currentPeriodEnd);
+    } else {
+      const months = durationMonths
+        ? Number(durationMonths)
+        : chosenBillingCycle === 'yearly'
+        ? 12
+        : chosenBillingCycle === 'semi_annual'
+        ? 6
+        : 1;
+      periodEnd = new Date(now);
+      periodEnd.setMonth(periodEnd.getMonth() + months);
+    }
+
+    const gracePeriodEnd = periodEnd ? new Date(periodEnd.getTime() + 5 * 24 * 60 * 60 * 1000) : null;
     const passwordHash = await bcrypt.hash(cleanPassword, 10);
 
     const consultant = await Consultant.create({
@@ -871,15 +925,25 @@ export async function createConsultant(req: AdminAuthRequest, res: Response) {
       password: passwordHash,
       company: cleanCompany,
       phone: cleanPhone,
-      isActive: true,
+      isActive: isAccountActive,
       isStaff: false,
       subscription: {
-        plan: chosenPlan,
-        status: 'active',
-        maxProjects: chosenMaxProjects,
+        planId: matchedPlan?._id,
+        plan: effectivePlanSlug,
+        status: isAccountActive ? 'active' : 'suspended',
+        billingCycle: chosenBillingCycle,
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd || undefined,
+        gracePeriodEnd: gracePeriodEnd || undefined,
+        maxProjects: planMaxProjects,
+        maxClients: planMaxClients,
+        customLimitOverrides: {
+          maxProjects: typeof customMaxProjects === 'number' ? customMaxProjects : null,
+          maxClients: typeof customMaxClients === 'number' ? customMaxClients : null,
+        },
       },
       aiUsage: {
-        plan: chosenPlan,
+        plan: effectivePlanSlug,
         toolRuns: {},
       },
     });
@@ -899,8 +963,8 @@ export async function createConsultant(req: AdminAuthRequest, res: Response) {
     res.status(201).json({
       success: true,
       message: emailDispatched
-        ? `Customer account created and welcome email sent to ${consultant.email}.`
-        : 'Customer account created successfully.',
+        ? `Customer account created with ${effectivePlanSlug.toUpperCase()} subscription, credentials emailed to ${consultant.email}.`
+        : `Customer account created successfully with ${effectivePlanSlug.toUpperCase()} subscription.`,
       emailDispatched,
       consultant: {
         id: consultant._id.toString(),
@@ -915,6 +979,194 @@ export async function createConsultant(req: AdminAuthRequest, res: Response) {
     });
   } catch (err: any) {
     res.status(500).json({ detail: 'Failed to create B2B Customer account.', error: err.message });
+  }
+}
+
+export async function updateConsultant(req: AdminAuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ detail: 'Invalid consultant ID format.' });
+      return;
+    }
+
+    const consultant = await Consultant.findById(id);
+    if (!consultant) {
+      res.status(404).json({ detail: 'Consultant not found.' });
+      return;
+    }
+
+    const {
+      name,
+      email,
+      password,
+      company,
+      phone,
+      isActive,
+      plan,
+      billingCycle,
+      status: subStatus,
+      currentPeriodEnd,
+      isLifetime,
+      customMaxProjects,
+      customMaxClients,
+      maxProjects,
+      maxClients,
+    } = req.body || {};
+
+    if (name !== undefined) consultant.name = String(name).trim();
+    if (company !== undefined) consultant.company = String(company).trim();
+    if (phone !== undefined) consultant.phone = String(phone).trim();
+
+    if (email !== undefined) {
+      const cleanEmail = String(email).trim().toLowerCase();
+      const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!EMAIL_REGEX.test(cleanEmail)) {
+        res.status(400).json({ detail: 'Invalid email address.' });
+        return;
+      }
+      if (cleanEmail !== consultant.email) {
+        const existing = await Consultant.findOne({ email: cleanEmail, _id: { $ne: consultant._id } });
+        if (existing) {
+          res.status(409).json({ detail: 'A customer account with this email address already exists.' });
+          return;
+        }
+        consultant.email = cleanEmail;
+      }
+    }
+
+    if (password && String(password).trim().length >= 8) {
+      consultant.password = await bcrypt.hash(String(password).trim(), 10);
+      consultant.tokenVersion = (consultant.tokenVersion || 0) + 1;
+    }
+
+    if (typeof isActive === 'boolean') {
+      consultant.isActive = isActive;
+      if (!isActive) {
+        consultant.isSuspended = true;
+        consultant.suspendedAt = new Date();
+      } else {
+        consultant.isSuspended = false;
+        consultant.suspendedAt = null;
+        consultant.suspensionReason = '';
+      }
+    }
+
+    // Subscription management updates
+    if (!consultant.subscription) {
+      consultant.subscription = {
+        plan: 'free',
+        status: consultant.isActive ? 'active' : 'suspended',
+        maxProjects: 2,
+        maxClients: 2,
+        billingCycle: 'monthly',
+      };
+    }
+
+    if (plan) {
+      const { SubscriptionPlan } = await import('../models/subscriptionPlan.model.js');
+      const planSlug = String(plan).trim().toLowerCase();
+      const matchedPlan = await SubscriptionPlan.findOne({ slug: planSlug }).lean();
+      consultant.subscription.plan = planSlug;
+      if (matchedPlan) {
+        consultant.subscription.planId = matchedPlan._id;
+        consultant.subscription.maxProjects = matchedPlan.limits?.maxProjects ?? 2;
+        consultant.subscription.maxClients = matchedPlan.limits?.maxClients ?? 2;
+      }
+    }
+
+    if (billingCycle && ['monthly', 'semi_annual', 'yearly', 'custom'].includes(billingCycle)) {
+      consultant.subscription.billingCycle = billingCycle;
+    }
+
+    if (subStatus && ['active', 'grace_period', 'expired', 'suspended'].includes(subStatus)) {
+      consultant.subscription.status = subStatus;
+    }
+
+    if (isLifetime) {
+      consultant.subscription.currentPeriodEnd = undefined;
+      consultant.subscription.gracePeriodEnd = undefined;
+    } else if (currentPeriodEnd !== undefined) {
+      if (currentPeriodEnd === null || currentPeriodEnd === '') {
+        consultant.subscription.currentPeriodEnd = undefined;
+        consultant.subscription.gracePeriodEnd = undefined;
+      } else {
+        const pEnd = new Date(currentPeriodEnd);
+        consultant.subscription.currentPeriodEnd = pEnd;
+        consultant.subscription.gracePeriodEnd = new Date(pEnd.getTime() + 5 * 24 * 60 * 60 * 1000);
+      }
+    }
+
+    // Custom limit overrides
+    if (!consultant.subscription.customLimitOverrides) {
+      consultant.subscription.customLimitOverrides = {};
+    }
+
+    if (customMaxProjects !== undefined) {
+      consultant.subscription.customLimitOverrides.maxProjects =
+        customMaxProjects === null || customMaxProjects === '' ? null : Number(customMaxProjects);
+    }
+    if (customMaxClients !== undefined) {
+      consultant.subscription.customLimitOverrides.maxClients =
+        customMaxClients === null || customMaxClients === '' ? null : Number(customMaxClients);
+    }
+
+    if (typeof maxProjects === 'number') {
+      consultant.subscription.maxProjects = maxProjects;
+    }
+    if (typeof maxClients === 'number') {
+      consultant.subscription.maxClients = maxClients;
+    }
+
+    consultant.markModified('subscription');
+    await consultant.save();
+
+    res.json({
+      success: true,
+      message: 'Consultant details and subscription updated successfully.',
+      consultant: {
+        id: consultant._id.toString(),
+        name: consultant.name,
+        email: consultant.email,
+        company: consultant.company,
+        phone: consultant.phone,
+        isActive: consultant.isActive,
+        isSuspended: Boolean(consultant.isSuspended),
+        subscription: consultant.subscription,
+        updatedAt: consultant.updatedAt,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ detail: 'Failed to update consultant.', error: err.message });
+  }
+}
+
+export async function deleteConsultant(req: AdminAuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ detail: 'Invalid consultant ID format.' });
+      return;
+    }
+
+    const consultant = await Consultant.findById(id);
+    if (!consultant) {
+      res.status(404).json({ detail: 'Consultant not found.' });
+      return;
+    }
+
+    // Archive all projects belonging to this consultant
+    await Project.updateMany({ consultantId: consultant._id }, { $set: { isArchived: true } });
+
+    // Permanently remove consultant
+    await Consultant.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: `Consultant account "${consultant.name}" (${consultant.email}) has been permanently deleted.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ detail: 'Failed to delete consultant.', error: err.message });
   }
 }
 

@@ -188,8 +188,8 @@ export interface IConsultantQuotaUsage {
   status: 'active' | 'grace_period' | 'expired' | 'suspended';
   billingCycle: string;
   currentPeriodStart: Date;
-  currentPeriodEnd: Date;
-  gracePeriodEnd: Date;
+  currentPeriodEnd: Date | null;
+  gracePeriodEnd: Date | null;
   daysRemaining: number;
   isGracePeriod: boolean;
   isExpired: boolean;
@@ -261,28 +261,35 @@ export async function getConsultantSubscriptionDetails(
   const now = new Date();
   const periodEnd = consultant.subscription?.currentPeriodEnd
     ? new Date(consultant.subscription.currentPeriodEnd)
-    : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    : consultant.subscription?.plan === 'free'
+    ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000)
+    : null;
 
   const gracePeriodEnd = consultant.subscription?.gracePeriodEnd
     ? new Date(consultant.subscription.gracePeriodEnd)
-    : new Date(periodEnd.getTime() + 5 * 24 * 60 * 60 * 1000);
+    : periodEnd
+    ? new Date(periodEnd.getTime() + 5 * 24 * 60 * 60 * 1000)
+    : null;
 
-  const isExpired = now > gracePeriodEnd;
-  const isGracePeriod = !isExpired && now > periodEnd;
+  const isExpired = periodEnd ? now > (gracePeriodEnd || periodEnd) : false;
+  const isGracePeriod = periodEnd ? (!isExpired && now > periodEnd) : false;
 
   let computedStatus: 'active' | 'grace_period' | 'expired' | 'suspended' = 'active';
   if (consultant.isActive === false || consultant.isSuspended) {
     computedStatus = 'suspended';
-  } else if (isExpired) {
+  } else if (consultant.subscription?.status === 'suspended') {
+    computedStatus = 'suspended';
+  } else if (consultant.subscription?.status === 'expired' || isExpired) {
+    computedStatus = 'expired';
+  } else if (consultant.subscription?.status === 'inactive') {
     computedStatus = 'expired';
   } else if (isGracePeriod) {
     computedStatus = 'grace_period';
   }
 
-  const daysRemaining = Math.max(
-    0,
-    Math.ceil((periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-  );
+  const daysRemaining = periodEnd
+    ? Math.max(0, Math.ceil((periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+    : 999;
 
   const projectPct =
     effectiveMaxProjects === -1
@@ -351,7 +358,7 @@ export async function checkConsultantProjectQuota(
     };
   }
 
-  if (details.isExpired) {
+  if (details.status === 'expired' || details.isExpired) {
     return {
       allowed: false,
       current: details.projects.current,
@@ -359,6 +366,17 @@ export async function checkConsultantProjectQuota(
       planName: details.plan.name,
       reason: `Your subscription has expired. Please renew your plan (${details.plan.name}) to onboard more projects.`,
       code: 'SUBSCRIPTION_EXPIRED',
+    };
+  }
+
+  if (details.plan.slug === 'none') {
+    return {
+      allowed: false,
+      current: details.projects.current,
+      max: 0,
+      planName: details.plan.name,
+      reason: 'An active subscription plan is required to create projects. Please choose or activate a plan.',
+      code: 'SUBSCRIPTION_REQUIRED',
     };
   }
 

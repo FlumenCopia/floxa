@@ -119,12 +119,47 @@ export const adminApi = {
     password: string;
     company?: string;
     phone?: string;
+    isActive?: boolean;
     plan?: string;
-    maxProjects?: number;
+    billingCycle?: string;
+    durationMonths?: number;
+    currentPeriodEnd?: string;
+    isLifetime?: boolean;
+    customMaxProjects?: number | null;
+    customMaxClients?: number | null;
   }) {
     return request('/admin/consultants', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  async updateConsultant(id: string, data: {
+    name?: string;
+    email?: string;
+    password?: string;
+    company?: string;
+    phone?: string;
+    isActive?: boolean;
+    plan?: string;
+    billingCycle?: string;
+    status?: string;
+    currentPeriodEnd?: string | null;
+    isLifetime?: boolean;
+    customMaxProjects?: number | null;
+    customMaxClients?: number | null;
+    maxProjects?: number;
+    maxClients?: number;
+  }) {
+    return request(`/admin/consultants/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteConsultant(id: string) {
+    return request(`/admin/consultants/${id}`, {
+      method: 'DELETE',
     });
   },
 
@@ -162,6 +197,10 @@ export const adminApi = {
 
   // Dynamic Subscription Plans
   async getPlans() {
+    return request('/admin/plans');
+  },
+
+  async listPlans() {
     return request('/admin/plans');
   },
 

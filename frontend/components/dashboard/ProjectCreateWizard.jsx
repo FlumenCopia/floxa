@@ -363,7 +363,10 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
       const isLimit =
         error?.code === "SUBSCRIPTION_LIMIT_REACHED" ||
         error?.code === "SUBSCRIPTION_CLIENT_LIMIT_REACHED" ||
-        error?.code === "SUBSCRIPTION_EXPIRED";
+        error?.code === "SUBSCRIPTION_EXPIRED" ||
+        error?.code === "SUBSCRIPTION_REQUIRED" ||
+        error?.code === "SUBSCRIPTION_INACTIVE" ||
+        error?.code === "ACCOUNT_SUSPENDED";
       if (isLimit) {
         setSubscriptionLimitError(error);
       }

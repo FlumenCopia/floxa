@@ -1102,7 +1102,59 @@ export default function Floxaheader({
             </div>
             <div>
               <div className="user-name">{consultant?.name || "Consultant"}</div>
-              <div className="user-plan">Plan unavailable</div>
+              <Link
+                href="/settings?tab=billing"
+                className="user-plan"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  textDecoration: "none",
+                  marginTop: "2px",
+                }}
+                title="Manage Subscription & Billing"
+              >
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    padding: "1px 6px",
+                    borderRadius: "4px",
+                    backgroundColor:
+                      consultant?.subscription?.plan === "pro"
+                        ? "rgba(77, 255, 160, 0.16)"
+                        : consultant?.subscription?.plan === "enterprise"
+                        ? "rgba(168, 85, 247, 0.16)"
+                        : consultant?.subscription?.plan === "starter"
+                        ? "rgba(59, 130, 246, 0.16)"
+                        : "rgba(255, 255, 255, 0.08)",
+                    color:
+                      consultant?.subscription?.plan === "pro"
+                        ? "#4dffa0"
+                        : consultant?.subscription?.plan === "enterprise"
+                        ? "#c084fc"
+                        : consultant?.subscription?.plan === "starter"
+                        ? "#60a5fa"
+                        : "#9ca3af",
+                    border: `1px solid ${
+                      consultant?.subscription?.plan === "pro"
+                        ? "rgba(77, 255, 160, 0.3)"
+                        : consultant?.subscription?.plan === "enterprise"
+                        ? "rgba(168, 85, 247, 0.3)"
+                        : consultant?.subscription?.plan === "starter"
+                        ? "rgba(59, 130, 246, 0.3)"
+                        : "rgba(255, 255, 255, 0.12)"
+                    }`,
+                  }}
+                >
+                  {consultant?.subscription?.plan
+                    ? `${consultant.subscription.plan} Tier`
+                    : "Free Starter"}
+                </span>
+                <span style={{ fontSize: "11px", color: "#6b7280" }}>• Manage</span>
+              </Link>
             </div>
           </div>
         </div>

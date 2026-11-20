@@ -4,6 +4,8 @@ import {
   getMetrics,
   getConsultants,
   createConsultant,
+  updateConsultant,
+  deleteConsultant,
   getConsultantDetails,
   updateConsultantStatus,
   updateConsultantPlan,
@@ -44,6 +46,9 @@ router.get('/system/status', getSystemStatus);
 router.get('/consultants', getConsultants);
 router.post('/consultants', createConsultant);
 router.get('/consultants/:id/details', getConsultantDetails);
+router.put('/consultants/:id', updateConsultant);
+router.patch('/consultants/:id', updateConsultant);
+router.delete('/consultants/:id', deleteConsultant);
 router.patch('/consultants/:id/status', updateConsultantStatus);
 router.patch('/consultants/:id/plan', updateConsultantPlan);
 router.patch('/consultants/:id/ai-quota', updateConsultantAiQuota);
