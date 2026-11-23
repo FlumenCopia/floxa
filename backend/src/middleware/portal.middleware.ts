@@ -39,7 +39,7 @@ export async function clientPortalAccess(req: PortalRequest, res: Response, next
   try {
     const project = await Project.findOne({
       portalToken,
-      isArchived: false,
+      isArchived: { $ne: true },
     })
       .populate('client')
       .populate('consultant')

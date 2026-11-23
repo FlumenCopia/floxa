@@ -28,7 +28,7 @@ export function setTestEmailDispatcher(
 const transporter = nodemailer.createTransport({
   host: ENV.EMAIL_HOST,
   port: ENV.EMAIL_PORT,
-  secure: false, // TLS on port 587
+  secure: Number(ENV.EMAIL_PORT) === 465, // Must be true on port 465 (SSL/TLS)
   auth: {
     user: ENV.EMAIL_HOST_USER,
     pass: ENV.EMAIL_HOST_PASSWORD,
