@@ -18,6 +18,7 @@ import { serializeProject, serializeProjectActivity } from '../utils/serializer.
 import { hashPassword } from '../utils/crypto.js';
 import { resolveSafeFrontendOrigin } from '../config/env.js';
 import { getActiveHelpSession, broadcastProjectRead } from '../websocket/socketServer.js';
+import { checkConsultantProjectQuota, checkConsultantClientQuota } from '../services/subscription.service.js';
 
 export async function getProjects(req: any, res: Response, next: NextFunction) {
   try {
@@ -217,6 +218,40 @@ export async function createProject(req: any, res: Response, next: NextFunction)
     const totalPct = advancePercentage + midPercentage + finalPercentage;
     if (totalPct !== 100) {
       res.status(400).json({ detail: 'Payment percentages must sum to 100%.' });
+      return;
+    }
+
+    // 0. Subscription Quota Enforcement: Check if consultant has remaining project allowance
+    const projectQuota = await checkConsultantProjectQuota(req.user.id);
+    if (!projectQuota.allowed) {
+      res.status(403).json({
+        detail: projectQuota.reason,
+        code: projectQuota.code || 'SUBSCRIPTION_LIMIT_REACHED',
+        limit: {
+          resource: 'projects',
+          current: projectQuota.current,
+          max: projectQuota.max,
+          plan: projectQuota.planName,
+          upgradeUrl: '/settings?tab=billing',
+        },
+      });
+      return;
+    }
+
+    // Check client onboarding allowance
+    const clientQuota = await checkConsultantClientQuota(req.user.id);
+    if (!clientQuota.allowed) {
+      res.status(403).json({
+        detail: clientQuota.reason,
+        code: clientQuota.code || 'SUBSCRIPTION_CLIENT_LIMIT_REACHED',
+        limit: {
+          resource: 'clients',
+          current: clientQuota.current,
+          max: clientQuota.max,
+          plan: clientQuota.planName,
+          upgradeUrl: '/settings?tab=billing',
+        },
+      });
       return;
     }
 

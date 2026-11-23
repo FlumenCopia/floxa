@@ -4,6 +4,8 @@ import {
   getMetrics,
   getConsultants,
   createConsultant,
+  updateConsultant,
+  deleteConsultant,
   getConsultantDetails,
   updateConsultantStatus,
   updateConsultantPlan,
@@ -25,6 +27,14 @@ import {
   testGeminiConnection,
   purgeDemoData,
 } from '../controllers/settings.controller.js';
+import {
+  listPlans,
+  getPlan,
+  createPlan,
+  updatePlan,
+  adjustConsultantTimeline,
+  overrideConsultantQuota,
+} from '../controllers/plan.controller.js';
 
 const router = Router();
 
@@ -36,11 +46,22 @@ router.get('/system/status', getSystemStatus);
 router.get('/consultants', getConsultants);
 router.post('/consultants', createConsultant);
 router.get('/consultants/:id/details', getConsultantDetails);
+router.put('/consultants/:id', updateConsultant);
+router.patch('/consultants/:id', updateConsultant);
+router.delete('/consultants/:id', deleteConsultant);
 router.patch('/consultants/:id/status', updateConsultantStatus);
 router.patch('/consultants/:id/plan', updateConsultantPlan);
 router.patch('/consultants/:id/ai-quota', updateConsultantAiQuota);
 router.patch('/consultants/:id/reset-password', resetConsultantPassword);
+router.patch('/consultants/:id/subscription/timeline', adjustConsultantTimeline);
+router.patch('/consultants/:id/subscription/quota-override', overrideConsultantQuota);
 router.get('/projects', getProjects);
+
+// Dynamic Subscription Plans
+router.get('/plans', listPlans);
+router.post('/plans', createPlan);
+router.get('/plans/:id', getPlan);
+router.patch('/plans/:id', updatePlan);
 
 // Profile & Security (Phase 3)
 router.get('/profile', getAdminProfile);

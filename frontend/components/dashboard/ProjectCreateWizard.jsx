@@ -130,6 +130,7 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
   const [createdProjectId, setCreatedProjectId] = useState(null);
   const [isEmailFailed, setIsEmailFailed] = useState(false);
   const [isRetryingEmail, setIsRetryingEmail] = useState(false);
+  const [subscriptionLimitError, setSubscriptionLimitError] = useState(null);
 
   const hasPaymentValues = formData.advance !== "" && formData.mid !== "" && formData.final !== "";
   const paymentTotal = useMemo(() => {
@@ -359,6 +360,16 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
       }
     } catch (error) {
       console.error("Failed to create project:", error);
+      const isLimit =
+        error?.code === "SUBSCRIPTION_LIMIT_REACHED" ||
+        error?.code === "SUBSCRIPTION_CLIENT_LIMIT_REACHED" ||
+        error?.code === "SUBSCRIPTION_EXPIRED" ||
+        error?.code === "SUBSCRIPTION_REQUIRED" ||
+        error?.code === "SUBSCRIPTION_INACTIVE" ||
+        error?.code === "ACCOUNT_SUSPENDED";
+      if (isLimit) {
+        setSubscriptionLimitError(error);
+      }
       const message = getCreateProjectError(error);
       setProjectCreateError(message);
       showError(message);
@@ -596,6 +607,42 @@ export default function ProjectCreateWizard({ onClose, onProjectCreated }) {
 
 
             {projectCreateError ? <div className="project-wizard-note">{projectCreateError}</div> : null}
+            {subscriptionLimitError ? (
+              <div
+                style={{
+                  margin: "12px 0",
+                  padding: "14px 16px",
+                  borderRadius: "8px",
+                  backgroundColor: "rgba(255, 107, 107, 0.12)",
+                  border: "1px solid rgba(255, 107, 107, 0.3)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                }}
+              >
+                <div style={{ color: "#ff6b6b", fontSize: "12px", fontWeight: 600 }}>
+                  {subscriptionLimitError.detail || "You have reached your subscription plan limits."}
+                </div>
+                <a
+                  href="/settings?tab=billing"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textDecoration: "none",
+                    fontSize: "12px",
+                    padding: "8px 14px",
+                    backgroundColor: "#4dffa0",
+                    color: "#020806",
+                    borderRadius: "6px",
+                    fontWeight: 700,
+                    width: "fit-content",
+                  }}
+                >
+                  Upgrade or Renew Plan in Settings →
+                </a>
+              </div>
+            ) : null}
             {projectCreateSuccess ? <div className="project-wizard-note">{projectCreateSuccess}</div> : null}
             {createdPortalLink ? <div className="project-wizard-note">Client portal link: {createdPortalLink}</div> : null}
 
