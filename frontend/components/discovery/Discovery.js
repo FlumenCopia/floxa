@@ -1363,14 +1363,12 @@ function OverviewPanel({
     return new Date(secondActivity.created_at || 0) - new Date(firstActivity.created_at || 0);
   });
 
-  const clientFont = project?.discovery?.selectedFont || project?.discovery?.selected_font || (typeof window !== "undefined" && project?.id ? clientPortalService.getClientFontPreferences(project.id)?.selectedFont : "");
-
   return (
     <div className="discovery-overview-grid">
-      {clientFont ? (
+      {project ? (
         <section className="discovery-card discovery-panel discovery-overview-card" style={{ gridColumn: "1 / -1", border: "1px solid rgba(77, 255, 160, 0.25)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-            <h2 className="discovery-panel-title" style={{ margin: 0, color: "#4dffa0", fontSize: "14px" }}>Client Brand Typography Directive</h2>
+            <h2 className="discovery-panel-title" style={{ margin: 0, color: "#4dffa0", fontSize: "14px" }}>Selected Project</h2>
             <span style={{
               fontSize: "10px",
               padding: "2px 8px",
@@ -1379,18 +1377,19 @@ function OverviewPanel({
               color: "#4dffa0",
               fontWeight: 600,
               textTransform: "uppercase"
-            }}>Selected in Portal</span>
+            }}>{sector !== "No sector available" ? sector : "Active"}</span>
           </div>
           <div style={{
-            fontFamily: `"${clientFont}", sans-serif`,
             fontSize: "24px",
+            fontWeight: 700,
             color: "#ffffff",
             margin: "6px 0 2px"
           }}>
-            {clientFont}
+            {project?.title || project?.company_name || "Selected Project"}
           </div>
           <p style={{ margin: 0, fontSize: "12px", color: "#89aca0" }}>
-            The client chose this Google Font during onboarding to establish their brand identity.
+            {project?.company_name && project?.title && project.company_name !== project.title ? `${project.company_name} • ` : ""}
+            Client: {clientName} • Value: {value}
           </p>
         </section>
       ) : null}
