@@ -183,37 +183,26 @@ export async function sendClientPortalInvite(
       : path.resolve(__dirname, '..', '..', 'assets');
 
   const emailAttachments: Array<{ filename: string; path: string; cid: string }> = [];
-  const floxaLogoPath = path.join(resolvedAssetsDir, 'floxa-f-logo.png');
-  if (fs.existsSync(floxaLogoPath)) {
-    emailAttachments.push({
-      filename: 'floxa-f-logo.png',
-      path: floxaLogoPath,
-      cid: 'floxa_f_logo',
-    });
-  }
-  const floxaBadgePath = path.join(resolvedAssetsDir, 'floxa-badge.png');
-  if (fs.existsSync(floxaBadgePath)) {
-    emailAttachments.push({
-      filename: 'floxa-badge.png',
-      path: floxaBadgePath,
-      cid: 'floxa_badge',
-    });
-  }
-  const phonePath = path.join(resolvedAssetsDir, 'phone-icon.png');
-  if (fs.existsSync(phonePath)) {
-    emailAttachments.push({
-      filename: 'phone-icon.png',
-      path: phonePath,
-      cid: 'phone_icon',
-    });
-  }
-  const wavePath = path.join(resolvedAssetsDir, 'header-wave.png');
-  if (fs.existsSync(wavePath)) {
-    emailAttachments.push({
-      filename: 'header-wave.png',
-      path: wavePath,
-      cid: 'header_wave',
-    });
+  const assetFiles = [
+    { filename: 'floxa-mint-f.png', cid: 'floxa_mint_f' },
+    { filename: 'header-wave-green.png', cid: 'header_wave_green' },
+    { filename: 'workspace-badge.png', cid: 'workspace_badge' },
+    { filename: 'icon-folder.png', cid: 'icon_folder' },
+    { filename: 'icon-building.png', cid: 'icon_building' },
+    { filename: 'icon-rupee.png', cid: 'icon_rupee' },
+    { filename: 'icon-split.png', cid: 'icon_split' },
+    { filename: 'icon-headset.png', cid: 'icon_headset' },
+  ];
+
+  for (const item of assetFiles) {
+    const fullPath = path.join(resolvedAssetsDir, item.filename);
+    if (fs.existsSync(fullPath)) {
+      emailAttachments.push({
+        filename: item.filename,
+        path: fullPath,
+        cid: item.cid,
+      });
+    }
   }
 
   const html = `
@@ -226,42 +215,44 @@ export async function sendClientPortalInvite(
       <style>
         @media only screen and (max-width: 580px) {
           .email-container { width: 100% !important; max-width: 100% !important; border-radius: 16px !important; }
-          .header-pad { padding: 18px 18px 12px 18px !important; }
+          .header-pad { padding: 18px 16px 12px 16px !important; }
           .header-tagline { display: none !important; }
           .body-pad { padding: 0 16px 24px 16px !important; }
           .main-heading { font-size: 24px !important; }
           .specs-card { width: 100% !important; max-width: 100% !important; padding: 12px 14px !important; }
-          .specs-label { width: 32% !important; font-size: 12px !important; }
-          .specs-value { width: 68% !important; font-size: 12px !important; }
+          .specs-val-text { font-size: 13px !important; }
+          .specs-val-large { font-size: 16px !important; }
           .cta-btn { width: 100% !important; padding: 14px 16px !important; font-size: 14px !important; box-sizing: border-box !important; text-align: center !important; }
-          .help-card { width: 100% !important; max-width: 100% !important; padding: 14px !important; }
+          .help-card { width: 100% !important; max-width: 100% !important; padding: 12px 14px !important; }
+          .help-col { display: block !important; width: 100% !important; text-align: center !important; padding: 4px 0 !important; }
+          .help-col-icon { display: none !important; }
           .footer-col { display: block !important; width: 100% !important; text-align: center !important; padding: 6px 0 !important; }
           .footer-social-wrap { text-align: center !important; margin-top: 8px !important; }
         }
       </style>
     </head>
-    <body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <body style="margin: 0; padding: 0; background-color: #030705; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
       
       <!-- Outer Responsive Wrapper -->
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9; width: 100%; margin: 0; padding: 24px 8px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #030705; width: 100%; margin: 0; padding: 28px 8px;">
         <tr>
           <td align="center" valign="top">
             
             <!-- Main Card Container (max-width: 580px) -->
-            <table role="presentation" class="email-container" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 580px; width: 100%; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 12px 40px rgba(11, 19, 41, 0.08);">
+            <table role="presentation" class="email-container" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 580px; width: 100%; margin: 0 auto; background-color: #050b07; border-radius: 24px; overflow: hidden; border: 1px solid rgba(77, 255, 160, 0.22); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);">
               
               <!-- Header Row -->
               <tr>
-                <td style="padding: 0; background-color: #0b1329;">
-                  <!-- Dark Midnight Navy Header Bar -->
-                  <div class="header-pad" style="padding: 24px 32px 14px 32px; background-color: #0b1329;">
+                <td style="padding: 0; background-color: #040906;">
+                  <!-- Dark Emerald Header Bar -->
+                  <div class="header-pad" style="padding: 24px 32px 14px 32px; background-color: #040906;">
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td align="left" valign="middle">
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                             <tr>
-                              <td valign="middle" style="padding-right: 8px;">
-                                <img src="cid:floxa_f_logo" width="22" height="22" alt="FLOXA" style="display: block; border: 0;" />
+                              <td valign="middle" style="padding-right: 10px;">
+                                <img src="cid:floxa_mint_f" width="22" height="22" alt="FLOXA" style="display: block; border: 0;" />
                               </td>
                               <td valign="middle" style="font-size: 20px; font-weight: 850; letter-spacing: -0.02em; color: #ffffff; line-height: 1;">
                                 FLOXA
@@ -270,122 +261,145 @@ export async function sendClientPortalInvite(
                           </table>
                         </td>
                         <td align="right" valign="middle" class="header-tagline">
-                          <span style="font-size: 11px; color: #94a3b8; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;">CREATE &bull; COLLABORATE &bull; GROW</span>
+                          <span style="font-size: 10px; color: #89aca0; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;">BRAND DISCOVERY PLATFORM</span>
                         </td>
                       </tr>
                     </table>
                   </div>
 
                   <!-- Wave Transition -->
-                  <div style="line-height: 0; font-size: 0; background-color: #0b1329;">
-                    <img src="cid:header_wave" width="100%" height="auto" alt="" style="display: block; width: 100%; border: 0; outline: none; margin: 0;" />
+                  <div style="line-height: 0; font-size: 0; background-color: #040906;">
+                    <img src="cid:header_wave_green" width="100%" height="auto" alt="" style="display: block; width: 100%; border: 0; outline: none; margin: 0;" />
                   </div>
 
-                  <!-- Centered Floating FLOXA Emblem Badge -->
-                  <div align="center" style="text-align: center; margin-top: -32px; margin-bottom: 18px; line-height: 0;">
-                    <img src="cid:floxa_badge" width="64" height="64" alt="FLOXA" style="display: inline-block; width: 64px; height: 64px; border-radius: 50%; box-shadow: 0 8px 24px rgba(48, 70, 212, 0.22); border: 0; outline: none;" />
+                  <!-- Centered Floating Workspace Badge -->
+                  <div align="center" style="text-align: center; margin-top: -34px; margin-bottom: 22px; line-height: 0;">
+                    <img src="cid:workspace_badge" width="68" height="68" alt="FLOXA" style="display: inline-block; width: 68px; height: 68px; border-radius: 50%; box-shadow: 0 0 24px rgba(77, 255, 160, 0.35); border: 0; outline: none;" />
                   </div>
                 </td>
               </tr>
 
               <!-- Body Content Row -->
               <tr>
-                <td class="body-pad" style="padding: 0 32px 32px 32px; text-align: center; background-color: #ffffff;">
+                <td class="body-pad" style="padding: 0 32px 32px 32px; text-align: center; background-color: #050b07;">
                   
-                  <h1 class="main-heading" style="margin: 0 0 10px 0; font-size: 28px; font-weight: 850; letter-spacing: -0.03em; color: #0b1329; line-height: 1.2;">
+                  <h1 class="main-heading" style="margin: 0 0 10px 0; font-size: 28px; font-weight: 850; letter-spacing: -0.03em; color: #ffffff; line-height: 1.2;">
                     Welcome to FLOXA!
                   </h1>
 
-                  <p style="margin: 0 0 10px 0; font-size: 16px; font-weight: 700; color: #0b1329;">
+                  <p style="margin: 0 0 8px 0; font-size: 16px; font-weight: 700; color: #ffffff;">
                     Hello ${escapeHtml(clientName)},
                   </p>
 
-                  <p style="margin: 0 auto 22px auto; max-width: 440px; font-size: 14px; line-height: 1.6; color: #475569;">
-                    ${rawPortalPassword
-                      ? `Thank you for joining FLOXA. We're excited to have you on board! Your consultant${consultantName ? `, <strong>${escapeHtml(consultantName)}</strong>,` : ''} has set up your workspace for <strong>${escapeHtml(project.title)}</strong>.`
-                      : `Thank you for joining FLOXA. We're excited to have you on board! Your consultant${consultantName ? `, <strong>${escapeHtml(consultantName)}</strong>,` : ''} has prepared your workspace for <strong>${escapeHtml(project.title)}</strong>. Access your portal link below to get started.`
-                    }
+                  <p style="margin: 0 auto 24px auto; max-width: 440px; font-size: 14px; line-height: 1.6; color: #89aca0;">
+                    Your workspace has been prepared. Review your project specifications below to get started.
                   </p>
 
-                  <!-- Project Specification Card (Fluid & Responsive) -->
-                  <table role="presentation" class="specs-card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 460px; margin: 0 auto 24px auto; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 18px; font-size: 13px; box-sizing: border-box;">
+                  <!-- Project Specification Card (Matching Exact Dark Emerald Container) -->
+                  <table role="presentation" class="specs-card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 470px; margin: 0 auto 26px auto; background-color: #07150e; border: 1px solid rgba(77, 255, 160, 0.35); border-radius: 16px; padding: 14px 18px; font-size: 13px; box-sizing: border-box;">
+                    
+                    <!-- Project Row -->
                     <tr>
-                      <td class="specs-label" style="padding: 7px 0; color: #64748b; font-weight: 500; width: 30%; text-align: left;">Project</td>
-                      <td class="specs-value" style="padding: 7px 0; color: #0b1329; font-weight: 700; text-align: right; width: 70%; word-break: break-word;">${escapeHtml(project.title)}</td>
+                      <td style="width: 24px; padding: 10px 8px 10px 0; vertical-align: middle;">
+                        <img src="cid:icon_folder" width="18" height="18" alt="" style="display: block; border: 0;" />
+                      </td>
+                      <td style="color: #89aca0; font-weight: 500; width: 100px; text-align: left; vertical-align: middle;">Project</td>
+                      <td style="color: #89aca0; width: 12px; text-align: center; vertical-align: middle;">:</td>
+                      <td class="specs-val-text" style="color: #ffffff; font-weight: 700; text-align: left; padding-left: 8px; vertical-align: middle; word-break: break-word;">${escapeHtml(project.title)}</td>
                     </tr>
+                    <tr><td colspan="4" style="border-bottom: 1px solid rgba(77, 255, 160, 0.1); padding: 0; height: 1px;"></td></tr>
+
+                    <!-- Company Row -->
                     <tr>
-                      <td class="specs-label" style="padding: 7px 0; color: #64748b; font-weight: 500; width: 30%; text-align: left;">Company</td>
-                      <td class="specs-value" style="padding: 7px 0; color: #0b1329; font-weight: 600; text-align: right; width: 70%; word-break: break-word;">${escapeHtml(companyName)}</td>
+                      <td style="width: 24px; padding: 10px 8px 10px 0; vertical-align: middle;">
+                        <img src="cid:icon_building" width="18" height="18" alt="" style="display: block; border: 0;" />
+                      </td>
+                      <td style="color: #89aca0; font-weight: 500; width: 100px; text-align: left; vertical-align: middle;">Company</td>
+                      <td style="color: #89aca0; width: 12px; text-align: center; vertical-align: middle;">:</td>
+                      <td class="specs-val-text" style="color: #ffffff; font-weight: 600; text-align: left; padding-left: 8px; vertical-align: middle; word-break: break-word;">${escapeHtml(companyName)}</td>
                     </tr>
+                    <tr><td colspan="4" style="border-bottom: 1px solid rgba(77, 255, 160, 0.1); padding: 0; height: 1px;"></td></tr>
+
+                    <!-- Value Row -->
                     <tr>
-                      <td class="specs-label" style="padding: 7px 0; color: #64748b; font-weight: 500; width: 30%; text-align: left;">Email</td>
-                      <td class="specs-value" style="padding: 7px 0; color: #0b1329; font-weight: 600; text-align: right; width: 70%; word-break: break-word;">${displayEmailNoBlueLink}</td>
+                      <td style="width: 24px; padding: 10px 8px 10px 0; vertical-align: middle;">
+                        <img src="cid:icon_rupee" width="18" height="18" alt="" style="display: block; border: 0;" />
+                      </td>
+                      <td style="color: #89aca0; font-weight: 500; width: 100px; text-align: left; vertical-align: middle;">Value</td>
+                      <td style="color: #89aca0; width: 12px; text-align: center; vertical-align: middle;">:</td>
+                      <td class="specs-val-large" style="color: #4dffa0; font-weight: 850; font-size: 18px; text-align: left; padding-left: 8px; vertical-align: middle;">${escapeHtml(formattedValue)}</td>
                     </tr>
+                    <tr><td colspan="4" style="border-bottom: 1px solid rgba(77, 255, 160, 0.1); padding: 0; height: 1px;"></td></tr>
+
+                    <!-- Payment Split Row -->
                     <tr>
-                      <td class="specs-label" style="padding: 7px 0; color: #64748b; font-weight: 500; width: 30%; text-align: left;">Value</td>
-                      <td class="specs-value" style="padding: 7px 0; color: #2563eb; font-weight: 750; text-align: right; width: 70%; font-size: 14px;">${escapeHtml(formattedValue)}</td>
+                      <td style="width: 24px; padding: 10px 8px 10px 0; vertical-align: middle;">
+                        <img src="cid:icon_split" width="18" height="18" alt="" style="display: block; border: 0;" />
+                      </td>
+                      <td style="color: #89aca0; font-weight: 500; width: 100px; text-align: left; vertical-align: middle;">Payment Split</td>
+                      <td style="color: #89aca0; width: 12px; text-align: center; vertical-align: middle;">:</td>
+                      <td class="specs-val-text" style="color: #ffffff; font-weight: 600; text-align: left; padding-left: 8px; vertical-align: middle; line-height: 1.45; word-break: break-word;">${escapeHtml(paymentSplitDisplay)}</td>
                     </tr>
-                    <tr>
-                      <td class="specs-label" style="padding: 7px 0; color: #64748b; font-weight: 500; vertical-align: top; width: 30%; text-align: left;">Payment Split</td>
-                      <td class="specs-value" style="padding: 7px 0; color: #0b1329; font-weight: 600; text-align: right; width: 70%; line-height: 1.45; word-break: break-word;">${escapeHtml(paymentSplitDisplay)}</td>
-                    </tr>
+
                     ${rawPortalPassword ? `
+                    <tr><td colspan="4" style="border-bottom: 1px solid rgba(77, 255, 160, 0.1); padding: 0; height: 1px;"></td></tr>
                     <tr>
-                      <td class="specs-label" style="padding: 7px 0; color: #64748b; font-weight: 500; width: 30%; text-align: left;">Portal Password</td>
-                      <td class="specs-value" style="padding: 7px 0; text-align: right; width: 70%;"><code style="background: #e0e7ff; color: #3046d4; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 13px;">${escapeHtml(rawPortalPassword)}</code></td>
+                      <td style="width: 24px; padding: 10px 8px 10px 0; vertical-align: middle;">
+                        <span style="color: #4dffa0; font-size: 14px;">&#128274;</span>
+                      </td>
+                      <td style="color: #89aca0; font-weight: 500; width: 100px; text-align: left; vertical-align: middle;">Password</td>
+                      <td style="color: #89aca0; width: 12px; text-align: center; vertical-align: middle;">:</td>
+                      <td style="padding-left: 8px; text-align: left; vertical-align: middle;">
+                        <code style="background: rgba(77, 255, 160, 0.15); color: #4dffa0; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 13px;">${escapeHtml(rawPortalPassword)}</code>
+                      </td>
                     </tr>` : ''}
+
                   </table>
 
-                  <!-- Royal Blue CTA Button: Access Client Portal -->
-                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 24px 0;">
+                  <!-- Electric Mint Glow Pill Button: Access Client Portal -->
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 26px 0;">
                     <tr>
                       <td align="center">
-                        <a href="${escapeHtml(portalUrl)}" class="cta-btn" style="background-color: #3046d4; background-image: linear-gradient(135deg, #3858f6 0%, #2540d0 100%); color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 999px; font-weight: 750; font-size: 15px; display: inline-block; letter-spacing: -0.01em; box-shadow: 0 8px 24px rgba(48, 70, 212, 0.35);">
+                        <a href="${escapeHtml(portalUrl)}" class="cta-btn" style="background-color: #4dffa0; background-image: linear-gradient(135deg, #4dffa0 0%, #00e575 100%); color: #030c06; padding: 15px 44px; text-decoration: none; border-radius: 999px; font-weight: 850; font-size: 15px; display: inline-block; letter-spacing: -0.01em; box-shadow: 0 0 24px rgba(77, 255, 160, 0.45);">
                           Access Client Portal &rarr;
                         </a>
                       </td>
                     </tr>
                   </table>
 
-                  <!-- Need Help? Card (with Centered Table Phone Icon) -->
-                  <table role="presentation" class="help-card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 460px; margin: 0 auto 18px auto; background-color: #f1f5fe; border-radius: 14px; padding: 14px 18px; text-align: left; box-sizing: border-box;">
+                  <!-- Need Help? Card (Matching Headset Pill Style) -->
+                  <table role="presentation" class="help-card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 470px; margin: 0 auto 18px auto; background-color: #07150e; border: 1px solid rgba(77, 255, 160, 0.22); border-radius: 14px; padding: 12px 18px; text-align: left; box-sizing: border-box;">
                     <tr>
-                      <td style="width: 44px; vertical-align: middle; padding-right: 12px;" align="center">
-                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="38" height="38" style="width: 38px; height: 38px; border-radius: 50%; background-color: #e0e7ff;">
-                          <tr>
-                            <td align="center" valign="middle" style="width: 38px; height: 38px; text-align: center; vertical-align: middle; padding: 0;">
-                              <img src="cid:phone_icon" width="20" height="20" alt="📞" style="display: block; margin: 0 auto; border: 0; outline: none;" />
-                            </td>
-                          </tr>
-                        </table>
+                      <td class="help-col-icon" style="width: 32px; vertical-align: middle; padding-right: 12px;">
+                        <img src="cid:icon_headset" width="24" height="24" alt="" style="display: block; border: 0;" />
                       </td>
-                      <td style="vertical-align: middle;">
-                        <div style="font-size: 14px; font-weight: 750; color: #0b1329; margin-bottom: 2px;">
+                      <td class="help-col" style="vertical-align: middle; border-left: 1px solid rgba(77, 255, 160, 0.18); padding-left: 14px;">
+                        <div style="font-size: 13px; font-weight: 750; color: #ffffff; margin-bottom: 2px;">
                           Need Help?
                         </div>
-                        <div style="font-size: 13px; line-height: 1.45; color: #475569; margin-bottom: 4px;">
-                          Our support team is here for you. Feel free to reach out anytime${consultantEmail ? ` or reply directly to <strong>${escapeHtml(consultantName || 'your consultant')}</strong> (${escapeHtml(consultantEmail)})` : ''}.
+                        <div style="font-size: 12px; color: #89aca0;">
+                          Our support team is here for you anytime${consultantEmail ? ` or reply to <strong>${escapeHtml(consultantName || 'your consultant')}</strong>` : ''}.
                         </div>
-                        <div>
-                          <a href="${consultantEmail ? `mailto:${escapeHtml(consultantEmail)}` : `${escapeHtml(portalUrl)}`}" style="color: #2563eb; font-size: 13px; font-weight: 700; text-decoration: none;">
-                            Contact Support &rarr;
-                          </a>
-                        </div>
+                      </td>
+                      <td class="help-col" align="right" style="vertical-align: middle; padding-left: 10px;">
+                        <a href="${consultantEmail ? `mailto:${escapeHtml(consultantEmail)}` : `${escapeHtml(portalUrl)}`}" style="color: #4dffa0; font-size: 12px; font-weight: 750; text-decoration: none; white-space: nowrap;">
+                          Contact Support &rarr;
+                        </a>
                       </td>
                     </tr>
                   </table>
 
                   <!-- Plain Text Fallback Link -->
-                  <p style="margin: 14px 0 0 0; font-size: 12px; line-height: 1.5; color: #94a3b8; text-align: center;">
+                  <p style="margin: 14px 0 0 0; font-size: 12px; line-height: 1.5; color: #4a6b5e; text-align: center;">
                     If the button doesn't work, copy this link into your browser:<br/>
-                    <a href="${escapeHtml(portalUrl)}" style="color: #2563eb; font-weight: 500; text-decoration: underline; word-break: break-all;">${escapeHtml(portalUrl)}</a>
+                    <a href="${escapeHtml(portalUrl)}" style="color: #4dffa0; font-weight: 500; text-decoration: underline; word-break: break-all;">${escapeHtml(portalUrl)}</a>
                   </p>
                 </td>
               </tr>
 
               <!-- Footer Row -->
               <tr>
-                <td style="background-color: #0b1329; padding: 22px 28px 18px 28px;">
+                <td style="background-color: #040906; padding: 22px 28px 18px 28px; border-top: 1px solid rgba(77, 255, 160, 0.12);">
                   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 14px;">
                     <tr>
                       <!-- Brand + Tagline -->
@@ -393,23 +407,16 @@ export async function sendClientPortalInvite(
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                           <tr>
                             <td style="vertical-align: middle; padding-right: 8px;">
-                              <img src="cid:floxa_f_logo" width="16" height="16" alt="FLOXA" style="display: block; border: 0;" />
+                              <img src="cid:floxa_mint_f" width="16" height="16" alt="FLOXA" style="display: block; border: 0;" />
                             </td>
-                            <td style="font-size: 15px; font-weight: 850; letter-spacing: -0.02em; color: #ffffff; line-height: 1;">
+                            <td style="font-size: 15px; font-weight: 850; letter-spacing: -0.02em; color: #ffffff; line-height: 1; padding-right: 8px;">
                               FLOXA
+                            </td>
+                            <td style="border-left: 1px solid rgba(255, 255, 255, 0.2); padding-left: 8px; font-size: 11px; color: #89aca0; vertical-align: middle;">
+                              Building better brands together
                             </td>
                           </tr>
                         </table>
-                        <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">
-                          Building better brands together.
-                        </div>
-                      </td>
-
-                      <!-- Center Links -->
-                      <td class="footer-col" style="vertical-align: middle; text-align: center;">
-                        <span style="font-size: 12px; color: #cbd5e1; font-weight: 500;">
-                          Dashboard &nbsp;|&nbsp; Support &nbsp;|&nbsp; Contact
-                        </span>
                       </td>
 
                       <!-- Social Icons -->
@@ -418,17 +425,17 @@ export async function sendClientPortalInvite(
                           <tr>
                             <td style="padding-left: 6px;">
                               <div style="width: 22px; height: 22px; border-radius: 50%; background-color: #ffffff; text-align: center; line-height: 22px;">
-                                <span style="font-size: 10px; font-weight: 800; color: #0b1329; display: inline-block; vertical-align: middle;">in</span>
+                                <span style="font-size: 10px; font-weight: 800; color: #040906; display: inline-block; vertical-align: middle;">in</span>
                               </div>
                             </td>
                             <td style="padding-left: 6px;">
                               <div style="width: 22px; height: 22px; border-radius: 50%; background-color: #ffffff; text-align: center; line-height: 22px;">
-                                <span style="font-size: 10px; font-weight: 800; color: #0b1329; display: inline-block; vertical-align: middle;">&times;</span>
+                                <span style="font-size: 10px; font-weight: 800; color: #040906; display: inline-block; vertical-align: middle;">&times;</span>
                               </div>
                             </td>
                             <td style="padding-left: 6px;">
                               <div style="width: 22px; height: 22px; border-radius: 50%; background-color: #ffffff; text-align: center; line-height: 22px;">
-                                <span style="font-size: 9px; font-weight: 800; color: #0b1329; display: inline-block; vertical-align: middle;">&#9658;</span>
+                                <span style="font-size: 9px; font-weight: 800; color: #040906; display: inline-block; vertical-align: middle;">&#9658;</span>
                               </div>
                             </td>
                           </tr>
@@ -437,8 +444,15 @@ export async function sendClientPortalInvite(
                     </tr>
                   </table>
 
+                  <!-- Navigation Links -->
+                  <div style="text-align: left; margin-bottom: 12px;">
+                    <span style="font-size: 11px; color: #89aca0; font-weight: 500;">
+                      Dashboard &nbsp;|&nbsp; Support &nbsp;|&nbsp; Contact
+                    </span>
+                  </div>
+
                   <!-- Bottom Copyright -->
-                  <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 12px; font-size: 11px; color: #64748b; text-align: center;">
+                  <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px; font-size: 11px; color: #4a6b5e; text-align: center;">
                     &copy; 2026 FLOXA. All rights reserved.
                   </div>
                 </td>
